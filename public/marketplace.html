@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Marketplace</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav>
+    <div class="logo">AI Hub</div>
+    <ul class="nav-links">
+      <li><a href="index.html">Dashboard</a></li>
+      <li><a href="marketplace.html">Marketplace</a></li>
+      <li><a href="mymodels.html">My Models</a></li>
+    </ul>
+  </nav>
+
+    <main style="padding: 40px;">
+    <h1>Model Marketplace</h1>
+
+    <details open>
+        <summary><strong>Installed Models</strong></summary>
+        <div class="card-grid" id="installed-models"></div>
+    </details>
+
+    <h2 style="margin-top: 40px;">Available Models</h2>
+    <div class="card-grid" id="available-models"></div>
+    <div id="notification-container"></div>
+
+
+    </main>
+    <script src="scripts/marketplace.js"></script>
+
+
+</body>
+</html>
