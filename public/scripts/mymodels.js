@@ -4,11 +4,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const models = await window.ollama.listModels();
         models.forEach((model) => {
             const card = document.createElement("div");
-            card.className = "auth-card";
+            card.className = "marketplace-card";
             card.innerHTML = `
                 <h2>${model.name}</h2>
                 <p>Local LLM</p>
-                <button onclick="runModel('${model.name}')">Run ${model.name}</button>
+                <button onclick="runModel('${model.name}')">Open Chat</button>
             `;
             container.appendChild(card);
         });

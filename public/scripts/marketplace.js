@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const installed = await window.ollama.listModels();
         installed.forEach((model) => {
             const card = document.createElement("div");
-            card.className = "auth-card";
+            card.className = "marketplace-card";
             card.innerHTML = `
         <h2>${model.name}</h2>
         <p><strong>Size:</strong> ${model.size}</p>
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             .filter((name) => !installedNames.includes(name))
             .forEach((name) => {
                 const card = document.createElement("div");
-                card.className = "auth-card";
+                card.className = "marketplace-card";
                 card.innerHTML = `
           <h2>${name}</h2>
           <p>Not installed</p>

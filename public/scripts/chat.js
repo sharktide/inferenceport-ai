@@ -34,6 +34,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
+function generateSessionId() {
+    return crypto.randomUUID();
+}
+
+
 function showContextMenu(x, y, sessionId, sessionName) {
     const menu = document.getElementById("session-context-menu");
     menu.style.left = `${x}px`;
@@ -69,8 +74,7 @@ function deleteSession(sessionId) {
             currentSessionId = Object.keys(sessions)[0] || null;
         }
         window.ollama.save(sessions);
-        renderSessionList();
-        renderChat();
+        location.reload()
     }
 }
 
@@ -100,41 +104,71 @@ function openRenameDialog(sessionId, currentName) {
 
 
 function createNewSession() {
-    const id = Date.now().toString();
+    const id = generateSessionId();
+    const name = new Date().toLocaleString();
     sessions[id] = {
         model: modelSelect.value,
+        name,
         history: [],
+        favorite: false,
     };
     currentSessionId = id;
+    window.ollama.save(sessions);
+    renderSessionList();
+    renderChat();
+}
+
+
+function handleSessionClick(sessionId) {
+    currentSessionId = sessionId;
     renderSessionList();
     renderChat();
 }
 
 function renderSessionList() {
     sessionList.innerHTML = '';
-    Object.entries(sessions).forEach(([id, session]) => {
+
+    const searchTerm = document.getElementById("session-search")?.value?.toLowerCase() || "";
+
+    const sortedSessions = Object.entries(sessions)
+        .filter(([, session]) => session.name?.toLowerCase().includes(searchTerm))
+        .sort(([, a], [, b]) => {
+            if (a.favorite !== b.favorite) return b.favorite - a.favorite;
+            return (a.name || "").localeCompare(b.name || "");
+        });
+
+    sortedSessions.forEach(([id, session]) => {
         const li = document.createElement("li");
         li.className = id === currentSessionId ? "active-session" : "";
 
-        const name = session.name || `${session.model} (${new Date(+id).toLocaleTimeString()})`;
+        const name = session.name || `${new Date(+id).toLocaleTimeString()}`;
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "session-name";
         nameSpan.textContent = name;
-        nameSpan.onclick = () => {
-            currentSessionId = id;
-            renderChat();
-        };
 
-        // ✅ Always attach contextmenu listener
+        nameSpan.onclick = () => handleSessionClick(id);
+
         nameSpan.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             showContextMenu(e.pageX, e.pageY, id, name);
         });
 
+        const star = document.createElement("span");
+        star.className = "favorite-icon";
+        star.textContent = session.favorite ? "★" : "☆";
+
+        star.onclick = (e) => {
+            e.stopPropagation();
+            session.favorite = !session.favorite;
+            window.ollama.save(sessions);
+            renderSessionList();
+        };
+
         const nameWrapper = document.createElement("div");
         nameWrapper.className = "session-name-wrapper";
         nameWrapper.appendChild(nameSpan);
+        nameWrapper.appendChild(star);
         li.appendChild(nameWrapper);
 
         sessionList.appendChild(li);
@@ -148,7 +182,8 @@ function renderChat() {
         sessions[newId] = {
             id: newId,
             name: `Session ${Object.keys(sessions).length + 1}`,
-            history: []
+            history: [],
+            favorite: false
         };
         currentSessionId = newId;
         window.ollama.save(sessions);
@@ -232,3 +267,5 @@ stopBtn.addEventListener("click", () => {
 });
 
 newSessionBtn.addEventListener("click", createNewSession);
+
+document.getElementById("session-search").addEventListener("input", renderSessionList);

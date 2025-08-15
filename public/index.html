@@ -4,16 +4,47 @@
     <meta charset="UTF-8" />
     <title>AI Hub Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
+    <script src="scripts/staticload/theme.js"></script>
 </head>
 <body>
     <nav>
-        <div class="logo">AI Hub</div>
+        <div class="logo">ModelVine</div>
         <ul class="nav-links">
             <li><a href="index.html">Dashboard</a></li>
             <li><a href="marketplace.html">Marketplace</a></li>
             <li><a href="mymodels.html">My Models</a></li>
+            <li><a href="settings.html">Settings</a>
+
         </ul>
     </nav>
+
+    <script>
+//   const toggleBtn = document.getElementById('theme-toggle');
+//   toggleBtn.addEventListener('click', () => {
+//     const currentTheme = document.documentElement.getAttribute('data-theme');
+//     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+//     document.documentElement.setAttribute('data-theme', newTheme);
+//     toggleBtn.textContent = newTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+//   });
+
+//   // Optional: Save preference
+//   if (localStorage.getItem('theme')) {
+//     document.documentElement.setAttribute('data-theme', localStorage.getItem('theme'));
+//     toggleBtn.textContent = localStorage.getItem('theme') === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+//   }
+
+//   toggleBtn.addEventListener('click', () => {
+//     const newTheme = document.documentElement.getAttribute('data-theme');
+//     localStorage.setItem('theme', newTheme);
+//   });
+
+  if (!localStorage.getItem('theme')) {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+}
+
+</script>
+
 
     <main style="padding: 40px;">
         <h1>Welcome to AI Hub</h1>
