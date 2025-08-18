@@ -1,5 +1,4 @@
-const markedRenderer = window.marked;
-
+//@ts-nocheck
 const dataDir = window.ollama.getPath()
 const sessionFile = `${dataDir}/sessions.json`;
 const chatBox = document.getElementById("chat-box");

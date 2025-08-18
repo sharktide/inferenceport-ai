@@ -4,14 +4,23 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx electron ."
+    "clean": "node scripts/clean.js",
+    "compile:main": "tsc -p tsconfig.main.json",
+    "compile:renderer": "tsc -p tsconfig.renderer.json",
+    "compile": "npm run compile:main && npm run compile:renderer",
+    "start": "node scripts/clean.js && npm run compile && npx electron . && node scripts/clean.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "electron": "^37.2.6",
-    "electron-builder": "^26.0.12"
+    "electron": "^37.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "electron-builder": "^26.0.12",
+    "glob": "^11.0.3",
+    "ts-node": "^10.9.2"
   }
 }

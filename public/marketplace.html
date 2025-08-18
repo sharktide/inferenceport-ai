@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Marketplace</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>Marketplace - Select Backend</title>
+  <link rel="stylesheet" href="styles/styles.css" />
+  <link rel="stylesheet" href="styles/marketplace.css">
   <script src="scripts/staticload/theme.js"></script>
 </head>
 <body>
@@ -18,21 +19,34 @@
   </nav>
 
     <main style="padding: 40px;">
-    <h1>Model Marketplace</h1>
-
-    <details open>
-        <summary><strong>Installed Models</strong></summary>
-        <div class="card-grid" id="installed-models"></div>
-    </details>
-
-    <h2 style="margin-top: 40px;">Available Models</h2>
-    <div class="card-grid" id="available-models"></div>
-    <div id="notification-container"></div>
-
-
+        <div class="provider-select-container">
+        <h1>Select Provider</h1>
+        <p class="provider-subtitle">Choose a backend to explore available models and pipelines</p>
+        <div class="provider-card-grid">
+            <div class="provider-card ollama">
+                <img src="assets/img/ollama.svg" alt="Ollama Logo" />
+                <h2>Ollama</h2>
+                <p>Pipelines: Text Generation</p>
+                <p>Provider: <a href="javascript:open('https://ollama.com');">Ollama</a></p>
+                <br>
+                <button onclick="window.location.href='marketplace/ollama.html'">View Available</button>
+            </div>
+            <div class="provider-card transformers">
+                <img src="assets/img/huggingface.svg" alt="Transformers.js Logo" />
+                <h2>Transformers.js</h2>
+                <p>Pipelines: Multiple</p>
+                <a href="javascript:open('https://huggingface.co/docs/transformers/en/index');">Ollama</a></p>
+                <br>
+                <button onclick="window.location.href='marketplace/ollama.html'">View Available</button>
+            </div>
+        </div>
+        </div>
     </main>
-    <script src="scripts/marketplace.js"></script>
-
-
+    <script>
+        function open(url) {
+            console.log('[WARNING] Opening external URL')
+            window.utils.web_open(url)
+        }
+    </script>
 </body>
 </html>
