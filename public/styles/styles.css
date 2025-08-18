@@ -486,7 +486,7 @@ button:hover {
   font-weight: 500;
 }
 
-.model-link {
+a, .model-link {
   display: inline-block;
   margin-top: 8px;
   margin-bottom: 15px;
