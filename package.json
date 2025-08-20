@@ -8,30 +8,36 @@
     "compile:main": "tsc -p tsconfig.main.json",
     "compile:renderer": "tsc -p tsconfig.renderer.json",
     "compile": "npm run compile:main && npm run compile:renderer",
-    "start": "npm run clean && npm run compile && electron-forge start && npm run clean",
-    "package": "npm run clean && npm run compile && electron-forge package",
-    "make": "npm run clean && npm run compile && electron-forge make"
+    "start": "npm run clean && npm run compile && npx electron . && npm run clean",
+    "build": "npm run clean && npm run compile && npx electron-builder && npm run clean"
   },
   "keywords": [],
   "author": "Rihaan Meher",
   "license": "ISC",
   "description": "AI for everyone",
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1",
     "marked": "^16.2.0"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.8.3",
-    "@electron-forge/maker-deb": "^7.8.3",
-    "@electron-forge/maker-rpm": "^7.8.3",
-    "@electron-forge/maker-squirrel": "^7.8.3",
-    "@electron-forge/maker-zip": "^7.8.3",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.8.3",
-    "@electron-forge/plugin-fuses": "^7.8.3",
-    "@electron/fuses": "^1.8.0",
     "@types/node": "^24.3.0",
+    "electron-builder": "^26.0.12",
     "electron": "^37.3.1",
-    "glob": "^11.0.3",
-    "ts-node": "^10.9.2"
+    "glob": "^11.0.3"
+  },
+  "build": {
+    "appId": "com.sharktide.modelvine",
+    "productName": "modelvine",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }
