@@ -204,6 +204,8 @@ function openPullModal(modelName: string, sizes: string[]): void {
   modal?.classList.remove("hidden");
 }
 
+document.getElementById("pull-modal-close")?.addEventListener('click', closePullModal)
+
 function closePullModal(): void {
   document.getElementById("pull-modal")?.classList.add("hidden");
 }

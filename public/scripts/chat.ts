@@ -203,7 +203,7 @@ function renderChat() {
     session.history.forEach(msg => {
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${msg.role === 'user' ? 'user-bubble' : 'bot-bubble'}`;
-        bubble.innerHTML = marked.parse(msg.content);
+        bubble.innerHTML = window.utils.markdown_parse(msg.content);
         chatBox.appendChild(bubble);
     });
 
@@ -215,6 +215,7 @@ function renderChat() {
 }
 
 form.addEventListener("submit", (e) => {
+
     e.preventDefault();
     const prompt = input.value.trim();
     const model = modelSelect.value;
@@ -240,7 +241,7 @@ form.addEventListener("submit", (e) => {
 
     window.ollama.onResponse((chunk) => {
         fullResponse += chunk;
-        botBubble.innerHTML = marked.parse(fullResponse);
+        botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 

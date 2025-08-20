@@ -76,6 +76,7 @@ function register(): void {
   });
 
   ipcMain.on("ollama:chat-stream", async (
+    //@ts-ignore
     event: Electron.IpcMainEvent,
     modelName: string,
     userMessage: string
