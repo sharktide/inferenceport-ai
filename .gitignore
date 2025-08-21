@@ -162,6 +162,14 @@ public\scripts\preload.d.ts
 public\scripts\preload.d.ts.map
 public\scripts\preload.js
 public\scripts\preload.js.map
+public\scripts\staticload\theme.d.d.ts
+public\scripts\staticload\theme.d.d.ts.map
+public\scripts\staticload\theme.d.js
+public\scripts\staticload\theme.d.js.map
+public\scripts\staticload\theme.d.ts
+public\scripts\staticload\theme.d.ts.map
+public\scripts\staticload\theme.js
+public\scripts\staticload\theme.js.map
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 web_modules/
 yarn-debug.log*
