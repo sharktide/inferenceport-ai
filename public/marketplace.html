@@ -1,52 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Marketplace - Select Backend</title>
-  <link rel="stylesheet" href="styles/styles.css" />
-  <link rel="stylesheet" href="styles/marketplace.css">
-  <script type="module" src="scripts/staticload/theme.js"></script>
-</head>
-<body>
-  <nav>
-    <div class="logo">ModelVine</div>
-    <ul class="nav-links">
-      <li><a href="index.html">Dashboard</a></li>
-      <li><a href="marketplace.html">Marketplace</a></li>
-      <li><a href="mymodels.html">My Models</a></li>
-      <li><a href="settings.html">Settings</a>
-    </ul>
-  </nav>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Marketplace - Select Backend</title>
+		<link rel="stylesheet" href="styles/styles.css" />
+		<link rel="stylesheet" href="styles/marketplace.css" />
+		<script type="module" src="scripts/staticload/theme.js"></script>
+	</head>
+	<body>
+		<nav>
+			<div class="logo">ModelVine</div>
+			<ul class="nav-links">
+				<li><a href="index.html">Dashboard</a></li>
+				<li><a href="marketplace.html">Marketplace</a></li>
+				<li><a href="mymodels.html">My Models</a></li>
+				<li><a href="settings.html">Settings</a></li>
+			</ul>
+		</nav>
 
-    <main style="padding: 40px;">
-        <div class="provider-select-container">
-        <h1>Select Provider</h1>
-        <p class="provider-subtitle">Choose a backend to explore available models and pipelines</p>
-        <div class="provider-card-grid">
-            <div class="provider-card ollama">
-                <h2>Ollama</h2>
-                <img src="assets/img/ollama.svg" alt="Ollama Logo" />
-                <p>Pipelines: Text Generation</p>
-                <p>Provider: <a href="javascript:open('https://ollama.com');">Ollama</a></p>
-                <br>
-                <button onclick="window.location.href='marketplace/ollama.html'">View Available</button>
-            </div>
-            <div class="provider-card transformers">
-                <img src="assets/img/huggingface.svg" alt="Transformers.js Logo" />
-                <h2>Transformers.js</h2>
-                <p>Pipelines: Multiple</p>
-                <p>Provider: <a href="javascript:open('https://huggingface.co/docs/transformers/en/index');">Transformers (Huggingface)</a></p>
-                <br>
-                <button onclick="window.location.href='marketplace/ollama.html'">View Available</button>
-            </div>
-        </div>
-        </div>
-    </main>
-    <script>
-        function open(url) {
-            console.log('[WARNING] Opening external URL')
-            window.utils.web_open(url)
-        }
-    </script>
-</body>
+		<main style="padding: 40px">
+			<div class="provider-select-container">
+				<h1>Select Provider</h1>
+				<p class="provider-subtitle">
+					Choose a backend to explore available models and pipelines
+				</p>
+				<div class="provider-card-grid">
+					<div class="provider-card ollama">
+						<h2>Ollama</h2>
+						<img src="assets/img/ollama.svg" alt="Ollama Logo" />
+						<p>Pipelines: Text Generation</p>
+						<p>
+							Provider:
+							<a href="javascript:open('https://ollama.com');">Ollama</a>
+						</p>
+						<br />
+						<button onclick="window.location.href='marketplace/ollama.html'">
+							View Available
+						</button>
+					</div>
+					<div class="provider-card transformers">
+						<img src="assets/img/huggingface.svg" alt="Transformers.js Logo" />
+						<h2>Transformers.js</h2>
+						<p>Pipelines: Multiple</p>
+						<p>
+							Provider:
+							<a
+								href="javascript:open('https://huggingface.co/docs/transformers/en/index');"
+								>Transformers (Huggingface)</a
+							>
+						</p>
+						<br />
+						<button onclick="window.location.href='marketplace/ollama.html'">
+							View Available
+						</button>
+					</div>
+				</div>
+			</div>
+		</main>
+		<script>
+			function open(url) {
+				console.log("[WARNING] Opening external URL");
+				window.utils.web_open(url);
+			}
+		</script>
+	</body>
 </html>

@@ -1,89 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>Marketplace</title>
-        <link rel="stylesheet" href="../styles/styles.css" />
-        <script type="module" src="../scripts/staticload/theme.js"></script>
-        <style>
-          summary {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin: 0.83em 0;
-            line-height: 1.2;
-            display: inline-block;
-            cursor: pointer;
-          }
-          .arrow {
-            display: inline-block;
-            transition: transform 0.3s ease;
-            width: 1em;
-            height: 1em;
-            transform: rotate(0deg);
-          }
+	<head>
+		<meta charset="UTF-8" />
+		<title>Marketplace</title>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<script type="module" src="../scripts/staticload/theme.js"></script>
+		<style>
+			summary {
+				font-size: 1.5em;
+				font-weight: bold;
+				margin: 0.83em 0;
+				line-height: 1.2;
+				display: inline-block;
+				cursor: pointer;
+			}
+			.arrow {
+				display: inline-block;
+				transition: transform 0.3s ease;
+				width: 1em;
+				height: 1em;
+				transform: rotate(0deg);
+			}
 
-          details[open] .arrow {
-            transform: rotate(90deg);
-          }
+			details[open] .arrow {
+				transform: rotate(90deg);
+			}
 
-          .arrow::before {
-            content: "▸";
-            display: inline-block;
-          }
+			.arrow::before {
+				content: "▸";
+				display: inline-block;
+			}
+		</style>
+	</head>
+	<body>
+		<nav>
+			<div class="logo">ModelVine</div>
+			<ul class="nav-links">
+				<li><a href="../index.html">Dashboard</a></li>
+				<li><a href="../marketplace.html">Marketplace</a></li>
+				<li><a href="../mymodels.html">My Models</a></li>
+				<li><a href="../settings.html">Settings</a></li>
+			</ul>
+		</nav>
 
-        </style>
+		<div id="pull-modal" class="modal hidden">
+			<div class="modal-content">
+				<span class="close-btn" id="pull-modal-close">×</span>
+				<h2 id="modal-model-name"></h2>
+				<label for="modal-revision-select">Select revision:</label>
+				<select id="modal-revision-select"></select>
+				<button id="modal-pull-btn">Pull</button>
+			</div>
+		</div>
 
-    </head>
-    <body>
-        <nav>
-            <div class="logo">ModelVine</div>
-            <ul class="nav-links">
-                <li><a href="../index.html">Dashboard</a></li>
-                <li><a href="../marketplace.html">Marketplace</a></li>
-                <li><a href="../mymodels.html">My Models</a></li>
-                <li><a href="../settings.html">Settings</a></li>
-            </ul>
-        </nav>
+		<main style="padding: 40px">
+			<details open>
+				<summary>
+					<span class="arrow"></span> <span class="h2">Installed Models</span>
+				</summary>
 
-        <div id="pull-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close-btn" id="pull-modal-close">×</span>
-                <h2 id="modal-model-name"></h2>
-                <label for="modal-revision-select">Select revision:</label>
-                <select id="modal-revision-select"></select>
-                <button id="modal-pull-btn">Pull</button>
-            </div>
-        </div>
+				<div style="margin-bottom: 20px">
+					<input
+						type="text"
+						id="search-installed"
+						placeholder="Search installed LLMs"
+						style="padding: 8px; width: 300px; font-size: 16px"
+					/>
+				</div>
+				<div class="card-grid" id="installed-models"></div>
+			</details>
 
-        <main style="padding: 40px">
-            <details open><summary><span class="arrow"></span> <span class="h2">Installed Models</span></summary>
-              
-                <div style="margin-bottom: 20px">
-                    <input
-                        type="text"
-                        id="search-installed"
-                        placeholder="Search installed LLMs"
-                        style="padding: 8px; width: 300px; font-size: 16px"
-                    />
-                </div>
-                <div class="card-grid" id="installed-models"></div>
-            </details>
+			<details open>
+				<summary>
+					<span class="arrow"></span>
+					<span class="h2">Available LLMs (Provider: Ollama)</span>
+				</summary>
 
-            <details open><summary><span class="arrow"></span> <span class="h2">Available LLMs (Provider: Ollama)</span></summary>
+				<div style="margin-bottom: 20px">
+					<input
+						type="text"
+						id="search-available"
+						placeholder="Search available LLMs"
+						style="padding: 8px; width: 300px; font-size: 16px"
+					/>
+				</div>
+				<div class="card-grid" id="available-models"></div>
+			</details>
 
-                <div style="margin-bottom: 20px">
-                    <input
-                        type="text"
-                        id="search-available"
-                        placeholder="Search available LLMs"
-                        style="padding: 8px; width: 300px; font-size: 16px"
-                    />
-                </div>
-                <div class="card-grid" id="available-models"></div>
-            </details>
-
-            <div id="notification-container"></div>
-        </main>
-        <script type="module" src="../scripts/ollama.js"></script>
-    </body>
+			<div id="notification-container"></div>
+		</main>
+		<script type="module" src="../scripts/ollama.js"></script>
+	</body>
 </html>

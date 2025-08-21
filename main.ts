@@ -1,33 +1,31 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const ollamaHandlers = require("./node-apis/ollama");
-const utilsHandlers = require("./node-apis/utils")
+const utilsHandlers = require("./node-apis/utils");
 
 function createWindow() {
-    const win = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
-        },
-    });
+	const win = new BrowserWindow({
+		width: 1200,
+		height: 800,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.js"),
+		},
+	});
 
-    win.loadFile("public/index.html");
+	win.loadFile("public/index.html");
 }
 
 app.whenReady().then(() => {
-    const dataDir = path.join(app.getPath("userData"), "chat-sessions");
+	const dataDir = path.join(app.getPath("userData"), "chat-sessions");
 
-    ipcMain.handle("session:getPath", () => {
-        return dataDir;
-    });
-    ollamaHandlers.register();
-    utilsHandlers.register();
-    createWindow();
-
+	ipcMain.handle("session:getPath", () => {
+		return dataDir;
+	});
+	ollamaHandlers.register();
+	utilsHandlers.register();
+	createWindow();
 });
 
 app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
+	if (process.platform !== "darwin") app.quit();
 });
-

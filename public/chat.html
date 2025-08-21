@@ -1,69 +1,71 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <title>Marketplace</title>
-    <link rel="stylesheet" href="styles/styles.css" />
-    <link rel="stylesheet" href="styles/chat.css" />
-    <script type="module" src="scripts/staticload/theme.js"></script>
-</head>
-<body>
-    <nav>
-        <div class="logo">ModelVine</div>
-        <ul class="nav-links">
-            <li><a href="index.html">Dashboard</a></li>
-            <li><a href="marketplace.html">Marketplace</a></li>
-            <li><a href="mymodels.html">My Models</a></li>
-            <li><a href="settings.html">Settings</a>
+	<head>
+		<meta charset="UTF-8" />
+		<title>Marketplace</title>
+		<link rel="stylesheet" href="styles/styles.css" />
+		<link rel="stylesheet" href="styles/chat.css" />
+		<script type="module" src="scripts/staticload/theme.js"></script>
+	</head>
+	<body>
+		<nav>
+			<div class="logo">ModelVine</div>
+			<ul class="nav-links">
+				<li><a href="index.html">Dashboard</a></li>
+				<li><a href="marketplace.html">Marketplace</a></li>
+				<li><a href="mymodels.html">My Models</a></li>
+				<li><a href="settings.html">Settings</a></li>
+			</ul>
+		</nav>
 
-        </ul>
-    </nav>
+		<div id="rename-dialog" class="modal hidden">
+			<div class="modal-content">
+				<h3>Rename Session</h3>
+				<input type="text" id="rename-input" />
+				<div class="modal-actions">
+					<button id="rename-cancel">Cancel</button>
+					<button id="rename-confirm">Rename</button>
+				</div>
+			</div>
+		</div>
 
-    <div id="rename-dialog" class="modal hidden">
-        <div class="modal-content">
-            <h3>Rename Session</h3>
-            <input type="text" id="rename-input" />
-            <div class="modal-actions">
-                <button id="rename-cancel">Cancel</button>
-                <button id="rename-confirm">Rename</button>
-            </div>
-        </div>
-    </div>
+		<div id="session-context-menu" class="context-menu hidden">
+			<div class="context-item" data-action="rename">Rename</div>
+			<div class="context-item" data-action="delete">Delete Session</div>
+		</div>
 
-    <div id="session-context-menu" class="context-menu hidden">
-        <div class="context-item" data-action="rename">Rename</div>
-        <div class="context-item" data-action="delete">Delete Session</div>
-    </div>
+		<main style="padding: 40px">
+			<div class="chat-container">
+				<aside class="sidebar">
+					<h2>Sessions</h2>
+					<input
+						type="text"
+						id="session-search"
+						style="padding-bottom: 10px"
+						placeholder="Search sessions..."
+					/>
+					<p></p>
+					<ul id="session-list"></ul>
+					<button id="new-session-btn">+ New Session</button>
+				</aside>
 
-
-    <main style="padding: 40px;">
-
-    <div class="chat-container">
-        <aside class="sidebar">
-            <h2>Sessions</h2>
-            <input type="text" id="session-search" style="padding-bottom: 10px;" placeholder="Search sessions..." />
-            <p></p>
-            <ul id="session-list"></ul>
-            <button id="new-session-btn">+ New Session</button>
-        </aside>
-
-        <section class="chat-panel">
-            <select id="model-select"></select>
-            <div id="chat-box"></div>
-            <form id="chat-form">
-            <input type="text" id="chat-input" placeholder="Type your prompt..." />
-            <div class="auth-action-buttons">
-                <button type="submit">Send</button>
-                <button type="button" id="stop-btn">Stop</button>
-            </div>
-            </form>
-        </section>
-    </div>
-
-    </main>
-    <script type="module" src="scripts/chat.js"></script>
-
-</body>
+				<section class="chat-panel">
+					<select id="model-select"></select>
+					<div id="chat-box"></div>
+					<form id="chat-form">
+						<input
+							type="text"
+							id="chat-input"
+							placeholder="Type your prompt..."
+						/>
+						<div class="auth-action-buttons">
+							<button type="submit">Send</button>
+							<button type="button" id="stop-btn">Stop</button>
+						</div>
+					</form>
+				</section>
+			</div>
+		</main>
+		<script type="module" src="scripts/chat.js"></script>
+	</body>
 </html>

@@ -37,6 +37,7 @@
 # vuepress build output
 # vuepress v2.x temp and cache directory
 # yarn v2
+backend/transformers/venv
 **/.vitepress/cache
 **/.vitepress/dist
 *.lcov
