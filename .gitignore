@@ -37,7 +37,6 @@
 # vuepress build output
 # vuepress v2.x temp and cache directory
 # yarn v2
-backend/transformers/venv
 **/.vitepress/cache
 **/.vitepress/dist
 *.lcov
@@ -83,6 +82,7 @@ backend/transformers/venv
 .yarn/cache
 .yarn/install-state.gz
 .yarn/unplugged
+backend/transformers/venv
 bower_components
 build/Release
 build\renderer\mymodels.d.d.ts
@@ -131,6 +131,10 @@ preload.d.ts
 preload.d.ts.map
 preload.js
 preload.js.map
+public\marketplace\scripts\addspace.d.ts
+public\marketplace\scripts\addspace.d.ts.map
+public\marketplace\scripts\addspace.js
+public\marketplace\scripts\addspace.js.map
 public\scripts\chat.d.d.ts
 public\scripts\chat.d.d.ts.map
 public\scripts\chat.d.js
@@ -139,6 +143,22 @@ public\scripts\chat.d.ts
 public\scripts\chat.d.ts.map
 public\scripts\chat.js
 public\scripts\chat.js.map
+public\scripts\marketplace\addspace.d.d.ts
+public\scripts\marketplace\addspace.d.d.ts.map
+public\scripts\marketplace\addspace.d.js
+public\scripts\marketplace\addspace.d.js.map
+public\scripts\marketplace\addspace.d.ts
+public\scripts\marketplace\addspace.d.ts.map
+public\scripts\marketplace\addspace.js
+public\scripts\marketplace\addspace.js.map
+public\scripts\marketplace\ollama.d.d.ts
+public\scripts\marketplace\ollama.d.d.ts.map
+public\scripts\marketplace\ollama.d.js
+public\scripts\marketplace\ollama.d.js.map
+public\scripts\marketplace\ollama.d.ts
+public\scripts\marketplace\ollama.d.ts.map
+public\scripts\marketplace\ollama.js
+public\scripts\marketplace\ollama.js.map
 public\scripts\mymodels.d.d.ts
 public\scripts\mymodels.d.d.ts.map
 public\scripts\mymodels.d.js

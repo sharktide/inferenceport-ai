@@ -11,6 +11,7 @@ const newSessionBtn = document.getElementById("new-session-btn");
 
 let sessions = {};
 let currentSessionId = null;
+modelSelect?.addEventListener('change', setTitle)
 
 document.addEventListener("DOMContentLoaded", async () => {
 	try {
@@ -269,3 +270,7 @@ newSessionBtn.addEventListener("click", createNewSession);
 document
 	.getElementById("session-search")
 	.addEventListener("input", renderSessionList);
+
+async function setTitle() {
+	document.title = modelSelect.value + " - Chat - InferencePortAI"
+}

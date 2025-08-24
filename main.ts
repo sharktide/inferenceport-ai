@@ -16,10 +16,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-	const dataDir = path.join(app.getPath("userData"), "chat-sessions");
+	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
 
 	ipcMain.handle("session:getPath", () => {
-		return dataDir;
+		return chatDir;
 	});
 	ollamaHandlers.register();
 	utilsHandlers.register();

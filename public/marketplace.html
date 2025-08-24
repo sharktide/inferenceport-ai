@@ -2,14 +2,14 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<title>Marketplace - Select Backend</title>
+		<title>Marketplace - Select Backend - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
 		<link rel="stylesheet" href="styles/marketplace.css" />
 		<script type="module" src="scripts/staticload/theme.js"></script>
 	</head>
 	<body>
 		<nav>
-			<div class="logo">ModelVine</div>
+			<div class="logo">⚡InferncePort AI</div>
 			<ul class="nav-links">
 				<li><a href="index.html">Dashboard</a></li>
 				<li><a href="marketplace.html">Marketplace</a></li>
@@ -25,33 +25,46 @@
 					Choose a backend to explore available models and pipelines
 				</p>
 				<div class="provider-card-grid">
-					<div class="provider-card ollama">
+					<div class="provider-card black">
 						<h2>Ollama</h2>
 						<img src="assets/img/ollama.svg" alt="Ollama Logo" />
 						<p>Pipelines: Text Generation</p>
 						<p>
 							Provider:
-							<a href="javascript:open('https://ollama.com');">Ollama</a>
+							<a href="javascript:window.utils.web_open('https://ollama.com');">Ollama</a>
 						</p>
 						<br />
-						<button onclick="window.location.href='marketplace/ollama.html'">
+						<button class="black-bg" onclick="window.location.href='marketplace/ollama.html'">
 							View Available
 						</button>
 					</div>
-					<div class="provider-card transformers">
-						<img src="assets/img/huggingface.svg" alt="Transformers.js Logo" />
-						<h2>Transformers.js</h2>
-						<p>Pipelines: Multiple</p>
+					<div class="provider-card black">
+						<h2>Gradio</h2>
+						<img src="assets/img/gradio.svg" alt="Gradio Logo" />
+						<p>Pipelines: N/A</p>
 						<p>
 							Provider:
 							<a
-								href="javascript:open('https://huggingface.co/docs/transformers/en/index');"
-								>Transformers (Huggingface)</a
+								href="javascript:window.utils.web_open('https://huggingface.co/spaces/');"
+								>Huggingface Spaces</a
 							>
 						</p>
 						<br />
-						<button onclick="window.location.href='marketplace/ollama.html'">
-							View Available
+						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
+							Add new
+						</button>
+					</div>
+					<div class="provider-card black">
+						<h2>Website</h2>
+						<img src="assets/img/globe.svg" alt="Internet Logo" />
+						<p>Pipelines: N/A</p>
+						<p>
+							Provider:
+							<a>N/A</a> <!-- to fit with theme-->
+						</p>
+						<br />
+						<button class="black-bg" onclick="window.location.href='marketplace/ollama.html'">
+							Add New
 						</button>
 					</div>
 				</div>

@@ -82,4 +82,9 @@ contextBridge.exposeInMainWorld("utils", {
 
 	markdown_parse: (markdown: string): string =>
 		ipcRenderer.sendSync("utils:markdown_parse", markdown),
+
+	saveFile: (filePath: string, content: string): Promise<void> => {
+		return ipcRenderer.invoke('utils:saveFile', filePath, content);
+	},
+	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath")
 });

@@ -20,7 +20,7 @@
 
 .provider-card {
 	width: 300px;
-	padding: 30px;
+	padding: 15px;
 	border-radius: var(--border-radius);
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 	cursor: pointer;
@@ -50,12 +50,12 @@
 	margin: 6px 0;
 }
 
-.provider-card.ollama {
+.provider-card.black {
 	background-color: #000;
 	color: white;
 }
 
-.provider-card.transformers {
+.provider-card.yellow {
 	background-color: #fff8dc;
 	color: #333;
 }
@@ -64,4 +64,9 @@
 	font-size: 16px;
 	color: var(--dark-text);
 	margin-bottom: 40px;
+}
+
+.black-bg {
+	background-color: #333;
+	color: rgb(209, 209, 209);
 }
