@@ -1,15 +1,18 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, screen } = require("electron");
 const path = require("path");
 const ollamaHandlers = require("./node-apis/ollama");
 const utilsHandlers = require("./node-apis/utils");
 
 function createWindow() {
+	const primaryDisplay = screen.getPrimaryDisplay();
+	const { width, height } = primaryDisplay.workAreaSize;
 	const win = new BrowserWindow({
-		width: 1200,
-		height: 800,
+		width: width,
+		height: height,
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
 		},
+		icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
 	});
 
 	win.loadFile("public/index.html");
