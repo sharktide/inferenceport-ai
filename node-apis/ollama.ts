@@ -1,6 +1,8 @@
 //@ts-ignore
 const { app, ipcMain, BrowserWindow } = require("electron");
+//@ts-ignore
 const fs = require("fs");
+//@ts-ignore
 const path = require("path");
 const { exec, spawn } = require("child_process");
 
@@ -31,6 +33,7 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+//@ts-ignore
 function register(): void {
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {

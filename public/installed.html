@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Installed Models - InferencePortAI</title>
+		<link rel="stylesheet" href="styles/styles.css" />
+		<script type="module" src="scripts/staticload/theme.js"></script>
+		<style>
+			.darkhvr {
+			background: inherit;
+			filter: brightness(95%) !important;
+			transition: filter 0.2s ease;
+			border: none;
+			padding: 8px 16px;
+			color: white;
+			cursor: pointer;
+			border-radius: 4px;
+			}
+
+			.darkhvr:hover {
+			filter: brightness(85%) !important;
+			}
+		</style>
+	</head>
+	<body>
+		<nav>
+			<div class="logo">⚡InferncePort AI</div>
+			<ul class="nav-links">
+				<li><a href="index.html">Dashboard</a></li>
+				<li><a href="marketplace.html">Marketplace</a></li>
+				<li><a href="installed.html">Installed</a></li>
+				<li><a href="settings.html">Settings</a></li>
+			</ul>
+		</nav>
+
+		<div id="del-modal" class="modal hidden">
+			<div class="modal-content">
+				<span class="close-btn" id="del-modal-close">×</span>
+				<h2 id="del-modal-name">Delete Item?</h2>
+				<button id="delete-yes">Delete</select>
+				<button id="cancel-no">Cancel</button>
+			</div>
+		</div>
+
+		<main style="padding: 40px">
+			<h1>Installed Models</h1>
+
+			<br />
+
+			<details open><summary style="font-size: large;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
+				<div class="card-grid" id="installed-models"></div>
+			</details>
+
+			<br />
+	
+			<details open><summary style="font-size: large;">Provider: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
+				<div class="card-grid" id="hf-spaces"></div>
+			</details>
+
+			<br />
+
+			<details open><summary style="font-size: large;">Provider: Website</summary>
+				<div class="card-grid" id="websites"></div>
+			</details>
+
+			<div id="notification-container"></div>
+
+		</main>
+		<script type="module" src="scripts/mymodels.js"></script>
+	</body>
+</html>

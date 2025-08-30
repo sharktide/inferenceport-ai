@@ -23,16 +23,19 @@ function register() {
 		}
 	});
 
-	ipcMain.handle('utils:saveFile', async (_event, filePath: string, content: string) => {
-		try {
-			const dir = path.dirname(filePath);
-			await fs.mkdirSync(dir, { recursive: true });
-			await fs.writeFileSync(filePath, content);
-		} catch (err) {
-			console.error('Failed to save file:', err);
-			throw err;
+	ipcMain.handle(
+		"utils:saveFile",
+		async (_event, filePath: string, content: string) => {
+			try {
+				const dir = path.dirname(filePath);
+				await fs.mkdirSync(dir, { recursive: true });
+				await fs.writeFileSync(filePath, content);
+			} catch (err) {
+				console.error("Failed to save file:", err);
+				throw err;
+			}
 		}
-	});
+	);
 
 	const AppDataDir = app.getPath("userData");
 

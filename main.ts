@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, screen } = require("electron");
 const path = require("path");
 const ollamaHandlers = require("./node-apis/ollama");
 const utilsHandlers = require("./node-apis/utils");
+const spaces = require('./node-apis/spaces');
 
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
@@ -26,6 +27,7 @@ app.whenReady().then(() => {
 	});
 	ollamaHandlers.register();
 	utilsHandlers.register();
+	spaces.register();
 	createWindow();
 });
 

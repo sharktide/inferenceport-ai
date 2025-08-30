@@ -88,3 +88,10 @@ contextBridge.exposeInMainWorld("utils", {
 	},
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath")
 });
+
+contextBridge.exposeInMainWorld("hfspaces", {
+	get_cards: (): string =>
+		ipcRenderer.invoke("hfspaces:get-cards"),
+	delete: (username: string, repo: string): void =>
+		ipcRenderer.invoke("hfspaces:delete", username, repo)
+})
