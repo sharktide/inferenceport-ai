@@ -1,5 +1,6 @@
 //@ts-ignore
 const { app, ipcMain, BrowserWindow } = require("electron");
+import type { IpcMainEvent } from 'electron'
 //@ts-ignore
 const fs = require("fs");
 //@ts-ignore
@@ -90,8 +91,7 @@ function register(): void {
 	ipcMain.on(
 		"ollama:chat-stream",
 		async (
-			//@ts-ignore
-			event: Electron.IpcMainEvent,
+			event: IpcMainEvent,
 			modelName: string,
 			userMessage: string
 		) => {

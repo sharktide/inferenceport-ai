@@ -1,55 +1,4 @@
-//@ts-nocheck
-
-interface NotificationAction {
-	label: string;
-	onClick?: () => void;
-}
-
-interface NotificationOptions {
-	message: string;
-	type?: "info" | "success" | "error";
-	actions?: NotificationAction[];
-}
-
-// Utility Functions
-function showNotification({
-	message,
-	type = "info",
-	actions = [],
-}: NotificationOptions): void {
-	const container = document.getElementById("notification-container");
-	if (!container) return;
-
-	const box = document.createElement("div");
-	box.className = `notification ${type}`;
-
-	const msg = document.createElement("div");
-	msg.className = "message";
-	msg.textContent = message;
-
-	const close = document.createElement("button");
-	close.className = "close-btn";
-	close.textContent = "×";
-	close.onclick = () => box.remove();
-
-	const actionContainer = document.createElement("div");
-	actionContainer.className = "actions";
-
-	actions.forEach(({ label, onClick }) => {
-		const btn = document.createElement("button");
-		btn.textContent = label;
-		btn.onclick = () => {
-			onClick?.();
-			box.remove();
-		};
-		actionContainer.appendChild(btn);
-	});
-
-	box.appendChild(close);
-	box.appendChild(msg);
-	if (actions.length) box.appendChild(actionContainer);
-	container.appendChild(box);
-}
+import { showNotification } from "../helper/notification.mjs"
 
 function sanitizeFilename(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, '_');
@@ -116,7 +65,7 @@ document.getElementById('add-space-form')?.addEventListener('submit', async (e) 
 
     const config = {
         type: "space",
-        title: repo.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        title: repo!.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
         author: username,
         emoji,
         background: `linear-gradient(to right, ${colorFrom}, ${colorTo})`,
@@ -124,7 +73,7 @@ document.getElementById('add-space-form')?.addEventListener('submit', async (e) 
         short_description
     };
 
-    const fileName = `${sanitizeFilename(username)}____${sanitizeFilename(repo)}.import`;
+    const fileName = `${sanitizeFilename(username!)}____${sanitizeFilename(repo!)}.import`;
     const filePath = `${await window.utils.getPath()}/spaces/${fileName}`;
 
     try {
@@ -154,7 +103,8 @@ document.getElementById('import-upload')?.addEventListener('change', async (e) =
     const json = JSON.parse(text);
 
     if (!json.author || !json.title) {
-      return alert("❌ Invalid .import file: missing 'author' or 'title'.");
+      showNotification({ message: "Invalid .import file", type: "error", actions: [{ label: "OK", onClick: () => void(0)}, ], })
+      return;
     }
 
     json.type = "space";
@@ -163,16 +113,16 @@ document.getElementById('import-upload')?.addEventListener('change', async (e) =
     const filePath = `${await window.utils.getPath()}/spaces/${fileName}`;
 
     await window.utils.saveFile(filePath, JSON.stringify(json, null, 2));
-    alert(`✅ Uploaded and saved as ${filePath}`);
+    showNotification({ message: "Import Successful", type: "success", actions: [{ label: "Launch", onClick: () => window.location.href = "../installed.html"}, ], })
   } catch (err) {
     console.error("Upload failed:", err);
-    alert("❌ Failed to process .import file.");
+    showNotification({ message: "Error Processing .import file", type: "error", actions: [{ label: "OK", onClick: () => void(0)}, ], })
   }
 });
 
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('import-upload');
-const clickToUpload = dropZone.querySelector('.click-to-upload');
+const dropZone = document.getElementById('drop-zone') as HTMLDivElement;
+const fileInput = document.getElementById('import-upload') as HTMLInputElement;
+const clickToUpload = dropZone.querySelector('.click-to-upload') as HTMLSpanElement;
 
 clickToUpload.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -198,11 +148,10 @@ dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragging');
 
-    const files = e.dataTransfer.files;
+    const files = e.dataTransfer!.files;
     if (files.length > 0) {
         fileInput.files = files;
 
-        // Optional: trigger change event manually
         const event = new Event('change');
         fileInput.dispatchEvent(event);
     }

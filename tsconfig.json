@@ -1,5 +1,5 @@
 {
-  "include": ["public", "main.ts", "preload.ts"],
+  "include": ["public", "main.ts", "preload.ts", "global.d.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     "module": "nodenext",

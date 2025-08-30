@@ -4,6 +4,7 @@
 		<meta charset="UTF-8" />
 		<title>Installed Models - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
+		<link rel="stylesheet" href="styles/loading.css" />
 		<script type="module" src="scripts/staticload/theme.js"></script>
 		<style>
 			.darkhvr {
@@ -48,12 +49,14 @@
 			<br />
 
 			<details open><summary style="font-size: large;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
+				<div class="spinner" id="spinner-ollama"></div>
 				<div class="card-grid" id="installed-models"></div>
 			</details>
 
 			<br />
 	
 			<details open><summary style="font-size: large;">Provider: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
+				<div class="spinner" id="spinner-hf"></div>
 				<div class="card-grid" id="hf-spaces"></div>
 			</details>
 
@@ -66,6 +69,6 @@
 			<div id="notification-container"></div>
 
 		</main>
-		<script type="module" src="scripts/mymodels.js"></script>
+		<script type="module" src="scripts/installed.mjs"></script>
 	</body>
 </html>

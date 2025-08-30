@@ -1,3 +1,4 @@
+import { showNotification } from "./helper/notification.mjs"
 interface Model {
 	name: string;
 }
@@ -10,63 +11,15 @@ declare global {
 	}
 }
 
-interface NotificationAction {
-	label: string;
-	onClick?: () => void;
-}
-
-interface NotificationOptions {
-	message: string;
-	type?: "info" | "success" | "error";
-	actions?: NotificationAction[];
-}
-
-// Utility Functions
-function showNotification({
-	message,
-	type = "info",
-	actions = [],
-}: NotificationOptions): void {
-	const container = document.getElementById("notification-container");
-	if (!container) return;
-
-	const box = document.createElement("div");
-	box.className = `notification ${type}`;
-
-	const msg = document.createElement("div");
-	msg.className = "message";
-	msg.textContent = message;
-
-	const close = document.createElement("button");
-	close.className = "close-btn";
-	close.textContent = "×";
-	close.onclick = () => box.remove();
-
-	const actionContainer = document.createElement("div");
-	actionContainer.className = "actions";
-
-	actions.forEach(({ label, onClick }) => {
-		const btn = document.createElement("button");
-		btn.textContent = label;
-		btn.onclick = () => {
-			onClick?.();
-			box.remove();
-		};
-		actionContainer.appendChild(btn);
-	});
-
-	box.appendChild(close);
-	box.appendChild(msg);
-	if (actions.length) box.appendChild(actionContainer);
-	container.appendChild(box);
-}
-
 async function renderOllama() {
+	const spinner = document.getElementById("spinner-ollama");
 	const container = document.getElementById("installed-models");
 	if (!container) {
 		console.error("Container element not found.");
 		return;
 	}
+
+	spinner!.style.display = "flex";
 
 	try {
 		const models = await window.ollama.listModels();
@@ -91,13 +44,16 @@ async function renderOllama() {
 		});
 	} catch (err: any) {
 		container.innerHTML = `<p>Error loading models: ${err.message}</p>`;
+	} finally {
+		spinner!.style.display = "none";
 	}
 }
 
 async function renderSpaces() {
-	document.getElementById("hf-spaces")!.innerHTML =
-        //@ts-ignore
-		await window.hfspaces.get_cards();
+	const spinner = document.getElementById("spinner-hf");
+	spinner!.style.display = "flex";
+	document.getElementById("hf-spaces")!.innerHTML = await window.hfspaces.get_cards();
+	spinner!.style.display = "none";
 }
 
 document
@@ -202,4 +158,18 @@ function runModel(name: string): void {
 	window.location.href = `./renderer/chat.html?model=${encodeURIComponent(name)}`;
 }
 
+function toggleMenu(button: HTMLButtonElement) {
+    const dropdown = button.nextElementSibling as HTMLElement
+    dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+}
+
+function shareSpace(username: string, repo: string) {
+    window.hfspaces.share(username, repo);
+}
+
+
 (window as any).showDelModal = showDelModal;
+(window as any).toggleMenu = toggleMenu;
+(window as any).shareSpace = shareSpace;
+
+

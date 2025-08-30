@@ -208,7 +208,8 @@ function renderChat() {
 	});
 
 	document.querySelectorAll("pre code").forEach((block) => {
-		hljs?.highlightElement?.(block);
+		// hljs?.highlightElement?.(block); TODO
+		void 0
 	});
 
 	chatBox.scrollTop = chatBox.scrollHeight;

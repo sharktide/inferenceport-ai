@@ -1,5 +1,6 @@
 //@ts-ignore
-const { app, ipcMain, BrowserWindow } = require("electron");
+const { app, ipcMain, BrowserWindow, dialog } = require("electron");
+import type { IpcMainEvent } from 'electron'
 //@ts-ignore
 const fs = require("fs");
 //@ts-ignore
@@ -13,6 +14,7 @@ interface SpaceData {
     author: string;
     emoji: string;
     background: string;
+    sdk: string;
     short_description: string;
 }
 
@@ -63,20 +65,28 @@ function getData(): string {
             const content: string = fs.readFileSync(fullPath, "utf-8");
             const data: SpaceData = JSON.parse(content);
             if (data.type === "space") {
-                html += `
-                    <div class="marketplace-card" spaceid="${data.author}/${data.title}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px;">
-                        <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
-                        <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">by ${data.author}</p>
+            html += `
+                <div class="marketplace-card" spaceid="${data.author}/${data.title}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
+                    <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
+                    <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">by ${data.author}</p>
 
-                        <p style="margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
-                            ${data.short_description ?? "No description available."}
-                        </p>
+                    <p style="margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
+                        ${data.short_description ?? "No description available."}
+                    </p>
 
-                        <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);">Launch</button>
-                        <br />
-                        <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="showDelModal('${data.author}', '${data.title}', 'space')">Delete</button>
+                    <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="window.location.href='./renderer/spaces.html?author=${data.author}&repo=${data.title}&sdk=${data.sdk}'">Launch</button>
+                    <br />
+                    <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="showDelModal('${data.author}', '${data.title}', 'space')">Delete</button>
+
+                    <!-- Three-dot menu -->
+                    <div class="menu-container" style="position: absolute; top: 12px; right: 12px;">
+                        <button class="menu-button" onclick="toggleMenu(this)" style="background: transparent; border: none; font-size: 18px;">⋮</button>
+                        <div class="menu-dropdown" style="display: none; position: absolute; right: 0; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); z-index: 10;">
+                            <button onclick="shareSpace('${data.author}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light)">Share</button>
+                        </div>
                     </div>
-                `;
+                </div>
+            `;
             }
         } catch (err: unknown) {
             console.warn(`Failed to parse ${file}:`, err);
@@ -86,15 +96,54 @@ function getData(): string {
     return html;
 }
 
+async function share(username: string, repo: string): Promise<void> {
+    const files = getSpaces();
+
+    for (const file of files) {
+        const fullPath = path.join(spaceDir, file);
+        try {
+            const content = fs.readFileSync(fullPath, "utf-8");
+            const data: SpaceData = JSON.parse(content);
+
+            if (data.type === "space" && data.author === username && data.title === repo) {
+                const win = BrowserWindow.getFocusedWindow();
+                if (!win) {
+                    console.error("No active window for dialog.");
+                    return;
+                }
+
+                const { canceled, filePath } = await dialog.showSaveDialog(win, {
+                    title: "Save Space File",
+                    defaultPath: `${repo}.import`,
+                    filters: [{ name: "Import Files", extensions: ["import"] }]
+                });
+
+                if (!canceled && filePath) {
+                    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+                    console.log(`Space shared to ${filePath}`);
+                }
+                return;
+            }
+        } catch (err: unknown) {
+            console.warn(`Error processing ${file}:`, err);
+        }
+    }
+
+    console.warn(`No matching space found for ${username}/${repo}`);
+}
+
 //@ts-ignore
 function register(): void {
     ipcMain.handle("hfspaces:get-cards", (): string => {
         return getData();
     });
-    //@ts-ignore
-    ipcMain.handle("hfspaces:delete", (_event: Electron.IpcMainEvent, username: string, repo: string): boolean => {
+    ipcMain.handle("hfspaces:delete", (_event: IpcMainEvent, username: string, repo: string): boolean => {
         return deleteSpaceByUserRepo(username, repo);
     });
+    ipcMain.handle("hfspaces:share", async (_event: IpcMainEvent, username: string, repo: string) => {
+        await share(username, repo);
+    });
+
 }
 
 module.exports = { register };

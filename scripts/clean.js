@@ -23,6 +23,23 @@ const path = require("path");
 		}
 	}
 
+	const mtsFiles = await glob("**/*.mts", { ignore: ["node_modules/**"] });
+
+	for (const mtsFile of mtsFiles) {
+		const base = mtsFile.replace(/\.mts$/, "");
+		for (const ext of [".mjs", ".mjs.map", ".d.mts", ".d.mts.map"]) {
+			const target = `${base}${ext}`;
+			generatedFiles.push(target);
+			try {
+				await fs.unlink(target);
+			} catch (err) {
+				if (err.code !== "ENOENT") {
+					console.error(`Failed to delete ${target}:`, err);
+				}
+			}
+		}
+	}
+
 	try {
 		const existing = await fs.readFile(gitignorePath, "utf-8");
 		const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));

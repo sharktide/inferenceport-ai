@@ -1,5 +1,6 @@
 //@ts-nocheck
 const { marked } = require("marked");
+import type { IpcMainEvent } from 'electron'
 const fs = require("fs");
 const path = require("path");
 const { shell, app, ipcMain, BrowserWindow } = require("electron");
@@ -7,7 +8,7 @@ const { shell, app, ipcMain, BrowserWindow } = require("electron");
 function register() {
 	ipcMain.handle(
 		"utils:web_open",
-		async (_event: Electron.IpcMainEvent, url: string) => {
+		async (_event: IpcMainEvent, url: string) => {
 			shell.openExternal(url);
 		}
 	);
