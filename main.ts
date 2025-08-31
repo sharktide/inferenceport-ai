@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, Menu } = require("electron");
 const path = require("path");
 const ollamaHandlers = require("./node-apis/ollama");
 const utilsHandlers = require("./node-apis/utils");
@@ -16,7 +16,61 @@ function createWindow() {
 		icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
 	});
 
+	const template = [
+		{
+			label: 'Marketplace',
+			submenu: [
+				{ label: 'Launch', click: () => win.loadFile(path.join(__dirname, "public", "marketplace.html")) },
+				{ type: 'separator' },
+				{ label: 'Ollama', click: () => win.loadFile(path.join(__dirname, "public", "marketplace", "ollama.html")) },
+				{ label: 'Spaces', click: () => win.loadFile(path.join(__dirname, "public", "marketplace", "spaces.html")) },
+			]
+		},
+		{
+			label: 'Edit',
+			submenu: [
+				{ label: 'Undo', role: 'undo' },
+				{ label: 'Redo', role: 'redo' },
+				{ type: 'separator' },
+				{ label: 'Cut', role: 'cut' },
+				{ label: 'Copy', role: 'copy' },
+				{ label: 'Paste', role: 'paste' }
+			]
+		},
+		{
+			label: 'Window',
+			submenu: [
+				{ role: 'minimize' },
+				{ role: 'close' }
+			]
+		},
+		{
+			label: 'Help',
+			submenu: [
+				{
+					label: 'GitHub',
+					click: async () => {
+						const { shell } = require('electron');
+						await shell.openExternal('https://github.com/sharktide/inferenceport-ai');
+					}
+				},
+				{ label: 'Report Bug', click: async () => {
+					const { shell } = require('electron');
+					await shell.openExternal('https://github.com/sharktide/inferenceport-ai/issues/new')
+				}},
+				{ label: 'Pull Request', click: async () => {
+					const { shell } = require('electron');
+					await shell.openExternal('https://github.com/sharktide/inferenceport-ai/pulls/new')
+				}}
+			]
+		}
+	];
+
+
 	win.loadFile("public/index.html");
+	const menu = Menu.buildFromTemplate(template);
+	Menu.setApplicationMenu(menu);
+
 }
 
 app.whenReady().then(() => {
