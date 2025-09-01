@@ -31,6 +31,10 @@ declare global {
             get_cards: () => string;
             delete: (username: string, repo: string) => void;
             share: (username: string, repo: string) => void;
+            get_website_cards: () => string;
+            delete_website: (url: string) => boolean;
+            share_website: (url: string, title: string) => Promise<void>;
+
         };
     }
 

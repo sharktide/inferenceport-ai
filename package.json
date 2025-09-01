@@ -39,7 +39,7 @@
       "output": "dist"
     },
     "win": {
-      "target": "nsis"
+      "target": "appx"
     },
     "mac": {
       "target": "dmg"

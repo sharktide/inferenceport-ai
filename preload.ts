@@ -94,5 +94,10 @@ contextBridge.exposeInMainWorld("hfspaces", {
 		ipcRenderer.invoke("hfspaces:get-cards"),
 	delete: (username: string, repo: string): void =>
 		ipcRenderer.invoke("hfspaces:delete", username, repo),
-    share: (username: string, repo: string) => ipcRenderer.invoke("hfspaces:share", username, repo)
+    share: (username: string, repo: string) => ipcRenderer.invoke("hfspaces:share", username, repo),
+	get_website_cards: (): string =>
+		ipcRenderer.invoke("hfspaces:get-website-cards"),
+	delete_website: (url: string): void =>
+		ipcRenderer.invoke("hfspaces:delete-website", url),
+    share_website: (url: string, title: string) => ipcRenderer.invoke("hfspaces:share-website", url, title)
 })

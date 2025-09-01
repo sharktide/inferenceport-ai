@@ -21,6 +21,11 @@
 			.darkhvr:hover {
 			filter: brightness(85%) !important;
 			}
+
+			.white-text,
+				.white-text * {
+				color: white !important;
+			}
 		</style>
 	</head>
 	<body>
@@ -48,21 +53,22 @@
 
 			<br />
 
-			<details open><summary style="font-size: large;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
+			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
 				<div class="spinner" id="spinner-ollama"></div>
 				<div class="card-grid" id="installed-models"></div>
 			</details>
 
 			<br />
 	
-			<details open><summary style="font-size: large;">Provider: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
+			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
 				<div class="spinner" id="spinner-hf"></div>
 				<div class="card-grid" id="hf-spaces"></div>
 			</details>
 
 			<br />
 
-			<details open><summary style="font-size: large;">Provider: Website</summary>
+			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Website</summary>
+				<div class="spinner" id="spinner-website"></div>
 				<div class="card-grid" id="websites"></div>
 			</details>
 

@@ -45,6 +45,22 @@ function createWindow() {
 			]
 		},
 		{
+			label: 'View',
+			submenu: [
+				{
+				label: 'Toggle Developer Tools',
+				accelerator: process.platform === 'darwin' ? 'Cmd+Alt+I' : 'Ctrl+Shift+I',
+				click: (_item: Electron.MenuItem, focusedWindow: Electron.BrowserWindow | undefined) => {
+				if (focusedWindow) {
+					focusedWindow.webContents.toggleDevTools();
+				}
+				}
+				},
+				{ role: 'reload' }
+			]
+		},
+
+		{
 			label: 'Help',
 			submenu: [
 				{
