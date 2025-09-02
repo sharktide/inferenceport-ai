@@ -5,6 +5,33 @@
 		<title>Dashboard - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="scripts/staticload/theme.js"></script>
+		<style>
+			#card-scroll-wrapper {
+			overflow: hidden;
+			width: 100%;
+			}
+
+			.card-grid {
+			display: flex;
+			gap: 20px;
+			animation: scroll-loop 30s linear infinite;
+			}
+
+			.marketplace-card {
+			max-width: 500px;
+			flex-shrink: 0;
+			}
+
+			@keyframes scroll-loop {
+				0% {
+					transform: translateX(0);
+				}
+				100% {
+					transform: translateX(-50%);
+				}
+			}
+
+		</style>
 	</head>
 	<body>
 		<nav>
@@ -18,14 +45,94 @@
 		</nav>
 
 		<main style="padding: 40px">
-			<h1>Welcome to AI Hub</h1>
-			<p>Quick access to your favorite models:</p>
-			<div class="auth-action-buttons">
+			<h1>Welcome to InferencePortAI</h1>
+
+			<h3>Quick Links:</h3>
+			<div class="auth-action-buttons" style="justify-content: left;">
 				<button onclick="location.href='marketplace.html'">
-					Browse Models
+					Marketplace
 				</button>
-				<button onclick="location.href='installed.html'">My Models</button>
+				<button onclick="location.href='installed.html'">Installed</button>
 			</div>
+
+			<div>
+				<h3>Explore Trending Ollama Models</h3>
+				<div id="card-scroll-wrapper">
+				<div class="card-grid" >
+					<div class="marketplace-card">
+						<h2>gpt-oss</h2>
+						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.</p>
+						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+					<div class="marketplace-card">
+						<h2>deepseek-r1</h2>
+						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
+						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span> <span class="model-tag">8b</span> <span class="model-tag">14b</span> <span class="model-tag">32b</span> <span class="model-tag">70b</span> <span class="model-tag">671b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+					<div class="marketplace-card">
+						<h2>llama3.1</h2>
+						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes.</p>
+						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span> <span class="model-tag">405b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+
+
+					<div class="marketplace-card">
+						<h2>gpt-oss</h2>
+						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.</p>
+						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+					<div class="marketplace-card">
+						<h2>deepseek-r1</h2>
+						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
+						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span> <span class="model-tag">8b</span> <span class="model-tag">14b</span> <span class="model-tag">32b</span> <span class="model-tag">70b</span> <span class="model-tag">671b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+					<div class="marketplace-card">
+						<h2>llama3.1</h2>
+						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes.</p>
+						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span> <span class="model-tag">405b</span></div>
+						<div class="model-meta">
+						<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details</a>
+						</div>
+						<a href="./marketplace/ollama.html">
+							<button class="marketplace-btn">View in Marketplace</button>
+						</a>
+					</div>
+				</div>
+				</div>
+
+			</div>
+			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
+
 		</main>
 	</body>
 </html>
