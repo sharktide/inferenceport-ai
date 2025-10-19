@@ -196,6 +196,8 @@ document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 });
 
 function renderInstalledModels(filter: string = ""): void {
+	const spinner = document.getElementById("installed-spinner") as HTMLDivElement;
+	spinner.style.display = "flex";
 	const container = document.getElementById("installed-models");
 	if (!container) return;
 
@@ -207,18 +209,21 @@ function renderInstalledModels(filter: string = ""): void {
 			const card = document.createElement("div");
 			card.className = "marketplace-card";
 			card.innerHTML = `
-        <h2>${model.name}</h2>
-        <p><strong>Size:</strong> ${model.size}</p>
-        <p><strong>Modified:</strong> ${model.modified}</p>
-        <button>Delete</button>
-      `;
+				<h2>${model.name}</h2>
+				<p><strong>Size:</strong> ${model.size}</p>
+				<p><strong>Modified:</strong> ${model.modified}</p>
+				<button>Delete</button>
+			`;
 			const button = card.querySelector("button");
 			button?.addEventListener("click", () => deleteModel(model.name));
 			container.appendChild(card);
 		});
+	spinner.style.display = "none"
 }
 
 function renderAvailableModels(filter: string = ""): void {
+	const spinner = document.getElementById("spinner-av") as HTMLDivElement;
+	spinner.style.display = "flex"
 	const container = document.getElementById("available-models");
 	if (!container) return;
 
@@ -232,6 +237,7 @@ function renderAvailableModels(filter: string = ""): void {
 		.forEach((model) => {
 			const card = document.createElement("div");
 			card.className = "marketplace-card";
+			card.id = encodeURIComponent(model.name);
 
 			const sizeOptions = model.sizes
 				.map((size) => `<option value="${size}">${size}</option>`)
@@ -263,6 +269,19 @@ function renderAvailableModels(filter: string = ""): void {
 
 			container.appendChild(card);
 		});
+	spinner.style.display = "none"
+
+	const targetId = decodeURIComponent(location.hash.slice(1));
+    if (targetId) {
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+            const yOffset = -100;
+            const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: "smooth" });
+
+            targetEl.classList.add("highlight");
+        }
+    }
 }
 
 document

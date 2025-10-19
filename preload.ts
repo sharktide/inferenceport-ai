@@ -78,6 +78,9 @@ contextBridge.exposeInMainWorld("ollama", {
 	onDone: (cb: () => void): void =>
 		ipcRenderer.on("ollama:chat-done", () => cb()),
 
+	onAbort: (cb: () => void): void =>
+		ipcRenderer.on("ollama:chat-aborted", () => cb()),
+
 	load: (): Promise<Sessions> => ipcRenderer.invoke("sessions:load"),
 
 	save: (sessions: Sessions): Promise<void> =>
@@ -98,6 +101,9 @@ contextBridge.exposeInMainWorld("utils", {
 
 	markdown_parse: (markdown: string): string =>
 		ipcRenderer.sendSync("utils:markdown_parse", markdown),
+
+	DOMPurify: (html: string): string =>
+		ipcRenderer.sendSync("utils:DOMPurify", html),
 
 	saveFile: (filePath: string, content: string): Promise<void> => {
 		return ipcRenderer.invoke('utils:saveFile', filePath, content);

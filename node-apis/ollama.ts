@@ -16,7 +16,7 @@ limitations under the License.
 
 //@ts-ignore
 const { app, ipcMain, BrowserWindow } = require("electron");
-import type { IpcMainEvent } from 'electron'
+import type { IpcMain, IpcMainEvent } from 'electron'
 //@ts-ignore
 const fs = require("fs");
 //@ts-ignore
@@ -50,6 +50,7 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+let chatAbortController: AbortController | null = null;
 //@ts-ignore
 function register(): void {
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
@@ -79,7 +80,7 @@ function register(): void {
 
 	ipcMain.handle(
 		"ollama:run",
-		async (_event: unknown, modelName: string): Promise<string> => {
+		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(`ollama run ${modelName}`, (err: Error | null, stdout: string) => {
 					if (err) return reject(err);
@@ -91,7 +92,7 @@ function register(): void {
 
 	ipcMain.handle(
 		"ollama:delete",
-		async (_event: unknown, modelName: string): Promise<string> => {
+		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
 					`ollama rm ${modelName}`,
@@ -112,66 +113,72 @@ function register(): void {
 			userMessage: string
 		) => {
 			chatHistory.push({ role: "user", content: userMessage });
+			chatAbortController = new AbortController();
+			try {
+				const res = await fetch("http://localhost:11434/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						model: modelName,
+						messages: chatHistory,
+						stream: true,
+					}),
+					signal: chatAbortController!.signal,
+				});
 
-			const res = await fetch("http://localhost:11434/api/chat", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					model: modelName,
-					messages: chatHistory,
-					stream: true,
-				}),
-			});
+				const reader = res.body?.getReader();
+				const decoder = new TextDecoder();
+				let fullResponse = "";
 
-			const reader = res.body?.getReader();
-			const decoder = new TextDecoder();
-			let fullResponse = "";
+				if (!reader) {
+					event.sender.send("ollama:chat-error", "No response stream");
+					return;
+				}
 
-			if (!reader) {
-				event.sender.send("ollama:chat-error", "No response stream");
-				return;
-			}
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
+					const chunk = decoder.decode(value, { stream: true });
+					const lines = chunk.split("\n").filter((line) => line.trim());
 
-				const chunk = decoder.decode(value, { stream: true });
-				const lines = chunk.split("\n").filter((line) => line.trim());
-
-				for (const line of lines) {
-					try {
-						const json = JSON.parse(line);
-						const token = json.message?.content || "";
-						fullResponse += token;
-						event.sender.send("ollama:chat-token", token);
-					} catch (err) {
-						event.sender.send(
-							"ollama:chat-error",
-							`JSON parse error: ${
-								err instanceof Error ? err.message : String(err)
-							}`
-						);
+					for (const line of lines) {
+						try {
+							const json = JSON.parse(line);
+							const token = json.message?.content || "";
+							fullResponse += token;
+							event.sender.send("ollama:chat-token", token);
+						} catch (err) {
+							event.sender.send("ollama:chat-error", `JSON parse error: ${err}`);
+						}
 					}
+				}
+				chatHistory.push({ role: "assistant", content: fullResponse });
+				event.sender.send("ollama:chat-done");
+			} catch (err) {
+				if ((err as Error).name === "AbortError") {
+					event.sender.send("ollama:chat-aborted");
+				} else {
+					event.sender.send("ollama:chat-error", `${err}`);
 				}
 			}
 
-			chatHistory.push({ role: "assistant", content: fullResponse });
-			event.sender.send("ollama:chat-done");
+
 		}
 	);
 
-	ipcMain.on("ollama:stop", () => {
-		if (chatProcess) {
-			console.log("[CHAT] Killing chat process");
-			chatProcess.kill();
-			chatProcess = null;
+	ipcMain.on("ollama:stop", (event: IpcMainEvent) => {
+		if (chatAbortController) {
+			console.log("[CHAT] Aborting chat stream");
+			chatAbortController.abort();
+			chatAbortController = null;
 		}
 	});
 
+
 	ipcMain.handle(
 		"ollama:pull",
-		(_event: unknown, modelName: string): Promise<string> => {
+		(_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				const child = spawn("ollama", ["pull", modelName]);
 
@@ -196,7 +203,7 @@ function register(): void {
 	ipcMain.handle("sessions:load", () => loadSessions());
 	ipcMain.handle(
 		"sessions:save",
-		(_event: unknown, sessions: Record<string, unknown>) =>
+		(_event: Electron.IpcMainEvent, sessions: Record<string, unknown>) =>
 			saveSessions(sessions)
 	);
 }

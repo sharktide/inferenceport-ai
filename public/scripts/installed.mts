@@ -88,8 +88,8 @@ async function renderOllama() {
             `;
 
             const shareBtn = document.createElement("button");
-            shareBtn.textContent = "Share";
-            shareBtn.onclick = () => void 0 // shareModel(model.name);
+            shareBtn.textContent = "Info";
+            shareBtn.onclick = () => window.open(`https://ollama.com/library/${model.name}`)
             shareBtn.style.cssText = `
                 padding: 8px 12px;
                 width: 100%;

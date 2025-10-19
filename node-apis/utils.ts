@@ -15,11 +15,12 @@ limitations under the License.
 */
 
 //@ts-nocheck
-const { marked } = require("marked");
+import { marked } from "marked";
+const sanitizeHtml = require('sanitize-html');
 import type { IpcMainEvent } from 'electron'
-const fs = require("fs");
-const path = require("path");
-const { shell, app, ipcMain, BrowserWindow } = require("electron");
+import fs from "fs";
+import path from "path";
+import { shell, app, ipcMain, BrowserWindow } from "electron";
 
 function register() {
 	ipcMain.handle(
@@ -29,20 +30,30 @@ function register() {
 		}
 	);
 
-	ipcMain.on("utils:markdown_parse", (event, markdown: string) => {
-		try {
-			const html = marked.parse(markdown);
-			event.returnValue = html;
-		} catch (err) {
-			event.returnValue = `<p>Error parsing markdown: ${
-				err instanceof Error ? err.message : String(err)
-			}</p>`;
-		}
+	ipcMain.on("utils:markdown_parse", (event: IpcMainEvent, markdown: string) => {
+	try {
+		const dirty = marked.parse(markdown);
+		const clean = sanitizeHtml(dirty);
+		event.returnValue = clean;
+	} catch (err) {
+		event.returnValue = `<p>Error parsing markdown: ${err instanceof Error ? err.message : String(err)}</p>`;
+	}
 	});
+
+	ipcMain.on("utils:DOMPurify", (event: IpcMainEvent, html: string) => {
+		try {
+			const cleanHTML = sanitizeHtml(html);
+			event.returnValue = cleanHTML;
+		} catch {
+			event.returnValue = `<p>Error cleaning HTML: ${
+				err instanceof Error ? error.message : String(err)
+			}</p>`
+		}
+	})
 
 	ipcMain.handle(
 		"utils:saveFile",
-		async (_event, filePath: string, content: string) => {
+		async (_event: IpcMainEvent, filePath: string, content: string) => {
 			try {
 				const dir = path.dirname(filePath);
 				await fs.mkdirSync(dir, { recursive: true });

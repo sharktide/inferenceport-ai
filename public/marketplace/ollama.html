@@ -4,6 +4,9 @@
 		<meta charset="UTF-8" />
 		<title>Ollama - Marketplace - InferencePortAI</title>
 		<link rel="stylesheet" href="../styles/styles.css" />
+		<link rel="stylesheet" href="../styles/loading.css" />
+		<link rel="stylesheet" href="../styles/highlight.css">
+
 		<script type="module" src="../scripts/staticload/theme.js"></script>
 		<style>
 			summary {
@@ -67,6 +70,7 @@
 						style="padding: 8px; width: 300px; font-size: 16px"
 					/>
 				</div>
+				<div class="spinner" id="installed-spinner"></div>
 				<div class="card-grid" id="installed-models"></div>
 			</details>
 
@@ -84,6 +88,7 @@
 						style="padding: 8px; width: 300px; font-size: 16px"
 					/>
 				</div>
+				<div class="spinner" id="spinner-av"></div>
 				<div class="card-grid" id="available-models"></div>
 			</details>
 

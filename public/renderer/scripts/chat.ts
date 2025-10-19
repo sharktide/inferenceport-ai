@@ -15,15 +15,25 @@ limitations under the License.
 */
 
 //@ts-nocheck
+
+import { showNotification } from "../../scripts/helper/notification.mjs";
+
 const dataDir = window.ollama.getPath();
 const sessionFile = `${dataDir}/sessions.json`;
-const chatBox = document.getElementById("chat-box");
-const input = document.getElementById("chat-input");
-const form = document.getElementById("chat-form");
-const stopBtn = document.getElementById("stop-btn");
-const modelSelect = document.getElementById("model-select");
-const sessionList = document.getElementById("session-list");
-const newSessionBtn = document.getElementById("new-session-btn");
+const chatBox = document.getElementById("chat-box") as HTMLDivElement;
+const input = document.getElementById("chat-input") as HTMLInputElement;
+const form = document.getElementById("chat-form") as HTMLFormElement;
+const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
+const modelSelect = document.getElementById("model-select") as HTMLOptionElement;
+const sessionList = document.getElementById("session-list") as HTMLDivElement;
+const newSessionBtn = document.getElementById("new-session-btn") as HTMLButtonElement;
+const fileInput = document.getElementById("file-upload") as HTMLInputElement;
+const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
+const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
+const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
+const modalTitle = document.getElementById("file-preview-title") as HTMLTitleElement;
+const modalContent = document.getElementById("file-preview-content") as HTMLPreElement;
+const modalClose = document.getElementById("file-preview-close") as HTMLButtonElement;
 
 let sessions = {};
 let currentSessionId = null;
@@ -231,63 +241,220 @@ function renderChat() {
 	chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+const actionBtn = document.getElementById("send");
+let isStreaming = false;
+
+let attachedFiles = [];
+
+attachBtn.addEventListener("click", () => fileInput.click());
+
+fileInput.addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const text = await file.text();
+    attachedFiles.push({ name: file.name, content: text });
+  }
+  renderFileIndicator();
+});
+
+
+function formatAttachedFiles(files) {
+  if (files.length === 0) return "";
+
+  let output = `<details><summary>Attached Files</summary>\n\n`;
+  for (const file of files) {
+    output += `<details><summary>${file.name}</summary>\n\n`;
+    output += "```\n" + file.content + "\n```\n";
+    output += `</details>\n\n`;
+  }
+  output += `</details>\n\n`;
+  return output;
+}
+
 form.addEventListener("submit", (e) => {
-	e.preventDefault();
-	const prompt = input.value.trim();
-	const model = modelSelect.value;
-	if (!prompt || !currentSessionId) return;
+    e.preventDefault();
+    if (isStreaming) {
+        // Stop streaming
+        window.ollama.stop?.();
+        return;
+    }
 
-	const session = sessions[currentSessionId];
-	session.model = model;
 
-	session.history.push({ role: "user", content: prompt });
-	renderChat();
+    const prompt = input.value.trim();
+    const model = modelSelect.value;
+    if (!prompt || !currentSessionId) return;
 
-	const botBubble = document.createElement("div");
-	botBubble.className = "chat-bubble bot-bubble";
-	botBubble.textContent = "🤖 ";
-	chatBox.appendChild(botBubble);
-	chatBox.scrollTop = chatBox.scrollHeight;
+    const session = sessions[currentSessionId];
+    session.model = model;
+	const fileBlock = formatAttachedFiles(attachedFiles);
+	const fullPrompt = prompt + "\n\n" + fileBlock;
+	attachedFiles = [];
+	renderFileIndicator()
+    session.history.push({ role: "user", content: fullPrompt });
+    renderChat();
 
-	input.value = "";
-	window.ollama.removeAllListeners?.();
-	window.ollama.streamPrompt(model, prompt);
+    const botBubble = document.createElement("div");
+    botBubble.className = "chat-bubble bot-bubble";
+    botBubble.textContent = "🤖 ";
+    chatBox.appendChild(botBubble);
+    chatBox.scrollTop = chatBox.scrollHeight;
 
-	let fullResponse = "";
+    input.value = "";
+    input.style.height = "";
+    window.ollama.removeAllListeners?.();
+	window.ollama.streamPrompt(model, fullPrompt);
 
-	window.ollama.onResponse((chunk) => {
-		fullResponse += chunk;
-		botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
-		chatBox.scrollTop = chatBox.scrollHeight;
-	});
 
-	window.ollama.onError((err) => {
-		botBubble.textContent += `\n⚠️ Error: ${err}`;
-		window.ollama.save(sessions);
-	});
+    let fullResponse = "";
+    isStreaming = true;
+    updateActionButton();
 
-	window.ollama.onDone(() => {
+    window.ollama.onResponse((chunk) => {
+        fullResponse += chunk;
+        botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+    });
+
+    window.ollama.onError((err) => {
+        botBubble.textContent += `\n⚠️ Error: ${err}`;
+        window.ollama.save(sessions);
+        endStreaming();
+    });
+
+    window.ollama.onDone(() => {
+        session.history.push({ role: "assistant", content: fullResponse });
+        const status = document.createElement("div");
+        status.textContent = "✅ Done";
+        status.style.marginTop = "8px";
+        status.style.fontSize = "14px";
+        status.style.color = "#3ca374";
+        botBubble.appendChild(status);
+        window.ollama.save(sessions);
+        endStreaming();
+    });
+	window.ollama.onAbort(() => {
 		session.history.push({ role: "assistant", content: fullResponse });
-		const status = document.createElement("div");
-		status.textContent = "✅ Done";
-		status.style.marginTop = "8px";
-		status.style.fontSize = "14px";
-		status.style.color = "#3ca374";
-		botBubble.appendChild(status);
-		window.ollama.save(sessions);
+        const status = document.createElement("div");
+        status.textContent = "⚠︎ Interrupted";
+        status.style.marginTop = "8px";
+        status.style.fontSize = "14px";
+        status.style.color = "#d9534f";
+        botBubble.appendChild(status);
+        window.ollama.save(sessions);
+		endStreaming();
 	});
 });
 
-stopBtn.addEventListener("click", () => {
-	window.ollama.stop?.();
+function renderFileIndicator() {
+    fileBar.innerHTML = "";
+
+    if (attachedFiles.length === 0) {
+        fileBar.style.display = "none";
+        return;
+    }
+
+	fileBar.style.display = "flex";
+
+	attachedFiles.forEach((file, index) => {
+		const icon = document.createElement("div");
+		icon.className = "file-icon";
+		icon.textContent = "📄";
+		icon.setAttribute("data-index", String(index));
+
+		icon.addEventListener("click", (e) => {
+			if ((e.target as HTMLElement).classList.contains("file-remove")) return;
+			openFilePreview(file);
+		});
+
+		const removeBtn = document.createElement("button");
+		removeBtn.className = "file-remove";
+		removeBtn.setAttribute("aria-label", "Remove file");
+		removeBtn.title = "Remove file";
+		removeBtn.innerHTML = "×";
+		removeBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			attachedFiles.splice(index, 1);
+			renderFileIndicator();
+		});
+
+		icon.appendChild(removeBtn);
+		fileBar.appendChild(icon);
+	});
+}
+
+
+function updateActionButton() {
+    if (isStreaming) {
+        actionBtn.textContent = "⏹";
+        actionBtn.classList.add("streaming");
+        actionBtn.setAttribute("aria-label", "Stop streaming");
+    } else {
+        actionBtn.textContent = "⬆️";
+        actionBtn.classList.remove("streaming");
+        actionBtn.setAttribute("aria-label", "Send");
+    }
+}
+
+function endStreaming() {
+    isStreaming = false;
+    updateActionButton();
+}
+
+const textarea = document.getElementById('chat-input') as HTMLInputElement;
+textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+});
+textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        (document.getElementById('send') as HTMLButtonElement).click();
+    }
 });
 
 newSessionBtn.addEventListener("click", createNewSession);
 
-document
-	.getElementById("session-search")
+(document.getElementById("session-search") as HTMLInputElement)
 	.addEventListener("input", renderSessionList);
+
+document.addEventListener("click", (e) => {
+  if (e.target.classList.contains("file-preview-btn")) {
+    const index = e.target.dataset.index;
+    const file = attachedFiles[index];
+    (document.getElementById("file-preview-title") as HTMLTitleElement).textContent = file.name;
+    (document.getElementById("file-preview-content") as HTMLPreElement).textContent = file.content;
+    (document.getElementById("file-preview-modal") as HTMLDivElement).classList.remove("hidden");
+  }
+});
+
+document.getElementById("file-preview-close").addEventListener("click", () => {
+  document.getElementById("file-preview-modal").classList.add("hidden");
+});
+
+function openFilePreview(file) {
+  modalTitle.textContent = file.name;
+  modalContent.textContent = file.content;
+  modal.classList.remove("hidden");
+}
+
+modalClose.addEventListener("click", () => {
+  modal.classList.add("hidden");
+});
 
 async function setTitle() {
 	document.title = modelSelect.value + " - Chat - InferencePortAI"
 }
+
+function syncPreviewBarWidth() {
+  const typingBar = document.querySelector(".typing-bar");
+  const previewBar = document.querySelector(".file-preview-bar");
+  if (typingBar && previewBar) {
+    previewBar.style.maxWidth = `${typingBar.offsetWidth}px`;
+  }
+}
+
+window.addEventListener("resize", syncPreviewBarWidth);
+syncPreviewBarWidth();
+
+window.onload = renderFileIndicator

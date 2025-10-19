@@ -102,7 +102,6 @@ function createWindow() {
 	win.loadFile("public/index.html");
 	const menu = Menu.buildFromTemplate(template);
 	Menu.setApplicationMenu(menu);
-
 }
 
 app.whenReady().then(() => {
