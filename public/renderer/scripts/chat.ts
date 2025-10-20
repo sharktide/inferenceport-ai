@@ -17,7 +17,7 @@ limitations under the License.
 //@ts-nocheck
 
 import { showNotification } from "../../scripts/helper/notification.mjs";
-
+import "../../scripts/helper/ollama-checker.js"
 const dataDir = window.ollama.getPath();
 const sessionFile = `${dataDir}/sessions.json`;
 const chatBox = document.getElementById("chat-box") as HTMLDivElement;

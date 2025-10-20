@@ -26,6 +26,21 @@
 				.white-text * {
 				color: white !important;
 			}
+			#ollama-missing {
+				padding: 12px;
+				border-radius: 15px;
+				background: var(--input-bg);
+				color: #f34f4f;
+				display: none;
+				max-width: 320px;
+				max-height: 250px;
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				z-index: 1000;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+			}
 		</style>
 	</head>
 	<body>
@@ -38,6 +53,27 @@
 				<li><a href="settings.html">Settings</a></li>
 			</ul>
 		</nav>
+
+		<div id="ollama-missing" class="modal hidden">
+			<h3>Ollama not found</h3>
+			<p>Local model execution requires Ollama. <a id="install-link" href="https://ollama.com/download" target="_blank" rel="noopener">Install Ollama</a> and restart the app.</p>
+			<p> </p>
+			<button id="ollama-retry">Retry</button>
+			<p> </p>
+			<button onclick="window.location.href='.././index.html'">Return Home</button>
+		</div>
+
+		<div id="overlay-blocker" style="
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			background: rgba(0, 0, 0, 0.4);
+			z-index: 999;
+			display: none;
+			pointer-events: all;
+		"></div>
 
 		<div id="del-modal" class="modal hidden">
 			<div class="modal-content">
@@ -76,7 +112,31 @@
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 
 		</main>
-		<script type="module" src="scripts/installed.mjs"></script>
+
+			<script>
+				(async function(){
+					if (typeof window.ollama?.isAvailable !== 'function') return;
+					async function check(){
+						const ok = await window.ollama.isAvailable();
+						const banner = document.getElementById('ollama-missing');
+						const grid = document.getElementById('installed-models');
+						const spinner = document.getElementById('spinner-ollama');
+						if (!ok) {
+							if (banner) { banner.style.display = 'block'; }
+							if (grid) { grid.classList.add('disabled'); grid.style.opacity = '0.5'; }
+							if (spinner) { spinner.style.display = 'none'; }
+						} else {
+							if (banner) { banner.style.display = 'none'; }
+							if (grid) { grid.classList.remove('disabled'); grid.style.opacity = ''; }
+							if (spinner) { spinner.style.display = ''; }
+						}
+					}
+					document.getElementById('ollama-retry')?.addEventListener('click', check);
+					await check();
+				})();
+			</script>
+
+			<script type="module" src="scripts/installed.mjs"></script>
 	</body>
 </html>
 

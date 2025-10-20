@@ -7,6 +7,7 @@
     "clean": "node scripts/clean.js",
     "compile:main": "tsc -p tsconfig.main.json",
     "compile:renderer": "tsc -p tsconfig.renderer.json",
+    "watch": "tsc -p tsconfig.renderer.json --watch",
     "compile": "npm run compile:main && npm run compile:renderer",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
     "build": "npm run clean && npm run compile && npx electron-builder && npm run clean"

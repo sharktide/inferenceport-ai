@@ -1,5 +1,5 @@
 import { showNotification } from "../helper/notification.mjs"
-
+import "../helper/ollama-checker.js"
 interface AvailableModel {
 	name: string;
 	description?: string;

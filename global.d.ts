@@ -34,6 +34,7 @@ declare global {
             save: (sessions: Sessions) => Promise<void>;
             getPath: () => Promise<string>;
             removeAllListeners: () => void;
+            isAvailable: () => boolean;
         };
 
         utils: {

@@ -1,15 +1,8 @@
 import { showNotification } from "./helper/notification.mjs"
 import { getReadableColor, getEmoji } from "./helper/random.mjs";
+import "./helper/ollama-checker.js";
 interface Model {
 	name: string;
-}
-
-declare global {
-	interface Window {
-		ollama: {
-			listModels: () => Promise<Model[]>;
-		};
-	}
 }
 
 async function renderOllama() {
@@ -154,22 +147,18 @@ function showDelModal(username: string, repo: string, type: string) {
 	) as HTMLButtonElement;
 	const cancelNo = document.getElementById("cancel-no") as HTMLButtonElement;
 
-	// Clean up any previous listeners
 	delete_yes.replaceWith(delete_yes.cloneNode(true));
 	const new_delete_yes = document.getElementById(
 		"delete-yes"
 	) as HTMLButtonElement;
 
-	// Set attributes
 	new_delete_yes.setAttribute("username", username);
 	new_delete_yes.setAttribute("repo", repo);
 	new_delete_yes.setAttribute("type", type);
 
-	// Define handler
 	function handleDeleteClick() {
 		if (type === "ollama") {
 			try {
-				//@ts-ignore
 				window.ollama.deleteModel(username);
                 const card = document.querySelector(`.marketplace-card[modelid="${username}"]`) as HTMLElement;
                 if (card) {
@@ -198,7 +187,6 @@ function showDelModal(username: string, repo: string, type: string) {
 		}
 		else if (type === "space") {
 			try {
-				//@ts-ignore
 				window.hfspaces.delete(username, repo);
                 const spaceId = `${username}/${repo}`;
                 const card = document.querySelector(`.marketplace-card[spaceid="${spaceId}"]`) as HTMLElement;
@@ -227,7 +215,6 @@ function showDelModal(username: string, repo: string, type: string) {
 			}
 		} else if (type === "website") {
 			try {
-				//@ts-ignore
 				window.hfspaces.delete_website(username);
                 const siteID = `${username}`;
                 const card = document.querySelector(`.marketplace-card[siteId="${siteID}"]`) as HTMLElement;

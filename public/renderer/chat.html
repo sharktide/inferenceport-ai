@@ -6,6 +6,23 @@
 		<link rel="stylesheet" href="../styles/styles.css" />
 		<link rel="stylesheet" href="../styles/chat.css" />
 		<script type="module" src="../scripts/staticload/theme.js"></script>
+		<style>
+			#ollama-missing {
+				padding: 12px;
+				border-radius: 15px;
+				background: var(--input-bg);
+				color: #f34f4f;
+				display: none;
+				max-width: 320px;
+				max-height: 250px;
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				z-index: 1000;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+			}
+		</style>
 	</head>
 	<body>
 		<nav>
@@ -28,6 +45,27 @@
 				</div>
 			</div>
 		</div>
+
+		<div id="ollama-missing" class="modal hidden">
+			<h3>Ollama not found</h3>
+			<p>Local model execution requires Ollama. <a id="install-link" href="https://ollama.com/download" target="_blank" rel="noopener">Install Ollama</a> and restart the app.</p>
+			<p> </p>
+			<button id="ollama-retry">Retry</button>
+			<p> </p>
+			<button onclick="window.location.href='.././index.html'">Return Home</button>
+		</div>
+
+		<div id="overlay-blocker" style="
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			background: rgba(0, 0, 0, 0.4);
+			z-index: 999;
+			display: none;
+			pointer-events: all;
+		"></div>
 
 		<div id="session-context-menu" class="context-menu hidden">
 			<div class="context-item" data-action="rename">Rename</div>

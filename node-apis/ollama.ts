@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//@ts-ignore
 const { app, ipcMain, BrowserWindow } = require("electron");
 import type { IpcMain, IpcMainEvent } from 'electron'
-//@ts-ignore
 const fs = require("fs");
-//@ts-ignore
 const path = require("path");
 const { exec, spawn } = require("child_process");
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+const execFileAsync = promisify(execFile);
 
 type ChatMessage = {
 	role: "user" | "assistant";
@@ -51,7 +51,6 @@ function stripAnsi(str: string): string {
 }
 
 let chatAbortController: AbortController | null = null;
-//@ts-ignore
 function register(): void {
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
@@ -206,6 +205,15 @@ function register(): void {
 		(_event: Electron.IpcMainEvent, sessions: Record<string, unknown>) =>
 			saveSessions(sessions)
 	);
+
+	ipcMain.handle('ollama:available', async () => {
+		  try {
+			const { stdout } = await execFileAsync('ollama', ['--version'], { timeout: 7000 });
+			return typeof stdout === 'string' && stdout.trim().length > 0;
+		} catch (err) {
+			return false;
+		}
+	})
 }
 
 function saveSessions(sessions: Record<string, unknown>): void {

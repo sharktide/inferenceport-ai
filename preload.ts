@@ -88,6 +88,8 @@ contextBridge.exposeInMainWorld("ollama", {
 
 	getPath: (): Promise<string> => ipcRenderer.invoke("session:getPath"),
 
+	isAvailable: async (): Promise<boolean> => ipcRenderer.invoke('ollama:available'),
+
 	removeAllListeners: (): void => {
 		ipcRenderer.removeAllListeners("ollama:chat-token");
 		ipcRenderer.removeAllListeners("ollama:chat-error");
