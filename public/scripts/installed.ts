@@ -1,9 +1,6 @@
-import { showNotification } from "./helper/notification.mjs"
-import { getReadableColor, getEmoji } from "./helper/random.mjs";
-import "./helper/ollama-checker.js";
-interface Model {
-	name: string;
-}
+import { showNotification } from "./helper/notification.js"
+import { getReadableColor, getEmoji } from "./helper/random.js";
+import "./helper/ollama-checker.js"
 
 async function renderOllama() {
     const spinner = document.getElementById("spinner-ollama");

@@ -16,9 +16,12 @@ limitations under the License.
 
 //@ts-nocheck
 
-import { showNotification } from "../../scripts/helper/notification.mjs";
+import { urlToHttpOptions } from "url";
+import { showNotification } from "../../scripts/helper/notification.js";
 import "../../scripts/helper/ollama-checker.js"
+
 const dataDir = window.ollama.getPath();
+
 const sessionFile = `${dataDir}/sessions.json`;
 const chatBox = document.getElementById("chat-box") as HTMLDivElement;
 const input = document.getElementById("chat-input") as HTMLInputElement;
@@ -39,6 +42,8 @@ let sessions = {};
 let currentSessionId = null;
 modelSelect?.addEventListener('change', setTitle)
 
+const urlParams = new URLSearchParams(window.location.search);
+
 document.addEventListener("DOMContentLoaded", async () => {
 	try {
 		const models = await window.ollama.listModels();
@@ -54,10 +59,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
+		try {
+			if (urlParams.model != null) {
+				modelSelect.value=urlParams.model;
+			}
+		} catch {
+			modelSelect.value=sessions[currentSessionId].model;
+		}
 	} catch (err) {
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
 		console.error(err);
 	}
+
 });
 
 function generateSessionId() {

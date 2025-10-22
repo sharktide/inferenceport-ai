@@ -1,4 +1,4 @@
-import { showNotification } from "../helper/notification.mjs"
+import { showNotification } from "../helper/notification.js"
 
 function sanitizeFilename(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, '_');

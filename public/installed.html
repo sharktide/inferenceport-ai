@@ -41,6 +41,7 @@
 				z-index: 1000;
 				box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 			}
+
 		</style>
 	</head>
 	<body>
@@ -53,27 +54,6 @@
 				<li><a href="settings.html">Settings</a></li>
 			</ul>
 		</nav>
-
-		<div id="ollama-missing" class="modal hidden">
-			<h3>Ollama not found</h3>
-			<p>Local model execution requires Ollama. <a id="install-link" href="https://ollama.com/download" target="_blank" rel="noopener">Install Ollama</a> and restart the app.</p>
-			<p> </p>
-			<button id="ollama-retry">Retry</button>
-			<p> </p>
-			<button onclick="window.location.href='.././index.html'">Return Home</button>
-		</div>
-
-		<div id="overlay-blocker" style="
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100vw;
-			height: 100vh;
-			background: rgba(0, 0, 0, 0.4);
-			z-index: 999;
-			display: none;
-			pointer-events: all;
-		"></div>
 
 		<div id="del-modal" class="modal hidden">
 			<div class="modal-content">
@@ -90,8 +70,24 @@
 			<br />
 
 			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
-				<div class="spinner" id="spinner-ollama"></div>
-				<div class="card-grid" id="installed-models"></div>
+				<p id="ollama-missing">This feature requires <a href="javascript:window.utils.web_open('https://ollama.com')">Ollama</a>. Please install it and reopen the app.</p>
+				<div id="ollama-container">
+					<h4>Tools</h4>
+					
+					<div class="auth-action-buttons" style="justify-content: flex-start;">
+						<button onclick="window.location.href = 'renderer/chat.html'">
+							Chat
+						</button>
+						<button onclick="location.href='marketplace/ollama.html'">
+							Marketplace
+						</button>
+						<button onclick="window.utils.web_open('ollama.com')">Provider Website</button>
+					</div>
+					<div>
+					<div class="spinner" id="spinner-ollama"></div>
+					<div class="card-grid" id="installed-models"></div>
+					</div>
+				</div>
 			</details>
 
 			<br />
@@ -136,7 +132,7 @@
 				})();
 			</script>
 
-			<script type="module" src="scripts/installed.mjs"></script>
+			<script type="module" src="scripts/installed.js"></script>
 	</body>
 </html>
 

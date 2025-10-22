@@ -1,5 +1,5 @@
-import { showNotification } from "../helper/notification.mjs"
-import { getReadableColor, getEmoji } from "../helper/random.mjs"
+import { showNotification } from "../helper/notification.js"
+import { getReadableColor, getEmoji } from "../helper/random.js"
 function sanitizeFilename(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, '_');
 }

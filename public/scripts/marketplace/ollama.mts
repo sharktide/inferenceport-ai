@@ -1,4 +1,4 @@
-import { showNotification } from "../helper/notification.mjs"
+import { showNotification } from "../helper/notification.js"
 import "../helper/ollama-checker.js"
 interface AvailableModel {
 	name: string;
