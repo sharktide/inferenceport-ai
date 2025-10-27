@@ -18,7 +18,7 @@ limitations under the License.
 
 import { urlToHttpOptions } from "url";
 import { showNotification } from "../../scripts/helper/notification.js";
-import "../../scripts/helper/ollama-checker.js"
+import "../../scripts/helper/checkers/ollama-checker.js"
 
 const dataDir = window.ollama.getPath();
 

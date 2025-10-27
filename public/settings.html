@@ -19,11 +19,33 @@
 		<main style="padding: 40px">
 			<div class="settings-container">
 				<h1>Settings</h1>
-
-				<div>
-					<button id="theme-toggle">🌙 Dark Mode</button>
+				<div id="rename-dialog" class="modal hidden">
+					<div class="modal-content">
+						<h2>Change Username</h2>
+						<p>Pick your new username:</p>
+						<input type="text" id="username" placeholder="Enter username" style="max-width: 200px;">
+						<br />
+						<div class="modal-actions">
+							<button id="rename-cancel">Cancel</button>
+							<button id="save" style="max-width: 200px;">Save</button>
+						</div>
+						<p id="status"></p>
+					</div>
 				</div>
 
+				<details open><summary>General</summary>
+					<p> </p>
+					<div>
+						<button id="theme-toggle" class="theme-toggle">🌙 Dark Mode</button>
+					</div>
+				</details>
+				<br />
+				<details open><Summary>Account</Summary>
+					<p> </p>
+					<div>
+						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>
+					</div>
+				</details>
 				<!--
     <div class="setting-item">
         <label for="language-select">Language</label>
@@ -37,7 +59,7 @@
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 
 		</main>
-
+		<script type="module" src="scripts/settings.js"></script>
 		<script type="module" src="scripts/staticload/theme.js"></script>
 	</body>
 </html>

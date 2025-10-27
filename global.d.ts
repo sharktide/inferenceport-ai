@@ -42,6 +42,16 @@ declare global {
             markdown_parse: (markdown: string) => string;
             saveFile: (filePath: string, content: string) => Promise<void>;
             getPath: () => Promise<string>;
+            getWarning: (modelSize: string) => Promise<{
+                modelSizeRaw: string;
+                modelSizeB: number;
+                cpu: string;
+                cores: number;
+                ramGB: string;
+                avx2: boolean;
+                avx512: boolean;
+                warning: string;
+            }>;
         };
 
         hfspaces: {
@@ -52,6 +62,23 @@ declare global {
             delete_website: (url: string) => boolean;
             share_website: (url: string, title: string) => Promise<void>;
 
+        };
+        
+        auth: {
+            signInWithEmail: (email: string, password: string) => Promise<{
+                session?: any;
+                user?: any;
+                error?: string;
+            }>;
+            signUpWithEmail: (email: string, password: string) => Promise<{
+                user?: any;
+                error?: string;
+            }>;
+            setUsername: (userId: string, username: string) => Promise<{ success?: boolean; profile?: any; error?: string }>;
+            signOut: () => Promise<{ success?: boolean; error?: string }>;
+            getSession: () => Promise<{ session?: any; error?: string }>;
+            onAuthStateChange: (callback: (session: any) => void) => void;
+            resetPassword: (email: string) => Promise<{status: boolean, error: any}>;
         };
     }
 

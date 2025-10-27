@@ -1,5 +1,5 @@
 import { showNotification } from "../helper/notification.js"
-import "../helper/ollama-checker.js"
+import "../helper/checkers/ollama-checker.js"
 interface AvailableModel {
 	name: string;
 	description?: string;
@@ -156,23 +156,46 @@ window.ollama.onPullProgress(
 );
 
 function openPullModal(modelName: string, sizes: string[]): void {
-	currentModelName = modelName;
-	currentModelSizes = sizes;
+    currentModelName = modelName;
+    currentModelSizes = sizes;
 
-	const nameEl = document.getElementById("modal-model-name");
-	const select = document.getElementById(
-		"modal-revision-select"
-	) as HTMLSelectElement;
-	const modal = document.getElementById("pull-modal");
+    const nameEl = document.getElementById("modal-model-name") as HTMLTitleElement;
+    const select = document.getElementById("modal-revision-select") as HTMLSelectElement;
+    const modal = document.getElementById("pull-modal") as HTMLDivElement;
+    const warningEl = document.getElementById("modal-performance-warning") as HTMLParagraphElement;
 
-	if (nameEl) nameEl.textContent = `Pull ${modelName}`;
-	if (select) {
-		select.innerHTML =
-			`<option value="latest">latest</option>` +
-			sizes.map((size) => `<option value="${size}">${size}</option>`).join("");
-	}
-	modal?.classList.remove("hidden");
+    if (nameEl) nameEl.textContent = `Pull ${modelName}`;
+    if (select) {
+        select.innerHTML =
+            `<option value="latest">latest</option>` +
+            sizes.map((size) => `<option value="${size}">${size}</option>`).join("");
+
+        // Initial warning for first size
+        const initialSize = sizes[0];
+        if (warningEl && initialSize) {
+            window.utils.getWarning(initialSize).then((result) => {
+                warningEl.textContent = result.warning;
+                warningEl.className = "modal-warning";
+            });
+        }
+
+        // Dynamic update on change
+        select.onchange = () => {
+            const selectedSize = select.value;
+            if (selectedSize === "latest") {
+                warningEl.textContent = "";
+                return;
+            }
+            window.utils.getWarning(selectedSize).then((result) => {
+                warningEl.textContent = result.warning;
+                warningEl.className = "modal-warning";
+            });
+        };
+    }
+
+    modal?.classList.remove("hidden");
 }
+
 
 document
 	.getElementById("pull-modal-close")

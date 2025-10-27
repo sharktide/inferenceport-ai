@@ -18,28 +18,31 @@ const { app, BrowserWindow, ipcMain, screen, Menu } = require("electron");
 const path = require("path");
 const ollamaHandlers = require("./node-apis/ollama");
 const utilsHandlers = require("./node-apis/utils");
+const authHandlers = require("./node-apis/auth")
 const spaces = require('./node-apis/spaces');
 
+let mainWindow: any = null;
+
 function createWindow() {
-	const primaryDisplay = screen.getPrimaryDisplay();
-	const { width, height } = primaryDisplay.workAreaSize;
-	const win = new BrowserWindow({
-		width: width,
-		height: height,
-		webPreferences: {
-			preload: path.join(__dirname, "preload.js"),
-		},
-		icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
-	});
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+    mainWindow = new BrowserWindow({
+        width: width,
+        height: height,
+        webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
+        },
+        icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
+    });
 
 	const template = [
 		{
 			label: 'Marketplace',
 			submenu: [
-				{ label: 'Launch', click: () => win.loadFile(path.join(__dirname, "public", "marketplace.html")) },
+				{ label: 'Launch', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace.html")) },
 				{ type: 'separator' },
-				{ label: 'Ollama', click: () => win.loadFile(path.join(__dirname, "public", "marketplace", "ollama.html")) },
-				{ label: 'Spaces', click: () => win.loadFile(path.join(__dirname, "public", "marketplace", "spaces.html")) },
+				{ label: 'Ollama', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace", "ollama.html")) },
+				{ label: 'Spaces', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace", "spaces.html")) },
 			]
 		},
 		{
@@ -99,19 +102,116 @@ function createWindow() {
 	];
 
 
-	win.loadFile("public/index.html");
+	mainWindow.loadFile("public/index.html");
 	const menu = Menu.buildFromTemplate(template);
 	Menu.setApplicationMenu(menu);
 }
 
+function openFromDeepLink(url: string) {
+	if (!mainWindow) return;
+	try {
+		const parsed = new URL(url);
+		const pathname = parsed.pathname || '/';
+		const host = parsed.hostname || '';
+		// map common paths
+		if (pathname === '/' || pathname === '') {
+			mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+			return;
+		}
+		// remove leading slash
+		const cleaned = pathname.replace(/^\//, '');
+		// handle basic routes
+		if (cleaned.startsWith('marketplace')) {
+			// e.g. inferenceport-ai://marketplace/ollama
+			const parts = cleaned.split('/');
+			if (parts.length >= 2 && parts[1]) {
+				const page = parts[1];
+				if (page === 'ollama') {
+					mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace', 'ollama.html'));
+					return;
+				}
+				if (page === 'spaces') {
+					mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace', 'spaces.html'));
+					return;
+				}
+			}
+			mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace.html'));
+			return;
+		}
+
+		if (cleaned === 'installed') {
+			mainWindow.loadFile(path.join(__dirname, 'public', 'installed.html'));
+			return;
+		}
+
+		if (cleaned === 'settings' || cleaned === 'profile' || cleaned === 'account') {
+			mainWindow.loadFile(path.join(__dirname, 'public', 'settings.html'));
+			return;
+		}
+
+		if (cleaned === 'auth' || cleaned === 'login' || cleaned === 'signin') {
+			mainWindow.loadFile(path.join(__dirname, 'public', 'auth.html'));
+			return;
+		}
+
+		if (cleaned === 'reset-pswrd') {
+			mainWindow.loadFile(path.join(__dirname, 'public', 'reset-pswrd.html'));
+			return;
+		}
+
+		// fallback
+		mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+	} catch (e) {
+		console.warn('Failed to open deep link', e);
+	}
+}
+
+// register protocol handling and single-instance behaviour
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+	app.quit();
+}
+
+app.on('second-instance', (_event: any, argv: string[]) => {
+	// windows deep link arrives in argv as the protocol url
+	const urlArg = argv.find(a => a && a.startsWith('inferenceport-ai://'));
+	if (urlArg) {
+		if (mainWindow) {
+			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.focus();
+			openFromDeepLink(urlArg);
+		}
+	}
+});
+
+// macOS open-url
+app.on('open-url', (event: any, url: string) => {
+	event.preventDefault();
+	if (mainWindow) openFromDeepLink(url);
+});
+
 app.whenReady().then(() => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
+
+	try {
+		if (process.defaultApp) {
+			app.setAsDefaultProtocolClient('inferenceport-ai', process.execPath, [
+				path.resolve(process.argv[1])]
+			);
+		} else {
+			app.setAsDefaultProtocolClient('inferenceport-ai');
+		}
+
+	} catch (e) {
+		console.warn('Unable to set protocol client', e);
+	}
 
 	ipcMain.handle("session:getPath", () => {
 		return chatDir;
 	});
 	ollamaHandlers.register();
 	utilsHandlers.register();
+	authHandlers.register()
 	spaces.register();
 	createWindow();
 });

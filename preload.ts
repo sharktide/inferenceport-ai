@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 const { contextBridge, ipcRenderer } = require("electron");
-import type { IpcRendererEvent } from "electron";
+import type { IpcMainInvokeEvent, IpcRendererEvent } from "electron";
 
 type ModelInfo = {
 	name: string;
@@ -110,7 +110,9 @@ contextBridge.exposeInMainWorld("utils", {
 	saveFile: (filePath: string, content: string): Promise<void> => {
 		return ipcRenderer.invoke('utils:saveFile', filePath, content);
 	},
-	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath")
+	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
+	getWarning: (modelSize: string) =>
+		ipcRenderer.invoke('utils:get-hardware-performance-warning', modelSize),
 });
 
 contextBridge.exposeInMainWorld("hfspaces", {
@@ -125,3 +127,25 @@ contextBridge.exposeInMainWorld("hfspaces", {
 		ipcRenderer.invoke("hfspaces:delete-website", url),
     share_website: (url: string, title: string) => ipcRenderer.invoke("hfspaces:share-website", url, title)
 })
+
+contextBridge.exposeInMainWorld('auth', {
+	signInWithEmail: (email: string, password: string) =>
+		ipcRenderer.invoke('auth:signInWithEmail', email, password),
+
+	signUpWithEmail: (email: string, password: string) =>
+		ipcRenderer.invoke('auth:signUpWithEmail', email, password),
+
+	signOut: () => ipcRenderer.invoke('auth:signOut'),
+
+	getSession: () => ipcRenderer.invoke('auth:getSession'),
+
+	onAuthStateChange: (callback: (session: any) => void) => {
+		ipcRenderer.invoke('auth:onAuthStateChange');
+		ipcRenderer.on('auth:stateChanged', (_event: IpcMainInvokeEvent, session: Session) => {
+		callback(session);
+		});
+	},
+	resetPassword: async (email: string) => await ipcRenderer.invoke("auth:resetPassword", email),
+
+	setUsername: (userId: string, username: string) => ipcRenderer.invoke('auth:setUsername', userId, username),
+});

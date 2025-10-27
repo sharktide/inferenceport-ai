@@ -6,6 +6,10 @@
 		<link rel="stylesheet" href="styles/styles.css" />
 		<link rel="stylesheet" href="styles/marketplace.css" />
 		<script type="module" src="scripts/staticload/theme.js"></script>
+		<script type="module">
+			import { isLoggedIn } from "./scripts/helper/checkers/auth-checker.js"
+			isLoggedIn();
+		</script>
 	</head>
 	<body>
 		<nav>

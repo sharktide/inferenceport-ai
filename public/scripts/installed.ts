@@ -1,6 +1,7 @@
 import { showNotification } from "./helper/notification.js"
 import { getReadableColor, getEmoji } from "./helper/random.js";
-import "./helper/ollama-checker.js"
+import "./helper/checkers/ollama-checker.js";
+import { isLoggedIn } from "./helper/checkers/auth-checker.js";
 
 async function renderOllama() {
     const spinner = document.getElementById("spinner-ollama");
@@ -37,7 +38,6 @@ async function renderOllama() {
             provider.style.cssText = "margin: 4px 0 0; font-size: 14px; color: var(--text-dark);";
 
             const size = document.createElement("p");
-            //@ts-ignore
             size.textContent = `Size: ${model.size}`;
             size.style.cssText = "margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;";
 
@@ -53,7 +53,6 @@ async function renderOllama() {
             deleteBtn.style.cssText = `background: linear-gradient(to right, ${c1}, ${c2}); filter: brightness(90%);`;
             deleteBtn.onclick = () => showDelModal(model.name, model.name, "ollama");
 
-            // Three-dot menu
             const menuContainer = document.createElement("div");
             menuContainer.className = "menu-container";
             menuContainer.style.cssText = "position: absolute; top: 12px; right: 12px;";
@@ -272,6 +271,7 @@ function showDelModal(username: string, repo: string, type: string) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+	console.log(await isLoggedIn())
 	renderOllama();
 	renderSpaces();
 	renderWebsites();
