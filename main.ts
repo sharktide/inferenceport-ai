@@ -20,6 +20,8 @@ const ollamaHandlers = require("./node-apis/ollama");
 const utilsHandlers = require("./node-apis/utils");
 const authHandlers = require("./node-apis/auth")
 const spaces = require('./node-apis/spaces');
+const fixPath = require("fix-path");
+fixPath();
 
 let mainWindow: any = null;
 
