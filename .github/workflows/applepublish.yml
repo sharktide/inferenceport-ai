@@ -1,4 +1,4 @@
-name: Build and Sign Electron App (macOS)
+name: Build, Sign, and Publish Electron App (macOS)
 
 on:
   workflow_dispatch:
