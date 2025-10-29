@@ -1,6 +1,6 @@
 {
   "name": "InferencePortAI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -10,7 +10,8 @@
     "watch": "tsc -p tsconfig.renderer.json --watch",
     "compile": "npm run compile:main && npm run compile:renderer",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && npx electron-builder && npm run clean"
+    "build": "npm run clean && npm run compile && npx electron-builder --publish never && npm run clean",
+    "publish": "npm run clean && npm run compile && npx electron-builder --publish always && npm run clean"
   },
   "keywords": [],
   "author": "Rihaan Meher",
@@ -32,6 +33,12 @@
   "build": {
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePortAI",
+    "publish": {
+      "provider": "github",
+      "owner": "sharktide",
+      "repo": "InferencePort-AI",
+      "releaseType": "release"
+    },
     "fileAssociations": [
       {
         "ext": "import",
