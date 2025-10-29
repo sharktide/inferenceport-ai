@@ -22,6 +22,7 @@ const { exec, spawn } = require("child_process");
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
+import os from 'os';
 
 type ChatMessage = {
 	role: "user" | "assistant";
@@ -54,24 +55,41 @@ let chatAbortController: AbortController | null = null;
 function register(): void {
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
-			exec("ollama list", (err: Error | null, stdout: string) => {
-				if (err) return reject(err);
-				const lines = stdout.trim().split("\n").slice(1);
-				const models = lines
-					.filter((line: string) => line.trim())
-					.map((line: string) => {
-						const parts = line.trim().split(/\s{2,}/);
-						return {
-							name: parts[0] ?? "Unknown",
-							id: parts[1] ?? "Unknown",
-							size: parts[2] ?? "Unknown",
-							modified: parts[3] ?? "Unknown",
-						};
-					});
-				resolve(models);
+			const isMac = os.platform() === "darwin";
+
+			const resolveCommand = (cb: (cmd: string) => void) => {
+				if (!isMac) return cb("ollama list");
+
+				exec("which ollama", (whichErr: Error, whichOut: string) => {
+					if (whichErr || !whichOut.trim()) {
+						return reject(new Error("Could not find 'ollama' on macOS"));
+					}
+					cb(`${whichOut.trim()} list`);
+				});
+			};
+
+			resolveCommand((resolvedCmd) => {
+				exec(resolvedCmd, (err: Error, stdout: string) => {
+					if (err) return reject(err);
+
+					const lines = stdout.trim().split("\n").slice(1);
+					const models = lines
+						.filter((line) => line.trim())
+						.map((line) => {
+							const parts = line.trim().split(/\s{2,}/);
+							return {
+								name: parts[0] ?? "Unknown",
+								id: parts[1] ?? "Unknown",
+								size: parts[2] ?? "Unknown",
+								modified: parts[3] ?? "Unknown",
+							};
+						});
+					resolve(models);
+				});
 			});
 		});
 	});
+
 
 	ipcMain.handle("ollama:reset", () => {
 		chatHistory = [];
