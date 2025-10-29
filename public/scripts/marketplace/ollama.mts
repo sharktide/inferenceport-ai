@@ -282,7 +282,7 @@ function renderAvailableModels(filter: string = ""): void {
 						model.link ?? ""
 					}" target="_blank" class="model-link">More details</a>
         </div>
-        <button class="marketplace-btn">Open Pull Dialog</button>
+        <button class="marketplace-btn">Open Download Dialog</button>
       `;
 
 			const button = card.querySelector("button");
