@@ -48,12 +48,11 @@
         "msi",
         "appx",
         "zip"
-      ]
+      ],
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
       "target": "dmg",
-      "arch": ["universal"]
-
     },
     "linux": {
       "target": "AppImage"

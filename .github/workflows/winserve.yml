@@ -6,15 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
-    env:
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+  build-win64:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repo
@@ -34,20 +27,11 @@ jobs:
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Electron-macOS-build
+          name: Electron-win64-build
           path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
-  build-macos-x86:
-    runs-on: macos-13
-    env:
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+            dist/*
+  build-arm:
+    runs-on: windows-arm
 
     steps:
       - name: Checkout repo
@@ -67,9 +51,6 @@ jobs:
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Electron-macOS-x86-build
+          name: Electron-winaarch64-build
           path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
-
+            dist/*
