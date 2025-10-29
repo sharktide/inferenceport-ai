@@ -18,8 +18,8 @@ limitations under the License.
 import { marked } from "marked";
 const sanitizeHtml = require('sanitize-html');
 import type { IpcMainEvent } from 'electron'
-import fs from "fs";
-import path from "path";
+const fs = require("fs");
+const path = require("path");
 import { shell, app, ipcMain, BrowserWindow } from "electron";
 import si from 'systeminformation';
 

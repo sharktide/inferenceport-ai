@@ -22,7 +22,7 @@ const { exec, spawn } = require("child_process");
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
-import os from 'os';
+const os = require('os');
 
 type ChatMessage = {
 	role: "user" | "assistant";
