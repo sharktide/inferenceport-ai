@@ -6,6 +6,8 @@ on:
 jobs:
   build-win64:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
       - name: Checkout repo
@@ -20,17 +22,13 @@ jobs:
         run: npm ci
 
       - name: Build and sign Electron app
-        run: npm run build
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Electron-win64-build
-          path: |
-            dist/*
+        run: npm run publish
+  
   build-arm:
     runs-on: windows-11-arm
-
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+  
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
