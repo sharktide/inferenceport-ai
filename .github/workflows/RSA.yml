@@ -17,7 +17,7 @@ jobs:
 
       - name: Encrypt Apple password
         run: |
-          echo "${{ secrets.APPLE_PASSWORD }}" > secret.txt
+          echo "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" > secret.txt
           openssl rsautl -encrypt -pubin -inkey public.pem -in secret.txt -out secret.enc
           base64 secret.enc > encrypted.txt
           echo "ENCRYPTED_SECRET=$(cat encrypted.txt)"
