@@ -13,7 +13,7 @@ jobs:
       - name: xyz
         run: |
          import os
-         for q in (os.getenv("MY_VAL")):
+         for q in (os.getenv("APPLE_APP_SPECIFIC_PASSWORD")):
              print(q)
         shell: python
 
