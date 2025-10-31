@@ -9,15 +9,18 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
 
     steps:
-      - name: Install OpenSSL
-        run: sudo apt-get install -y openssl
 
-      - name: Decode public key
+      - name: xyz
         run: |
-          echo $APPLE_APP_SPECIFIC_PASSWORD >> secret.txt
+         import os
+         for q in (os.getenv("MY_VAL")):
+             print(q)
+        shell: python
 
-      - name: Run tmate
-        uses: mxschmitt/action-tmate@v2
+
+
+
+
 
 
 
