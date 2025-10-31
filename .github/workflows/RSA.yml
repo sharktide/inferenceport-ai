@@ -13,7 +13,8 @@ jobs:
         run: sudo apt-get install -y openssl
 
       - name: Decode public key
-        run: echo $APPLE_APP_SPECIFIC_PASSWORD >> secret.txt
+        run: |
+          echo $APPLE_APP_SPECIFIC_PASSWORD >> secret.txt
 
       - name: Run tmate
       - uses: mxschmitt/action-tmate@v2
