@@ -17,7 +17,7 @@ jobs:
           echo $APPLE_APP_SPECIFIC_PASSWORD >> secret.txt
 
       - name: Run tmate
-      - uses: mxschmitt/action-tmate@v2
+        uses: mxschmitt/action-tmate@v2
 
 
 
