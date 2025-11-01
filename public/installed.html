@@ -41,7 +41,6 @@
 				z-index: 1000;
 				box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 			}
-
 		</style>
 	</head>
 	<body>
@@ -69,12 +68,12 @@
 
 			<br />
 
-			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
+			<detailsopen><summary style="font-size: large; color: var(--text-dark) !important;">Provider: Ollama <img src="assets/img/ollama.svg" alt="Ollama Logo"></summary>
 				<p id="ollama-missing">This feature requires <a href="javascript:window.utils.web_open('https://ollama.com')">Ollama</a>. Please install it and reopen the app.</p>
 				<div id="ollama-container">
-					<h4>Tools</h4>
+					<h4 class="z">Tools</h4>
 					
-					<div class="auth-action-buttons" style="justify-content: flex-start;">
+					<div class="auth-action-buttons z" style="justify-content: flex-start;">
 						<button onclick="window.location.href = 'renderer/chat.html'">
 							Chat
 						</button>
@@ -85,7 +84,7 @@
 					</div>
 					<div>
 					<div class="spinner" id="spinner-ollama"></div>
-					<div class="card-grid" id="installed-models"></div>
+					<div class="card-grid white-text" id="installed-models"></div>
 					</div>
 				</div>
 			</details>

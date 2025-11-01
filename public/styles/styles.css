@@ -610,3 +610,49 @@ select {
 	gap: 10px;
 	margin-top: 15px;
 }
+
+/* === Subtle glassy buttons without color distortion === */
+
+button,
+#auth-links a,
+.theme-toggle,
+.notification .actions button {
+	background-color: color-mix(in srgb, currentColor 15%, transparent 85%);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	color: inherit;
+	transition:
+		transform 0.15s ease,
+		box-shadow 0.15s ease,
+		background-color 0.25s ease;
+}
+
+/* Retain base color strength on hover */
+button:hover,
+#auth-links a:hover,
+.theme-toggle:hover,
+.notification .actions button:hover {
+	background-color: color-mix(in srgb, currentColor 25%, transparent 75%);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Press animation */
+button:active,
+#auth-links a:active,
+.theme-toggle:active,
+.notification .actions button:active {
+	transform: scale(0.97);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) inset;
+}
+
+/* Dark theme readability fix */
+[data-theme="dark"] button,
+[data-theme="dark"] #auth-links a,
+[data-theme="dark"] .theme-toggle,
+[data-theme="dark"] .notification .actions button {
+	background-color: color-mix(in srgb, currentColor 20%, rgba(255,255,255,0.05));
+	border-color: rgba(255,255,255,0.1);
+	color: #fff;
+}
