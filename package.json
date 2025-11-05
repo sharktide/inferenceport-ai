@@ -1,6 +1,6 @@
 {
   "name": "InferencePortAI",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -10,8 +10,9 @@
     "watch": "tsc -p tsconfig.renderer.json --watch",
     "compile": "npm run compile:main && npm run compile:renderer",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && npx electron-builder --publish never && npm run clean",
-    "publish": "npm run clean && npm run compile && npx electron-builder --publish always && npm run clean"
+    "build": "npm run clean && npm run compile && && npm run prepack && npx electron-builder --publish never && npm run clean",
+    "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish always && npm run clean",
+    "prepack": "node scripts/bundle-ollama.js"
   },
   "keywords": [],
   "author": "Rihaan Meher",
@@ -29,11 +30,18 @@
     "@types/node": "^24.3.0",
     "electron": "^37.3.1",
     "electron-builder": "^26.0.12",
+    "electron-ollama": "0.1.25",
     "glob": "^11.0.3"
   },
   "build": {
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePortAI",
+    "extraResources": [
+      {
+        "from": "vendor/electron-ollama",
+        "to": "vendor/electron-ollama"
+      }
+    ],
     "publish": {
       "provider": "github",
       "owner": "sharktide",

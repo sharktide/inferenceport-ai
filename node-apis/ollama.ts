@@ -24,6 +24,11 @@ import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
 const os = require('os');
 
+const isWindows = os.platform() === "win32";
+const ollamaPath = isWindows
+  ? ".\\vendor\\electron-ollama\\ollama.exe"
+  : "./vendor/electron-ollama/ollama";
+
 type ChatMessage = {
 	role: "user" | "assistant";
 	content: string;
@@ -53,19 +58,17 @@ function stripAnsi(str: string): string {
 
 let chatAbortController: AbortController | null = null;
 function register(): void {
+	try {
+		execFileAsync(ollamaPath);
+	} catch {
+		void 0;
+	}
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
 			const isMac = os.platform() === "darwin";
 
 			const resolveCommand = (cb: (cmd: string) => void) => {
-				if (!isMac) return cb("ollama list");
-
-				exec("which ollama", (whichErr: Error, whichOut: string) => {
-					if (whichErr || !whichOut.trim()) {
-						return reject(new Error("Could not find 'ollama' on macOS"));
-					}
-					cb(`${whichOut.trim()} list`);
-				});
+				return cb(`${ollamaPath} list`);
 			};
 
 			resolveCommand((resolvedCmd) => {
@@ -99,7 +102,7 @@ function register(): void {
 		"ollama:run",
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
-				exec(`ollama run ${modelName}`, (err: Error | null, stdout: string) => {
+				exec(`${ollamaPath} run ${modelName}`, (err: Error | null, stdout: string) => {
 					if (err) return reject(err);
 					resolve(stdout);
 				});
@@ -112,7 +115,7 @@ function register(): void {
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
-					`ollama rm ${modelName}`,
+					`${ollamaPath} rm ${modelName}`,
 					(err: Error | null, stdout: string, stderr: string) => {
 						if (err) return reject(stderr || err.message);
 						resolve(stdout);
@@ -197,7 +200,7 @@ function register(): void {
 		"ollama:pull",
 		(_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
-				const child = spawn("ollama", ["pull", modelName]);
+				const child = spawn(ollamaPath, ["pull", modelName]);
 
 				const sendProgress = (data: Buffer) => {
 					const clean = stripAnsi(data.toString());
@@ -226,7 +229,7 @@ function register(): void {
 
 	ipcMain.handle('ollama:available', async () => {
 		  try {
-			const { stdout } = await execFileAsync('ollama', ['--version'], { timeout: 7000 });
+			const { stdout } = await execFileAsync(ollamaPath, ['--version'], { timeout: 7000 });
 			return typeof stdout === 'string' && stdout.trim().length > 0;
 		} catch (err) {
 			return false;

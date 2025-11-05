@@ -408,6 +408,7 @@ public\scripts\staticload\theme.d.ts.map
 public\scripts\staticload\theme.js
 public\scripts\staticload\theme.js.map
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+vendor
 web_modules/
 yarn-debug.log*
 yarn-error.log*
