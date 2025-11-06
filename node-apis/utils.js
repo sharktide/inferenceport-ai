@@ -1,0 +1,132 @@
+"use strict";
+/*
+Copyright 2025 Rihaan Meher
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+Object.defineProperty(exports, "__esModule", { value: true });
+//@ts-nocheck
+const marked_1 = require("marked");
+const sanitizeHtml = require('sanitize-html');
+const fs = require("fs");
+const path = require("path");
+const electron_1 = require("electron");
+const systeminformation_1 = require("systeminformation");
+function parseModelSize(modelSize) {
+    const lower = modelSize.toLowerCase();
+    if (lower.endsWith('b'))
+        return parseFloat(lower.replace('b', ''));
+    if (lower.endsWith('m'))
+        return parseFloat(lower.replace('m', '')) / 1000;
+    if (lower.startsWith('e'))
+        return parseFloat(lower.replace('e', ''));
+    return parseFloat(lower);
+}
+function register() {
+    electron_1.ipcMain.handle("utils:web_open", async (_event, url) => {
+        electron_1.shell.openExternal(url);
+    });
+    electron_1.ipcMain.on("utils:markdown_parse", (event, markdown) => {
+        try {
+            const dirty = marked_1.marked.parse(markdown);
+            const clean = sanitizeHtml(dirty);
+            event.returnValue = clean;
+        }
+        catch (err) {
+            event.returnValue = `<p>Error parsing markdown: ${err instanceof Error ? err.message : String(err)}</p>`;
+        }
+    });
+    electron_1.ipcMain.on("utils:DOMPurify", (event, html) => {
+        try {
+            const cleanHTML = sanitizeHtml(html);
+            event.returnValue = cleanHTML;
+        }
+        catch {
+            event.returnValue = `<p>Error cleaning HTML: ${err instanceof Error ? error.message : String(err)}</p>`;
+        }
+    });
+    electron_1.ipcMain.handle("utils:saveFile", async (_event, filePath, content) => {
+        try {
+            const dir = path.dirname(filePath);
+            await fs.mkdirSync(dir, { recursive: true });
+            await fs.writeFileSync(filePath, content);
+        }
+        catch (err) {
+            console.error("Failed to save file:", err);
+            throw err;
+        }
+    });
+    const AppDataDir = electron_1.app.getPath("userData");
+    electron_1.ipcMain.handle("utils:getPath", () => {
+        return AppDataDir;
+    });
+    electron_1.ipcMain.handle('utils:get-hardware-performance-warning', async (_event, modelSizeRaw) => {
+        const modelSize = parseModelSize(modelSizeRaw); // in billions
+        const cpu = await systeminformation_1.default.cpu();
+        const flags = await systeminformation_1.default.cpuFlags();
+        const mem = await systeminformation_1.default.mem();
+        const ramGB = mem.total / 1e9;
+        const hasAVX2 = flags.includes('avx2');
+        const hasAVX512 = flags.includes('avx512f') || flags.includes('avx512');
+        const score = (hasAVX2 ? 2 : 0) +
+            (hasAVX512 ? 2 : 0) +
+            (cpu.cores >= 8 ? 1 : 0) +
+            (ramGB >= 16 ? 1 : 0) +
+            (cpu.cache?.l3 ? cpu.cache.l3 / 10 : 0);
+        let warning = '';
+        if (modelSize > 65) {
+            return {
+                modelSizeRaw,
+                modelSizeB: modelSize,
+                cpu: cpu.brand,
+                cores: cpu.cores,
+                ramGB: ramGB.toFixed(1),
+                avx2: hasAVX2,
+                avx512: hasAVX512,
+                warning: `🚫 ${modelSizeRaw} is too large for most consumer hardware. Use a smaller model.`,
+            };
+        }
+        if (modelSize <= 1) {
+            warning = `✅ Your system should handle ${modelSizeRaw} models easily.`;
+        }
+        else if (modelSize <= 3) {
+            warning = score >= 4
+                ? `✅ ${modelSizeRaw} should run fine on your system.`
+                : `⚠️ ${modelSizeRaw} may be slow (>30s) on your system.`;
+        }
+        else if (modelSize <= 7) {
+            warning = score >= 5
+                ? `✅ ${modelSizeRaw} should run with reasonable performance.`
+                : `⚠️ ${modelSizeRaw} may respond slowly or exceed memory limits.`;
+        }
+        else {
+            warning = score >= 6
+                ? `🚫 ${modelSizeRaw} is likely too large for your system. Consider using a smaller model.`
+                : `🚫 ${modelSizeRaw} is likely too large for your system. Consider using a smaller model.`;
+        }
+        return {
+            modelSizeRaw,
+            modelSizeB: modelSize,
+            cpu: cpu.brand,
+            cores: cpu.cores,
+            ramGB: ramGB.toFixed(1),
+            avx2: hasAVX2,
+            avx512: hasAVX512,
+            warning,
+        };
+    });
+}
+module.exports = {
+    register,
+};
+//# sourceMappingURL=utils.js.map

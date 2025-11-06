@@ -4,8 +4,12 @@
 		<meta charset="UTF-8" />
 		<title>Chat - InferencePortAI</title>
 		<link rel="stylesheet" href="../styles/styles.css" />
-		<link rel="stylesheet" href="../styles/chat.css" />
+		<!-- <link rel="stylesheet" href="../styles/chat.css" /> -->
 		<script type="module" src="../scripts/staticload/theme.js"></script>
+		<script type="module">
+			import { isLoggedIn } from "../scripts/helper/checkers/auth-checker.js";
+			isLoggedIn();
+		</script>
 		<style>
 			#ollama-missing {
 				padding: 12px;

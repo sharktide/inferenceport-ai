@@ -1,0 +1,34 @@
+/*
+Copyright 2025 Rihaan Meher
+*/
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input:not([type]) {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid var(--secondary-color);
+  border-radius: var(--border-radius);
+  font-size: 16px;
+  background-color: var(--input-bg);
+  color: var(--text-dark);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] button {
+  border: 1px solid #444;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background-color: var(--input-bg);
+  color: var(--text-dark);
+}
+
+select {
+  margin-top: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+}

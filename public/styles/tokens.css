@@ -1,0 +1,29 @@
+/*
+Copyright 2025 Rihaan Meher
+*/
+:root {
+  --blue: #3178c6;
+  --light-blue: #e3f2fd;
+  --dark-text: #1a1a1a;
+  --gray: #f5f5f5;
+  --primary-color: #3178c6;
+  --secondary-color: #e3f2fd;
+  --text-dark: #1a1a1a;
+  --bg-light: #f9fafc;
+  --border-radius: 8px;
+  --input-bg: #ffffff;
+  --success: #3ca374;
+  --error: #e53935;
+}
+
+[data-theme="dark"] {
+  --blue: #90caf9;
+  --light-blue: #1e1e1e;
+  --dark-text: #f0f0f0;
+  --gray: #2c2c2c;
+  --primary-color: #90caf9;
+  --secondary-color: #1e1e1e;
+  --text-dark: #f0f0f0;
+  --bg-light: #121212;
+  --input-bg: #2a2a2a;
+}

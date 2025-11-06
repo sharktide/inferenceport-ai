@@ -44,10 +44,6 @@ modelSelect?.addEventListener('change', setTitle)
 
 const urlParams = new URLSearchParams(window.location.search);
 
-function stripAnsi(str: string): string {
-	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
-}
-
 document.addEventListener("DOMContentLoaded", async () => {
 	try {
 		const models = await window.ollama.listModels();
@@ -288,92 +284,14 @@ function formatAttachedFiles(files) {
   return output;
 }
 
-async function pullModel(name: string): Promise<void> {
-    try {
-        await window.ollama.pullModel(name);
-        showNotification({
-            message: `Model pulled: ${name}`,
-            type: "success",
-            actions: [{ label: "Finish", onClick: () => location.reload() }],
-        });
-    } catch (err: any) {
-        showNotification({
-            message: `Error pulling model: ${err.message}`,
-            type: "error",
-        });
-    }
-}
-
-
-window.ollama.onPullProgress(
-	({ model, output }: { model: string; output: string }) => {
-		const container = document.getElementById("notification-container");
-		if (!container) return;
-
-		let box = container.querySelector(
-			`[data-model="${model}"]`
-		) as HTMLElement | null;
-
-		if (!box) {
-			box = document.createElement("div");
-			box.className = "notification info";
-			box.dataset.model = model;
-
-			const close = document.createElement("button");
-			close.className = "close-btn";
-			close.textContent = "×";
-			close.onclick = () => box?.remove();
-
-			const msg = document.createElement("div");
-			msg.className = "message";
-			msg.innerHTML = `<strong>Pulling ${model}</strong><pre></pre>`;
-
-			box.appendChild(close);
-			box.appendChild(msg);
-			container.appendChild(box);
-		}
-
-		const pre = box.querySelector("pre");
-		const clean = stripAnsi(output);
-
-		if (pre) {
-			pre.textContent = clean.includes("\r")
-				? clean.split("\r").pop() ?? ""
-				: clean;
-		}
-
-		if (/successfully pulled/i.test(clean)) {
-			const actions = document.createElement("div");
-			actions.className = "actions";
-			const finishBtn = document.createElement("button");
-			finishBtn.textContent = "Finish";
-			finishBtn.onclick = () => {
-				box?.remove();
-				location.reload();
-			};
-			actions.appendChild(finishBtn);
-			box.appendChild(actions);
-		}
-	}
-);
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", (e) => {
     e.preventDefault();
-
-    const models = await window.ollama.listModels();
-    if (models.length === 0) {
-        const defaultModel = "llama3.2:3b";
-        showNotification({
-            message: `No models found. Downloading default model: ${defaultModel}`,
-            type: "info",
-        });
-        await pullModel(defaultModel); // ✅ Await the pull
-        modelSelect.value = defaultModel;
-    }
-
     if (isStreaming) {
+        // Stop streaming
         window.ollama.stop?.();
         return;
     }
+
 
     const prompt = input.value.trim();
     const model = modelSelect.value;
@@ -381,10 +299,10 @@ form.addEventListener("submit", async (e) => {
 
     const session = sessions[currentSessionId];
     session.model = model;
-    const fileBlock = formatAttachedFiles(attachedFiles);
-    const fullPrompt = prompt + "\n\n" + fileBlock;
-    attachedFiles = [];
-    renderFileIndicator();
+	const fileBlock = formatAttachedFiles(attachedFiles);
+	const fullPrompt = prompt + "\n\n" + fileBlock;
+	attachedFiles = [];
+	renderFileIndicator()
     session.history.push({ role: "user", content: fullPrompt });
     renderChat();
 
@@ -397,7 +315,8 @@ form.addEventListener("submit", async (e) => {
     input.value = "";
     input.style.height = "";
     window.ollama.removeAllListeners?.();
-    window.ollama.streamPrompt(model, fullPrompt);
+	window.ollama.streamPrompt(model, fullPrompt);
+
 
     let fullResponse = "";
     isStreaming = true;
@@ -407,6 +326,7 @@ form.addEventListener("submit", async (e) => {
         fullResponse += chunk;
         botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
         chatBox.scrollTop = chatBox.scrollHeight;
+
     });
 
     window.ollama.onError((err) => {
@@ -426,9 +346,8 @@ form.addEventListener("submit", async (e) => {
         window.ollama.save(sessions);
         endStreaming();
     });
-
-    window.ollama.onAbort(() => {
-        session.history.push({ role: "assistant", content: fullResponse });
+	window.ollama.onAbort(() => {
+		session.history.push({ role: "assistant", content: fullResponse });
         const status = document.createElement("div");
         status.textContent = "⚠︎ Interrupted";
         status.style.marginTop = "8px";
@@ -436,10 +355,9 @@ form.addEventListener("submit", async (e) => {
         status.style.color = "#d9534f";
         botBubble.appendChild(status);
         window.ollama.save(sessions);
-        endStreaming();
-    });
+		endStreaming();
+	});
 });
-
 
 function renderFileIndicator() {
     fileBar.innerHTML = "";

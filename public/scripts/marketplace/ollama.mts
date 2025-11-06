@@ -70,7 +70,6 @@ async function fetchAvailableModels(): Promise<AvailableModel[]> {
 
 async function pullModel(name: string): Promise<void> {
 	try {
-		//@ts-ignore
 		await window.ollama.pullModel(name);
 		showNotification({
 			message: `Model pulled: ${name}`,
@@ -87,7 +86,6 @@ async function pullModel(name: string): Promise<void> {
 
 async function deleteModel(name: string): Promise<void> {
 	try {
-		//@ts-ignore
 		await window.ollama.deleteModel(name);
 		showNotification({
 			message: `Model deleted: ${name}`,
@@ -102,7 +100,6 @@ async function deleteModel(name: string): Promise<void> {
 	}
 }
 
-//@ts-ignore
 window.ollama.onPullProgress(
 	({ model, output }: { model: string; output: string }) => {
 		const container = document.getElementById("notification-container");
