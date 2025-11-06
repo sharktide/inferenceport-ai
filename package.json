@@ -60,9 +60,9 @@
     },
     "win": {
       "target": [
-        "nsis",
+        "zip",
         "appx",
-        "zip"
+        "msi"
       ],
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
@@ -71,10 +71,6 @@
     },
     "linux": {
       "target": "AppImage"
-    },
-    "nsis": {
-      "perMachine": true,
-      "compression": "store"
     },
     "appx": {
       "publisher": "CN=Rihaan Meher",
