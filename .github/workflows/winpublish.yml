@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-win64:
-    runs-on: windows-10
+    runs-on: windows-2025
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
