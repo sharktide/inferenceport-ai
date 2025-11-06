@@ -36,6 +36,7 @@
   "build": {
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePortAI",
+    "compression": "store",
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
