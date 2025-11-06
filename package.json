@@ -36,7 +36,6 @@
   "build": {
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePortAI",
-    "compression": "store",
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
@@ -74,7 +73,8 @@
       "target": "AppImage"
     },
     "nsis": {
-      "perMachine": true
+      "perMachine": true,
+      "compression": "store"
     },
     "appx": {
       "publisher": "CN=Rihaan Meher",
