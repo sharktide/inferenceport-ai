@@ -236,7 +236,7 @@ function renderChat() {
 	if (!session.history || session.history.length === 0) {
 		const emptyMsg = document.createElement("div");
 		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
+		emptyMsg.textContent = "Start chatting to see messages here. (Powered by Ollama, view their license here: https://ollama.com/license";
 		chatBox.appendChild(emptyMsg);
 		return;
 	}
@@ -366,8 +366,16 @@ form.addEventListener("submit", async (e) => {
             message: `No models found. Downloading default model: ${defaultModel}`,
             type: "info",
         });
-        await pullModel(defaultModel); // ✅ Await the pull
-        modelSelect.value = defaultModel;
+        await pullModel(defaultModel);
+		let attempts = 0;
+		while (attempts < 10) {
+			const models = await window.ollama.listModels();
+			if (models.some(m => m.name === defaultModel)) break;
+			await new Promise(r => setTimeout(r, 1000));
+			attempts++;
+		}
+
+		modelSelect.value = defaultModel;
     }
 
     if (isStreaming) {
