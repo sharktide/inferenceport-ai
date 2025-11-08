@@ -24,11 +24,16 @@ import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
 const os = require('os');
 
-const isWindows = os.platform() === "win32";
-const ollamaPath = isWindows
-  ? ".\\vendor\\electron-ollama\\ollama.exe"
-  : "./vendor/electron-ollama/ollama";
+const ollamaBinary = process.platform === 'win32'
+  ? 'ollama.exe'
+  : 'ollama';
 
+const ollamaPath = path.join(
+  process.resourcesPath,
+  'vendor',
+  'electron-ollama',
+  ollamaBinary
+);
 type ChatMessage = {
 	role: "user" | "assistant";
 	content: string;

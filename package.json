@@ -10,7 +10,7 @@
     "watch": "tsc -p tsconfig.renderer.json --watch",
     "compile": "npm run compile:main && npm run compile:renderer",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && && npm run prepack && npx electron-builder --publish never && npm run clean",
+    "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish never && npm run clean",
     "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish always && npm run clean",
     "prepack": "node scripts/bundle-ollama.js"
   },
@@ -36,6 +36,15 @@
   "build": {
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePortAI",
+    "files": [
+      "public/**/*",
+      "node-apis/*",
+      "main.js",
+      "preload.js",
+      "package.json",
+      "!**/vendor/**/*",
+      "!./scripts/*"
+    ],
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
@@ -60,9 +69,10 @@
     },
     "win": {
       "target": [
-        "nsis",
         "appx",
-        "zip"
+        "zip",
+        "msi",
+        "nsis"
       ],
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
@@ -73,8 +83,7 @@
       "target": "AppImage"
     },
     "nsis": {
-      "perMachine": true,
-      "compression": "store"
+      "perMachine": true
     },
     "appx": {
       "publisher": "CN=Rihaan Meher",

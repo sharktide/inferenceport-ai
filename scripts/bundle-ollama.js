@@ -20,6 +20,21 @@ async function moveBinariesToRoot(version, os, arch) {
     }
 }
 
+async function removeCudaFolders() {
+    const vendorRoot = path.resolve(__dirname, '../vendor/electron-ollama')
+    const cudaVersions = ['lib/ollama/cuda_v12', 'lib/ollama/cuda_v13']
+
+    for (const version of cudaVersions) {
+        const cudaPath = path.join(vendorRoot, version)
+        try {
+            await fsp.rm(cudaPath, { recursive: true, force: true })
+            console.log(`Removed ${version} folder from ${vendorRoot}`)
+        } catch (err) {
+            console.warn(`Could not remove ${version}: ${err.message}`)
+        }
+    }
+}
+
 async function bundleOllama() {
     const platformMap = {
         win32: 'windows',
@@ -47,6 +62,7 @@ async function bundleOllama() {
     await eo.download(metadata.version, { os, arch })
 
     await moveBinariesToRoot(metadata.version, os, arch)
+    await removeCudaFolders()
 
     console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch} into /vendor/electron-ollama`)
 }
