@@ -3,6 +3,8 @@
 	<head>
 		<meta charset="UTF-8" />
 		<title>Installed Models - InferencePortAI</title>
+		<script type="module" src="Components.js"></script>
+
 		<link rel="stylesheet" href="styles/styles.css" />
 		<link rel="stylesheet" href="styles/loading.css" />
 		<script type="module" src="scripts/staticload/theme.js"></script>
@@ -44,14 +46,8 @@
 		</style>
 	</head>
 	<body>
-		<nav>
-			<div class="logo">⚡InferencePort AI</div>
-			<ul class="nav-links">
-				<li><a href="index.html">Dashboard</a></li>
-				<li><a href="marketplace.html">Marketplace</a></li>
-				<li><a href="installed.html">Installed</a></li>
-				<li><a href="settings.html">Settings</a></li>
-			</ul>
+		<root-navbar></root-navbar>
+
 		</nav>
 
 		<div id="del-modal" class="modal hidden">

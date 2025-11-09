@@ -4,9 +4,8 @@
 		<meta charset="UTF-8" />
 
 		<title>Ollama - Marketplace - InferencePortAI</title>
+		<script type="module" src="../Components.js"></script>
 		<link rel="stylesheet" href="../styles/styles.css" />
-		<link rel="stylesheet" href="../styles/loading.css" />
-		<link rel="stylesheet" href="../styles/highlight.css">
 
 		<script type="module" src="../scripts/staticload/theme.js"></script>
 		<style>
@@ -53,15 +52,7 @@
 		</style>
 	</head>
 	<body>
-		<nav>
-			<div class="logo">⚡InferencePort AI</div>
-			<ul class="nav-links">
-				<li><a href="../index.html">Dashboard</a></li>
-				<li><a href="../marketplace.html">Marketplace</a></li>
-				<li><a href="../installed.html">Installed</a></li>
-				<li><a href="../settings.html">Settings</a></li>
-			</ul>
-		</nav>
+		<type1-navbar></type1-navbar>
 
 		<div id="ollama-missing" class="modal hidden">
 			<h3>Ollama not found</h3>
