@@ -31,5 +31,4 @@ export class Type1Navbar extends HTMLElement {
 }
 
 customElements.define("root-navbar", RootNavbar);
-
 customElements.define("type1-navbar", Type1Navbar);

@@ -1,0 +1,31 @@
+export class ChatBox extends HTMLElement {
+    connectedCallback() {
+        this.innerHTML = 
+        `
+            <input type="file" id="file-upload" multiple style="display:none" />
+        	<form id="chat-form" role="form">
+                <div class="typing-bar">
+                    <div id="file-preview-bar" class="file-preview-bar"></div>
+                        <textarea id="chat-input" placeholder="Type your message..." rows="4"></textarea>
+                        <div class="typing-actions">
+                        <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
+                        <button type="submit" class="stop-btn" aria-label="Send" id="send">⬆️</button>
+                        </div>
+                        <div id="file-preview-modal" class="modal hidden">
+                            <div class="modal-content full-screen">
+                                <h3 id="file-preview-title"></h3>
+                                <pre id="file-preview-content"></pre>
+                                <div class="modal-actions">
+                                <button id="file-preview-close">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+			</form>
+
+        `
+    }
+}
+
+customElements.define("chat-box", ChatBox);
+
