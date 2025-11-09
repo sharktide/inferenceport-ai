@@ -24,16 +24,17 @@ import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
 const os = require('os');
 
-const ollamaBinary = process.platform === 'win32'
-  ? 'ollama.exe'
-  : 'ollama';
+const isDev = !app.isPackaged;
 
-const ollamaPath = path.join(
-  process.resourcesPath,
-  'vendor',
-  'electron-ollama',
-  ollamaBinary
-);
+const ollamaBinary = process.platform === "win32"
+  ? "ollama.exe"
+  : "ollama";
+
+const ollamaPath = isDev
+  ? path.join("vendor", "electron-ollama", ollamaBinary) // dev: relative to source
+  : path.join(process.resourcesPath, "vendor", "electron-ollama", ollamaBinary); // prod: packaged
+
+
 type ChatMessage = {
 	role: "user" | "assistant";
 	content: string;
