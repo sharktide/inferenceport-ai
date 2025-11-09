@@ -17,8 +17,8 @@ limitations under the License.
 //@ts-nocheck
 
 import { urlToHttpOptions } from "url";
-import { showNotification } from "../../scripts/helper/notification.js";
-import "../../scripts/helper/checkers/ollama-checker.js"
+import { showNotification } from "../helper/notification.js";
+import "../helper/checkers/ollama-checker.js"
 
 const dataDir = window.ollama.getPath();
 
@@ -236,7 +236,7 @@ function renderChat() {
 	if (!session.history || session.history.length === 0) {
 		const emptyMsg = document.createElement("div");
 		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here. (Powered by Ollama, view their license here: https://ollama.com/license";
+		emptyMsg.textContent = "Start chatting to see messages here.";
 		chatBox.appendChild(emptyMsg);
 		return;
 	}
