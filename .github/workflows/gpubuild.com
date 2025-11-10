@@ -1,4 +1,4 @@
-name: Build and Sign Electron App (Windows)
+name: Build and Publish GPU Binaries
 
 on:
   workflow_dispatch:
