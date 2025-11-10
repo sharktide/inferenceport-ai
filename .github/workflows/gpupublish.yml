@@ -1,4 +1,4 @@
-name: Build GPU Binaries
+name: Build and Publish GPU Binaries
 
 on:
   workflow_dispatch:
