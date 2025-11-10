@@ -34,17 +34,9 @@ async function removeCudaFolders() {
         }
     }
 }
-
 async function bundleOllama() {
-    const platformMap = {
-        win32: 'windows',
-        darwin: 'darwin',
-    }
-
-    const archMap = {
-        x64: 'amd64',
-        arm64: 'arm64',
-    }
+    const platformMap = { win32: 'windows', darwin: 'darwin' }
+    const archMap = { x64: 'amd64', arm64: 'arm64' }
 
     const os = platformMap[process.platform]
     const arch = archMap[process.arch]
@@ -54,17 +46,20 @@ async function bundleOllama() {
         process.exit(1)
     }
 
-    const eo = new ElectronOllama({
-        basePath: path.resolve(__dirname, '../vendor'),
-    })
-
+    const eo = new ElectronOllama({ basePath: path.resolve(__dirname, '../vendor') })
     const metadata = await eo.getMetadata('latest')
     await eo.download(metadata.version, { os, arch })
 
     await moveBinariesToRoot(metadata.version, os, arch)
-    await removeCudaFolders()
 
-    console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch} into /vendor/electron-ollama`)
+    if (process.env.GPU_ONLY === 'true') {
+        console.log('GPU_ONLY build detected — keeping CUDA binaries, zip-only packaging')
+    } else {
+        await removeCudaFolders()
+    }
+
+    console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch}`)
 }
+
 
 bundleOllama()
