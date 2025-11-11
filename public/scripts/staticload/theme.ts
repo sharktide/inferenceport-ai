@@ -38,6 +38,40 @@ function updateToggleButton(currentTheme: string) {
 	}
 }
 
+function resolveAuth(redirect: boolean = false): string {
+  const path = window.location.pathname; 
+  const normalized = path.replace(/\\/g, "/");
+
+  let target = "auth.html";
+
+  if (normalized.includes("/marketplace/") || normalized.includes("/renderer/")) {
+    target = "../auth.html";
+  }
+
+  if (redirect) {
+  	window.location.href = target;
+  }
+
+  return target
+}
+
+function resolveSettings(redirect: boolean = false): string {
+  const path = window.location.pathname; 
+  const normalized = path.replace(/\\/g, "/");
+
+  let target = "settings.html";
+
+  if (normalized.includes("/marketplace/") || normalized.includes("/renderer/")) {
+    target = "../settings.html";
+  }
+
+  if (redirect) {
+	window.location.href = target;
+	return target;
+  }
+  return target;
+}
+
 document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
 
 applySavedTheme();
@@ -65,7 +99,7 @@ async function renderUserIndicator() {
     if (session && session.user) {
       const name = profile?.username || session.user?.email || 'Account';
       const link = document.createElement('a');
-      link.href = 'settings.html';
+      link.href = resolveSettings();
       link.textContent = String(name);
       link.style.textDecoration = 'none';
       link.style.color = 'inherit';
@@ -76,14 +110,14 @@ async function renderUserIndicator() {
       signOutBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         await window.auth.signOut();
-        window.location.href = 'auth.html';
+        window.location.href = resolveAuth();
       });
 
       container.appendChild(link);
       container.appendChild(signOutBtn);
     } else {
       const signIn = document.createElement('a');
-      signIn.href = 'auth.html';
+      signIn.href = resolveAuth();
       signIn.textContent = 'Sign in';
       signIn.style.textDecoration = 'none';
       signIn.style.color = 'inherit';
