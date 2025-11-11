@@ -43,57 +43,57 @@ document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
 applySavedTheme();
 
 async function renderUserIndicator() {
-	try {
-		const nav = document.querySelector('nav');
-		if (!nav) return;
-		const existing = document.getElementById('user-indicator');
-		if (existing) return;
+  try {
+    const nav = document.querySelector('nav');
+    if (!nav) return;
 
-		const container = document.createElement('div');
-		container.id = 'user-indicator';
-		container.style.marginLeft = 'auto';
-		container.style.marginRight = '18px';
-		container.style.display = 'flex';
-		container.style.alignItems = 'center';
-		container.style.gap = '8px';
+    const existing = document.getElementById('user-indicator');
+    if (existing) existing.remove();
 
-		const res = await window.auth.getSession();
-		const session = (res as any)?.session;
-		const profile = (res as any)?.profile;
+    const container = document.createElement('div');
+    container.id = 'user-indicator';
+    container.style.marginLeft = 'auto';
+    container.style.marginRight = '18px';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.gap = '8px';
 
-		if (session && session.user) {
-			const name = profile?.username || session.user?.email || 'Account';
-			const link = document.createElement('a');
-			link.href = 'settings.html';
-			link.textContent = String(name);
-			link.style.textDecoration = 'none';
-			link.style.color = 'inherit';
-			link.id = 'account-link';
+    const res = await window.auth.getSession();
+    const session = (res as any)?.session;
+    const profile = (res as any)?.profile;
 
-			const signOutBtn = document.createElement('button');
-			signOutBtn.textContent = 'Sign out';
-			signOutBtn.addEventListener('click', async (e) => {
-				e.preventDefault();
-				await window.auth.signOut();
-				// reload to update UI
-				window.location.href = 'auth.html';
-			});
+    if (session && session.user) {
+      const name = profile?.username || session.user?.email || 'Account';
+      const link = document.createElement('a');
+      link.href = 'settings.html';
+      link.textContent = String(name);
+      link.style.textDecoration = 'none';
+      link.style.color = 'inherit';
+      link.id = 'account-link';
 
-			container.appendChild(link);
-			container.appendChild(signOutBtn);
-		} else {
-			const signIn = document.createElement('a');
-			signIn.href = 'auth.html';
-			signIn.textContent = 'Sign in';
-			signIn.style.textDecoration = 'none';
-			signIn.style.color = 'inherit';
-			container.appendChild(signIn);
-		}
+      const signOutBtn = document.createElement('button');
+      signOutBtn.textContent = 'Sign out';
+      signOutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await window.auth.signOut();
+        window.location.href = 'auth.html';
+      });
 
-		nav.appendChild(container);
-	} catch (e) {
-		console.warn('renderUserIndicator error', e);
-	}
+      container.appendChild(link);
+      container.appendChild(signOutBtn);
+    } else {
+      const signIn = document.createElement('a');
+      signIn.href = 'auth.html';
+      signIn.textContent = 'Sign in';
+      signIn.style.textDecoration = 'none';
+      signIn.style.color = 'inherit';
+      container.appendChild(signIn);
+    }
+
+    nav.appendChild(container);
+  } catch (e) {
+    console.warn('renderUserIndicator error', e);
+  }
 }
 
 try { window.auth.onAuthStateChange(() => renderUserIndicator()); } catch(e) {}
