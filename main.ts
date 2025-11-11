@@ -216,6 +216,11 @@ app.whenReady().then(() => {
 	authHandlers.register()
 	spaces.register();
 	createWindow();
+	try {
+		ollamaHandlers.serve();
+	} catch (ex) {
+		console.log(`NOTICE An exception was thrown inside a block allowed to fail. No further action is needed: ${ex}`);
+	}
 });
 
 app.on("window-all-closed", () => {

@@ -62,6 +62,15 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+async function serve(): Promise<string> {
+	return new Promise((resolve, reject) => {
+		exec(`${ollamaPath} serve`, (err: Error | null, stdout: string) => {
+			if (err) return reject(err);
+			resolve(stdout);
+		});
+	});
+}
+
 let chatAbortController: AbortController | null = null;
 function register(): void {
 	try {
@@ -98,7 +107,6 @@ function register(): void {
 			});
 		});
 	});
-
 
 	ipcMain.handle("ollama:reset", () => {
 		chatHistory = [];
@@ -260,4 +268,4 @@ function loadSessions(): Record<string, unknown> {
 	return {};
 }
 
-module.exports = { register };
+module.exports = { register, serve };
