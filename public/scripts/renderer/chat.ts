@@ -48,7 +48,9 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", loadOptions);
+
+async function loadOptions() {
 	try {
 		const models = await window.ollama.listModels();
 		models.forEach((model) => {
@@ -74,8 +76,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
 		console.error(err);
 	}
-
-});
+}
 
 function generateSessionId() {
 	return crypto.randomUUID();
@@ -294,7 +295,7 @@ async function pullModel(name: string): Promise<void> {
         showNotification({
             message: `Model pulled: ${name}`,
             type: "success",
-            actions: [{ label: "Finish", onClick: () => location.reload() }],
+            actions: [{ label: "Ok", onClick: () => void 0 }],
         });
     } catch (err: any) {
         showNotification({
@@ -374,6 +375,8 @@ form.addEventListener("submit", async (e) => {
 			await new Promise(r => setTimeout(r, 1000));
 			attempts++;
 		}
+
+		await loadOptions();
 
 		modelSelect.value = defaultModel;
     }

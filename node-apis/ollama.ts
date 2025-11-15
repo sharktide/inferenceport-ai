@@ -154,11 +154,15 @@ function register(): void {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
 						model: modelName,
-						messages: chatHistory,
+						messages: [
+						{ role: "system", content: "You may only use markdown for formatting. Not LaTeX" },
+						...chatHistory
+						],
 						stream: true,
 					}),
 					signal: chatAbortController!.signal,
 				});
+
 
 				const reader = res.body?.getReader();
 				const decoder = new TextDecoder();
