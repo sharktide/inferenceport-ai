@@ -122,14 +122,34 @@ async function renderOllama() {
 async function renderSpaces() {
 	const spinner = document.getElementById("spinner-hf") as HTMLDivElement;
 	spinner.style.display = "flex";
-	document.getElementById("hf-spaces")!.innerHTML = await window.hfspaces.get_cards();
+	const spaces = await window.hfspaces.get_cards();
+	if (!spaces || spaces == "") {
+		const modelsNotFound = document.createElement("p")
+		modelsNotFound.innerHTML = "No models added. Visit the <a href='marketplace/addspace.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 10,000 different AI models";
+		if (theme === 'light') {
+			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		}
+		document.getElementById("hf-spaces")!.appendChild(modelsNotFound);
+		return;
+	}
+	document.getElementById("hf-spaces")!.innerHTML = spaces;
 	spinner.style.display = "none";
 }
 
 async function renderWebsites() {
 	const spinner = document.getElementById("spinner-website") as HTMLDivElement
 	spinner.style.display = "flex";
-	document.getElementById("websites")!.innerHTML = await window.hfspaces.get_website_cards();
+	const websites = await window.hfspaces.get_website_cards();
+	if (!websites || websites == "") {
+		const modelsNotFound = document.createElement("p")
+		modelsNotFound.innerHTML = "No website shortcuts added. Visit the <a href='marketplace/addwebsite.html' style='color: var(--dark-text) !important'>marketplace</a> to add any website shortcut to this app";
+		if (theme === 'light') {
+			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		}
+		document.getElementById("websites")!.appendChild(modelsNotFound);
+		return;
+	}
+	document.getElementById("websites")!.innerHTML = websites;
 	spinner.style.display = "none";
 }
 
