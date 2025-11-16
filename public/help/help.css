@@ -40,3 +40,19 @@ button {
 button:hover {
     background: #d96931;
 }
+
+pre, code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo,
+        monospace;
+    background: rgba(0,0,0,0.12);
+    padding: 8px;
+    border-radius: 6px;
+    color: var(--text-dark);
+    display: block;
+    overflow-x: auto;
+}
+
+pre { white-space: pre-wrap; }
+
+.logo { font-weight: 700; }
+.nav-links a { color: var(--text-dark); }

@@ -9,6 +9,7 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="marketplace.html">Marketplace</a></li>
                     <li><a href="installed.html">Installed</a></li>
                     <li><a href="settings.html">Settings</a></li>
+                    <li><a href="help/index.html" target="_blank">Getting Started</a></li>
                 </ul>
             </nav>
         `;
@@ -24,6 +25,7 @@ export class Type1Navbar extends HTMLElement {
                     <li><a href="../marketplace.html">Marketplace</a></li>
                     <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
+                    <li><a href="../help/index.html" target="_blank">Getting Started</a></li>
                 </ul>
             </nav>
         `;

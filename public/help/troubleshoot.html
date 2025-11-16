@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Help — Troubleshooting</title>
+    <link rel="stylesheet" href="help.css" />
+    <script type="module" src="../scripts/staticload/theme.js"></script>
+  </head>
+  <body>
+    <nav>
+      <div class="logo">⚡InferncePort AI | Help</div>
+      <ul class="nav-links">
+        <li><a href="index.html">Back</a></li>
+        <li><a href="javascript:window.close()">Close</a></li>
+      </ul>
+    </nav>
+
+    <main style="padding: 40px">
+      <h2>⚠️ Troubleshooting</h2>
+      <div class="highlight">
+        <h3>Ollama not available</h3>
+        <p>If the app says Ollama is unavailable:</p>
+        <ul>
+          <li>Restart the app to allow bundled binaries to initialize.</li>
+          <li>Check the <code>vendor/electron-ollama</code> folder for the bundled runtimes.</li>
+          <li>Open Developer Tools (App menu → Developer Tools) for console errors.</li>
+        </ul>
+
+        <h3>Model pull fails</h3>
+        <ul>
+          <li>Confirm your internet connection and proxy settings.</li>
+          <li>Make sure you have sufficient disk space (models can be several GB).</li>
+        </ul>
+
+        <h3>Slow or partial responses</h3>
+        <ul>
+          <li>Large models require more RAM/CPU — try a smaller model if available.</li>
+          <li>Close other heavy applications to free resources.</li>
+        </ul>
+
+        <h3>App crashes or UI errors</h3>
+        <ul>
+          <li>Open Developer Tools to inspect errors and share logs if requesting support.</li>
+          <li>Try clearing saved sessions if a specific session causes crashes.</li>
+        </ul>
+      </div>
+    </main>
+  </body>
+</html>

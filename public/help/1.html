@@ -18,111 +18,108 @@
 
 		<main style="padding: 40px">
 		<p>
-			This guide will help you understand what Ollama models, Hugging Face
-			Spaces, and AI websites are - and how to use them inside this app.
+			This guide walks you through the essentials for getting started
+			with InferencePortAI: installing (dev), launching, pulling a
+			model, starting a chat, and troubleshooting.
 		</p>
 
-		<div class="section" id="ollama">
-			<h2>🤖 What Are Ollama Models?</h2>
+		<div class="section" id="quickstart">
+			<h2>Welcome — First Time Setup</h2>
 			<div class="highlight">
 				<p>
-					Ollama lets you run powerful AI models locally on your
-					computer. These models can chat, summarize, write code, and
-					more - all without needing an internet connection.
+					Welcome! It looks like this is your first time opening
+					InferencePortAI. This short walkthrough will help you get a
+					model running and start chatting.
 				</p>
 				<ul>
-					<li>
-						<strong>Pull:</strong> Download a model to your system
-					</li>
-					<li>
-						<strong>Delete:</strong> Remove a model you no longer
-						need
-					</li>
-					<li>
-						<strong>Chat:</strong> Open a chat window with the
-						selected model
-					</li>
+					<li><strong>Open Marketplace → Ollama</strong> to browse
+					available models.</li>
+					<li><strong>Pull</strong> a model you want (requires internet).
+					A progress indicator will show download progress.</li>
+					<li>Once pulled, go to <strong>Chat</strong>, choose the model,
+					and click <strong>Run</strong> to start a conversation.</li>
 				</ul>
 				<p>
-					Models are stored locally and run directly on your machine,
-					giving you privacy and speed.
+					If you installed the packaged app from a release, necessary
+					binaries are included in the app bundle. If you shipped your
+					own Ollama runtime, ensure it's available on the system.
 				</p>
 			</div>
 		</div>
 
-		<div class="section" id="hf-spaces">
-			<h2>🌐 What Are Hugging Face Spaces?</h2>
+		<div class="section" id="pull-model">
+			<h2>1. Pull a Model</h2>
 			<div class="highlight">
 				<p>
-					Hugging Face Spaces are interactive web apps built by the AI
-					community. They showcase models in action—like image
-					generators, voice tools, or chatbots.
+					Open <strong>Marketplace → Ollama</strong>, pick a model and
+					click <em>Pull</em>. A progress bar will appear; when complete
+					the model is available locally.
 				</p>
 				<ul>
-					<li>
-						<strong>Save:</strong> Bookmark your favorite Spaces
-					</li>
-					<li>
-						<strong>Launch:</strong> Open them directly inside the
-						app via iframe
-					</li>
-					<li>
-						<strong>Delete:</strong> Remove saved Spaces you no
-						longer use
-					</li>
-				</ul>
-				<p>
-					Spaces are hosted online, but this app embeds them so you
-					can use them without switching tabs.
-				</p>
-			</div>
-		</div>
-
-		<div class="section" id="websites">
-			<h2>🌍 What About Websites?</h2>
-			<div class="highlight">
-				<p>
-					Some tools live on regular websites. This app lets you
-					save and launch them in a separate Chromium window for a
-					focused experience.
-				</p>
-				<ul>
-					<li><strong>Save:</strong> Bookmark useful AI websites</li>
-					<li><strong>Launch:</strong> Open them in a new window</li>
-					<li><strong>Delete:</strong> Remove saved sites</li>
+					<li><strong>Tip:</strong> Models require disk space — check
+					settings for storage path.</li>
 				</ul>
 			</div>
 		</div>
 
-		<div>
+		<div class="section" id="chat">
+			<h2>2. Start a Chat</h2>
+			<div class="highlight">
+				<p>
+					Go to <strong>Chat</strong>, select the pulled model from the
+					list and click <em>Run</em>. Type your prompt and press
+					<strong>Enter</strong> to stream responses. Tokens appear in
+					real-time.
+				</p>
 				<ul>
-					<li>
-						First time? Try pulling a model and launching a Space to
-						get started!
-					</li>
+					<li>Use <strong>Reset Chat</strong> to clear history for that
+					session.</li>
+					<li>Click <strong>Stop</strong> to abort a running response.</li>
 				</ul>
+			</div>
+		</div>
+
+		<div class="section" id="spaces">
+			<h2>3. Explore Spaces & Websites</h2>
+			<div class="highlight">
+				<p>
+					Use the <strong>Marketplace → Spaces</strong> tab to browse
+					community demos. Save favorites to open them quickly later.
+				</p>
+				<p>
+					Some sites cannot be embedded; the app will open them in a
+					separate window instead.
+				</p>
+			</div>
+		</div>
+
+		<div class="section" id="sessions">
+			<h2>4. Sessions & Saving</h2>
+			<div class="highlight">
+				<p>
+					Chat sessions are saved locally. Use the session menu to
+					save, load, and favorite sessions. Sessions are stored in
+					your application data folder.
+				</p>
+			</div>
 		</div>
 
 		<div class="section" id="faq">
-			<h2>❓ Frequently Asked Questions</h2>
+			<h2>❓ Troubleshooting</h2>
 			<div class="highlight">
 				<p>
-					<strong>Q: Do I need an internet connection?</strong><br />
-					A: Only for downloading models or accessing online
-					Spaces/websites. Once pulled, Ollama models run locally.
+					<strong>Ollama not available:</strong> If the app reports
+					that Ollama is unavailable, ensure Ollama is installed or
+					that the bundled `electron-ollama` binaries are present
+					under `vendor/`.
 				</p>
-
 				<p>
-					<strong>Q: Why does a website open in a new window?</strong
-					><br />
-					A: Some websites block embedding for security reasons. The
-					app opens them in a separate Chromium window to bypass that.
+					<strong>Slow responses or errors:</strong> Check CPU/RAM
+					usage — large models may require significant resources.
 				</p>
-
 				<p>
-					<strong>Q: Can I use multiple models at once?</strong><br />
-					A: Yes! You can chat with different models in separate
-					windows.
+					<strong>Where are logs?</strong> Use the App menu → Developer
+					Tools to view console output for runtime errors.
 				</p>
 			</div>
 		</div>

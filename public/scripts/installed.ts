@@ -130,6 +130,7 @@ async function renderSpaces() {
 			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
 		}
 		document.getElementById("hf-spaces")!.appendChild(modelsNotFound);
+		spinner.style.display = "none";
 		return;
 	}
 	document.getElementById("hf-spaces")!.innerHTML = spaces;
@@ -147,6 +148,7 @@ async function renderWebsites() {
 			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
 		}
 		document.getElementById("websites")!.appendChild(modelsNotFound);
+		spinner.style.display = "none";
 		return;
 	}
 	document.getElementById("websites")!.innerHTML = websites;
