@@ -57,5 +57,3 @@ button {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
-
-/* Utilities are in utility.css; keep this file minimal and global. */

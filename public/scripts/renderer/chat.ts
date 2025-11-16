@@ -18,7 +18,6 @@ limitations under the License.
 
 import { urlToHttpOptions } from "url";
 import { showNotification } from "../helper/notification.js";
-import "../helper/checkers/ollama-checker.js"
 
 const dataDir = window.ollama.getPath();
 
@@ -411,7 +410,7 @@ form.addEventListener("submit", async (e) => {
 
     const botBubble = document.createElement("div");
     botBubble.className = "chat-bubble bot-bubble";
-    botBubble.textContent = "🤖 ";
+    botBubble.textContent = "🤖 Thinking";
     chatBox.appendChild(botBubble);
     chatBox.scrollTop = chatBox.scrollHeight;
 

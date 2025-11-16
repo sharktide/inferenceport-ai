@@ -1,8 +1,7 @@
 import { showNotification } from "./helper/notification.js"
 import { getReadableColor, getEmoji } from "./helper/random.js";
-import "./helper/checkers/ollama-checker.js";
 import { isLoggedIn } from "./helper/checkers/auth-checker.js";
-
+const theme = localStorage.getItem("theme");
 async function renderOllama() {
     const spinner = document.getElementById("spinner-ollama");
     const container = document.getElementById("installed-models");
@@ -15,6 +14,15 @@ async function renderOllama() {
 
     try {
         const models = await window.ollama.listModels();
+		if (models.length === 0) {
+			const modelsNotFound = document.createElement("p")
+            modelsNotFound.innerHTML = "No models installed. Visit the <a href='marketplace/ollama.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 100 different chatbots";
+            if (theme === 'light') {
+                modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+            }
+			container.appendChild(modelsNotFound);
+			return;
+		}
         models.forEach((model) => {
             const card = document.createElement("div");
             card.className = "marketplace-card";

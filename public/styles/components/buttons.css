@@ -41,10 +41,7 @@ button:not(.btn-primary):not(.btn-secondary) {
   background-color: #235a92;
 }
 
-/* If you want a subtle glass effect, add .btn.gloss to the element
-   and keep these styles optional (commented by default):
-
-.gloss {
+button {
   background-color: color-mix(in srgb, currentColor 15%, transparent 85%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -53,14 +50,13 @@ button:not(.btn-primary):not(.btn-secondary) {
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.25s ease;
 }
 
-.gloss:hover {
+button:hover {
   background-color: color-mix(in srgb, currentColor 25%, transparent 75%);
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
-.gloss:active {
+button:active {
   transform: scale(0.97);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) inset;
 }
-*/

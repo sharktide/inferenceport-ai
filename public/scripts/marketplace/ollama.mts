@@ -1,5 +1,4 @@
 import { showNotification } from "../helper/notification.js"
-import "../helper/checkers/ollama-checker.js"
 interface AvailableModel {
 	name: string;
 	description?: string;
@@ -220,9 +219,18 @@ function renderInstalledModels(filter: string = ""): void {
 	spinner.style.display = "flex";
 	const container = document.getElementById("installed-models");
 	if (!container) return;
-
+	const theme = localStorage.getItem('theme');
 	container.innerHTML = "";
-
+	if (installedModels.length === 0) {
+		const modelsNotFound = document.createElement("p")
+		modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
+		if (theme === 'light') {
+			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		}
+		container.appendChild(modelsNotFound);
+		spinner.style.display = "none"
+		return;
+	}
 	installedModels
 		.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
 		.forEach((model) => {
