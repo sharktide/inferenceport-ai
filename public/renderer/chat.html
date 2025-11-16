@@ -1,33 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<title>Chat - InferencePortAI</title>
-		<link rel="stylesheet" href="../styles/styles.css" />
-		<script type="module" src="../Components.js"></script>
-		<script type="module" src="../scripts/staticload/theme.js"></script>
-		<script type="module">
-			import { isLoggedIn } from "../scripts/helper/checkers/auth-checker.js";
-			isLoggedIn(1);
-		</script>
-		<style>
-			#ollama-missing {
-				padding: 12px;
-				border-radius: 15px;
-				background: var(--input-bg);
-				color: #f34f4f;
-				display: none;
-				max-width: 320px;
-				max-height: 250px;
-				position: fixed;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				z-index: 1000;
-				box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-			}
-		</style>
-	</head>
+<head>
+	<meta charset="UTF-8" />
+	<title>Chat - InferencePortAI</title>
+	<link rel="stylesheet" href="../styles/styles.css" />
+	<script type="module" src="../Components.js"></script>
+	<script type="module" src="../scripts/staticload/theme.js"></script>
+	<link rel="stylesheet" href="../vendor/katex/katex.min.css" integrity="sha384-WcoG4HRXMzYzfCgiyfrySxx90XSl2rxY5mnVY5TwtWE6KLrArNKn0T/mOgNL0Mmi" crossorigin="anonymous">
+	<script defer src="../vendor/katex/katex.min.js" integrity="sha384-J+9dG2KMoiR9hqcFao0IBLwxt6zpcyN68IgwzsCSkbreXUjmNVRhPFTssqdSGjwQ" crossorigin="anonymous"></script>
+	<script defer src="../vendor/katex/auto-render.min.js" integrity="sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh" crossorigin="anonymous"></script>
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: true },
+                    { left: '\\(', right: '\\)', display: false },
+                    { left: '\\[', right: '\\]', display: true }
+                ],
+                throwOnError: false
+            });
+		});
+	</script>
+	<script type="module">
+		import { isLoggedIn } from "../scripts/helper/checkers/auth-checker.js";
+		isLoggedIn(1);
+	</script>
+	<style>
+		#ollama-missing {
+			padding: 12px;
+			border-radius: 15px;
+			background: var(--input-bg);
+			color: #f34f4f;
+			display: none;
+			max-width: 320px;
+			max-height: 250px;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			z-index: 1000;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+		}
+	</style>
+</head>
 	<body>
 		<type1-navbar></type1-navbar>>
 

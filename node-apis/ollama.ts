@@ -15,7 +15,8 @@ limitations under the License.
 */
 
 const { app, ipcMain, BrowserWindow } = require("electron");
-import type { IpcMain, IpcMainEvent } from 'electron'
+//@ts-ignore
+import type { IpcMain, IpcMainEvent } from 'electron';
 const fs = require("fs");
 const path = require("path");
 const { exec, spawn } = require("child_process");
@@ -31,7 +32,8 @@ const ollamaBinary = process.platform === "win32"
   : "ollama";
 
 const ollamaPath = isDev
-  ? path.join("vendor", "electron-ollama", ollamaBinary) // dev: relative to source
+	? path.join("vendor", "electron-ollama", ollamaBinary) // dev: relative to source
+	//@ts-ignorefystem
   : path.join(process.resourcesPath, "vendor", "electron-ollama", ollamaBinary); // prod: packaged
 
 
@@ -155,7 +157,7 @@ function register(): void {
 					body: JSON.stringify({
 						model: modelName,
 						messages: [
-						{ role: "system", content: "You may only use markdown for formatting. Not LaTeX" },
+						{ role: "system", content: "All LaTeX must use double backslashes (\\\\). Do not output single backslashes." },
 						...chatHistory
 						],
 						stream: true,

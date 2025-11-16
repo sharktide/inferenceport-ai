@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 const sanitizeHtml = require("sanitize-html");
-import type { IpcMainEvent } from 'electron'
-import { StringifyOptions } from 'node:querystring';
+//@ts-ignore
+import type { IpcMainEvent } from 'electron';
 
 const fs = require("fs");
 const path = require("path");

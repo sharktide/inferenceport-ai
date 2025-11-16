@@ -251,6 +251,16 @@ function renderChat() {
 		chatBox.appendChild(bubble);
 	});
 
+	renderMathInElement(document.body, {
+		delimiters: [
+			{ left: '$$', right: '$$', display: true },
+			{ left: '$', right: '$', display: true },
+			{ left: '\\(', right: '\\)', display: false },
+			{ left: '\\[', right: '\\]', display: true }
+		],
+		throwOnError: false
+	});
+
 	document.querySelectorAll("pre code").forEach((block) => {
 		// hljs?.highlightElement?.(block); TODO
 		void 0
