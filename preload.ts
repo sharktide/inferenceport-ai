@@ -30,11 +30,17 @@ type PullProgress = {
 };
 
 type Session = {
-	model: string;
-	name: string;
-	history: Array<string>;
-	favorite: boolean;
+  name: string;
+  model: string;
+  favorite: boolean;
+  history: Message[];
 };
+
+type Message = {
+  session_id: string;
+  role: string;
+  content: string;
+}
 
 type Sessions = Record<string, Session>;
 
@@ -148,4 +154,9 @@ contextBridge.exposeInMainWorld('auth', {
 	resetPassword: async (email: string) => await ipcRenderer.invoke("auth:resetPassword", email),
 
 	setUsername: (userId: string, username: string) => ipcRenderer.invoke('auth:setUsername', userId, username),
+});
+
+contextBridge.exposeInMainWorld("sync", {
+ 	getRemoteSessions: () => ipcRenderer.invoke("sync:getRemoteSessions"),
+  	saveAllSessions: (sessions: Record<string, Sessions>) => ipcRenderer.invoke("sync:saveAllSessions", sessions),
 });

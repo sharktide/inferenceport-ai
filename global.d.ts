@@ -80,6 +80,11 @@ declare global {
             onAuthStateChange: (callback: (session: any) => void) => void;
             resetPassword: (email: string) => Promise<{status: boolean, error: any}>;
         };
+
+        sync: {
+            getRemoteSessions: () => Promise<Record<string, Session>>;
+            saveAllSessions: (sessions: Record<string, Sessions>) => Promise<string | { error: string }>;
+        };
     }
 
     type ModelInfo = {

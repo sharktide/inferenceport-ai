@@ -18,6 +18,7 @@ limitations under the License.
 
 import { urlToHttpOptions } from "url";
 import { showNotification } from "../helper/notification.js";
+import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap } from "../helper/sync.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -59,8 +60,29 @@ async function loadOptions() {
 			modelSelect.appendChild(option);
 		});
 
-		const loaded = await window.ollama.load();
-		sessions = loaded;
+		const auth = await window.auth.getSession?.();
+
+		if (auth?.session?.user) {
+			const remoteResponse = await window.sync.getRemoteSessions();
+
+			if (!remoteResponse.error && remoteResponse.sessions) {
+				const remoteSessions = remoteResponse.sessions as SessionMap;
+
+				sessions = mergeLocalAndRemoteSessions(
+					sessions as SessionMap,
+					remoteSessions ?? {}
+				);
+
+				await window.ollama.save(sessions);
+
+				const auth = await window.auth.getSession();
+				if (auth?.session?.user) {
+					await window.sync.saveAllSessions(sessions);
+				}
+
+			}
+		}
+
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
@@ -116,6 +138,13 @@ function deleteSession(sessionId) {
 			currentSessionId = Object.keys(sessions)[0] || null;
 		}
 		window.ollama.save(sessions);
+
+		window.auth.getSession().then((auth) => {
+			if (auth?.session?.user) {
+				window.sync.saveAllSessions(sessions);
+			}
+			renderSessionList();
+		})
 		location.reload();
 	}
 }
@@ -138,6 +167,12 @@ function openRenameDialog(sessionId, currentName) {
 		if (newName) {
 			sessions[sessionId].name = newName;
 			window.ollama.save(sessions);
+			window.auth.getSession().then((auth) => {
+				if (auth?.session?.user) {
+					window.sync.saveAllSessions(sessions);
+				}
+				renderSessionList();
+			})
 			renderSessionList();
 		}
 		closeDialog();
@@ -155,6 +190,13 @@ function createNewSession() {
 	};
 	currentSessionId = id;
 	window.ollama.save(sessions);
+
+	window.auth.getSession().then((auth) => {
+		if (auth?.session?.user) {
+			window.sync.saveAllSessions(sessions);
+		}
+		renderSessionList();
+	})
 	renderSessionList();
 	renderChat();
 }
@@ -203,6 +245,13 @@ function renderSessionList() {
 			e.stopPropagation();
 			session.favorite = !session.favorite;
 			window.ollama.save(sessions);
+
+			window.auth.getSession().then((auth) => {
+				if (auth?.session?.user) {
+					window.sync.saveAllSessions(sessions);
+				}
+				renderSessionList();
+			})
 			renderSessionList();
 		};
 
@@ -217,18 +266,10 @@ function renderSessionList() {
 }
 
 function renderChat() {
-	if (!currentSessionId || !sessions[currentSessionId]) {
-		const newId = Date.now().toString();
-		sessions[newId] = {
-			id: newId,
-			name: `Session ${Object.keys(sessions).length + 1}`,
-			history: [],
-			favorite: false,
-		};
-		currentSessionId = newId;
-		window.ollama.save(sessions);
-		renderSessionList();
+	if (!currentSessionId) {
+		currentSessionId = Object.keys(sessions)[0] || null;
 	}
+
 
 	const session = sessions[currentSessionId];
 	chatBox.innerHTML = "";
@@ -432,6 +473,12 @@ form.addEventListener("submit", async (e) => {
     window.ollama.onError((err) => {
         botBubble.textContent += `\n⚠️ Error: ${err}`;
         window.ollama.save(sessions);
+		window.auth.getSession().then((auth) => {
+			if (auth?.session?.user) {
+				window.sync.saveAllSessions(sessions);
+			}
+			renderSessionList();
+		})
         endStreaming();
     });
 
@@ -444,6 +491,12 @@ form.addEventListener("submit", async (e) => {
         status.style.color = "#3ca374";
         botBubble.appendChild(status);
         window.ollama.save(sessions);
+		window.auth.getSession().then((auth) => {
+			if (auth?.session?.user) {
+				window.sync.saveAllSessions(sessions);
+			}
+			renderSessionList();
+		})
         endStreaming();
     });
 
@@ -456,6 +509,12 @@ form.addEventListener("submit", async (e) => {
         status.style.color = "#d9534f";
         botBubble.appendChild(status);
         window.ollama.save(sessions);
+		window.auth.getSession().then((auth) => {
+			if (auth?.session?.user) {
+				window.sync.saveAllSessions(sessions);
+			}
+			renderSessionList();
+		})
         endStreaming();
     });
 });
