@@ -144,8 +144,8 @@ function deleteSession(sessionId) {
 				window.sync.saveAllSessions(sessions);
 			}
 			renderSessionList();
+			location.reload();
 		})
-		location.reload();
 	}
 }
 

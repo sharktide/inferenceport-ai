@@ -1,0 +1,12 @@
+### Ollama Chat Stream Test
+POST http://localhost:11434/api/chat
+Content-Type: application/json
+
+{
+  "model": "llama3.2:3b",
+  "messages": [
+    { "role": "system", "content": "All LaTeX must use double backslashes (\\\\). Do not output single backslashes." },
+    { "role": "user", "content": "Explain the Pythagorean theorem with an example." }
+  ],
+  "stream": true
+}

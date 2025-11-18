@@ -411,12 +411,7 @@ build\renderer\mymodels.d.js
 build\renderer\mymodels.d.js.map
 coverage
 coverage*.info
-coverage*.json
-coverage*.xml
-csx/
-dist
-dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts
-dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
+covera**sources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.js
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.js.map
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthClient.d.ts
