@@ -18,7 +18,7 @@ limitations under the License.
 
 import { urlToHttpOptions } from "url";
 import { showNotification } from "../helper/notification.js";
-import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap, safeCallRemote } from "../helper/sync.js";
+import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap, safeCallRemote, isOffline } from "../helper/sync.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -52,54 +52,71 @@ document.addEventListener("DOMContentLoaded", loadOptions);
 
 async function loadOptions() {
 	try {
-		const models = await window.ollama.listModels();
-		models.forEach((model) => {
-			const option = document.createElement("option");
-			option.value = model.name;
-			option.textContent = model.name;
-			modelSelect.appendChild(option);
-		});
+		try {
+			const local = await window.ollama.load();
+			sessions = (local && typeof local === "object") ? local : {};
+		} catch (e) {
+		console.warn("Failed to load local sessions, starting with empty:", e);
+		sessions = {};
+		}
+
+		try {
+			const models = await window.ollama.listModels();
+			models.forEach((model) => {
+				const option = document.createElement("option");
+				option.value = model.name;
+				option.textContent = model.name;
+				modelSelect.appendChild(option);
+			});
+		} catch (err) {
+		console.warn("Could not list models:", err);
+		modelSelect.innerHTML = `<option>error loading models</option>`;
+		}
 
 		const auth = await window.auth.getSession?.();
-
 		if (auth?.session?.user) {
-			const remoteResponse = await safeCallRemote(
-				() => window.sync.getRemoteSessions(),
-				{ sessions: null }
+		const remoteResponse = await safeCallRemote(
+			() => window.sync.getRemoteSessions(),
+			{ sessions: null }
+		);
+
+		if (!remoteResponse?.error && remoteResponse?.sessions) {
+			const remoteSessions = remoteResponse.sessions as SessionMap;
+
+			sessions = mergeLocalAndRemoteSessions(
+			sessions as SessionMap,
+			remoteSessions ?? {}
 			);
-			if (!remoteResponse.error && remoteResponse.sessions) {
-				const remoteSessions = remoteResponse.sessions as SessionMap;
 
-				sessions = mergeLocalAndRemoteSessions(
-					sessions as SessionMap,
-					remoteSessions ?? {}
-				);
+			await window.ollama.save(sessions);
 
-				await window.ollama.save(sessions);
-
-				const auth = await window.auth.getSession();
-				if (auth?.session?.user) {
-					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
-				}
-
+			const freshAuth = await window.auth.getSession();
+			if (freshAuth?.session?.user) {
+			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
+		}
 		}
 
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
+
 		try {
 			if (urlParams.model != null) {
-				modelSelect.value=urlParams.model;
+				modelSelect.value = urlParams.model;
+			} else {
+				modelSelect.value = sessions[currentSessionId]?.model ?? modelSelect.value;
 			}
-		} catch {
-			modelSelect.value=sessions[currentSessionId].model;
+		} catch (e) {
+			console.warn(e);
+			void 0
 		}
+
 	} catch (err) {
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
 		console.error(err);
 	} finally {
-		if (!navigator.onLine) {
+		if (await isOffline()) {
 			showNotification({
 				message: "⚠️ No internet connection — Using offline sessions only.",
 				type: "warning",
@@ -107,6 +124,7 @@ async function loadOptions() {
 		}
 	}
 }
+
 
 function generateSessionId() {
 	return crypto.randomUUID();

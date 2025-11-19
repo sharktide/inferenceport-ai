@@ -73,7 +73,7 @@ export function mergeLocalAndRemoteSessions(
 
 
 export async function safeCallRemote(fn: CallableFunction, onErrorReturn = null) {
-    const online = navigator.onLine;
+    const online = !isOffline();
 
     if (!online) {
         return onErrorReturn;
@@ -87,3 +87,23 @@ export async function safeCallRemote(fn: CallableFunction, onErrorReturn = null)
         return onErrorReturn;
     }
 }
+
+export async function isOffline(timeout = 10000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        await fetch("https://www.example.com/", {
+            method: "HEAD",
+            mode: "no-cors",
+            signal: controller.signal,
+            cache: "no-store"
+        });
+        clearTimeout(id);
+        return false;
+    } catch {
+        clearTimeout(id);
+        return true;
+    }
+}
+
