@@ -5,7 +5,7 @@ interface NotificationAction {
 
 interface NotificationOptions {
 	message: string;
-	type?: "info" | "success" | "error";
+	type?: "info" | "success" | "error" | "warning";
 	actions?: NotificationAction[];
 }
 
