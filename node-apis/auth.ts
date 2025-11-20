@@ -143,18 +143,17 @@ export function register() {
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
 
-		const { data: sessions, error: sErr } = await supabase
-			.from("chat_sessions")
-			.select("*");
+		const userId = sessionData.session?.user?.id;
+		const { data: sessions } = await supabase
+		.from("chat_sessions")
+		.select("*")
+		.eq("user_id", userId);
 
-		if (sErr) return { error: sErr.message };
-
-		const { data: messages, error: mErr } = await supabase
-			.from("chat_messages")
-			.select("*")
-			.order("created_at", { ascending: true });
-
-		if (mErr) return { error: mErr.message };
+		const { data: messages } = await supabase
+		.from("chat_messages")
+		.select("*")
+		.eq("user_id", userId)
+		.order("created_at", { ascending: true });
 
 		// Always normalize to arrays
 		const safeSessions = sessions ?? [];
@@ -218,6 +217,7 @@ export function register() {
 			model: s.model,
 			favorite: s.favorite,
 			updated_at: new Date().toISOString(),
+			user_id: sessionData.session?.user?.id || null,
 		}));
 
 		if (sessionRows.length > 0) {
@@ -235,17 +235,22 @@ export function register() {
 			// Delete old
 			await supabase.from("chat_messages").delete().eq("session_id", sessionId);
 
-			// Insert new
 			const rows = session.history.map((m: Message, index: number) => ({
 				id: crypto.randomUUID(),
 				session_id: sessionId,
 				role: m.role,
 				content: m.content,
 				created_at: new Date().toISOString(),
+				user_id: sessionData.session?.user?.id || null,
 			}));
+
+			process.stdout.write(`Inserting ${rows.length} messages for session ${sessionId}\n`);
+			process.stdout.write(JSON.stringify(rows) + "\n");
+			process.stdout.write(`${sessionData.session?.user?.id}\n`);
 
 			if (rows.length > 0) {
 				const { error: msgErr } = await supabase.from("chat_messages").insert(rows);
+				process.stdout.write(`${msgErr}\n`);
 				if (msgErr) return { error: msgErr.message };
 			}
 		}

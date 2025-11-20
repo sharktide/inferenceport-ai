@@ -523,7 +523,7 @@ form.addEventListener("submit", async (e) => {
         window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (auth?.session?.user) {
-				await awaitsafeCallRemote(() => window.sync.saveAllSessions(sessions));
+				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
 			renderSessionList();
 		})
