@@ -138,30 +138,33 @@ export function register() {
 		if (error) return { error: error.message };
 		return { success: true };
     });
+
     // --- CHAT SYNC API ------------------------------------------------------
 	ipcMain.handle("sync:getRemoteSessions", async (_event) => {
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
 
+		const userId = sessionData.session.user.id;
+
 		const { data: sessions, error: sErr } = await supabase
 			.from("chat_sessions")
-			.select("*");
+			.select("*")
+			.eq("user_id", userId);
 
 		if (sErr) return { error: sErr.message };
 
 		const { data: messages, error: mErr } = await supabase
 			.from("chat_messages")
 			.select("*")
+			.eq("user_id", userId)
 			.order("created_at", { ascending: true });
 
 		if (mErr) return { error: mErr.message };
 
-		// Always normalize to arrays
 		const safeSessions = sessions ?? [];
 		const safeMessages = messages ?? [];
 
 		const out: Record<string, any> = {};
-
 		for (const s of safeSessions) {
 			out[s.id] = {
 				name: s.name,
@@ -176,72 +179,57 @@ export function register() {
 		return { sessions: out };
 	});
 
-
-	ipcMain.handle("sync:saveAllSessions", async (_event: IpcMainInvokeEvent, allSessions: Record<string, SessionType>) => {
+	ipcMain.handle("sync:saveAllSessions", async (_event, allSessions: Record<string, SessionType>) => {
 		if (!allSessions || typeof allSessions !== "object") {
 			return { error: `Invalid allSessions payload ${allSessions} ${typeof allSessions}` };
 		}
 
-		const sessionEntries = Object.entries(allSessions);
-		if (sessionEntries.length === 0) {
-			return { success: true, message: "No sessions to sync" };
-		}
-		console.log("Starting to save all sessions to remote...");
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-		if (sessionError || !sessionData.session)
-			return { error: "Not authenticated" };
-		console.log("Saving all sessions to remote...");
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+
+		const userId = sessionData.session.user.id;
+
 		const { data: remoteSessions, error: rsErr } = await supabase
 			.from("chat_sessions")
-			.select("id");
+			.select("id")
+			.eq("user_id", userId);
 
 		if (rsErr) return { error: rsErr.message };
 
-		console.log("Fetched remote session IDs.");
-
 		const safeRemoteSessions = remoteSessions ?? [];
-
 		const remoteIds = new Set(safeRemoteSessions.map(s => s.id));
-		if (!allSessions || typeof allSessions !== "object") {
-			return { error: "Invalid allSessions payload" };
-		}
 		const localIds = new Set(Object.keys(allSessions));
 
 		const toDelete = [...remoteIds].filter(id => !localIds.has(id));
 		if (toDelete.length > 0) {
-			await supabase.from("chat_messages").delete().in("session_id", toDelete);
-			await supabase.from("chat_sessions").delete().in("id", toDelete);
+			await supabase.from("chat_messages").delete().in("session_id", toDelete).eq("user_id", userId);
+			await supabase.from("chat_sessions").delete().in("id", toDelete).eq("user_id", userId);
 		}
+
 		const sessionRows = Object.entries(allSessions).map(([id, s]) => ({
 			id,
 			name: s.name,
 			model: s.model,
 			favorite: s.favorite,
 			updated_at: new Date().toISOString(),
+			user_id: userId,
 		}));
 
 		if (sessionRows.length > 0) {
-			const { error: upErr } = await supabase
-				.from("chat_sessions")
-				.upsert(sessionRows);
-
+			const { error: upErr } = await supabase.from("chat_sessions").upsert(sessionRows);
 			if (upErr) return { error: upErr.message };
 		}
 
-		// -------------------------------------------
-		// 3. Replace messages for each session
-		// -------------------------------------------
 		for (const [sessionId, session] of Object.entries(allSessions)) {
-			// Delete old
-			await supabase.from("chat_messages").delete().eq("session_id", sessionId);
+			await supabase.from("chat_messages").delete().eq("session_id", sessionId).eq("user_id", userId);
 
-			// Insert new
-			const rows = session.history.map((m: Message, index: number) => ({
+			const rows = session.history.map((m: Message) => ({
 				id: crypto.randomUUID(),
 				session_id: sessionId,
 				role: m.role,
 				content: m.content,
 				created_at: new Date().toISOString(),
+				user_id: userId,
 			}));
 
 			if (rows.length > 0) {

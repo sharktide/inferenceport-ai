@@ -1,6 +1,5 @@
 import { showNotification } from "./helper/notification.js"
 import { getReadableColor, getEmoji } from "./helper/random.js";
-import { isLoggedIn } from "./helper/checkers/auth-checker.js";
 const theme = localStorage.getItem("theme");
 async function renderOllama() {
     const spinner = document.getElementById("spinner-ollama");
@@ -301,7 +300,6 @@ function showDelModal(username: string, repo: string, type: string) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-	console.log(await isLoggedIn())
 	renderOllama();
 	renderSpaces();
 	renderWebsites();

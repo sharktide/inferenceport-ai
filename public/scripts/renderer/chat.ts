@@ -48,6 +48,14 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+function isSyncEnabled() {
+	try {
+		return localStorage.getItem('sync_enabled') === 'true';
+	} catch (e) {
+		return false;
+	}
+}
+
 document.addEventListener("DOMContentLoaded", loadOptions);
 
 async function loadOptions() {
@@ -74,27 +82,27 @@ async function loadOptions() {
 		}
 
 		const auth = await window.auth.getSession?.();
-		if (auth?.session?.user) {
-		const remoteResponse = await safeCallRemote(
-			() => window.sync.getRemoteSessions(),
-			{ sessions: null }
-		);
-
-		if (!remoteResponse?.error && remoteResponse?.sessions) {
-			const remoteSessions = remoteResponse.sessions as SessionMap;
-
-			sessions = mergeLocalAndRemoteSessions(
-			sessions as SessionMap,
-			remoteSessions ?? {}
+		if (isSyncEnabled() && auth?.session?.user) {
+			const remoteResponse = await safeCallRemote(
+				() => window.sync.getRemoteSessions(),
+				{ sessions: null }
 			);
 
-			await window.ollama.save(sessions);
+			if (!remoteResponse?.error && remoteResponse?.sessions) {
+				const remoteSessions = remoteResponse.sessions as SessionMap;
 
-			const freshAuth = await window.auth.getSession();
-			if (freshAuth?.session?.user) {
-			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+				sessions = mergeLocalAndRemoteSessions(
+					sessions as SessionMap,
+					remoteSessions ?? {}
+				);
+
+				await window.ollama.save(sessions);
+
+				const freshAuth = await window.auth.getSession();
+				if (freshAuth?.session?.user) {
+					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+				}
 			}
-		}
 		}
 
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
@@ -167,7 +175,7 @@ function deleteSession(sessionId) {
 		window.ollama.save(sessions);
 
 		window.auth.getSession().then(async (auth) => {
-			if (auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
 			renderSessionList();
@@ -195,7 +203,7 @@ function openRenameDialog(sessionId, currentName) {
 			sessions[sessionId].name = newName;
 			window.ollama.save(sessions);
 			window.auth.getSession().then(async (auth) => {
-				if (auth?.session?.user) {
+				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 				}
 				renderSessionList();
@@ -219,7 +227,7 @@ function createNewSession() {
 	window.ollama.save(sessions);
 
 	window.auth.getSession().then(async (auth) => {
-		if (auth?.session?.user) {
+		if (isSyncEnabled() && auth?.session?.user) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
 		renderSessionList();
@@ -274,7 +282,7 @@ function renderSessionList() {
 			window.ollama.save(sessions);
 
 			window.auth.getSession().then(async (auth) => {
-				if (auth?.session?.user) {
+				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 				}
 				renderSessionList();
@@ -504,7 +512,7 @@ form.addEventListener("submit", async (e) => {
         botBubble.textContent += `\n⚠️ Error: ${err}`;
         window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
 			renderSessionList();
@@ -520,10 +528,10 @@ form.addEventListener("submit", async (e) => {
         status.style.fontSize = "14px";
         status.style.color = "#3ca374";
         botBubble.appendChild(status);
-        window.ollama.save(sessions);
+		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (auth?.session?.user) {
-				await awaitsafeCallRemote(() => window.sync.saveAllSessions(sessions));
+			if (isSyncEnabled() && auth?.session?.user) {
+				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
 			renderSessionList();
 		})
@@ -538,9 +546,9 @@ form.addEventListener("submit", async (e) => {
         status.style.fontSize = "14px";
         status.style.color = "#d9534f";
         botBubble.appendChild(status);
-        window.ollama.save(sessions);
+		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 			}
 			renderSessionList();

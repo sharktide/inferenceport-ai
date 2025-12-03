@@ -109,6 +109,8 @@ async function renderUserIndicator() {
       signOutBtn.textContent = 'Sign out';
       signOutBtn.addEventListener('click', async (e) => {
         e.preventDefault();
+        // Turn off sync when user logs out
+        localStorage.setItem('sync_enabled', 'false');
         await window.auth.signOut();
         window.location.href = resolveAuth();
       });
