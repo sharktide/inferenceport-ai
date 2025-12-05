@@ -355,6 +355,18 @@ FakesAssemblies/
 FodyWeavers.xsd
 Generated\ Files/
 Generated_Code/
+MISC\edge\delete_account\index.d.ts
+MISC\edge\delete_account\index.d.ts.map
+MISC\edge\delete_account\index.js
+MISC\edge\delete_account\index.js.map
+MISC\edge\verify_password\index.d.ts
+MISC\edge\verify_password\index.d.ts.map
+MISC\edge\verify_password\index.js
+MISC\edge\verify_password\index.js.map
+MISC\edge\verify_password\rateLimit.d.ts
+MISC\edge\verify_password\rateLimit.d.ts.map
+MISC\edge\verify_password\rateLimit.js
+MISC\edge\verify_password\rateLimit.js.map
 MSBuild_Logs/
 MigrationBackup/
 OpenCover/
@@ -409,9 +421,9 @@ build\renderer\mymodels.d.d.ts
 build\renderer\mymodels.d.d.ts.map
 build\renderer\mymodels.d.js
 build\renderer\mymodels.d.js.map
+covera**sources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
 coverage
 coverage*.info
-covera**sources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.js
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthAdminApi.js.map
 dist\win-unpacked\resources\app\node_modules\@supabase\auth-js\src\AuthClient.d.ts

@@ -24,7 +24,29 @@
 						<p id="status"></p>
 					</div>
 				</div>
-
+				<div id="delete-dialog" class="modal hidden">
+					<div class="modal-content">
+						<h2>Delete Account</h2>
+						<p>Are you SURE you want to delete your account? This action is irreversible!</p>
+						<div class="modal-actions">
+							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
+							<button onclick="document.getElementById('delete-dialog').style.display = 'none'; document.getElementById('delete-password-dialog').style.display = 'flex'" style="max-width: 200px; color: red !important">Continue</button>
+						</div>
+						<p id="status"></p>
+					</div>
+				</div>
+				<div id="delete-password-dialog" class="modal hidden">
+					<div class="modal-content">
+						<h2>Delete Account</h2>
+						<p>Please enter your password to permanently delete your account.</p>
+						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
+						<div class="modal-actions">
+							<button onclick="document.getElementById('delete-password-dialog').style.display = 'none'">Cancel</button>
+							<button style="max-width: 200px; color: red !important">Delete</button>
+						</div>
+						<p id="status"></p>
+					</div>
+				</div>
 				<details open><summary>General</summary>
 					<p> </p>
 					<div>
@@ -37,6 +59,10 @@
 					<div>
 						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>
 					</div>
+					<p> </p>
+					<div>
+						<button onclick="document.getElementById('delete-dialog').style.display = 'flex'" class="theme-toggle red" style="color: red !important">Delete Account</button>
+					</div>
 				</details>
 				<!--
 		<div class="setting-item">
@@ -47,9 +73,9 @@
 			</select>
 		</div>
 		-->
-
+					<p> </p>
 					<details open><summary>Syncing</summary>
-						<br />
+						<p> </p>
 						<p>
 							<label>
 								<input type="checkbox" id="sync-chats"> Enable chat sync

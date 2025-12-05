@@ -252,7 +252,7 @@ export function register() {
 
 		const sb = data.session;
 		if (!sb) { return { error: "No session" } }
-		const res = await fetch('https://<PROJECT>.supabase.co/functions/v1/verify-password', {
+		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify-password', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ email: sb.user.email, password }),
