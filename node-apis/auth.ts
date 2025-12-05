@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { app, ipcMain, BrowserWindow } from "electron";
+import { app, ipcMain, BrowserWindow, session } from "electron";
 import { IpcMainEvent, IpcMainInvokeEvent } from "electron/main";
 const fs = require("fs");
 const path = require("path");
@@ -242,6 +242,62 @@ export function register() {
 				if (msgErr) return { error: msgErr.message };
 			}
 		}
+
+		return { success: true };
+	});
+	
+	ipcMain.handle('verify-password', async (event, { email, password }) => {
+	const res = await fetch('https://<PROJECT>.supabase.co/functions/v1/verify-password', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ email, password }),
+	});
+
+	if (!res.ok) {
+		const err = await res.json().catch(() => ({}));
+		throw new Error(err.error || 'Verify failed');
+	}
+
+	// Read Set-Cookie header
+	const sc = res.headers.get('set-cookie');
+	if (sc) {
+		// Parse cookie name/value (simple parse, consider using cookie parser lib)
+		const match = sc.match(/pw_verified=([^;]+);/);
+		if (match) {
+		const token = match[1];
+
+		await session.defaultSession.cookies.set({
+			url: 'https://dpixehhdbtzsbckfektd.supabase.co',
+			name: 'pw_verified',
+			value: token,
+			path: '/',
+			secure: true,
+			httpOnly: true,
+			sameSite: 'lax',
+			expirationDate: Math.floor(Date.now()/1000) + 600,
+		});
+		}
+	}
+
+	return { success: true };
+	});
+
+	ipcMain.handle('delete-account', async (event, { accessToken }) => {
+		const cookies = await session.defaultSession.cookies.get({ url: 'https://dpixehhdbtzsbckfektd.supabase.co', name: 'pw_verified' });
+		const cookieHeader = cookies.length ? `pw_verified=${cookies[0].value}` : '';
+
+		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/delete-account', {
+			method: 'POST',
+			headers: {
+			'Authorization': `Bearer ${accessToken}`,
+			...(cookieHeader ? { 'Cookie': cookieHeader } : {}),
+			}
+		});
+
+		const out = await res.json().catch(() => ({}));
+		if (!res.ok) throw new Error(out.error || 'Delete failed');
+
+		await session.defaultSession.cookies.remove('https://dpixehhdbtzsbckfektd.supabase.co', 'pw_verified');
 
 		return { success: true };
 	});
