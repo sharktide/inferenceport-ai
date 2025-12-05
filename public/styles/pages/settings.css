@@ -40,6 +40,10 @@ Copyright 2025 Rihaan Meher
   transition: background 0.3s ease;
 }
 
+.theme-toggle .red { 
+  color: red
+}
+
 .theme-toggle:hover {
   background-color: #235a92;
 }

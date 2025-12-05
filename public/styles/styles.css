@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/* Global composition — include this single file in every HTML page */
+/** Global composition */
 @import "./tokens.css";
 @import "./base.css";
 
-/* Components (reusable) */
+/** Components */
 @import "./components/navbar.css";
 @import "./components/notifications.css";
 @import "./components/card.css";
@@ -26,17 +26,15 @@ limitations under the License.
 @import "./components/buttons.css";
 @import "./components/forms.css";
 @import "./components/dropdown.css";
-@import "./components/settings.css";
-
-/* Page sections / pages */
 @import "./components/filedrop.css";
 @import "./components/loading.css";
 @import "./components/highlight.css";
 
-/* Utilities last */
-@import "./components/utility.css";
-
+/** Page-Specific Styles **/
 @import "./pages/auth.css";
 @import "./pages/marketplace.css";
 @import "./pages/chat.css";
+@import "./pages/settings.css";
 
+/** Utilities last */
+@import "./components/utility.css";
