@@ -258,24 +258,26 @@ export function register() {
 		throw new Error(err.error || 'Verify failed');
 	}
 
-	// Read Set-Cookie header
 	const sc = res.headers.get('set-cookie');
 	if (sc) {
-		// Parse cookie name/value (simple parse, consider using cookie parser lib)
 		const match = sc.match(/pw_verified=([^;]+);/);
 		if (match) {
-		const token = match[1];
+			const token = match[1];
+			if (!token) {
+				console.error("Cannot set cookie: token is undefined");
+				return { success: false }
+			}
 
-		await session.defaultSession.cookies.set({
-			url: 'https://dpixehhdbtzsbckfektd.supabase.co',
-			name: 'pw_verified',
-			value: token,
-			path: '/',
-			secure: true,
-			httpOnly: true,
-			sameSite: 'lax',
-			expirationDate: Math.floor(Date.now()/1000) + 600,
-		});
+			await session.defaultSession.cookies.set({
+				url: 'https://dpixehhdbtzsbckfektd.supabase.co',
+				name: 'pw_verified',
+				value: token,
+				path: '/',
+				secure: true,
+				httpOnly: true,
+				sameSite: 'lax',
+				expirationDate: Math.floor(Date.now()/1000) + 600,
+			});
 		}
 	}
 
@@ -283,8 +285,12 @@ export function register() {
 	});
 
 	ipcMain.handle('delete-account', async (event, { accessToken }) => {
-		const cookies = await session.defaultSession.cookies.get({ url: 'https://dpixehhdbtzsbckfektd.supabase.co', name: 'pw_verified' });
-		const cookieHeader = cookies.length ? `pw_verified=${cookies[0].value}` : '';
+		const cookies: Electron.Cookie[] = await session.defaultSession.cookies.get({ url: 'https://dpixehhdbtzsbckfektd.supabase.co', name: 'pw_verified' });
+		if (!cookies || !cookies[0]) {
+			console.error("Cookie is null");
+			return { success: false };
+		}
+		const cookieHeader: string = cookies.length ? `pw_verified=${cookies[0].value}` : '';
 
 		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/delete-account', {
 			method: 'POST',
