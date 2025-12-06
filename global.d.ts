@@ -79,6 +79,8 @@ declare global {
             getSession: () => Promise<{ session?: any; error?: string }>;
             onAuthStateChange: (callback: (session: any) => void) => void;
             resetPassword: (email: string) => Promise<{status: boolean, error: any}>;
+            verifyPassword: ( password: string ) => Promise<{ success: boolean; error: string | undefined }>;
+            deleteAccount: () => Promise<{ success: boolean; error: string | undefined }>;
         };
 
         sync: {

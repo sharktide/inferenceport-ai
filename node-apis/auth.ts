@@ -248,10 +248,10 @@ export function register() {
 	
 	ipcMain.handle('auth:verify-password', async (event, { password }) => {
 		const { data, error } = await supabase.auth.getSession();
-		if (error) return { error: error.message };
+		if (error) return { success: false, error: error.message };
 
 		const sb = data.session;
-		if (!sb) { return { error: "No session" } }
+		if (!sb) { return { success: false, error: "No session" } }
 		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify-password', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -260,7 +260,8 @@ export function register() {
 
 		if (!res.ok) {
 			const err = await res.json().catch(() => ({}));
-			throw new Error(err.error || 'Verify failed');
+			console.error(err.error || 'Verify failed');
+			return { success: false	, error: err.error || 'Verify failed' };
 		}
 
 		const sc = res.headers.get('set-cookie');

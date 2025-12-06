@@ -32,7 +32,6 @@
 							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
 							<button onclick="document.getElementById('delete-dialog').style.display = 'none'; document.getElementById('delete-password-dialog').style.display = 'flex'" style="max-width: 200px; color: red !important">Continue</button>
 						</div>
-						<p id="status"></p>
 					</div>
 				</div>
 				<div id="delete-password-dialog" class="modal hidden">
@@ -42,9 +41,9 @@
 						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
 						<div class="modal-actions">
 							<button onclick="document.getElementById('delete-password-dialog').style.display = 'none'">Cancel</button>
-							<button style="max-width: 200px; color: red !important">Delete</button>
+							<button style="max-width: 200px; color: red !important" id="deleteforreal">Delete</button>
 						</div>
-						<p id="status"></p>
+						<p id="delete-password-status"></p>
 					</div>
 				</div>
 				<details open><summary>General</summary>

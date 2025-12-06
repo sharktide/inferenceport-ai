@@ -64,4 +64,36 @@ saveButton.addEventListener('click', async () => {
 
 (document.getElementById("rename-cancel") as HTMLButtonElement).addEventListener('click', function() {
     (document.getElementById("rename-dialog") as HTMLDivElement).style.display = "none";
-})
+});
+
+(document.getElementById("deleteforreal") as HTMLButtonElement).addEventListener('click', async function() {
+    const passwordInput = document.getElementById("password") as HTMLInputElement;
+    const password = passwordInput.value;
+    const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
+
+    deleteStatus.textContent = "Deleting account...";
+    try {
+        const { success, error } = await window.auth.verifyPassword(password);
+        if (!success) {
+            deleteStatus.textContent = `Error: ${error || 'Verification failed'}`;
+            return;
+        }
+        const result = await window.auth.deleteAccount();
+        if (!result.success) {
+            deleteStatus.textContent = `Error: ${result.error || 'Deletion failed'}`;
+            return;
+        }
+        deleteStatus.textContent = "Account deleted successfully.";
+    } catch (e: Error | any | unknown) {
+        deleteStatus.textContent = `Error: ${e.message || e}`;
+        return;
+    }
+
+    setTimeout(() => {
+        window.auth.signOut().finally(() => {
+            window.location.href = "index.html";
+        });
+    }, 1000);
+});
+
+// Clear status messages when dialogs are closed
