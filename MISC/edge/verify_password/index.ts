@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `pw_verified=${token}; HttpOnly; Secure; SameSite=Strict; Max-Age=600; Path=/`
+    `pw_verified=${token}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`
   );
 
   return new Response(JSON.stringify({ success: true }), { headers });

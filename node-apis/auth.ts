@@ -252,9 +252,9 @@ export function register() {
 
 		const sb = data.session;
 		if (!sb) { return { success: false, error: "No session" } }
-		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify-password', {
+		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify_password', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sb.access_token}` },
 			body: JSON.stringify({ email: sb.user.email, password }),
 		});
 
@@ -302,7 +302,7 @@ export function register() {
 
 		const sb = data.session;
 
-		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/delete-account', {
+		const res = await fetch('https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/delete_account', {
 			method: 'POST',
 			headers: {
 			'Authorization': `Bearer ${sb?.access_token}`,

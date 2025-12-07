@@ -5,6 +5,13 @@
 		<title>Settings - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="Components.js"></script>
+		<style>
+			button:disabled {
+			    pointer-events: none;
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+		</style>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
@@ -52,8 +59,8 @@
 						<button id="theme-toggle" class="theme-toggle">🌙 Dark Mode</button>
 					</div>
 				</details>
-				<br />
-				<details open><Summary>Account</Summary>
+				<p> </p>
+				<details open id="account-settings"><Summary>Account</Summary>
 					<p> </p>
 					<div>
 						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>

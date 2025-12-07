@@ -24,7 +24,7 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
                 if (syncSection) {
                     const msg = document.createElement('p');
                     msg.className = 'muted';
-                    msg.style.color = '#f5a623';
+                    msg.style.color = '#d38200ff';
                     msg.textContent = 'Sign in to enable chat sync.';
                     syncSection.appendChild(msg);
                 }
@@ -94,6 +94,36 @@ saveButton.addEventListener('click', async () => {
             window.location.href = "index.html";
         });
     }, 1000);
+});
+
+window.addEventListener("DOMContentLoaded", async () => {
+    const { session } = await window.auth.getSession();
+    if (session) return;
+    const shouldDisable = true;
+
+    const details = document.getElementById("account-settings");
+    if (!details) return;
+
+    const buttons = details.querySelectorAll("button");
+
+    buttons.forEach(btn => {
+        if (shouldDisable) {
+            btn.classList.add("disabled");
+            btn.disabled = true;
+        } else {
+            btn.classList.remove("disabled");
+            btn.disabled = false;
+        }
+    });
+
+    const msg = document.createElement('p');
+    const br = document.createElement('p');
+    br.textContent = ' ';
+    details.appendChild(br);
+    msg.className = 'muted';
+    msg.style.color = '#d38200ff';
+    msg.textContent = 'Sign in to use account controls.';
+    details.appendChild(msg);
 });
 
 // Clear status messages when dialogs are closed

@@ -89,7 +89,16 @@ async function loadOptions() {
 			);
 
 			if (!remoteResponse?.error && remoteResponse?.sessions) {
+				const userId = auth?.session?.user?.id ?? null;
 				const remoteSessions = remoteResponse.sessions as SessionMap;
+				for (const id in sessions) {
+					if (sessions[id].userId && sessions[id].userId !== userId) {
+						delete sessions[id];
+					}
+				}
+
+				// Save the filtered sessions back to storage
+				await window.ollama.save(sessions);
 
 				sessions = mergeLocalAndRemoteSessions(
 					sessions as SessionMap,

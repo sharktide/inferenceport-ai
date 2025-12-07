@@ -152,7 +152,7 @@ contextBridge.exposeInMainWorld('auth', {
 		});
 	},
 	resetPassword: async (email: string) => await ipcRenderer.invoke("auth:resetPassword", email),
-	verifyPassword: async ( password: string ) => await ipcRenderer.invoke("auth:verify-password", password),
+	verifyPassword: async (password: string) => await ipcRenderer.invoke("auth:verify-password", { password }),
 	deleteAccount: async () => await ipcRenderer.invoke("auth:delete-account"),
 	setUsername: (userId: string, username: string) => ipcRenderer.invoke('auth:setUsername', userId, username),
 });
