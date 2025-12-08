@@ -24,7 +24,7 @@ jobs:
           node-version: '23'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
         run: npm run publish
@@ -57,7 +57,7 @@ jobs:
           node-version: '23'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
         run: npm run publish
