@@ -38,7 +38,7 @@ jobs:
             dist/*.zip
             dist/*.pkg
   build-macos-x86:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
