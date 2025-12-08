@@ -35,7 +35,7 @@
   },
   "build": {
     "appId": "com.sharktide.inferenceport",
-    "productName": "InferencePortAI",
+    "productName": "InferencePort AI",
     "files": [
       "public/**/*",
       "node-apis/*",
@@ -88,7 +88,7 @@
       "perMachine": true
     },
     "appx": {
-      "publisher": "CN=Rihaan Meher",
+      "publisher": "CN=9C12CF6A-5CA7-4C1D-AB00-E01E7C6C887A",
       "publisherDisplayName": "Rihaan Meher",
       "backgroundColor": "#FFFFFF"
     }
