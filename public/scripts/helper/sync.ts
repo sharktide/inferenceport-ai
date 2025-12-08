@@ -73,7 +73,7 @@ export function mergeLocalAndRemoteSessions(
 
 
 export async function safeCallRemote(fn: CallableFunction, onErrorReturn = null) {
-    const online = !isOffline();
+    const online = !(await isOffline());
 
     if (!online) {
         return onErrorReturn;

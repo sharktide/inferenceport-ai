@@ -5,6 +5,13 @@
 		<title>Settings - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="Components.js"></script>
+		<style>
+			button:disabled {
+			    pointer-events: none;
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+		</style>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
@@ -32,7 +39,6 @@
 							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
 							<button onclick="document.getElementById('delete-dialog').style.display = 'none'; document.getElementById('delete-password-dialog').style.display = 'flex'" style="max-width: 200px; color: red !important">Continue</button>
 						</div>
-						<p id="status"></p>
 					</div>
 				</div>
 				<div id="delete-password-dialog" class="modal hidden">
@@ -42,9 +48,9 @@
 						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
 						<div class="modal-actions">
 							<button onclick="document.getElementById('delete-password-dialog').style.display = 'none'">Cancel</button>
-							<button style="max-width: 200px; color: red !important">Delete</button>
+							<button style="max-width: 200px; color: red !important" id="deleteforreal">Delete</button>
 						</div>
-						<p id="status"></p>
+						<p id="delete-password-status"></p>
 					</div>
 				</div>
 				<details open><summary>General</summary>
@@ -53,8 +59,8 @@
 						<button id="theme-toggle" class="theme-toggle">🌙 Dark Mode</button>
 					</div>
 				</details>
-				<br />
-				<details open><Summary>Account</Summary>
+				<p> </p>
+				<details open id="account-settings"><Summary>Account</Summary>
 					<p> </p>
 					<div>
 						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>
