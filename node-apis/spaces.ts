@@ -107,7 +107,7 @@ function getWebsiteData(): string {
                     <div class="menu-container" style="position: absolute; top: 12px; right: 12px;">
                         <button class="menu-button" onclick="toggleMenu(this)" style="background: transparent; border: none; font-size: 18px;">⋮</button>
                         <div class="menu-dropdown" style="display: none; position: absolute; right: 0; background: var(--bg-light); border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); z-index: 10;">
-                            <button onclick="shareWebsite('${data.url}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark)">Share</button>
+                            <button onclick="shareWebsite('${data.url}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
                         </div>
                     </div>
                 </div>
@@ -185,7 +185,7 @@ function getData(): string {
                     <div class="menu-container" style="position: absolute; top: 12px; right: 12px;">
                         <button class="menu-button" onclick="toggleMenu(this)" style="background: transparent; border: none; font-size: 18px;">⋮</button>
                         <div class="menu-dropdown" style="display: none; position: absolute; right: 0; background: var(--bg-light); border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); z-index: 10;">
-                            <button onclick="shareSpace('${data.author}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark)">Share</button>
+                            <button onclick="shareSpace('${data.author}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
                         </div>
                     </div>
                 </div>

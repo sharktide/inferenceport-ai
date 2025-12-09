@@ -93,7 +93,7 @@ async function renderOllama() {
                 border: none;
                 text-align: left;
                 background-color: var(--bg-light);
-				color: var(--text-dark);
+				color: var(--text-dark) !important;
             `;
 
             menuDropdown.appendChild(shareBtn);
