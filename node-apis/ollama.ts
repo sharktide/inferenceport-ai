@@ -28,13 +28,12 @@ const os = require('os');
 const isDev = !app.isPackaged;
 
 const ollamaBinary = process.platform === "win32"
-  ? "ollama.exe"
-  : "ollama";
+  	? "ollama.exe"
+  	: "ollama";
 
 const ollamaPath = isDev
-	? path.join("vendor", "electron-ollama", ollamaBinary) // dev: relative to source
-	//@ts-ignorefystem
-  : path.join(process.resourcesPath, "vendor", "electron-ollama", ollamaBinary); // prod: packaged
+	? path.join("vendor", "electron-ollama", ollamaBinary)
+  : path.join(process.resourcesPath, "vendor", "electron-ollama", ollamaBinary);
 
 
 type ChatMessage = {
@@ -65,12 +64,12 @@ function stripAnsi(str: string): string {
 }
 
 async function serve(): Promise<string> {
-	return new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
 		exec(`${ollamaPath} serve`, (err: Error | null, stdout: string) => {
 			if (err) return reject(err);
 			resolve(stdout);
 		});
-	});
+  });
 }
 
 let chatAbortController: AbortController | null = null;
@@ -85,7 +84,7 @@ function register(): void {
 			const isMac = os.platform() === "darwin";
 
 			const resolveCommand = (cb: (cmd: string) => void) => {
-				return cb(`${ollamaPath} list`);
+				return cb(`"${ollamaPath}" list`);
 			};
 
 			resolveCommand((resolvedCmd) => {
@@ -118,7 +117,7 @@ function register(): void {
 		"ollama:run",
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
-				exec(`${ollamaPath} run ${modelName}`, (err: Error | null, stdout: string) => {
+				exec(`"${ollamaPath}" run ${modelName}`, (err: Error | null, stdout: string) => {
 					if (err) return reject(err);
 					resolve(stdout);
 				});
@@ -131,7 +130,7 @@ function register(): void {
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
-					`${ollamaPath} rm ${modelName}`,
+					`"${ollamaPath}" rm ${modelName}`,
 					(err: Error | null, stdout: string, stderr: string) => {
 						if (err) return reject(stderr || err.message);
 						resolve(stdout);
