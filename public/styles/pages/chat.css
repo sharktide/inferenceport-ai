@@ -35,9 +35,10 @@ Copyright 2025 Rihaan Meher
 .chat-panel {
   flex: 1;
   padding: 40px;
+  padding-top: 0px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* keep input at bottom */
+  justify-content: flex-end;
 }
 
 #chat-box {

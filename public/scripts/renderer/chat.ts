@@ -76,9 +76,27 @@ async function loadOptions() {
 				option.textContent = model.name;
 				modelSelect.appendChild(option);
 			});
+			const addmore = document.createElement("option");
+			addmore.value = "add-more-models";
+			addmore.textContent = "➕ Add more models...";
+			modelSelect.appendChild(addmore);
+
+			const manage = document.createElement("option");
+			manage.value = "manage-models";
+			manage.textContent = "✏️ Manage models...";
+			modelSelect.appendChild(manage);
+
+			modelSelect.addEventListener("change", async () => {
+				if (modelSelect.value === "add-more-models") {
+					window.location.href = "../marketplace.html";
+				} else if (modelSelect.value === "manage-models") {
+					window.location.href = "../installed.html";
+				}
+			});
+
 		} catch (err) {
-		console.warn("Could not list models:", err);
-		modelSelect.innerHTML = `<option>error loading models</option>`;
+			console.warn("Could not list models:", err);
+			modelSelect.innerHTML = `<option>error loading models</option>`;
 		}
 
 		const auth = await window.auth.getSession?.();

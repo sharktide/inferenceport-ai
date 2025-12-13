@@ -43,10 +43,11 @@
 			<div class="context-item" data-action="delete">Delete Session</div>
 		</div>
 
-		<main style="padding: 40px">
+		<main style="padding: 40px; padding-top: 10px;">
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>
+					<select id="model-select"></select>
 					<input
 						type="text"
 						id="session-search"
@@ -59,7 +60,6 @@
 				</aside>
 
 				<section class="chat-panel">
-					<select id="model-select"></select>
 					<div id="chat-box"></div>
 					<chat-box></chat-box>
 				</section>

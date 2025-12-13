@@ -5,11 +5,11 @@ export class RootNavbar extends HTMLElement {
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
-                    <li><a href="index.html">Dashboard</a></li>
-                    <li><a href="marketplace.html">Marketplace</a></li>
-                    <li><a href="installed.html">Installed</a></li>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="marketplace.html">Explore</a></li>
+                    <li><a href="installed.html">My Models</a></li>
                     <li><a href="settings.html">Settings</a></li>
-                    <li><a href="help/index.html" target="_blank">Getting Started</a></li>
+                    <li><a href="help/index.html" target="_blank">Help</a></li>
                 </ul>
             </nav>
         `;
@@ -21,11 +21,11 @@ export class Type1Navbar extends HTMLElement {
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
-                    <li><a href="../index.html">Dashboard</a></li>
-                    <li><a href="../marketplace.html">Marketplace</a></li>
-                    <li><a href="../installed.html">Installed</a></li>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="../marketplace.html">Explore</a></li>
+                    <li><a href="../installed.html">My Models</a></li>
                     <li><a href="../settings.html">Settings</a></li>
-                    <li><a href="../help/index.html" target="_blank">Getting Started</a></li>
+                    <li><a href="../help/index.html" target="_blank">Help</a></li>
                 </ul>
             </nav>
         `;

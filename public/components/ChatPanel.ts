@@ -3,10 +3,10 @@ export class ChatBox extends HTMLElement {
         this.innerHTML = 
         `
             <input type="file" id="file-upload" multiple style="display:none" />
-        	<form id="chat-form" role="form">
+         	<form id="chat-form" role="form">
                 <div class="typing-bar">
                     <div id="file-preview-bar" class="file-preview-bar"></div>
-                        <textarea id="chat-input" placeholder="Type your message..." rows="4"></textarea>
+                        <textarea id="chat-input" placeholder="Ask anything - try 'Hey! Search for Cookie Recipes'" rows="4"></textarea>
                         <div class="typing-actions">
                         <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
                         <button type="submit" class="stop-btn" aria-label="Send" id="send">⬆️</button>
@@ -21,7 +21,7 @@ export class ChatBox extends HTMLElement {
                         </div>
                     </div>
                 </div>
-			</form>
+            </form>
 
         `
     }
