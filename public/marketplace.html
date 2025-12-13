@@ -4,28 +4,28 @@
 		<meta charset="UTF-8" />
 		<title>Marketplace - Select Backend - InferencePortAI</title>
 		<script type="module" src="Components.js"></script>
+		<script type="module" src="scripts/staticload/theme.js"></script>
 
 		<link rel="stylesheet" href="styles/styles.css" />
 		<link rel="stylesheet" href="styles/marketplace.css" />
-		<script type="module" src="scripts/staticload/theme.js"></script>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
 
 		<main style="padding: 40px">
 			<div class="provider-select-container">
-				<h1>Select Provider</h1>
+				<h1>Choose a Source</h1>
 				<p class="provider-subtitle">
-					Choose a backend to explore available models and pipelines.
+					Pick where you'd like to get models, spaces, or websites from.
 				</p>
 				<div class="provider-card-grid">
 					<div class="provider-card black">
-						<h2>Ollama</h2>
-						<img src="assets/img/ollama.svg" alt="Ollama Logo" />
-						<p>Requirements: Ollama</p>
+						<h2>Local Models (on your PC)</h2>
+						<img src="assets/img/ollama.svg" alt="Local models runtime" />
+						<p>Runs locally — no cloud required.</p>
 						<p>
-							Provider:
-							<a href="javascript:window.utils.web_open('https://ollama.com');">Ollama</a>
+							Learn more:
+							<a href="javascript:window.utils.web_open('https://ollama.com');">Local model runtime</a>
 						</p>
 						<br />
 						<br />
@@ -33,7 +33,7 @@
 						<br />
 						<br />
 						<button class="black-bg" onclick="window.location.href='marketplace/ollama.html'">
-							View Available
+							View
 						</button>
 					</div>
 					<div class="provider-card black">
@@ -49,7 +49,7 @@
 						</p>
 						<br />
 						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add new
+							Add
 						</button>
 					</div>
 					<div class="provider-card black">
@@ -64,7 +64,7 @@
 							>
 						</p>
 						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add new
+							Add
 						</button>
 					</div>
 					<div class="provider-card black">
@@ -81,7 +81,7 @@
 						</p>
 						<p></p>
 						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add new
+							Add
 						</button>
 					</div>
 					<div class="provider-card black">
@@ -98,7 +98,7 @@
 						<br />
 						<br />
 						<button class="black-bg" onclick="window.location.href='marketplace/website.html'">
-							Add New
+							Add
 						</button>
 					</div>
 				</div>

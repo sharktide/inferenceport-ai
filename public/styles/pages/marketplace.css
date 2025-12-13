@@ -79,3 +79,15 @@ Copyright 2025 Rihaan Meher
 .provider-card button {
   align-self: flex-end;
 }
+
+.recommendation-grid .card {
+  width: 220px;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  background: var(--bg-light);
+}
+.recommend-card h3 { margin: 0 0 6px 0; }
+.recommend-card p { margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted); }
+.recommend-card .card-actions { text-align: right; }
+.recommend-card button { padding: 8px 10px; border-radius: 6px; }

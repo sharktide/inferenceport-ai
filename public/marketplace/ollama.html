@@ -70,20 +70,69 @@
 			<details open>
 				<summary>
 					<span class="arrow"></span>
-					<span class="h2">Available LLMs (Provider: Ollama)</span>
+					<span class="h2">Available Models (Local)</span>
 				</summary>
+
+				<p style="max-width:700px">These models run locally on your computer. No cloud uploads — your data stays on your device. If you need help picking a model, try the recommendations below.</p>
 
 				<div style="margin-bottom: 20px">
 					<input
 						type="text"
 						id="search-available"
-						placeholder="Search available LLMs"
-						style="padding: 8px; width: 300px; font-size: 16px"
+						placeholder="Search models by name or capability (e.g., 'summarize')"
+						style="padding: 8px; width: 360px; font-size: 16px"
 					/>
 				</div>
 				<div class="spinner" id="spinner-av"></div>
 				<div class="card-grid" id="available-models"></div>
 			</details>
+
+			<!-- Recommendations by task -->
+			<section style="margin-top:24px">
+				<h2>Recommended models by task</h2>
+				<p style="max-width:700px">Pick a task and the app will open chat with a model suited for it.</p>
+				<div class="recommendation-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+					<div class="recommend-card card">
+						<h3>Reasoning & Analysis</h3>
+						<p>Good for logic, planning, and multi-step problems.</p>
+						<div class="card-actions">
+							<a href="../renderer/chat.html?model=deepseek-r1:14b"><button>Use model</button></a>
+						</div>
+					</div>
+
+					<div class="recommend-card card">
+						<h3>Creative Writing</h3>
+						<p>Generates creative text, ideas, and storytelling.</p>
+						<div class="card-actions">
+							<a href="../renderer/chat.html?model=gpt-oss:20b"><button>Use model</button></a>
+						</div>
+					</div>
+
+					<div class="recommend-card card">
+						<h3>Summarization & Notes</h3>
+						<p>Condenses text and extracts key points.</p>
+						<div class="card-actions">
+							<a href="../renderer/chat.html?model=smollm2:1.7b"><button>Use model</button></a>
+						</div>
+					</div>
+
+					<div class="recommend-card card">
+						<h3>Code & Debugging</h3>
+						<p>Helps write and review code snippets.</p>
+						<div class="card-actions">
+							<a href="../renderer/chat.html?model=llama3.1:8b"><button>Use model</button></a>
+						</div>
+					</div>
+
+					<div class="recommend-card card">
+						<h3>Math & Equations</h3>
+						<p>Best for symbolic math and step-by-step solutions.</p>
+						<div class="card-actions">
+							<a href="../renderer/chat.html?model=phi3:3.8b"><button>Use model</button></a>
+						</div>
+					</div>
+				</div>
+			</section>
 
 			<div id="notification-container"></div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
