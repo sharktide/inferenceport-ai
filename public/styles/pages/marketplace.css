@@ -54,7 +54,7 @@ Copyright 2025 Rihaan Meher
 }
 
 .provider-card.black {
-  background-color: #000;
+  background-color: #424242;
   color: white;
 }
 
@@ -91,3 +91,51 @@ Copyright 2025 Rihaan Meher
 .recommend-card p { margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted); }
 .recommend-card .card-actions { text-align: right; }
 .recommend-card button { padding: 8px 10px; border-radius: 6px; }
+
+.info-content .close {
+  float: right;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Base modal styling */
+.info-modal {
+  display: none; /* hidden by default */
+  position: fixed;
+  z-index: 999;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Modal content box */
+.info-content {
+  background: #fff;
+  margin: 15% auto;
+  padding: 20px;
+  border-radius: 8px;
+  width: 400px;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+}
+
+/* Active state (when shown) */
+.info-modal.show {
+  display: block;
+  opacity: 1;
+}
+
+.info-modal.show .info-content {
+  transform: scale(1);
+}
+
+/* Closing animation */
+.info-modal.hide {
+  opacity: 0;
+}
+
+.info-modal.hide .info-content {
+  transform: scale(0.9);
+}

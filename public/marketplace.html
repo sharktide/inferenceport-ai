@@ -19,26 +19,19 @@
 					Pick where you'd like to get models, spaces, or websites from.
 				</p>
 				<div class="provider-card-grid">
-					<div class="provider-card black">
-						<h2>Local Models (on your PC)</h2>
+					<div class="provider-card black" onclick="window.location.href='marketplace/ollama.html'">
+						<h2>Chatbots (LLMs) &nbsp;&nbsp;<button class="info-btn" onclick="event.stopPropagation(); showInfo('ollama');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button></h2>
 						<img src="assets/img/ollama.svg" alt="Local models runtime" />
 						<p>Runs locally — no cloud required.</p>
 						<p>
-							Learn more:
-							<a href="javascript:window.utils.web_open('https://ollama.com');">Local model runtime</a>
+							Provider:
+							<a href="javascript:window.utils.web_open('https://ollama.com');">Local model runtime - Ollama</a>
 						</p>
 						<br />
-						<br />
-						<br />
-						<br />
-						<br />
-						<button class="black-bg" onclick="window.location.href='marketplace/ollama.html'">
-							View
-						</button>
 					</div>
-					<div class="provider-card black">
-						<h2>HF Gradio Space</h2>
-						<span><img src="assets/img/gradio.svg" alt="Gradio Logo" /><img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></span>
+					<div class="provider-card black" onclick="window.location.href='marketplace/spaces.html'">
+						<h2>Huggingface Spaces <button class="info-btn" onclick="event.stopPropagation(); showInfo('spaces');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button></h2>
+						<img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></span>
 						<p>Pipelines: N/A</p>
 						<p>
 							Provider:
@@ -48,44 +41,9 @@
 							>
 						</p>
 						<br />
-						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add
-						</button>
 					</div>
-					<div class="provider-card black">
-						<h2>HF Static Space</h2>
-						<span><img src="assets/img/static.svg" alt="Static Space Logo" /><img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></span>
-						<p>Pipelines: N/A</p>
-						<p>
-							Provider:
-							<a
-								href="javascript:window.utils.web_open('https://huggingface.co/spaces/');"
-								>Huggingface Spaces</a
-							>
-						</p>
-						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add
-						</button>
-					</div>
-					<div class="provider-card black">
-						<h2>HF Docker Space</h2>
-						<span><img src="assets/img/docker.svg" alt="Docker Space Logo" /><img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></span>
-						<br />
-						<p>Pipelines: N/A</p>
-						<p>
-							Provider:
-							<a
-								href="javascript:window.utils.web_open('https://huggingface.co/spaces/');"
-								>Huggingface Spaces</a
-							>
-						</p>
-						<p></p>
-						<button class="black-bg" onclick="window.location.href='marketplace/spaces.html'">
-							Add
-						</button>
-					</div>
-					<div class="provider-card black">
-						<h2>Website</h2>
+					<div class="provider-card black" onclick="window.location.href='marketplace/website.html'">
+						<h2>Websites&nbsp;&nbsp;&nbsp;<button class="info-btn" onclick="event.stopPropagation(); showInfo('website');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button></h2>
 						<img src="assets/img/globe.svg" alt="Internet Logo" />
 						<p>Pipelines: N/A</p>
 						<p>
@@ -93,18 +51,19 @@
 							<a>N/A</a>
 						</p>
 						<br />
-						<br />
-						<br />
-						<br />
-						<br />
-						<button class="black-bg" onclick="window.location.href='marketplace/website.html'">
-							Add
-						</button>
 					</div>
 				</div>
+				<br />
 				<p>
-					DISCLAIMER: We are not affialated with Ollama, Huggingface, and any of its subsideraries. We do not collect any personal information, however websites and HF spaces added may have their own privacy policies. Review them carefully. Review the terms of this software's license
+					DISCLAIMER: We are not affialated with Ollama, Huggingface, and any of its subsideraries. Websites and HF spaces added may have their own privacy policies. Review them carefully. Review the terms of this software's license
 				</p>
+				<div id="infoModal" class="info-modal">
+				<div class="info-content">
+					<span class="close" onclick="closeInfo()">&times;</span>
+					<h3 id="infoTitle"></h3>
+					<p id="infoText"></p>
+				</div>
+				</div>
 			</div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 
@@ -113,6 +72,31 @@
 			function open(url) {
 				console.log("[WARNING] Opening external URL");
 				window.utils.web_open(url);
+			}
+			function showInfo(type) {
+			const modal = document.getElementById('infoModal');
+			const title = document.getElementById('infoTitle');
+			const text = document.getElementById('infoText');
+
+			if (type === 'spaces') {
+				title.textContent = "What are Hugging Face Spaces?";
+				text.textContent = "HF Spaces are community-hosted web apps on Hugging Face. Developers share ML demos, interactive tools, or websites here.";
+			} else if (type === 'website') {
+				title.textContent = "What are Websites?";
+				text.textContent = "Websites are external sources you can connect to through our app. They may have their own privacy policies and terms.";
+			} else if (type === 'ollama') {
+				title.textContent = "What is Ollama?";
+				text.textContent = "Ollama is a local model runtime that allows you to run large language models (chatbots) on your own computer without needing cloud services.";
+			}
+
+				modal.classList.remove('hide');
+				modal.classList.add('show');
+			}
+
+			function closeInfo() {
+				const modal = document.getElementById('infoModal');
+				modal.classList.remove('show');
+				modal.classList.add('hide');
 			}
 		</script>
 	</body>
