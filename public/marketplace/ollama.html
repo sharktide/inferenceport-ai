@@ -70,6 +70,42 @@
 			<details open>
 				<summary>
 					<span class="arrow"></span>
+					<span class="h2">Recommended Models</span>
+				</summary>
+
+				<p style="max-width:700px">Here are some recommended models to get you started. These models are known for their performance and versatility across various tasks.</p>
+
+				<div style="margin-bottom: 20px">
+					<input
+						type="text"
+						id="search-recommended"
+						placeholder="Search recommended models by name or capability (e.g., 'summarize')"
+						style="padding: 8px; width: 360px; font-size: 16px"
+					/>
+				</div>
+				<div class="card-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+					<div class="marketplace-card" data-name="gpt-oss" data-tags="20b,120b,reasoning,agentic">
+						<h3>gpt-oss</h3>
+						<p>OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.</p>
+						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span></div>
+					</div>
+					<div class="marketplace-card" data-name="llama2" data-tags="7b,13b,70b,conversational,multimodal">
+						<h3>Llama 2</h3>
+						<p>Meta's state-of-the-art open-weight models optimized for chat, coding, and multimodal tasks.</p>
+						<div class="model-tags"><span class="model-tag">7b</span> <span class="model-tag">13b</span> <span class="model-tag">70b</span></div>
+					</div>
+					<div class="marketplace-card" data-name="mistral" data-tags="7b,chat,high-performance,efficient">
+						<h3>Mistral 7B</h3>
+						<p>A high-performance open-weight model known for its efficiency and strong capabilities in various NLP tasks.</p>
+						<div class="model-tags"><span class="model-tag">7b</span></div>
+					</div>
+				</div>
+				</div>
+			</details>
+
+			<details open>
+				<summary>
+					<span class="arrow"></span>
 					<span class="h2">Available Models (Local)</span>
 				</summary>
 
@@ -86,53 +122,6 @@
 				<div class="spinner" id="spinner-av"></div>
 				<div class="card-grid" id="available-models"></div>
 			</details>
-
-			<!-- Recommendations by task -->
-			<section style="margin-top:24px">
-				<h2>Recommended models by task</h2>
-				<p style="max-width:700px">Pick a task and the app will open chat with a model suited for it.</p>
-				<div class="recommendation-grid" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
-					<div class="recommend-card card">
-						<h3>Reasoning & Analysis</h3>
-						<p>Good for logic, planning, and multi-step problems.</p>
-						<div class="card-actions">
-							<a href="../renderer/chat.html?model=deepseek-r1:14b"><button>Use model</button></a>
-						</div>
-					</div>
-
-					<div class="recommend-card card">
-						<h3>Creative Writing</h3>
-						<p>Generates creative text, ideas, and storytelling.</p>
-						<div class="card-actions">
-							<a href="../renderer/chat.html?model=gpt-oss:20b"><button>Use model</button></a>
-						</div>
-					</div>
-
-					<div class="recommend-card card">
-						<h3>Summarization & Notes</h3>
-						<p>Condenses text and extracts key points.</p>
-						<div class="card-actions">
-							<a href="../renderer/chat.html?model=smollm2:1.7b"><button>Use model</button></a>
-						</div>
-					</div>
-
-					<div class="recommend-card card">
-						<h3>Code & Debugging</h3>
-						<p>Helps write and review code snippets.</p>
-						<div class="card-actions">
-							<a href="../renderer/chat.html?model=llama3.1:8b"><button>Use model</button></a>
-						</div>
-					</div>
-
-					<div class="recommend-card card">
-						<h3>Math & Equations</h3>
-						<p>Best for symbolic math and step-by-step solutions.</p>
-						<div class="card-actions">
-							<a href="../renderer/chat.html?model=phi3:3.8b"><button>Use model</button></a>
-						</div>
-					</div>
-				</div>
-			</section>
 
 			<div id="notification-container"></div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
