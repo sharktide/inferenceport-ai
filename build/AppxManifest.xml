@@ -49,7 +49,7 @@
     <Application Id="RihaanMeher.InferencePortDameon" Executable="app\resources\vendor\electron-ollama\ollama.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         BackgroundColor="transparent"
-        DisplayName="InferencePort AI Ollama Daemon"
+        DisplayName="InferencePort AI Chat Host"
         Square150x150Logo="assets\DaemonLogo-150x150.png"
         Square44x44Logo="assets\DaemonLogo-44x44.png"
         Description="AI, anywhere">
