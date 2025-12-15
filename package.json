@@ -89,10 +89,7 @@
       "perMachine": true
     },
     "appx": {
-      "publisher": "CN=9C12CF6A-5CA7-4C1D-AB00-E01E7C6C887A",
-      "publisherDisplayName": "Rihaan Meher",
-      "backgroundColor": "#FFFFFF",
-      "identityName": "RihaanMeher.InferencePortAI"
+      "customManifestPath": "build/AppxManifest.xml"
     }
   }
 }

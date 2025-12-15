@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--suppress XmlUnusedNamespaceDeclaration -->
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+  <!-- use single quotes to avoid double quotes escaping in the publisher value  -->
+  <Identity Name="RihaanMeher.InferencePortAI"
+    ProcessorArchitecture="${arch}"
+    Publisher="CN=9C12CF6A-5CA7-4C1D-AB00-E01E7C6C887A"
+    Version="${version}" />
+  <Properties>
+    <DisplayName>InferencePort AI</DisplayName>
+    <PublisherDisplayName>Rihaan Meher</PublisherDisplayName>
+    <Description>AI, anywhere</Description>
+    <Logo>assets\StoreLogo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.14316.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust"/>
+  </Capabilities>
+  <Applications>
+    <Application Id="RihaanMeher.InferencePortAI" Executable="app\InferencePort AI.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+       BackgroundColor="transparent"
+       DisplayName="InferencePort AI"
+       Square150x150Logo="assets\Square150x150Logo.png"
+       Square44x44Logo="assets\Square44x44Logo.png"
+       Description="AI, anywhere">
+        <uap:LockScreen Notification="badgeAndTileText" BadgeLogo="assets\BadgeLogo.png" />
+        <uap:DefaultTile Wide310x150Logo="assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="assets\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+          <uap:Extension Category="windows.fileTypeAssociation">
+            <uap:FileTypeAssociation Name="import">
+              <uap:SupportedFileTypes>
+                <uap:FileType>.import</uap:FileType>
+              </uap:SupportedFileTypes>
+            </uap:FileTypeAssociation>
+          </uap:Extension></Extensions>
+    </Application>
+    <Application Id="RihaanMeher.InferencePortDameon" Executable="app\resources\vendor\electron-ollama\ollama.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        BackgroundColor="transparent"
+        DisplayName="InferencePort AI Ollama Daemon"
+        Square150x150Logo="assets\DaemonLogo-150x150.png"
+        Square44x44Logo="assets\DaemonLogo-44x44.png"
+        Description="AI, anywhere">
+        <uap:LockScreen Notification="badgeAndTileText" BadgeLogo="assets\DaemonBadgeLogo.png" />
+        <uap:DefaultTile Wide310x150Logo="assets\DaemonLogo-310x150.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+</Package>
