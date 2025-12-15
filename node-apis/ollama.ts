@@ -65,7 +65,7 @@ function stripAnsi(str: string): string {
 
 async function serve(): Promise<string> {
   return new Promise((resolve, reject) => {
-		exec(`"${ollamaPath} serve`, (err: Error | null, stdout: string) => {
+		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
 			if (err) return reject(err);
 			resolve(stdout);
 		});
