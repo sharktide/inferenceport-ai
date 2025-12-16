@@ -22,10 +22,32 @@ const fs = require("fs");
 const path = require("path");
 const { shell, app, ipcMain } = require("electron");
 const si = require("systeminformation");
-
 const MarkdownIt =  require("markdown-it");
 
+import type { Systeminformation } from 'systeminformation';
+
 const mdit = MarkdownIt()
+
+let cpu: Systeminformation.CpuData | undefined;
+let flags: String | undefined;
+let mem: Systeminformation.MemData | undefined;
+let hardwareInfoPromise: Promise<void> | null = null;
+
+function initHardwareInfo() {
+  if (!hardwareInfoPromise) {
+    hardwareInfoPromise = (async () => {
+      [cpu, mem, flags] = await Promise.all([
+        si.cpu(),
+        si.mem(),
+        si.cpuFlags()
+      ]);
+    })();
+  }
+  return hardwareInfoPromise;
+}
+
+initHardwareInfo();
+
 
 function parseModelSize(modelSize: string) {
   const lower = modelSize.toLowerCase();
@@ -88,28 +110,26 @@ function register() {
 		"utils:get-hardware-performance-warning",
 		async (_event: IpcMainEvent, modelSizeRaw: string) => {
 		const modelSize = parseModelSize(modelSizeRaw);
-		const cpu = await si.cpu();
-		const flags = await si.cpuFlags();
-		const mem = await si.mem();
+		await initHardwareInfo();
 
-		const ramGB = mem.total / 1e9;
-		const hasAVX2 = flags.includes("avx2");
-		const hasAVX512 = flags.includes("avx512f") || flags.includes("avx512");
+		const ramGB = mem!.total / 1e9;
+		const hasAVX2 = flags!.includes("avx2");
+		const hasAVX512 = flags!.includes("avx512f") || flags!.includes("avx512");
 
 		const score =
 			(hasAVX2 ? 2 : 0) +
 			(hasAVX512 ? 2 : 0) +
-			(cpu.cores >= 8 ? 1 : 0) +
+			(cpu!.cores >= 8 ? 1 : 0) +
 			(ramGB >= 16 ? 1 : 0) +
-			(cpu.cache?.l3 ? cpu.cache.l3 / 10 : 0);
+			(cpu!.cache?.l3 ? cpu!.cache.l3 / 10 : 0);
 
 		let warning = "";
 		if (modelSize > 65) {
 			return {
 			modelSizeRaw,
 			modelSizeB: modelSize,
-			cpu: cpu.brand,
-			cores: cpu.cores,
+			cpu: cpu!.brand,
+			cores: cpu!.cores,
 			ramGB: ramGB.toFixed(1),
 			avx2: hasAVX2,
 			avx512: hasAVX512,
@@ -136,8 +156,8 @@ function register() {
 		return {
 			modelSizeRaw,
 			modelSizeB: modelSize,
-			cpu: cpu.brand,
-			cores: cpu.cores,
+			cpu: cpu!.brand,
+			cores: cpu!.cores,
 			ramGB: ramGB.toFixed(1),
 			avx2: hasAVX2,
 			avx512: hasAVX512,

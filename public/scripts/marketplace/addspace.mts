@@ -56,7 +56,6 @@ document.getElementById('add-space-form')?.addEventListener('submit', async (e) 
         return;
     }
 
-    // Fallbacks if API data is missing
     const emoji = apiData.cardData?.emoji ?? "🧠";
     const colorFrom = apiData.cardData?.colorFrom ?? "#3178c6";
     const colorTo = apiData.cardData?.colorTo ?? "#90caf9";

@@ -9,19 +9,19 @@
 		<script type="module" src="scripts/staticload/theme.js"></script>
 		<style>
 			#card-scroll-wrapper {
-			overflow: hidden;
-			width: 100%;
+				overflow: hidden;
+				width: 100%;
 			}
 
 			.card-grid {
-			display: flex;
-			gap: 20px;
-			animation: scroll-loop 30s linear infinite;
+				display: flex;
+				gap: 20px;
+				animation: scroll-loop 30s linear infinite;
 			}
 
 			.marketplace-card {
-			max-width: 500px;
-			flex-shrink: 0;
+				max-width: 500px;
+				flex-shrink: 0;
 			}
 
 			@keyframes scroll-loop {
@@ -32,19 +32,22 @@
 					transform: translateX(-50%);
 				}
 			}
-
 		</style>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
 		<main style="padding: 40px">
 			<h1>Welcome to InferencePortAI</h1>
-			<div style="margin-bottom:16px">
-				<button id="show-onboarding" class="marketplace-btn">Show me around</button>
+			<p>Your gateway to seamless AI model management and interaction.</p>
+			<div style="margin-bottom:16px" class="highlight">
+				<button class="marketplace-btn" onclick="window.location.href='renderer/chat.html'" style="height: 100px;">Chat Now</button>
 			</div>
 
 			<h3>Quick Links:</h3>
 			<div class="auth-action-buttons" style="justify-content: left;">
+				<button id="show-onboarding">
+					Show me around
+				</button>
 				<button onclick="window.open('help/index.html')">
 					Help
 				</button>
