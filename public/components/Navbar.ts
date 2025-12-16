@@ -10,6 +10,7 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="installed.html">My Models</a></li>
                     <li><a href="settings.html">Settings</a></li>
                     <li><a href="help/index.html" target="_blank">Help</a></li>
+                    <li><a href="about.html">Terms</a></li>
                 </ul>
             </nav>
         `;

@@ -32,6 +32,54 @@
 					transform: translateX(-50%);
 				}
 			}
+						
+			.info-content .close {
+			float: right;
+			font-size: 20px;
+			cursor: pointer;
+			}
+
+			/* Base modal styling */
+			.info-modal {
+			display: none; /* hidden by default */
+			position: fixed;
+			z-index: 999;
+			left: 0; top: 0;
+			width: 100%; height: 100%;
+			background: rgba(0,0,0,0.5);
+			opacity: 0;
+			transition: opacity 0.3s ease;
+			}
+
+			/* Modal content box */
+			.info-content {
+			background: #fff;
+			margin: 15% auto;
+			padding: 20px;
+			border-radius: 8px;
+			width: 400px;
+			transform: scale(0.9);
+			transition: transform 0.3s ease;
+			}
+
+			/* Active state (when shown) */
+			.info-modal.show {
+			display: block;
+			opacity: 1;
+			}
+
+			.info-modal.show .info-content {
+			transform: scale(1);
+			}
+
+			/* Closing animation */
+			.info-modal.hide {
+			opacity: 0;
+			}
+
+			.info-modal.hide .info-content {
+			transform: scale(0.9);
+			}
 		</style>
 	</head>
 	<body>
@@ -202,6 +250,28 @@
 			function hideOnboarding(){ modal.classList.add('hidden'); }
 			showBtn?.addEventListener('click', showOnboarding);
 			closeBtn?.addEventListener('click', hideOnboarding);
+		</script>
+		<div id="infoModal" class="info-modal">
+			<div class="info-content">
+				<span class="close" onclick="closeInfo()">&times;</span>
+				<h3 id="infoTitle">Terms</h3>
+			<p id="infoText">By using this app, you agree to the <a href="about.html?no=true" target="_blank">Terms of Service</a> and <a href="javascript:web_open('https://inferenceportai.vercel.app/security.html')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p>
+		</div>
+		</div>
+		<script>
+			async function showModal() {
+				const isFirst = await window.utils.isFirstLaunch()
+				const infoModal = document.getElementById('infoModal')
+				if (isFirst) {
+					infoModal.classList.remove('hide')
+					infoModal.classList.add('show')
+				}
+			}
+			async function closeInfo() {
+				infoModal.classList.remove('show')
+				infoModal.classList.add('hide')
+			}
+			showModal()
 		</script>
 	</body>
 </html>

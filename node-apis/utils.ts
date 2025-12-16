@@ -33,6 +33,35 @@ let flags: String | undefined;
 let mem: Systeminformation.MemData | undefined;
 let hardwareInfoPromise: Promise<void> | null = null;
 
+const FIRST_RUN_FILE = "first-run.json";
+
+function getFirstRunPath() {
+  return path.join(app.getPath("userData"), FIRST_RUN_FILE);
+}
+
+function isFirstLaunch(): boolean {
+  const markerPath = getFirstRunPath();
+
+  if (!fs.existsSync(markerPath)) {
+    fs.writeFileSync(
+      markerPath,
+      JSON.stringify({ firstRunCompleted: true }),
+      "utf-8"
+    );
+    return true;
+  }
+
+  return false;
+}
+
+function resetFirstLaunch(): void {
+  const markerPath = getFirstRunPath();
+
+  if (fs.existsSync(markerPath)) {
+    fs.unlinkSync(markerPath);
+  }
+}
+
 function initHardwareInfo() {
   if (!hardwareInfoPromise) {
     hardwareInfoPromise = (async () => {
@@ -58,6 +87,15 @@ function parseModelSize(modelSize: string) {
 }
 
 function register() {
+	ipcMain.handle("utils:is-first-launch", () => {
+		return isFirstLaunch();
+	});
+
+	ipcMain.handle("utils:reset-first-launch", () => {
+		resetFirstLaunch();
+		return true;
+	});
+
 	ipcMain.handle(
 		"utils:web_open",
 		async (_event: IpcMainEvent, url: string) => {
