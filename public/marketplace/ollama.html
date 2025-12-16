@@ -60,7 +60,7 @@
 						type="text"
 						id="search-installed"
 						placeholder="Search installed LLMs"
-						style="padding: 8px; width: 300px; font-size: 16px"
+						style="padding: 8px; width: 410px; font-size: 16px"
 					/>
 				</div>
 				<div class="spinner" id="installed-spinner"></div>
@@ -78,9 +78,9 @@
 				<div style="margin-bottom: 20px">
 					<input
 						type="text"
-						id="search-recommended"
-						placeholder="Search recommended models by name or capability (e.g., 'summarize')"
-						style="padding: 8px; width: 360px; font-size: 16px"
+						placeholder="Search recommended in Available Models to Download"
+						style="padding: 8px; width: 410px; font-size: 16px"
+						disabled
 					/>
 				</div>
 				<div class="card-grid">
@@ -101,7 +101,37 @@
 						<div class="model-meta">
 						<p><strong>Pulls:</strong> 13M</p>
 						<p><strong>Updated:</strong> 1 year ago</p>
-						<a href="https://ollama.com/library/mistral" target="_blank" class="model-link">More details</a>
+						<a href="https://ollama.com/library/llama3" target="_blank" class="model-link">More details</a>
+						</div>
+					</div>
+					<div class="marketplace-card" id="tinyllama">
+						<h2>tinyllama</h2>
+						<p class="model-description">The TinyLlama project is an open endeavor to train a compact 1.1B Llama model on 3 trillion tokens.</p>
+						<div class="model-tags"><span class="model-tag">1.1b</span></div>
+						<div class="model-meta">
+						<p><strong>Pulls:</strong> 3.2M</p>
+						<p><strong>Updated:</strong> 1 year ago</p>
+						<a href="https://ollama.com/library/tinyllama" target="_blank" class="model-link">More details</a>
+						</div>
+					</div>
+					<div class="marketplace-card" id="gemma">
+						<h2>gemma</h2>
+						<p class="model-description">Gemma is a family of lightweight, state-of-the-art open models built by Google DeepMind. Updated to version 1.1</p>
+						<div class="model-tags"><span class="model-tag">2b</span><span class="model-tag">7b</span></div>
+						<div class="model-meta">
+						<p><strong>Pulls:</strong> 5.6M</p>
+						<p><strong>Updated:</strong> 1 year ago</p>
+						<a href="https://ollama.com/library/gemma target="_blank" class="model-link">More details</a>
+						</div>
+					</div>
+					<div class="marketplace-card" id="qwen2.5-coder">
+						<h2>qwen2.5-coder</h2>
+						<p class="model-description">The latest series of Code-Specific Qwen models, with significant improvements in code generation, code reasoning, and code fixing.</p>
+						<div class="model-tags"><span class="model-tag">3b</span><span class="model-tag">7b</span></div>
+						<div class="model-meta">
+						<p><strong>Pulls:</strong> 9.2M</p>
+						<p><strong>Updated:</strong> 6 months ago</p>
+						<a href="https://ollama.com/library/qwen2.5-coder" target="_blank" class="model-link">More details</a>
 						</div>
 					</div>
 				</div>
@@ -111,7 +141,7 @@
 			<details open>
 				<summary>
 					<span class="arrow"></span>
-					<span class="h2">Available Models (Local)</span>
+					<span class="h2">Available Models (All)</span>
 				</summary>
 
 				<p style="max-width:700px">These models run locally on your computer. No cloud uploads — your data stays on your device. If you need help picking a model, try the recommendations below.</p>
@@ -120,8 +150,8 @@
 					<input
 						type="text"
 						id="search-available"
-						placeholder="Search models by name or capability (e.g., 'summarize')"
-						style="padding: 8px; width: 360px; font-size: 16px"
+						placeholder="Search models by name"
+						style="padding: 8px; width: 410px; font-size: 16px"
 					/>
 				</div>
 				<div class="spinner" id="spinner-av"></div>
