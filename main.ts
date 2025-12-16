@@ -104,7 +104,7 @@ function createWindow() {
 	];
 
 
-	mainWindow.loadFile("public/renderer/chat.html");
+	mainWindow.loadFile("public/index.html");
 	const menu = Menu.buildFromTemplate(template);
 	Menu.setApplicationMenu(menu);
 }
