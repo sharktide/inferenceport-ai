@@ -177,6 +177,8 @@ function showContextMenu(x, y, sessionId, sessionName) {
 			openRenameDialog(sessionId, sessionName);
 		} else if (action === "delete") {
 			deleteSession(sessionId);
+		} else if (action === "report") {
+			openReportDialog()
 		}
 		closeContextMenu();
 	};
@@ -211,20 +213,29 @@ function deleteSession(sessionId) {
 	}
 }
 
-function openRenameDialog(sessionId, currentName) {
-	const dialog = document.getElementById("rename-dialog");
-	const input = document.getElementById("rename-input");
-	const cancelBtn = document.getElementById("rename-cancel");
-	const confirmBtn = document.getElementById("rename-confirm");
+function openReportDialog(): void {
+	const dialog = document.getElementById('report-dialog') as HTMLDivElement;
+	const cancelBtn = document.getElementById('report-close') as HTMLButtonElement;
+	dialog.classList.remove("hidden");
+	const closeDialog = () => dialog.classList.add("hidden");
+	cancelBtn.removeEventListener('click', closeDialog);
+	cancelBtn.addEventListener('click', closeDialog);
+	return void 0
+}
+
+function openRenameDialog(sessionId, currentName): void {
+	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
+	const input = document.getElementById("rename-input") as HTMLInputElement;
+	const cancelBtn = document.getElementById("rename-cancel") as HTMLButtonElement;
+	const confirmBtn = document.getElementById("rename-confirm") as HTMLButtonElement;
 
 	input.value = currentName;
 	dialog.classList.remove("hidden");
 
 	const closeDialog = () => dialog.classList.add("hidden");
-
-	cancelBtn.onclick = closeDialog;
-
-	confirmBtn.onclick = () => {
+	cancelBtn.removeEventListener('click', closeDialog);
+	cancelBtn.addEventListener('click', closeDialog);
+	function rename() {
 		const newName = input.value.trim();
 		if (newName) {
 			sessions[sessionId].name = newName;
@@ -238,10 +249,13 @@ function openRenameDialog(sessionId, currentName) {
 			renderSessionList();
 		}
 		closeDialog();
-	};
+	}
+	confirmBtn.removeEventListener('click', rename);
+	confirmBtn.addEventListener('click', rename);
+	return void 0
 }
 
-function createNewSession() {
+function createNewSession(): void {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
 	sessions[id] = {
@@ -261,15 +275,17 @@ function createNewSession() {
 	})
 	renderSessionList();
 	renderChat();
+	return void 0;
 }
 
-function handleSessionClick(sessionId) {
+function handleSessionClick(sessionId): void {
 	currentSessionId = sessionId;
 	renderSessionList();
 	renderChat();
+	return void 0
 }
 
-function renderSessionList() {
+function renderSessionList(): void {
 	sessionList.innerHTML = "";
 
 	const searchTerm =
@@ -328,9 +344,10 @@ function renderSessionList() {
 			li.classList.add("merged-session");
 		}
 	});
+	return void 0
 }
 
-function renderChat() {
+function renderChat(): void {
 	if (!currentSessionId) {
 		currentSessionId = Object.keys(sessions)[0] || null;
 	}
@@ -372,6 +389,7 @@ function renderChat() {
 	});
 
 	chatBox.scrollTop = chatBox.scrollHeight;
+	return void 0
 }
 
 const actionBtn = document.getElementById("send");
@@ -391,10 +409,10 @@ fileInput.addEventListener("change", async (e) => {
 });
 
 
-function formatAttachedFiles(files) {
+function formatAttachedFiles(files): string {
   if (files.length === 0) return "";
 
-  let output = `<details><summary>Attached Files</summary>\n\n`;
+  let output: string = `<details><summary>Attached Files</summary>\n\n`;
   for (const file of files) {
     output += `<details><summary>${file.name}</summary>\n\n`;
     output += "```\n" + file.content + "\n```\n";
