@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+			<script>
+				window.addEventListener('DOMContentLoaded', function() {
+					if (window.marked) {
+						window.marked.setOptions({ gfm: true });
+					}
+				});
+			</script>
 	<meta charset="UTF-8" />
 	<title>Chat - InferencePortAI</title>
 	<link rel="stylesheet" href="../styles/styles.css" />
@@ -9,6 +16,7 @@
 	<link rel="stylesheet" href="../publicvendor/katex/katex.min.css" crossorigin="anonymous">
 	<script defer src="../publicvendor/katex/katex.min.js" crossorigin="anonymous"></script>
 	<script defer src="../publicvendor/katex/auto-render.min.js" crossorigin="anonymous"></script>
+	<script src="../publicvendor/marked/marked.min.js"></script>
 	<script>
 		document.addEventListener("DOMContentLoaded", function () {
             renderMathInElement(document.body, {
@@ -60,7 +68,7 @@
 			<div class="context-item" data-action="report">Report Content</div>
 		</div>
 
-		<main style="padding: 40px; padding-top: 10px;">
+		<main>
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>

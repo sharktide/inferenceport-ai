@@ -140,6 +140,34 @@ function register(): void {
 		}
 	);
 
+	ipcMain.on("ollama:name-session",
+		async (
+			event: IpcMainEvent,
+			modelName: string,
+			userMessage: string
+		) => {
+			try {
+				const res = await fetch("http://localhost:11434/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						model: modelName,
+						messages: [
+							{ role: "system", content: "Provide a concise name for this chat session in less than 10 words." },
+							{ role: "user", content: userMessage }
+						],
+					}),
+				});
+
+				const data = await res.json();
+				const sessionName = data.choices?.[0]?.message?.content || "Unnamed Session";
+				event.sender.send("ollama:session-named", sessionName.trim());
+			} catch (err) {
+				event.sender.send("ollama:session-name-error", `${err}`);
+			}
+		}
+	);
+
 	ipcMain.on(
 		"ollama:chat-stream",
 		async (
@@ -196,7 +224,7 @@ function register(): void {
 				event.sender.send("ollama:chat-done");
 			} catch (err) {
 				if ((err as Error).name === "AbortError") {
-					event.sender.send("ollama:chat-aborted");
+					event.sender.send("ollama:chat-aborted")
 				} else {
 					event.sender.send("ollama:chat-error", `${err}`);
 				}
