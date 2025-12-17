@@ -1,18 +1,17 @@
 html, body {
-  height: 100vh;
-  min-height: 0;
-  max-height: 100vh;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
+
 main {
   height: calc(100vh - 61px);
   min-height: 0;
   max-height: calc(100vh - 61px);
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 
@@ -23,7 +22,7 @@ main {
   height: 100%;
   min-height: 0;
   max-height: 100%;
-  overflow: hidden;
+  overflow: auto;
 }
 /* sidebar fills chat-container */
 .sidebar {
@@ -68,7 +67,6 @@ chat-box, .typing-bar {
 
 html, body {
   height: 100%;
-  /* Allow scrolling if needed */
   overflow: auto;
 }
 /*
@@ -91,8 +89,8 @@ Copyright 2025 Rihaan Meher
   background-color: var(--gray);
   padding: 20px;
   border-right: 1px solid #ccc;
-  overflow-y: auto;
-  height: 100vh;
+  overflow-y: scroll;
+  height: 80%;
   box-sizing: border-box;
 }
 
@@ -123,10 +121,10 @@ Copyright 2025 Rihaan Meher
   justify-content: flex-end;
   height: 100vh;
   min-height: 0;
-  max-height: 100vh;
+  max-height: 80%;
   padding: 40px;
   padding-top: 0px;
-  overflow: hidden;
+  overflow: scroll;
 }
 
 /* Make #chat-box scrollable and not expand the whole page */
@@ -166,10 +164,11 @@ Copyright 2025 Rihaan Meher
 }
 
 .bot-bubble {
-  background: transparent !important;
+  background: var(--gray);
   box-shadow: none !important;
   color: var(--text-dark);
-  padding: 0;
+  padding: 10px;
+  border-radius: 10px;
 }
 
 /* AI code block bubble container */
