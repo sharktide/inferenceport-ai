@@ -14,7 +14,7 @@ main {
   padding: 0;
   overflow: hidden;
 }
-}
+
 
 /* Account for navbar height (assume 61px) */
 /* chat-container fills main, not double subtracting navbar */
@@ -65,8 +65,7 @@ main {
 chat-box, .typing-bar {
   flex-shrink: 0;
 }
-}
-}
+
 html, body {
   height: 100%;
   /* Allow scrolling if needed */
@@ -235,7 +234,7 @@ Copyright 2025 Rihaan Meher
   max-width: 64px;
   text-align: center;
 }
-}
+
 /* Sticky copy button: stays visible at top right of code container while scrolling, but doesn't overflow bottom */
 .ai-code-bubble {
   position: relative;
@@ -243,7 +242,7 @@ Copyright 2025 Rihaan Meher
 .ai-code-header {
   /* see above for new definition */
 }
-}
+
 .ai-copy-btn:hover {
   background: #3a4a5a;
 }
@@ -260,7 +259,6 @@ Copyright 2025 Rihaan Meher
   max-width: 100%;
   font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
   box-shadow: none;
-}
 }
 
 .chat-bubble pre, .chat-bubble code {
