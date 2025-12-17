@@ -11,7 +11,7 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="settings.html">Settings</a></li>
                     <li><a href="help/index.html" target="_blank">Help</a></li>
                     <li><a href="about.html">Terms</a></li>
-                    <li><a href="https://inferenceportai.vercel.app/security.html">Privacy</a></li>
+                    <li><a href="privacy.html">Privacy</a></li>
                 </ul>
             </nav>
         `;
@@ -29,7 +29,7 @@ export class Type1Navbar extends HTMLElement {
                     <li><a href="../settings.html">Settings</a></li>
                     <li><a href="../help/index.html" target="_blank">Help</a></li>
                     <li><a href="../about.html">Terms</a></li>
-                    <li><a href="https://inferenceportai.vercel.app/security.html">Privacy</a></li>
+                    <li><a href="privacy.html">Privacy</a></li>
                 </ul>
             </nav>
         `;
