@@ -16,9 +16,6 @@ limitations under the License.
 
 //@ts-nocheck
 
-import { urlToHttpOptions } from "url";
-import { showNotification } from "../helper/notification.js";
-import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap, safeCallRemote, isOffline } from "../helper/sync.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -330,52 +327,27 @@ function renderSessionList() {
 	});
 }
 
-function renderChat() {
-	if (!currentSessionId) {
-		currentSessionId = Object.keys(sessions)[0] || null;
-	}
-
-
-	const session = sessions[currentSessionId];
-	chatBox.innerHTML = "";
-
-	if (!session.history || session.history.length === 0) {
-		const emptyMsg = document.createElement("div");
-		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
-		chatBox.appendChild(emptyMsg);
-		return;
-	}
-
-	session.history.forEach((msg) => {
-		const bubble = document.createElement("div");
-		bubble.className = `chat-bubble ${
-			msg.role === "user" ? "user-bubble" : "bot-bubble"
-		}`;
-		bubble.innerHTML = window.utils.markdown_parse(msg.content);
-		chatBox.appendChild(bubble);
-	});
-
-	renderMathInElement(document.body, {
-		delimiters: [
-			{ left: '$$', right: '$$', display: true },
-			{ left: '$', right: '$', display: true },
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true }
-		],
-		throwOnError: false
-	});
-
-	document.querySelectorAll("pre code").forEach((block) => {
-		// hljs?.highlightElement?.(block); TODO
-		void 0
-	});
-
-	chatBox.scrollTop = chatBox.scrollHeight;
-}
+// ...existing code...
 
 const actionBtn = document.getElementById("send");
+
 let isStreaming = false;
+let autoScroll = true;
+
+// Helper to check if chatBox is scrolled to bottom
+function isChatBoxAtBottom() {
+	return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 5;
+}
+
+// Listen for user scrolls to toggle autoScroll
+chatBox.addEventListener('scroll', () => {
+	// If user scrolls to bottom, enable autoScroll
+	if (isChatBoxAtBottom()) {
+		autoScroll = true;
+	} else {
+		autoScroll = false;
+	}
+});
 
 let attachedFiles = [];
 
@@ -472,17 +444,65 @@ window.ollama.onPullProgress(
 		}
 	}
 );
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
 
-    const models = await window.ollama.listModels();
-    if (models.length === 0) {
-        const defaultModel = "llama3.2:3b";
-        showNotification({
-            message: `No models found. Downloading default model: ${defaultModel}`,
-            type: "info",
-        });
-        await pullModel(defaultModel);
+async function autoNameSession(model: string, prompt: string, sessionId: string): Promise<string> {
+	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
+	const response = await fetch("http://localhost:11434/api/chat", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			model,
+			messages: [
+				{ role: "system", content: "Name this session based on the user prompt that the user submits. Only respond with the title." },
+				{ role: "user", content: `Generate a short title for the following prompt:\n\n${prompt}` }
+			],
+			stream: false,
+		}),
+	});
+	let data;
+	try {
+		data = await response.json();
+	} catch (err) {
+		console.error("[autoNameSession] Failed to parse JSON response:", err);
+		showNotification({ message: "Failed to auto-name session: invalid response from model API.", type: "error" });
+		return "";
+	}
+	if (!data || !data.message || typeof data.message.content !== "string") {
+		console.error("[autoNameSession] Unexpected API response:", data);
+		showNotification({ message: "Failed to auto-name session: unexpected response from model API.", type: "error" });
+		return "";
+	}
+	let title = data.message.content.trim();
+	// Remove surrounding quotes if present
+	if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+		title = title.slice(1, -1).trim();
+	}
+	console.log("[autoNameSession] Received title:", title);
+	sessions[sessionId].name = title;
+	window.ollama.save(sessions);
+	window.auth.getSession().then(async (auth) => {
+		if (isSyncEnabled() && auth?.session?.user) {
+			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+		}
+		renderSessionList();
+	});
+	renderSessionList();
+	console.log("[autoNameSession] Session name set and UI updated.");
+	return title;
+}
+
+form.addEventListener("submit", async (e) => {
+	e.preventDefault();
+
+	console.log("[form.submit] Submit event triggered");
+	const models = await window.ollama.listModels();
+	if (models.length === 0) {
+		const defaultModel = "llama3.2:3b";
+		showNotification({
+			message: `No models found. Downloading default model: ${defaultModel}`,
+			type: "info",
+		});
+		await pullModel(defaultModel);
 		let attempts = 0;
 		while (attempts < 10) {
 			const models = await window.ollama.listModels();
@@ -494,19 +514,25 @@ form.addEventListener("submit", async (e) => {
 		await loadOptions();
 
 		modelSelect.value = defaultModel;
-    }
+	}
 
-    if (isStreaming) {
-        window.ollama.stop?.();
-        return;
-    }
+	if (isStreaming) {
+		window.ollama.stop?.();
+		return;
+	}
 
-    const prompt = input.value.trim();
-    const model = modelSelect.value;
-    if (!prompt || !currentSessionId) return;
-
-    const session = sessions[currentSessionId];
-    session.model = model;
+	const prompt = input.value.trim();
+	const model = modelSelect.value;
+	console.log("[form.submit] Prompt:", prompt, "CurrentSessionId:", currentSessionId);
+	if (!prompt || !currentSessionId) return;
+	if (sessions[currentSessionId].history.length === 0) {
+		console.log("[form.submit] First prompt for session, calling autoNameSession...");
+		autoNameSession(model, prompt, currentSessionId).catch((err) => {
+			console.error("[form.submit] autoNameSession error:", err);
+		});
+	}
+	const session = sessions[currentSessionId];
+	session.model = model;
     const fileBlock = formatAttachedFiles(attachedFiles);
     const fullPrompt = prompt + "\n\n" + fileBlock;
     attachedFiles = [];
@@ -529,11 +555,14 @@ form.addEventListener("submit", async (e) => {
     isStreaming = true;
     updateActionButton();
 
-    window.ollama.onResponse((chunk) => {
-        fullResponse += chunk;
-        botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
+
+	window.ollama.onResponse((chunk) => {
+		fullResponse += chunk;
+		botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
+		if (autoScroll) {
+			chatBox.scrollTop = chatBox.scrollHeight;
+		}
+	});
 
     window.ollama.onError((err) => {
         botBubble.textContent += `\n⚠️ Error: ${err}`;
@@ -685,15 +714,111 @@ async function setTitle() {
 	document.title = modelSelect.value + " - Chat - InferencePortAI"
 }
 
-function syncPreviewBarWidth() {
-  const typingBar = document.querySelector(".typing-bar");
-  const previewBar = document.querySelector(".file-preview-bar");
-  if (typingBar && previewBar) {
-    previewBar.style.maxWidth = `${typingBar.offsetWidth}px`;
-  }
+function renderChat() {
+	if (!currentSessionId) {
+		currentSessionId = Object.keys(sessions)[0] || null;
+	}
+
+	const session = sessions[currentSessionId];
+	chatBox.innerHTML = "";
+
+	if (!session.history || session.history.length === 0) {
+		const emptyMsg = document.createElement("div");
+		emptyMsg.className = "empty-chat";
+		emptyMsg.textContent = "Start chatting to see messages here.";
+		chatBox.appendChild(emptyMsg);
+		return;
+	}
+
+
+	session.history.forEach((msg) => {
+		if (msg.role === "user") {
+			// User prompt in bubble
+			const bubble = document.createElement("div");
+			bubble.className = "chat-bubble user-bubble";
+			bubble.innerHTML = window.marked.parse(msg.content);
+			chatBox.appendChild(bubble);
+		} else {
+			// AI response: render markdown (tables, equations, etc.) in .bot-bubble, and code blocks in code bubbles
+			const html = window.marked.parse(msg.content);
+			const temp = document.createElement("div");
+			temp.innerHTML = html;
+
+			// Render all non-code markdown in a .bot-bubble
+			const botBubble = document.createElement("div");
+			botBubble.className = "bot-bubble";
+			// Remove code blocks from temp for this bubble
+			temp.querySelectorAll("pre").forEach((el) => el.remove());
+			botBubble.innerHTML = temp.innerHTML;
+			chatBox.appendChild(botBubble);
+			// Render KaTeX math in the botBubble
+			if (window.renderMathInElement) {
+				window.renderMathInElement(botBubble, {
+					delimiters: [
+						{ left: '$$', right: '$$', display: true },
+						{ left: '$', right: '$', display: true },
+						{ left: '\\(', right: '\\)', display: false },
+						{ left: '\\[', right: '\\]', display: true }
+					],
+					throwOnError: false
+				});
+			}
+
+			// Now render each code block in a code bubble
+			const codeBlocks = document.createElement("div");
+			codeBlocks.innerHTML = html;
+			codeBlocks.querySelectorAll("pre code").forEach((codeBlock) => {
+				const pre = codeBlock.parentElement;
+				let lang = "";
+				const match = codeBlock.className.match(/language-([\w-]+)/);
+				if (match) lang = match[1];
+
+				const codeBubble = document.createElement("div");
+				codeBubble.className = "ai-code-bubble";
+
+				const header = document.createElement("div");
+				header.className = "ai-code-header";
+
+				const langLabel = document.createElement("span");
+				langLabel.className = "ai-code-lang";
+				langLabel.textContent = lang || "code";
+				header.appendChild(langLabel);
+
+				const copyBtn = document.createElement("button");
+				copyBtn.className = "ai-copy-btn";
+				copyBtn.textContent = "Copy";
+				copyBtn.onclick = () => {
+					navigator.clipboard.writeText(codeBlock.textContent || "");
+					copyBtn.textContent = "Copied!";
+					setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+				};
+				header.appendChild(copyBtn);
+
+				codeBubble.appendChild(header);
+				codeBlock.classList.add("ai-code-block");
+				codeBubble.appendChild(pre.cloneNode(true));
+				chatBox.appendChild(codeBubble);
+			});
+		}
+	});
+
+	renderMathInElement(document.body, {
+		delimiters: [
+			{ left: '$$', right: '$$', display: true },
+			{ left: '$', right: '$', display: true },
+			{ left: '\\(', right: '\\)', display: false },
+			{ left: '\\[', right: '\\]', display: true }
+		],
+		throwOnError: false
+	});
+
+	document.querySelectorAll("pre code").forEach((block) => {
+		// hljs?.highlightElement?.(block); TODO
+		void 0
+	});
+
+	// Only scroll if autoScroll is enabled
+	if (autoScroll) {
+		chatBox.scrollTop = chatBox.scrollHeight;
+	}
 }
-
-window.addEventListener("resize", syncPreviewBarWidth);
-syncPreviewBarWidth();
-
-window.onload = renderFileIndicator

@@ -1,17 +1,100 @@
-/*
-Copyright 2025 Rihaan Meher
-*/
-.chat-container {
-  display: flex;
-  height: calc(100vh - 80px);
+html, body {
+  height: 100vh;
+  min-height: 0;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+main {
+  height: calc(100vh - 61px);
+  min-height: 0;
+  max-height: calc(100vh - 61px);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
 }
 
+/* Account for navbar height (assume 61px) */
+/* chat-container fills main, not double subtracting navbar */
+.chat-container {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+/* sidebar fills chat-container */
 .sidebar {
   width: 250px;
+  min-width: 250px;
   background-color: var(--gray);
   padding: 20px;
   border-right: 1px solid #ccc;
   overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+/* Chat panel uses flex column, chat-box grows, input stays at bottom */
+/* chat-panel fills chat-container */
+.chat-panel {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: 40px;
+  padding-top: 0px;
+  overflow: hidden;
+}
+
+#chat-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-light);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+chat-box, .typing-bar {
+  flex-shrink: 0;
+}
+}
+}
+html, body {
+  height: 100%;
+  /* Allow scrolling if needed */
+  overflow: auto;
+}
+/*
+Copyright 2025 Rihaan Meher
+*/
+/* Make chat-container fill available space but allow overflow */
+/* Main flex container fills viewport height, no page scroll */
+.chat-container {
+  display: flex;
+  height: 100vh;
+  min-height: 0;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar fills vertical space, scrolls if needed */
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+  background-color: var(--gray);
+  padding: 20px;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 .sidebar h2 {
@@ -32,18 +115,28 @@ Copyright 2025 Rihaan Meher
   background-color: var(--light-blue);
 }
 
+/* Make chat-panel fill available space and allow overflow */
+/* Chat panel fills vertical space, flex column, no scroll */
 .chat-panel {
-  flex: 1;
-  padding: 40px;
-  padding-top: 0px;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  height: 100vh;
+  min-height: 0;
+  max-height: 100vh;
+  padding: 40px;
+  padding-top: 0px;
+  overflow: hidden;
 }
 
+/* Make #chat-box scrollable and not expand the whole page */
+/* #chat-box fills available space in chat-panel and scrolls if needed */
 #chat-box {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-light);
   padding: 20px;
   border-radius: var(--border-radius);
@@ -57,16 +150,148 @@ Copyright 2025 Rihaan Meher
   border-radius: var(--border-radius);
   max-width: 80%;
   line-height: 1.5;
+  overflow-x: auto;
+  word-break: break-word;
+  white-space: pre-line;
 }
 
 .user-bubble {
   background-color: var(--light-blue);
   align-self: flex-end;
+  color: var(--text-dark);
+  box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+  margin-left: auto;
+  max-width: 80%;
+  text-align: left;
+  display: block;
 }
 
 .bot-bubble {
-  background-color: var(--gray);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-dark);
+  padding: 0;
+}
+
+/* AI code block bubble container */
+.ai-code-bubble {
+  background: var(--gray);
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+  margin-bottom: 18px;
+  margin-top: 8px;
+  padding: 0;
+  position: relative;
+  max-width: 90%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-code-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: #222c37;
+  color: #fff;
+  font-size: 13px;
+  font-family: monospace;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  padding: 6px 12px;
+  min-height: 28px;
+  position: relative;
+}
+
+.ai-code-lang {
+  background: #1a2027;
+  color: #b3b3b3;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-right: 8px;
   align-self: flex-start;
+}
+
+.ai-copy-btn {
+  background: #2d3a4a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 8px;
+  margin-right: 0;
+  transition: background 0.2s;
+  position: sticky;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  width: auto;
+  min-width: 48px;
+  max-width: 64px;
+  text-align: center;
+}
+}
+/* Sticky copy button: stays visible at top right of code container while scrolling, but doesn't overflow bottom */
+.ai-code-bubble {
+  position: relative;
+}
+.ai-code-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
+}
+}
+.ai-copy-btn:hover {
+  background: #3a4a5a;
+}
+
+.ai-code-bubble pre, .ai-code-bubble code {
+  background: transparent;
+  color: var(--text-dark);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  margin: 0;
+  padding: 16px 18px 16px 18px;
+  font-size: 15px;
+  overflow-x: auto;
+  white-space: pre;
+  max-width: 100%;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  box-shadow: none;
+}
+}
+
+.chat-bubble pre, .chat-bubble code {
+  white-space: pre;
+  overflow-x: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #222c37;
+  color: #fff;
+  font-size: 13px;
+  font-family: monospace;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  padding: 6px 12px;
+  min-height: 28px;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-x: auto;
 }
 
 .session-name-wrapper {
