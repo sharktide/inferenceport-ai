@@ -5,8 +5,8 @@ nav {
   display: flex;
   justify-content: space-between;
   padding: 15px 40px;
-  background: var(--bg-light);
-  border-bottom: 1px solid var(--secondary-color);
+  background: #23272f;
+  border-bottom: 1px solid #181a1f;
   position: sticky;
   top: 0;
   z-index: 999;

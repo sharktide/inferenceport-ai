@@ -16,6 +16,9 @@ limitations under the License.
 
 //@ts-nocheck
 
+import { urlToHttpOptions } from "url";
+import { showNotification } from "../helper/notification.js";
+import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap, safeCallRemote, isOffline } from "../helper/sync.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -736,46 +739,30 @@ function renderChat() {
 			// User prompt in bubble
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble";
-			bubble.innerHTML = window.marked.parse(msg.content);
+			bubble.innerHTML = window.utils.markdown_parse(msg.content);
 			chatBox.appendChild(bubble);
 		} else {
-			// AI response: render markdown (tables, equations, etc.) in .bot-bubble, and code blocks in code bubbles
-			const html = window.marked.parse(msg.content);
+			// AI response: invisible bubble, but code blocks are shown in styled containers
+			// Parse the markdown to HTML, then extract code blocks
+			const html = window.utils.markdown_parse(msg.content);
+			// Create a temp container to parse HTML
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
 
-			// Render all non-code markdown in a .bot-bubble
-			const botBubble = document.createElement("div");
-			botBubble.className = "bot-bubble";
-			// Remove code blocks from temp for this bubble
-			temp.querySelectorAll("pre").forEach((el) => el.remove());
-			botBubble.innerHTML = temp.innerHTML;
-			chatBox.appendChild(botBubble);
-			// Render KaTeX math in the botBubble
-			if (window.renderMathInElement) {
-				window.renderMathInElement(botBubble, {
-					delimiters: [
-						{ left: '$$', right: '$$', display: true },
-						{ left: '$', right: '$', display: true },
-						{ left: '\\(', right: '\\)', display: false },
-						{ left: '\\[', right: '\\]', display: true }
-					],
-					throwOnError: false
-				});
-			}
-
-			// Now render each code block in a code bubble
-			const codeBlocks = document.createElement("div");
-			codeBlocks.innerHTML = html;
-			codeBlocks.querySelectorAll("pre code").forEach((codeBlock) => {
+			let hasCode = false;
+			temp.querySelectorAll("pre code").forEach((codeBlock) => {
+				hasCode = true;
 				const pre = codeBlock.parentElement;
+				// Get language from class (e.g., language-js)
 				let lang = "";
 				const match = codeBlock.className.match(/language-([\w-]+)/);
 				if (match) lang = match[1];
 
+				// Create code bubble container
 				const codeBubble = document.createElement("div");
 				codeBubble.className = "ai-code-bubble";
 
+				// Header with language and copy button
 				const header = document.createElement("div");
 				header.className = "ai-code-header";
 
@@ -795,10 +782,23 @@ function renderChat() {
 				header.appendChild(copyBtn);
 
 				codeBubble.appendChild(header);
+
+				// Move the code/pre block into the bubble
 				codeBlock.classList.add("ai-code-block");
 				codeBubble.appendChild(pre.cloneNode(true));
+
 				chatBox.appendChild(codeBubble);
 			});
+
+			// If there is non-code content, show it as plain text (no bubble)
+			if (!hasCode) {
+				const plain = document.createElement("div");
+				plain.className = "bot-bubble";
+				// Remove code blocks from temp, then get text
+				temp.querySelectorAll("pre").forEach((el) => el.remove());
+				plain.innerHTML = temp.innerHTML;
+				chatBox.appendChild(plain);
+			}
 		}
 	});
 

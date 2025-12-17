@@ -191,7 +191,7 @@ Copyright 2025 Rihaan Meher
 .ai-code-header {
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
+  justify-content: space-between;
   background: #222c37;
   color: #fff;
   font-size: 13px;
@@ -226,7 +226,8 @@ Copyright 2025 Rihaan Meher
   transition: background 0.2s;
   position: sticky;
   top: 6px;
-  right: 6px;
+  right: 12px;
+  align-self: flex-start;
   z-index: 2;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   width: auto;
@@ -240,15 +241,7 @@ Copyright 2025 Rihaan Meher
   position: relative;
 }
 .ai-code-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 0;
+  /* see above for new definition */
 }
 }
 .ai-copy-btn:hover {
