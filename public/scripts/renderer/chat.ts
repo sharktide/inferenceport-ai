@@ -347,50 +347,50 @@ function renderSessionList(): void {
 	return void 0
 }
 
-function renderChat(): void {
-	if (!currentSessionId) {
-		currentSessionId = Object.keys(sessions)[0] || null;
-	}
+// function renderChat(): void {
+// 	if (!currentSessionId) {
+// 		currentSessionId = Object.keys(sessions)[0] || null;
+// 	}
 
 
-	const session = sessions[currentSessionId];
-	chatBox.innerHTML = "";
+// 	const session = sessions[currentSessionId];
+// 	chatBox.innerHTML = "";
 
-	if (!session.history || session.history.length === 0) {
-		const emptyMsg = document.createElement("div");
-		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
-		chatBox.appendChild(emptyMsg);
-		return;
-	}
+// 	if (!session.history || session.history.length === 0) {
+// 		const emptyMsg = document.createElement("div");
+// 		emptyMsg.className = "empty-chat";
+// 		emptyMsg.textContent = "Start chatting to see messages here.";
+// 		chatBox.appendChild(emptyMsg);
+// 		return;
+// 	}
 
-	session.history.forEach((msg) => {
-		const bubble = document.createElement("div");
-		bubble.className = `chat-bubble ${
-			msg.role === "user" ? "user-bubble" : "bot-bubble"
-		}`;
-		bubble.innerHTML = window.utils.markdown_parse(msg.content);
-		chatBox.appendChild(bubble);
-	});
+// 	session.history.forEach((msg) => {
+// 		const bubble = document.createElement("div");
+// 		bubble.className = `chat-bubble ${
+// 			msg.role === "user" ? "user-bubble" : "bot-bubble"
+// 		}`;
+// 		bubble.innerHTML = window.utils.markdown_parse(msg.content);
+// 		chatBox.appendChild(bubble);
+// 	});
 
-	renderMathInElement(document.body, {
-		delimiters: [
-			{ left: '$$', right: '$$', display: true },
-			{ left: '$', right: '$', display: true },
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true }
-		],
-		throwOnError: false
-	});
+// 	renderMathInElement(document.body, {
+// 		delimiters: [
+// 			{ left: '$$', right: '$$', display: true },
+// 			{ left: '$', right: '$', display: true },
+// 			{ left: '\\(', right: '\\)', display: false },
+// 			{ left: '\\[', right: '\\]', display: true }
+// 		],
+// 		throwOnError: false
+// 	});
 
-	document.querySelectorAll("pre code").forEach((block) => {
-		// hljs?.highlightElement?.(block); TODO
-		void 0
-	});
+// 	document.querySelectorAll("pre code").forEach((block) => {
+// 		// hljs?.highlightElement?.(block); TODO
+// 		void 0
+// 	});
 
-	chatBox.scrollTop = chatBox.scrollHeight;
-	return void 0
-}
+// 	chatBox.scrollTop = chatBox.scrollHeight;
+// 	return void 0
+// }
 
 const actionBtn = document.getElementById("send");
 
