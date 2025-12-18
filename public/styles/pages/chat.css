@@ -79,11 +79,12 @@
   color: var(--text-dark);
   padding: 10px;
   border-radius: 10px;
+  max-width: 90%;
 }
 
 /* AI code block bubble container */
 .ai-code-bubble {
-  background: var(--gray);
+  background: var(--bg-light);
   border-radius: var(--border-radius);
   box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
   margin-bottom: 18px;
