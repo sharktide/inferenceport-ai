@@ -430,13 +430,13 @@ function formatAttachedFiles(files): string {
   if (files.length === 0) return "";
 
   let output: string = `<details><summary>Attached Files</summary>\n\n`;
-  for (const file of files) {
-    output += `<details><summary>${file.name}</summary>\n\n`;
-    output += "```\n" + file.content + "\n```\n";
-    output += `</details>\n\n`;
-  }
-  output += `</details>\n\n`;
-  return output;
+	for (const file of files) {
+		output += `\n<details><summary>${file.name}</summary>\n\n`;
+		output += "```\n" + file.content + "\n```\n";
+		output += `\n</details>\n`;
+	}
+	output += `\n</details>\n`;
+	return output;
 }
 
 async function pullModel(name: string): Promise<void> {
@@ -802,62 +802,62 @@ function renderChat() {
 			bubble.innerHTML = window.utils.markdown_parse(msg.content);
 			chatBox.appendChild(bubble);
 		} else {
-			// AI response: invisible bubble, but code blocks are shown in styled containers
-			// Parse the markdown to HTML, then extract code blocks
 			const html = window.utils.markdown_parse(msg.content);
-			// Create a temp container to parse HTML
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
 
-			let hasCode = false;
-			temp.querySelectorAll("pre code").forEach((codeBlock) => {
-				hasCode = true;
-				const pre = codeBlock.parentElement;
-				// Get language from class (e.g., language-js)
-				let lang = "";
-				const match = codeBlock.className.match(/language-([\w-]+)/);
-				if (match) lang = match[1];
+			const botContainer = document.createElement("div");
+			botContainer.className = "bot-bubble";
 
-				// Create code bubble container
-				const codeBubble = document.createElement("div");
-				codeBubble.className = "ai-code-bubble";
+			const nodes = Array.from(temp.childNodes);
+			nodes.forEach((node) => {
+				if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "pre") {
+					const preEl = node as HTMLElement;
+					const codeEl = preEl.querySelector("code");
+					let lang = "";
+					if (codeEl) {
+						const match = (codeEl.className || "").match(/language-([\w-]+)/);
+						if (match) lang = match[1];
+					}
 
-				// Header with language and copy button
-				const header = document.createElement("div");
-				header.className = "ai-code-header";
+					const codeBubble = document.createElement("div");
+					codeBubble.className = "ai-code-bubble";
 
-				const langLabel = document.createElement("span");
-				langLabel.className = "ai-code-lang";
-				langLabel.textContent = lang || "code";
-				header.appendChild(langLabel);
+					const header = document.createElement("div");
+					header.className = "ai-code-header";
 
-				const copyBtn = document.createElement("button");
-				copyBtn.className = "ai-copy-btn";
-				copyBtn.textContent = "Copy";
-				copyBtn.onclick = () => {
-					navigator.clipboard.writeText(codeBlock.textContent || "");
-					copyBtn.textContent = "Copied!";
-					setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-				};
-				header.appendChild(copyBtn);
+					const langLabel = document.createElement("span");
+					langLabel.className = "ai-code-lang";
+					langLabel.textContent = lang || "code";
+					header.appendChild(langLabel);
 
-				codeBubble.appendChild(header);
+					const copyBtn = document.createElement("button");
+					copyBtn.className = "ai-copy-btn";
+					copyBtn.textContent = "Copy";
+					copyBtn.onclick = () => {
+						navigator.clipboard.writeText(codeEl ? (codeEl.textContent || "") : "");
+						copyBtn.textContent = "Copied!";
+						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+					};
+					header.appendChild(copyBtn);
 
-				// Move the code/pre block into the bubble
-				codeBlock.classList.add("ai-code-block");
-				codeBubble.appendChild(pre.cloneNode(true));
-
-				chatBox.appendChild(codeBubble);
+					codeBubble.appendChild(header);
+					codeBubble.appendChild(preEl.cloneNode(true));
+					botContainer.appendChild(codeBubble);
+				} else {
+					// Non-code content: append markup inside bot container
+					const fragment = document.createDocumentFragment();
+					fragment.appendChild(node.cloneNode(true));
+					// Only append if there's visible content
+					if ((fragment.textContent || "").trim() !== "") {
+						botContainer.appendChild(fragment);
+					}
+				}
 			});
 
-			// If there is non-code content, show it as plain text (no bubble)
-			if (!hasCode) {
-				const plain = document.createElement("div");
-				plain.className = "bot-bubble";
-				// Remove code blocks from temp, then get text
-				temp.querySelectorAll("pre").forEach((el) => el.remove());
-				plain.innerHTML = temp.innerHTML;
-				chatBox.appendChild(plain);
+			// Append bot container if it contains anything
+			if (botContainer.childNodes.length > 0 && (botContainer.textContent || "").trim() !== "") {
+				chatBox.appendChild(botContainer);
 			}
 		}
 	});

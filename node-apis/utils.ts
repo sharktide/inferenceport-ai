@@ -22,11 +22,65 @@ const fs = require("fs");
 const path = require("path");
 const { shell, app, ipcMain } = require("electron");
 const si = require("systeminformation");
-const MarkdownIt =  require("markdown-it");
+const MDIT =  require("markdown-it");
 
 import type { Systeminformation } from 'systeminformation';
 
-const mdit = MarkdownIt()
+
+function detailsBlock(md: any): void {
+  md.block.ruler.before(
+    "paragraph",
+    "details_block",
+    (
+      state: any,
+      startLine: number,
+      endLine: number,
+      silent: boolean
+    ): boolean => {
+      const start = state.bMarks[startLine!] + state.tShift[startLine!];
+      const max = state.eMarks[startLine!];
+
+      const line = state.src.slice(start, max);
+      if (!line.startsWith("<details")) return false;
+
+      let nextLine = startLine + 1;
+
+      while (nextLine < endLine) {
+        const pos = state.bMarks[nextLine!] + state.tShift[nextLine!];
+        const text = state.src.slice(pos, state.eMarks[nextLine]).trim();
+        if (text === "</details>") break;
+        nextLine++;
+      }
+
+      if (nextLine >= endLine) return false;
+
+      if (silent) return true;
+
+      state.line = nextLine + 1;
+
+      const content = state.getLines(
+        startLine,
+        nextLine + 1,
+        0,
+        true
+      );
+
+      const token = state.push("html_block", "", 0);
+      token.content = content;
+
+      return true;
+    }
+  );
+}
+
+
+const mdit = MDIT({
+  html: false,
+  linkify: true,
+  breaks: false,
+});
+
+mdit.use(detailsBlock);
 
 let cpu: Systeminformation.CpuData | undefined;
 let flags: String | undefined;
@@ -106,21 +160,35 @@ function register() {
 	ipcMain.on("utils:markdown_parse", (event: IpcMainEvent, markdown: string) => {
 		try {
 			const dirty = mdit.render(markdown);
-			const clean = sanitizeHtml(dirty);
+			const clean = sanitizeHtml(dirty, {
+				allowedTags: sanitizeHtml.defaults.allowedTags.concat(["details", "summary"]),
+				allowedAttributes: Object.assign({}, sanitizeHtml.defaults.allowedAttributes, {
+					'*': (sanitizeHtml.defaults.allowedAttributes['*'] || []).concat(['class', 'id']),
+					'details': ['open']
+				}),
+				allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(['data'])
+			});
 			event.returnValue = clean;
 		} catch (err) {
-		event.returnValue = `<p>Error parsing markdown: ${err instanceof Error ? err.message : String(err)}</p>`;
+			event.returnValue = `<p>Error parsing markdown: ${err instanceof Error ? err.message : String(err)}</p>`;
 		}
 	});
 
 	ipcMain.on("utils:DOMPurify", (event: IpcMainEvent, html: string) => {
 		try {
-		const cleanHTML = sanitizeHtml(html);
-		event.returnValue = cleanHTML;
+			const cleanHTML = sanitizeHtml(html, {
+				allowedTags: sanitizeHtml.defaults.allowedTags.concat(["details", "summary"]),
+				allowedAttributes: Object.assign({}, sanitizeHtml.defaults.allowedAttributes, {
+					'*': (sanitizeHtml.defaults.allowedAttributes['*'] || []).concat(['class', 'id']),
+					'details': ['open']
+				}),
+				allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(['data'])
+			});
+			event.returnValue = cleanHTML;
 		} catch (err) {
-		event.returnValue = `<p>Error cleaning HTML: ${
-			err instanceof Error ? err.message : String(err)
-		}</p>`;
+			event.returnValue = `<p>Error cleaning HTML: ${
+				err instanceof Error ? err.message : String(err)
+			}</p>`;
 		}
 	});
 

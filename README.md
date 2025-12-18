@@ -28,9 +28,9 @@ This project is designed with privacy and local control in mind. Important secur
 
 Prerequisites:
 
-- Node.js (recommended: 18+)
-- npm (or compatible client)
-- TypeScript (project uses local tsc via devDependencies)
+- Node.js (recommended: 23+)
+- npm
+- TypeScript installed globally
 
 Typical workflow:
 

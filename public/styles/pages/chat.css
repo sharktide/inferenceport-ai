@@ -1,97 +1,16 @@
-html, body {
-  margin: 0;
-  padding: 0;
-  min-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-main {
-  height: calc(100vh - 61px);
-  min-height: 0;
-  max-height: calc(100vh - 61px);
-  margin: 0;
-  padding: 0;
-}
-
-
-/* Account for navbar height (assume 61px) */
-/* chat-container fills main, not double subtracting navbar */
+/* Replace broken/duplicated layout rules with the canonical chat styles */
+/* Based on styles/pages/chat.css (clean layout and correct scrolling) */
 .chat-container {
   display: flex;
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-  overflow: auto;
+  height: calc(100vh - 80px);
 }
-/* sidebar fills chat-container */
+
 .sidebar {
   width: 250px;
-  min-width: 250px;
   background-color: var(--gray);
   padding: 20px;
   border-right: 1px solid #ccc;
   overflow-y: auto;
-  height: 100%;
-  box-sizing: border-box;
-}
-/* Chat panel uses flex column, chat-box grows, input stays at bottom */
-/* chat-panel fills chat-container */
-.chat-panel {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-  padding: 40px;
-  padding-top: 0px;
-  overflow: hidden;
-}
-
-#chat-box {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--bg-light);
-  padding: 20px;
-  border-radius: var(--border-radius);
-  margin-bottom: 20px;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
-}
-
-chat-box, .typing-bar {
-  flex-shrink: 0;
-}
-
-html, body {
-  height: 100%;
-  overflow: auto;
-}
-/*
-Copyright 2025 Rihaan Meher
-*/
-/* Make chat-container fill available space but allow overflow */
-/* Main flex container fills viewport height, no page scroll */
-.chat-container {
-  display: flex;
-  height: 100vh;
-  min-height: 0;
-  max-height: 100vh;
-  overflow: hidden;
-}
-
-/* Sidebar fills vertical space, scrolls if needed */
-.sidebar {
-  width: 250px;
-  min-width: 250px;
-  background-color: var(--gray);
-  padding: 20px;
-  border-right: 1px solid #ccc;
-  overflow-y: scroll;
-  height: 80%;
-  box-sizing: border-box;
 }
 
 .sidebar h2 {
@@ -112,28 +31,18 @@ Copyright 2025 Rihaan Meher
   background-color: var(--light-blue);
 }
 
-/* Make chat-panel fill available space and allow overflow */
-/* Chat panel fills vertical space, flex column, no scroll */
 .chat-panel {
-  flex: 1 1 0;
+  flex: 1;
+  padding: 40px;
+  padding-top: 0px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  height: 100vh;
-  min-height: 0;
-  max-height: 80%;
-  padding: 40px;
-  padding-top: 0px;
-  overflow: scroll;
 }
 
-/* Make #chat-box scrollable and not expand the whole page */
-/* #chat-box fills available space in chat-panel and scrolls if needed */
 #chat-box {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
   background: var(--bg-light);
   padding: 20px;
   border-radius: var(--border-radius);
@@ -161,6 +70,7 @@ Copyright 2025 Rihaan Meher
   max-width: 80%;
   text-align: left;
   display: block;
+  margin-top: 10px
 }
 
 .bot-bubble {
@@ -169,11 +79,12 @@ Copyright 2025 Rihaan Meher
   color: var(--text-dark);
   padding: 10px;
   border-radius: 10px;
+  max-width: 90%;
 }
 
 /* AI code block bubble container */
 .ai-code-bubble {
-  background: var(--gray);
+  background: var(--bg-light);
   border-radius: var(--border-radius);
   box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
   margin-bottom: 18px;
