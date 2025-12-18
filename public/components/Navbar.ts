@@ -5,6 +5,7 @@ export class RootNavbar extends HTMLElement {
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
+                    <li><a href="renderer/chat.html">Chat</a></li>
                     <li><a href="index.html">Home</a></li>
                     <li><a href="marketplace.html">Explore</a></li>
                     <li><a href="installed.html">My Models</a></li>
@@ -23,6 +24,26 @@ export class Type1Navbar extends HTMLElement {
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
+                    <li><a href="chat.html">Chat</a></li>
+                    <li><a href="../index.html">Home</a></li>
+                    <li><a href="../marketplace.html">Explore</a></li>
+                    <li><a href="../installed.html">My Models</a></li>
+                    <li><a href="../settings.html">Settings</a></li>
+                    <li><a href="../help/index.html" target="_blank">Help</a></li>
+                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms</a></li>
+                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy</a></li>
+                </ul>
+            </nav>
+        `;
+    }
+}
+export class MarketplaceNabar extends HTMLElement {
+    connectedCallback() {
+        this.innerHTML = `
+            <nav>
+                <div class="logo">⚡InferencePort AI</div>
+                <ul class="nav-links">
+                    <li><a href="../renderer/chat.html">Chat</a></li>
                     <li><a href="../index.html">Home</a></li>
                     <li><a href="../marketplace.html">Explore</a></li>
                     <li><a href="../installed.html">My Models</a></li>
@@ -36,5 +57,8 @@ export class Type1Navbar extends HTMLElement {
     }
 }
 
+
 customElements.define("root-navbar", RootNavbar);
 customElements.define("type1-navbar", Type1Navbar);
+customElements.define("marketplace-navbar", MarketplaceNabar);
+
