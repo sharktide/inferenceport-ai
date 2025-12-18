@@ -430,13 +430,13 @@ function formatAttachedFiles(files): string {
   if (files.length === 0) return "";
 
   let output: string = `<details><summary>Attached Files</summary>\n\n`;
-  for (const file of files) {
-    output += `<details><summary>${file.name}</summary>\n\n`;
-    output += "```\n" + file.content + "\n```\n";
-    output += `</details>\n\n`;
-  }
-  output += `</details>\n\n`;
-  return output;
+	for (const file of files) {
+		output += `\n<details><summary>${file.name}</summary>\n\n`;
+		output += "```\n" + file.content + "\n```\n";
+		output += `\n</details>\n`;
+	}
+	output += `\n</details>\n`;
+	return output;
 }
 
 async function pullModel(name: string): Promise<void> {

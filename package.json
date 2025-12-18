@@ -80,7 +80,10 @@
       "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
-      "target": [ "dmg", "zip" ]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
       "target": "AppImage"
