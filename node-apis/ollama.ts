@@ -285,7 +285,7 @@ function register(): void {
 				model: modelName,
 				stream: true,
 				messages: [
-				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate." },
+				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double back slashes. NO SINGLE BACKSLASHES!" },
 				...chatHistory,
 				],
 				tools,
