@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 const { app, ipcMain, BrowserWindow } = require("electron");
+import { generateTryItApiKey } from "./getApiKey.js";
 //@ts-ignore
 import type { IpcMain, IpcMainEvent } from 'electron';
 const fs = require("fs");
@@ -37,9 +38,55 @@ const ollamaPath = isDev
 
 
 type ChatMessage = {
-	role: "user" | "assistant";
+	role: "user" | "assistant" | "tool";
 	content: string;
+	tool_calls?: { function: any }[];
+	name?: string;
 };
+
+const tools = [
+	{
+		type: "function",
+		function: {
+			name: "duckduckgo_search",
+			description: "Search the web using DuckDuckGo",
+			parameters: {
+				type: "object",
+				properties: {
+					query: {
+						type: "string",
+						description: "Search query",
+					},
+				},
+				required: ["query"],
+			},
+		},
+	}, {
+		type: "function",
+		function: {
+			name: "generate_image",
+			description: "Generate an image from a prompt and resolution",
+			parameters: {
+				type: "object",
+				properties: {
+					prompt: {
+						prompt: "string",
+						description: "Describe the image you want in great detail (10-30 words)",
+					},
+					width: {
+						width: "number",
+						description: "width of image in pixels up to 1920",
+					},
+					height: {
+						height: "number",
+						description: "height of image in pixels up to 1920",
+					},
+				},
+				required: ["prompt", "width", "height"],
+			},
+		},
+	},
+];
 
 type ModelInfo = {
 	name: string;
@@ -71,6 +118,58 @@ async function serve(): Promise<string> {
 		});
   });
 }
+// ====================== Tool Functions ======================
+async function duckDuckGoSearch(query: string) {
+	const res = await fetch(
+		`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
+	);
+	const data = await res.json();
+
+	return {
+		abstract: data.AbstractText,
+		heading: data.Heading,
+		related: (data.RelatedTopics || [])
+			.slice(0, 5)
+			.map((r: any) => ({
+				text: r.Text,
+				url: r.FirstURL,
+			})),
+	};
+}
+
+async function GenerateImage(prompt: string, height: number, width: number) {
+    const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
+    const API_KEY = generateTryItApiKey();
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
+
+    const response = await fetch(image_url, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "API-KEY": API_KEY,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: prompt,
+            width,
+            height,
+            I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
+        })
+    });
+
+    if (!response.ok) {
+        throw { status: response.status, type: 'generate' };
+    }
+
+    const result = await response.json();
+    if (!result.image) {
+        throw { status: 500, type: 'generate' };
+    }
+
+    return result.image;
+}
+
+// ====================== End Tool Functions ======================
 
 let chatAbortController: AbortController | null = null;
 function register(): void {
@@ -145,64 +244,167 @@ function register(): void {
 		async (
 			event: IpcMainEvent,
 			modelName: string,
-			userMessage: string
+			userMessage: string,
+			search: boolean,
+			imageGen: boolean,
 		) => {
-			chatHistory.push({ role: "user", content: userMessage });
 			chatAbortController = new AbortController();
+
+			chatHistory.push({ role: "user", content: userMessage });
+
 			try {
-				const res = await fetch("http://localhost:11434/api/chat", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						model: modelName,
-						messages: [
-						{ role: "system", content: "All LaTeX must use double backslashes (\\\\). Do not output single backslashes." },
-						...chatHistory
-						],
-						stream: true,
-					}),
-					signal: chatAbortController!.signal,
-				});
+			const body = {
+				model: modelName,
+				stream: true,
+				messages: [
+				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate." },
+				...chatHistory,
+				],
+				tools,
+			};
 
+			const res = await fetch("http://localhost:11434/api/chat", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+				signal: chatAbortController.signal,
+			});
 
-				const reader = res.body?.getReader();
-				const decoder = new TextDecoder();
-				let fullResponse = "";
+			if (!res.body) {
+				event.sender.send("ollama:chat-error", "No response stream");
+				return;
+			}
 
-				if (!reader) {
-					event.sender.send("ollama:chat-error", "No response stream");
-					return;
+			const reader = res.body.getReader();
+			const decoder = new TextDecoder();
+
+			let buffer = "";
+			let assistantMessage = "";
+			let pendingToolCalls: any[] = [];
+
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split("\n");
+				buffer = lines.pop()!;
+
+				for (const line of lines) {
+				if (!line.trim()) continue;
+
+				let json: any;
+				try {
+					json = JSON.parse(line);
+				} catch {
+					continue;
 				}
 
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-
-					const chunk = decoder.decode(value, { stream: true });
-					const lines = chunk.split("\n").filter((line) => line.trim());
-
-					for (const line of lines) {
-						try {
-							const json = JSON.parse(line);
-							const token = json.message?.content || "";
-							fullResponse += token;
-							event.sender.send("ollama:chat-token", token);
-						} catch (err) {
-							event.sender.send("ollama:chat-error", `JSON parse error: ${err}`);
-						}
-					}
+				if (json.message?.content) {
+					assistantMessage += json.message.content;
+					event.sender.send("ollama:chat-token", json.message.content);
 				}
-				chatHistory.push({ role: "assistant", content: fullResponse });
-				event.sender.send("ollama:chat-done");
-			} catch (err) {
-				if ((err as Error).name === "AbortError") {
-					event.sender.send("ollama:chat-aborted");
-				} else {
-					event.sender.send("ollama:chat-error", `${err}`);
+
+				if (json.message?.tool_calls) {
+					pendingToolCalls.push(...json.message.tool_calls);
+				}
+
+				if (json.done === true) break;
 				}
 			}
 
+			if (assistantMessage.trim()) {
+				chatHistory.push({ role: "assistant", content: assistantMessage });
+			}
 
+			if (pendingToolCalls.length > 0) {
+				for (const toolCall of pendingToolCalls) {
+				let toolResult: any = null;
+
+				const args =
+					typeof toolCall.function.arguments === "string"
+					? JSON.parse(toolCall.function.arguments)
+					: toolCall.function.arguments;
+
+				if (toolCall.function.name === "duckduckgo_search") {
+					toolResult = await duckDuckGoSearch(args.query);
+				} else if (toolCall.function.name === "generate_image") {
+					toolResult = await GenerateImage(args.prompt, args.height, args.width);
+				}
+
+				chatHistory.push({
+					role: "tool",
+					name: toolCall.function.name,
+					content: JSON.stringify(toolResult),
+				});
+				}
+				const followUpRes = await fetch(
+				"http://localhost:11434/api/chat",
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+					model: modelName,
+					stream: true,
+					messages: chatHistory,
+					tools,
+					}),
+					signal: chatAbortController.signal,
+				}
+				);
+
+				if (!followUpRes.body) {
+					event.sender.send("ollama:chat-error", "No follow-up stream");
+					return;
+				}
+
+				const followUpReader = followUpRes.body.getReader();
+				buffer = "";
+				assistantMessage = "";
+
+				while (true) {
+					const { value, done } = await followUpReader.read();
+					if (done) break;
+
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split("\n");
+					buffer = lines.pop()!;
+
+					for (const line of lines) {
+						if (!line.trim()) continue;
+
+						let json: any;
+						try {
+						json = JSON.parse(line);
+						} catch {
+						continue;
+						}
+
+						if (json.message?.content) {
+						assistantMessage += json.message.content;
+						event.sender.send("ollama:chat-token", json.message.content);
+						}
+
+						if (json.done === true) break;
+					}
+				}
+
+				if (assistantMessage.trim()) {
+				chatHistory.push({ role: "assistant", content: assistantMessage });
+				}
+			}
+
+			event.sender.send("ollama:chat-done");
+			} catch (err) {
+			if ((err as Error).name === "AbortError") {
+				event.sender.send("ollama:chat-aborted");;
+			} else {
+				console.error("Chat error:", err);
+				event.sender.send("ollama:chat-error", String(err));
+			}
+			} finally {
+			chatAbortController = null;
+			}
 		}
 	);
 
