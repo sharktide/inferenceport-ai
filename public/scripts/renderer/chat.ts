@@ -333,10 +333,36 @@ function renderSessionList(): void {
 			renderSessionList();
 		};
 
+		// Visible menu button (three dots) to open the session context menu without using right-click
+		const menuBtn = document.createElement("button");
+		menuBtn.className = "menu-btn";
+		menuBtn.setAttribute('aria-label', 'Open session menu');
+		menuBtn.title = 'Open session menu';
+		menuBtn.innerText = '⋯';
+		menuBtn.onclick = (e) => {
+			e.stopPropagation(); // Prevent the click from bubbling and immediately closing the menu
+			const rect = menuBtn.getBoundingClientRect();
+			// pageX/pageY expected by showContextMenu
+			const x = rect.right + window.scrollX - 8;
+			const y = rect.bottom + window.scrollY + 4;
+			showContextMenu(x, y, id, name);
+		};
+		menuBtn.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				e.stopPropagation();
+				const rect = menuBtn.getBoundingClientRect();
+				const x = rect.right + window.scrollX - 8;
+				const y = rect.bottom + window.scrollY + 4;
+				showContextMenu(x, y, id, name);
+			}
+		});
+
 		const nameWrapper = document.createElement("div");
 		nameWrapper.className = "session-name-wrapper";
 		nameWrapper.appendChild(nameSpan);
 		nameWrapper.appendChild(star);
+		nameWrapper.appendChild(menuBtn);
 		li.appendChild(nameWrapper);
 
 		sessionList.appendChild(li);

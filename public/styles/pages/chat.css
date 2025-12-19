@@ -215,10 +215,23 @@
   cursor: pointer;
   color: #666;
   padding: 0 4px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 
 .menu-btn:hover {
   color: var(--blue);
+  background: rgba(49,120,198,0.06);
+}
+
+.menu-btn:focus {
+  outline: 2px solid rgba(49,120,198,0.2);
+  outline-offset: 2px;
 }
 
 .context-menu {
