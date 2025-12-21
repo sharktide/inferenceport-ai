@@ -921,6 +921,10 @@ node-apis\auth.d.ts
 node-apis\auth.d.ts.map
 node-apis\auth.js
 node-apis\auth.js.map
+node-apis\getApiKey.d.d.ts
+node-apis\getApiKey.d.d.ts.map
+node-apis\getApiKey.d.js
+node-apis\getApiKey.d.js.map
 node-apis\ollama.d.d.ts
 node-apis\ollama.d.d.ts.map
 node-apis\ollama.d.js
