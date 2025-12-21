@@ -52,6 +52,8 @@ declare global {
                 avx512: boolean;
                 warning: string;
             }>;
+            isFirstLaunch: () => Promise<boolean>;
+            resetFirstLaunch: () => Promise<boolean>;
         };
 
         hfspaces: {

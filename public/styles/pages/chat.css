@@ -1,6 +1,3 @@
-/*
-Copyright 2025 Rihaan Meher
-*/
 .chat-container {
   display: flex;
   height: calc(100vh - 80px);
@@ -57,16 +54,139 @@ Copyright 2025 Rihaan Meher
   border-radius: var(--border-radius);
   max-width: 80%;
   line-height: 1.5;
+  overflow-x: auto;
+  word-break: break-word;
+  white-space: pre-line;
 }
 
 .user-bubble {
   background-color: var(--light-blue);
   align-self: flex-end;
+  color: var(--text-dark);
+  box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+  margin-left: auto;
+  max-width: 80%;
+  text-align: left;
+  display: block;
+  margin-top: 10px
 }
 
 .bot-bubble {
-  background-color: var(--gray);
+  background: var(--gray);
+  box-shadow: none !important;
+  color: var(--text-dark);
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 90%;
+}
+
+/* AI code block bubble container */
+.ai-code-bubble {
+  background: var(--bg-light);
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+  margin-bottom: 18px;
+  margin-top: 8px;
+  padding: 0;
+  position: relative;
+  max-width: 90%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-code-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #222c37;
+  color: #fff;
+  font-size: 13px;
+  font-family: monospace;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  padding: 6px 12px;
+  min-height: 28px;
+  position: relative;
+}
+
+.ai-code-lang {
+  background: #1a2027;
+  color: #b3b3b3;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-right: 8px;
   align-self: flex-start;
+}
+
+.ai-copy-btn {
+  background: #2d3a4a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 8px;
+  margin-right: 0;
+  transition: background 0.2s;
+  position: sticky;
+  top: 6px;
+  right: 12px;
+  align-self: flex-start;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  width: auto;
+  min-width: 48px;
+  max-width: 64px;
+  text-align: center;
+}
+
+.ai-code-bubble {
+  position: relative;
+}
+
+.ai-copy-btn:hover {
+  background: #3a4a5a;
+}
+
+.ai-code-bubble pre, .ai-code-bubble code {
+  background: transparent;
+  color: var(--text-dark);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  margin: 0;
+  padding: 16px 18px 16px 18px;
+  font-size: 15px;
+  overflow-x: auto;
+  white-space: pre;
+  max-width: 100%;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  box-shadow: none;
+}
+
+.chat-bubble pre, .chat-bubble code {
+  white-space: pre;
+  overflow-x: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #222c37;
+  color: #fff;
+  font-size: 13px;
+  font-family: monospace;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  padding: 6px 12px;
+  min-height: 28px;
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-x: auto;
 }
 
 .session-name-wrapper {
@@ -89,10 +209,23 @@ Copyright 2025 Rihaan Meher
   cursor: pointer;
   color: #666;
   padding: 0 4px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
 }
 
 .menu-btn:hover {
   color: var(--blue);
+  background: rgba(49,120,198,0.06);
+}
+
+.menu-btn:focus {
+  outline: 2px solid rgba(49,120,198,0.2);
+  outline-offset: 2px;
 }
 
 .context-menu {
@@ -165,7 +298,6 @@ Copyright 2025 Rihaan Meher
   background-color: var(--secondary-color);
 }
 
-/* Typing bar */
 .typing-bar {
   display: flex;
   align-items: flex-start;
@@ -265,7 +397,6 @@ Copyright 2025 Rihaan Meher
   }
 }
 
-/* File previews */
 .file-indicator {
   margin-top: 10px;
   padding: 10px;
@@ -568,7 +699,6 @@ details summary {
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* Ensure chat-panel uses full width minus sidebar */
 .chat-panel {
   flex: 1;
   display: flex;
@@ -576,11 +706,10 @@ details summary {
   justify-content: flex-end;
 }
 
-/* Make typing bar stretch fully */
 .typing-bar {
   width: 100%;
   display: flex;
-  flex-wrap: wrap; /* allow children to wrap onto a new row */
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
@@ -592,7 +721,6 @@ details summary {
   min-height: 120px;
 }
 
-/* Make textarea fill all available space */
 .typing-bar textarea {
   flex-grow: 1;
   flex-shrink: 1;
@@ -614,7 +742,6 @@ details summary {
   transition: all 0.2s ease-in-out;
 }
 
-/* Ensure typing-actions don't restrict layout */
 .typing-actions {
   display: flex;
   flex-direction: column;
@@ -625,7 +752,6 @@ details summary {
   flex-shrink: 0;
 }
 
-/* Buttons stay compact */
 .icon-btn,
 .send-btn {
   min-width: 44px;
@@ -641,7 +767,6 @@ details summary {
   transition: all 0.2s ease-in-out;
 }
 
-/* Responsive tweaks */
 @media (max-width: 520px) {
   .typing-bar {
     gap: 6px;

@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+			<script>
+				window.addEventListener('DOMContentLoaded', function() {
+					if (window.marked) {
+						window.marked.setOptions({ gfm: true });
+					}
+				});
+			</script>
 	<meta charset="UTF-8" />
 	<title>Chat - InferencePortAI</title>
 	<link rel="stylesheet" href="../styles/styles.css" />
@@ -9,6 +16,7 @@
 	<link rel="stylesheet" href="../publicvendor/katex/katex.min.css" crossorigin="anonymous">
 	<script defer src="../publicvendor/katex/katex.min.js" crossorigin="anonymous"></script>
 	<script defer src="../publicvendor/katex/auto-render.min.js" crossorigin="anonymous"></script>
+	<script src="../publicvendor/marked/marked.min.js"></script>
 	<script>
 		document.addEventListener("DOMContentLoaded", function () {
             renderMathInElement(document.body, {
@@ -62,12 +70,30 @@
 			</div>
 		</div>
 
+		<div id="report-dialog" class="modal hidden">
+			<div class="modal-content" style="width: 500px;">
+				<h3>Report Inappropriate Content</h3>
+				<p>In the event that one of the models used here outputted 
+					inappropriate content, you may report it by following the 
+					instructions here: 
+					<a href="javascript:window.utils.web_open('https://InferencePortAI.vercel.app/security.html#reporting')">
+						InferencePortAI Reporting Instructions
+					</a>
+				</p>
+				<div class="modal-actions">
+					<button id="report-close">Close</button>
+				</div>
+			</div>
+		</div>
+
 		<div id="session-context-menu" class="context-menu hidden">
 			<div class="context-item" data-action="rename">Rename</div>
 			<div class="context-item" data-action="delete">Delete Session</div>
+			<div class="context-item" data-action="report">Report Content</div>
 		</div>
 
-		<main style="padding: 40px; padding-top: 10px;">
+		<main style="padding-bottom: 0px;">
+			<div id="notification-container"></div>
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>
@@ -88,8 +114,6 @@
 					<chat-box></chat-box>
 				</section>
 			</div>
-			<div id="notification-container"></div>
-
 		</main>
 		<script type="module" src="../scripts/renderer/chat.js"></script>
 	</body>

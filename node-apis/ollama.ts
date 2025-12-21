@@ -268,6 +268,34 @@ function register(): void {
 					body: JSON.stringify({
 						model: modelName,
 						messages: [
+							{ role: "system", content: "Provide a concise name for this chat session in less than 10 words." },
+							{ role: "user", content: userMessage }
+						],
+					}),
+				});
+
+				const data = await res.json();
+				const sessionName = data.choices?.[0]?.message?.content || "Unnamed Session";
+				event.sender.send("ollama:session-named", sessionName.trim());
+			} catch (err) {
+				event.sender.send("ollama:session-name-error", `${err}`);
+			}
+		}
+	);
+
+	ipcMain.on("ollama:name-session",
+		async (
+			event: IpcMainEvent,
+			modelName: string,
+			userMessage: string
+		) => {
+			try {
+				const res = await fetch("http://localhost:11434/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						model: modelName,
+						messages: [
 							{ role: "system", content: "You are a helpful assistant. Make sure to never use single backslashes. USE DOUBLE BACKSLASHES INSTEAD." },
         					...messagesForModel(chatHistory),
 						],
@@ -296,16 +324,16 @@ function register(): void {
 
 		console.log(`Available tools: ${JSON.stringify(tools, null, 2)}, Image ${imgEnabled}, Search ${searchEnabled}`);
 
-		try {
-		const body = {
-			model: modelName,
-			stream: true,
-			messages: [
-			{ role: "system", content: "You are a helpful assistant. Use session:// URLs for images." },
-			...messagesForModel(chatHistory),
-			],
-			tools,
-		};
+			try {
+			const body = {
+				model: modelName,
+				stream: true,
+				messages: [
+				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double back slashes. NO SINGLE BACKSLASHES!" },
+				...messagesForModel(chatHistory),
+				],
+				tools,
+			};
 
 		const res = await fetch("http://localhost:11434/api/chat", {
 			method: "POST",

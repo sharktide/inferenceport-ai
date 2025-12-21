@@ -937,6 +937,10 @@ node-apis\spaces.d.ts
 node-apis\spaces.d.ts.map
 node-apis\spaces.js
 node-apis\spaces.js.map
+node-apis\types\markdown-it-state-block.d.d.ts
+node-apis\types\markdown-it-state-block.d.d.ts.map
+node-apis\types\markdown-it-state-block.d.js
+node-apis\types\markdown-it-state-block.d.js.map
 node-apis\utils.d.d.ts
 node-apis\utils.d.d.ts.map
 node-apis\utils.d.js

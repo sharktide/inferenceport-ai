@@ -670,27 +670,11 @@ form.addEventListener("submit", async (e) => {
     isStreaming = true;
     updateActionButton();
 
-	window.ollama.onToolResponse((toolName, toolResponse, assets) => {
-		console.log(`[onToolResponse] Tool: ${toolName}, Response: ${toolResponse}, Assets:`, assets);
-		assets.forEach((asset) => {
-			if (asset.type === "image" && asset.base64) {
-				// Creating an <img> element for the inline image
-				const imgElement = document.createElement("img");
-				imgElement.src = `data:image/png;base64,${asset.base64}`;
-				imgElement.alt = "Generated image";
-				imgElement.classList.add("inline-image");  // Optional class for styling
-				botBubble.appendChild(imgElement);
-			}
-		});
-	});
-
-	window.ollama.onResponse((chunk) => {
-		fullResponse += chunk;
-		botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
-		if (autoScroll) {
-			chatBox.scrollTop = chatBox.scrollHeight;
-		}
-	});
+    window.ollama.onResponse((chunk) => {
+        fullResponse += chunk;
+        botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
 
     window.ollama.onError((err) => {
         botBubble.textContent += `\n⚠️ Error: ${err}`;
@@ -843,43 +827,38 @@ async function setTitle() {
 }
 
 function renderChat() {
-    if (!currentSessionId) {
-        currentSessionId = Object.keys(sessions)[0] || null;
-    }
+	if (!currentSessionId) {
+		currentSessionId = Object.keys(sessions)[0] || null;
+	}
 
-    const session = window.ollama.gimmeSession(currentSessionId);
-    chatBox.innerHTML = "";
+	const session = sessions[currentSessionId];
+	chatBox.innerHTML = "";
 
-    if (!session.history || session.history.length === 0) {
-        const emptyMsg = document.createElement("div");
-        emptyMsg.className = "empty-chat";
-        emptyMsg.textContent = "Start chatting to see messages here.";
-        chatBox.appendChild(emptyMsg);
-        return;
-    }
+	if (!session.history || session.history.length === 0) {
+		const emptyMsg = document.createElement("div");
+		emptyMsg.className = "empty-chat";
+		emptyMsg.textContent = "Start chatting to see messages here.";
+		chatBox.appendChild(emptyMsg);
+		return;
+	}
 
-	console.log("Rendering session:", JSON.stringify(session));
 
-    session.history.forEach((msg) => {
-		console.log("Rendering message:", msg);
-        if (msg.role === "user") {
-            // User prompt in bubble
-            const bubble = document.createElement("div");
-            bubble.className = "chat-bubble user-bubble";
-            bubble.innerHTML = window.utils.markdown_parse(msg.content);
-            chatBox.appendChild(bubble);
-        } else {
-            const html = window.utils.markdown_parse(msg.content);
-            const temp = document.createElement("div");
-            temp.innerHTML = html;
+	session.history.forEach((msg) => {
+		if (msg.role === "user") {
+			// User prompt in bubble
+			const bubble = document.createElement("div");
+			bubble.className = "chat-bubble user-bubble";
+			bubble.innerHTML = window.utils.markdown_parse(msg.content);
+			chatBox.appendChild(bubble);
+		} else {
+			const html = window.utils.markdown_parse(msg.content);
+			const temp = document.createElement("div");
+			temp.innerHTML = html;
 
-            const botContainer = document.createElement("div");
-            botContainer.className = "bot-bubble";
+			const botContainer = document.createElement("div");
+			botContainer.className = "bot-bubble";
 
-            const nodes = Array.from(temp.childNodes);
-
-            // Handle image assets (base64-encoded images) from the response
-            if (msg.assets) {
+			if (msg.assets) {
                 console.log("Rendering assets:", msg.assets);
                 msg.assets.forEach((asset) => {
                     if (asset.type === "image" && asset.base64) {
@@ -893,84 +872,76 @@ function renderChat() {
                 });
             }
 
-            // Loop through all child nodes (for general text content, code blocks, etc.)
-            nodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "pre") {
-                    const preEl = node as HTMLElement;
-                    const codeEl = preEl.querySelector("code");
-                    let lang = "";
-                    if (codeEl) {
-                        const match = (codeEl.className || "").match(/language-([\w-]+)/);
-                        if (match) lang = match[1];
-                    }
+			const nodes = Array.from(temp.childNodes);
+			nodes.forEach((node) => {
+				if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "pre") {
+					const preEl = node as HTMLElement;
+					const codeEl = preEl.querySelector("code");
+					let lang = "";
+					if (codeEl) {
+						const match = (codeEl.className || "").match(/language-([\w-]+)/);
+						if (match) lang = match[1];
+					}
 
-                    const codeBubble = document.createElement("div");
-                    codeBubble.className = "ai-code-bubble";
+					const codeBubble = document.createElement("div");
+					codeBubble.className = "ai-code-bubble";
 
-                    const header = document.createElement("div");
-                    header.className = "ai-code-header";
+					const header = document.createElement("div");
+					header.className = "ai-code-header";
 
-                    const langLabel = document.createElement("span");
-                    langLabel.className = "ai-code-lang";
-                    langLabel.textContent = lang || "code";
-                    header.appendChild(langLabel);
+					const langLabel = document.createElement("span");
+					langLabel.className = "ai-code-lang";
+					langLabel.textContent = lang || "code";
+					header.appendChild(langLabel);
 
-                    const copyBtn = document.createElement("button");
-                    copyBtn.className = "ai-copy-btn";
-                    copyBtn.textContent = "Copy";
-                    copyBtn.onclick = () => {
-                        navigator.clipboard.writeText(codeEl ? (codeEl.textContent || "") : "");
-                        copyBtn.textContent = "Copied!";
-                        setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-                    };
-                    header.appendChild(copyBtn);
+					const copyBtn = document.createElement("button");
+					copyBtn.className = "ai-copy-btn";
+					copyBtn.textContent = "Copy";
+					copyBtn.onclick = () => {
+						navigator.clipboard.writeText(codeEl ? (codeEl.textContent || "") : "");
+						copyBtn.textContent = "Copied!";
+						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+					};
+					header.appendChild(copyBtn);
 
-                    codeBubble.appendChild(header);
-                    codeBubble.appendChild(preEl.cloneNode(true));
-                    botContainer.appendChild(codeBubble);
-                } else {
-                    // Non-code content: append markup inside bot container
-                    const fragment = document.createDocumentFragment();
-                    fragment.appendChild(node.cloneNode(true));
+					codeBubble.appendChild(header);
+					codeBubble.appendChild(preEl.cloneNode(true));
+					botContainer.appendChild(codeBubble);
+				} else {
+					// Non-code content: append markup inside bot container
+					const fragment = document.createDocumentFragment();
+					fragment.appendChild(node.cloneNode(true));
+					// Only append if there's visible content
+					if ((fragment.textContent || "").trim() !== "") {
+						botContainer.appendChild(fragment);
+					}
+				}
+			});
 
-                    // Only append if there's visible content
-                    if ((fragment.textContent || "").trim() !== "") {
-                        botContainer.appendChild(fragment);
-                    }
-                }
-            });
+			// Append bot container if it contains anything
+			if (botContainer.childNodes.length > 0 && (botContainer.textContent || "").trim() !== "") {
+				chatBox.appendChild(botContainer);
+			}
+		}
+	});
 
-            // Append bot container if it contains anything
-            if (botContainer.childNodes.length > 0 && (botContainer.textContent || "").trim() !== "") {
-                chatBox.appendChild(botContainer);
-            }
-        }
-    });
+	renderMathInElement(document.body, {
+		delimiters: [
+			{ left: '$$', right: '$$', display: true },
+			{ left: '$', right: '$', display: true },
+			{ left: '\\(', right: '\\)', display: false },
+			{ left: '\\[', right: '\\]', display: true }
+		],
+		throwOnError: false
+	});
 
-    console.log("Session:");
-    console.log(JSON.stringify(session));
-    console.log("Session history assets:");
-    console.log(JSON.stringify(session.history.assets));
+	document.querySelectorAll("pre code").forEach((block) => {
+		// hljs?.highlightElement?.(block); TODO
+		void 0
+	});
 
-    // Render LaTeX math equations if present
-    renderMathInElement(document.body, {
-        delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '$', right: '$', display: true },
-            { left: '\\(', right: '\\)', display: false },
-            { left: '\\[', right: '\\]', display: true }
-        ],
-        throwOnError: false
-    });
-
-    // Handle code block syntax highlighting (optional, you can uncomment if needed)
-    document.querySelectorAll("pre code").forEach((block) => {
-        // hljs?.highlightElement?.(block); TODO: Optional syntax highlighting
-        void 0;
-    });
-
-    // Only scroll if autoScroll is enabled
-    if (autoScroll) {
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
+	// Only scroll if autoScroll is enabled
+	if (autoScroll) {
+		chatBox.scrollTop = chatBox.scrollHeight;
+	}
 }
