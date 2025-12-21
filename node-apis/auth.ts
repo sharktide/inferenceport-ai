@@ -234,7 +234,7 @@ export function register() {
 
 			process.stdout.write(`Inserting ${rows.length} messages for session ${sessionId}\n`);
 			process.stdout.write(JSON.stringify(rows) + "\n");
-			process.stdout.write(`${JSON.stringify(sessionData.session)}\n`);
+			process.stdout.write(`${sessionData.session?.user?.id}\n`);
 
 			if (rows.length > 0) {
 				const { error: msgErr } = await supabase.from("chat_messages").insert(rows);
