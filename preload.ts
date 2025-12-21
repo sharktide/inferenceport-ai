@@ -131,6 +131,8 @@ contextBridge.exposeInMainWorld("utils", {
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
 	getWarning: (modelSize: string) =>
 		ipcRenderer.invoke('utils:get-hardware-performance-warning', modelSize),
+	isFirstLaunch: () => ipcRenderer.invoke("utils:is-first-launch"),
+  	resetFirstLaunch: () => ipcRenderer.invoke("utils:reset-first-launch")
 });
 
 contextBridge.exposeInMainWorld("hfspaces", {

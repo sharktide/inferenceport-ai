@@ -148,22 +148,26 @@ async function duckDuckGoSearch(query: string) {
 }
 
 async function GenerateImage(prompt: string, height: number, width: number) {
-	const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
-    const API_KEY = generateTryItApiKey();
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
+	const image_url = 'https://api.deepai.org/api/text2img';
+	const API_KEY = await generateTryItApiKey();
+	const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
 
     const response = await fetch(image_url, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "API-KEY": API_KEY,
+			"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Authorization": `Bearer ${API_KEY}`,
+            "Api-Key": API_KEY,
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            message: prompt,
-            width,
-            height,
-            I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
+            "width": width,
+            "height": height,
+            "text": prompt,
+			"quality": "true",
+			"image_generator_version":"hd",
+			"use_new_model": "false",
+			"use_old_model": "false",
         })
     });
 
@@ -264,7 +268,7 @@ function register(): void {
 					body: JSON.stringify({
 						model: modelName,
 						messages: [
-							{ role: "system", content: "You are a helpful assistant. Use session:// URLs for images. Make sure to never use single backslashes. USE DOUBLE BACKSLASHES INSTEAD." },
+							{ role: "system", content: "You are a helpful assistant. Make sure to never use single backslashes. USE DOUBLE BACKSLASHES INSTEAD." },
         					...messagesForModel(chatHistory),
 						],
 					}),
@@ -357,7 +361,6 @@ function register(): void {
 		chatHistory.push({ role: "assistant", content: assistantMessage, tool_calls: pendingToolCalls });
 		saveSessions({ sessionId: chatHistory });
 
-		console.log(`Chat history: ${JSON.stringify(chatHistory, null, 2)}`);
 		console.log(`Saved chat history: ${JSON.stringify(loadSessions(), null, 2)}`);
 
 		// Handle tool calls concurrently
@@ -380,6 +383,7 @@ function register(): void {
 				assets.push(asset);
 			}
 
+			// Add the tool result to the chat history
 			chatHistory.push({
 				role: "tool",
 				name: toolCall.function.name,
@@ -392,6 +396,7 @@ function register(): void {
 			event.sender.send("ollama:tool-result", toolCall.function.name, toolResult, assets);
 			});
 
+			// Wait for all tool calls to complete concurrently
 			await Promise.all(toolPromises);
 		}
 
