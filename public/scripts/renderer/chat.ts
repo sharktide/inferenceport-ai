@@ -558,12 +558,15 @@ form.addEventListener("submit", async (e) => {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     window.ollama.onResponse((chunk) => {
         fullResponse += chunk;
         botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 =======
@@ -882,6 +885,9 @@ function renderChat() {
     }
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

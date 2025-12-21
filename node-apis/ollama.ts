@@ -340,6 +340,7 @@ function register(): void {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			const body = {
 				model: modelName,
 				stream: true,
@@ -365,12 +366,17 @@ function register(): void {
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 				json = JSON.parse(line);
 			} catch (e) {
 				console.error("Error parsing JSON", e);
 				continue;
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -388,6 +394,7 @@ function register(): void {
 				pendingToolCalls.push(...json.message.tool_calls);
 			}
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
@@ -478,6 +485,9 @@ function register(): void {
 			}
 			} finally {
 			chatAbortController = null;
+=======
+			if (json.done === true) break;
+>>>>>>> Stashed changes
 =======
 			if (json.done === true) break;
 >>>>>>> Stashed changes
