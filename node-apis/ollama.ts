@@ -148,41 +148,48 @@ async function duckDuckGoSearch(query: string) {
 }
 
 async function GenerateImage(prompt: string, height: number, width: number) {
-	const image_url = 'https://api.deepai.org/api/text2img';
-	const API_KEY = await generateTryItApiKey();
-	const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
-
+  try {
+    const image_url = 'https://api.deepai.org/api/text2img';
+    const API_KEY = await generateTryItApiKey();
     const response = await fetch(image_url, {
-        method: "POST",
-        headers: {
-			"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-            "Authorization": `Bearer ${API_KEY}`,
-            "Api-Key": API_KEY,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            "width": width,
-            "height": height,
-            "text": prompt,
-			"quality": "true",
-			"image_generator_version":"hd",
-			"use_new_model": "false",
-			"use_old_model": "false",
-        })
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+        "Api-Key": API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "width": width,
+        "height": height,
+        "text": prompt,
+        "quality": "true",
+        "image_generator_version": "hd",
+        "use_new_model": "false",
+        "use_old_model": "false",
+      })
     });
 
-	if (!response.ok) throw new Error(`Image generation failed (status ${response.status}). ${await response.text()}`);
+    if (!response.ok) throw new Error(`Image generation failed (status ${response.status}). ${await response.text()}`);
 
-	const result = await response.json();
-	if (!result.image) throw new Error("No image returned");
+    const result = await response.json();
+    if (!result.image) throw new Error("No image returned");
 
-	const base64 = result.image.replace(/^data:image\/\w+;base64,/, "");
-	const assetId = createAssetId();
+    const base64 = result.image.replace(/^data:image\/\w+;base64,/, "");
+    const assetId = createAssetId();
+    const imageBuffer = Buffer.from(base64, 'base64');
+    const assetPath = path.join(dataDir, 'assets', `${assetId}.png`);
+    
+    // Save the image to the assets folder
+    fs.writeFileSync(assetPath, imageBuffer);
 
-	return {
-		modelPayload: { url: `session://${assetId}`, width, height },
-		asset: { id: assetId, type: "image" as const, mime: "image/png", base64 },
-	};
+    return {
+      modelPayload: { url: `session://${assetId}`, width, height },
+      asset: { id: assetId, type: "image", mime: "image/png", filePath: assetPath },
+    };
+  } catch (err) {
+    console.error("Image generation failed:", err);
+    throw err;
+  }
 }
 
 // ====================== End Tool Functions ======================
@@ -311,9 +318,7 @@ function register(): void {
 		}
 	);
 
-	ipcMain.on(
-	"ollama:chat-stream",
-	async (event: IpcMainEvent, modelName: string, userMessage: string, searchEnabled: boolean, imgEnabled: boolean) => {
+	ipcMain.on("ollama:chat-stream", async (event: IpcMainEvent, modelName: string, userMessage: string, searchEnabled: boolean, imgEnabled: boolean) => {
 		chatAbortController = new AbortController();
 		chatHistory.push({ role: "user", content: userMessage });
 
@@ -324,37 +329,37 @@ function register(): void {
 
 		console.log(`Available tools: ${JSON.stringify(tools, null, 2)}, Image ${imgEnabled}, Search ${searchEnabled}`);
 
-			try {
+		try {
 			const body = {
-				model: modelName,
-				stream: true,
-				messages: [
-				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double back slashes. NO SINGLE BACKSLASHES!" },
-				...messagesForModel(chatHistory),
-				],
-				tools,
+			model: modelName,
+			stream: true,
+			messages: [
+				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double backslashes. NO SINGLE BACKSLASHES!" },
+				...messagesForModel(chatHistory),  // Include updated session history
+			],
+			tools,
 			};
 
-		const res = await fetch("http://localhost:11434/api/chat", {
+			const res = await fetch("http://localhost:11434/api/chat", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 			signal: chatAbortController.signal,
-		});
+			});
 
-		if (!res.body) {
+			if (!res.body) {
 			event.sender.send("ollama:chat-error", "No response stream");
 			return;
-		}
+			}
 
-		const reader = res.body.getReader();
-		const decoder = new TextDecoder();
-		let buffer = "";
-		let assistantMessage = "";
-		let pendingToolCalls: any[] = [];
+			const reader = res.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = "";
+			let assistantMessage = "";
+			let pendingToolCalls: any[] = [];
 
-		// Stream the response from the AI
-		while (true) {
+			// Stream the response from the AI
+			while (true) {
 			const { value, done } = await reader.read();
 			if (done) break;
 
@@ -363,84 +368,144 @@ function register(): void {
 			buffer = lines.pop()!;
 
 			for (const line of lines) {
-			if (!line.trim()) continue;
-			let json: any;
-			try {
+				if (!line.trim()) continue;
+				let json: any;
+				try {
 				json = JSON.parse(line);
-			} catch (e) {
+				} catch (e) {
 				console.error("Error parsing JSON", e);
 				continue;
-			}
+				}
 
-			if (json.message?.content) {
+				if (json.message?.content) {
 				assistantMessage += json.message.content;
 				event.sender.send("ollama:chat-token", json.message.content);
-			}
+				}
 
-			// If tool calls are present in the response, add them to pendingToolCalls
-			if (json.message?.tool_calls) {
+				// If tool calls are present in the response, add them to pendingToolCalls
+				if (json.message?.tool_calls) {
 				pendingToolCalls.push(...json.message.tool_calls);
+				}
+
+				if (json.done === true) break;
+			}
 			}
 
-			if (json.done === true) break;
-			}
-		}
+			// Add assistant's response and tool calls to history
+			chatHistory.push({ role: "assistant", content: assistantMessage, tool_calls: pendingToolCalls });
+			saveSessions({ sessionId: chatHistory });
 
-		chatHistory.push({ role: "assistant", content: assistantMessage, tool_calls: pendingToolCalls });
-		saveSessions({ sessionId: chatHistory });
+			console.log(`Saved chat history: ${JSON.stringify(loadSessions(), null, 2)}`);
 
-		console.log(`Saved chat history: ${JSON.stringify(loadSessions(), null, 2)}`);
-
-		// Handle tool calls concurrently
-		if (pendingToolCalls.length > 0) {
+			// Handle tool calls concurrently
+			if (pendingToolCalls.length > 0) {
 			const toolPromises = pendingToolCalls.map(async (toolCall) => {
-			const args =
-				typeof toolCall.function.arguments === "string"
+				const args = typeof toolCall.function.arguments === "string"
 				? JSON.parse(toolCall.function.arguments)
 				: toolCall.function.arguments;
 
-			let toolResult: any = null;
-			let assets: any[] = [];
+				let toolResult: any = null;
+				let assets: any[] = [];
 
-			// Handle specific tool calls based on the function name
-			if (toolCall.function.name === "duckduckgo_search") {
-				toolResult = await duckDuckGoSearch(args.query);
-			} else if (toolCall.function.name === "generate_image") {
-				const { modelPayload, asset } = await GenerateImage(args.prompt, args.height, args.width);
-				toolResult = modelPayload;
-				assets.push(asset);
-			}
+				try {
+				// Handle specific tool calls based on the function name
+				if (toolCall.function.name === "duckduckgo_search") {
+					toolResult = await duckDuckGoSearch(args.query);
+				} else if (toolCall.function.name === "generate_image") {
+					const { modelPayload, asset } = await GenerateImage(args.prompt, args.height, args.width);
+					toolResult = modelPayload;
+					assets.push(asset);
+				}
+				} catch (err) {
+				console.error(`Error processing tool call ${toolCall.function.name}:`, err);
+				}
 
-			// Add the tool result to the chat history
-			chatHistory.push({
+				// Add the tool result to the chat history
+				chatHistory.push({
 				role: "tool",
 				name: toolCall.function.name,
 				content: JSON.stringify(toolResult),
 				assets: assets.length > 0 ? assets : undefined,
-			});
+				});
 
-			saveSessions({ sessionId: chatHistory });
+				// Save the updated session
+				saveSessions({ sessionId: chatHistory });
 
-			event.sender.send("ollama:tool-result", toolCall.function.name, toolResult, assets);
+				event.sender.send("ollama:tool-result", toolCall.function.name, toolResult, assets);
+
+				// Immediately call the model with the updated history after each tool
+				try {
+				const modelBody = {
+					model: modelName,
+					stream: true,
+					messages: [
+					{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double backslashes. NO SINGLE BACKSLASHES!" },
+					...messagesForModel(chatHistory),
+					],
+				};
+
+				const modelRes = await fetch("http://localhost:11434/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(modelBody),
+				});
+
+				if (modelRes.body) {
+					const modelReader = modelRes.body.getReader();
+					const modelDecoder = new TextDecoder();
+					let modelBuffer = "";
+					let modelAssistantMessage = "";
+
+					while (true) {
+					const { value, done } = await modelReader.read();
+					if (done) break;
+
+					modelBuffer += modelDecoder.decode(value, { stream: true });
+					const modelLines = modelBuffer.split("\n");
+					modelBuffer = modelLines.pop()!;
+
+					for (const line of modelLines) {
+						if (!line.trim()) continue;
+						let modelJson: any;
+						try {
+						modelJson = JSON.parse(line);
+						} catch (e) {
+						console.error("Error parsing model JSON", e);
+						continue;
+						}
+
+						if (modelJson.message?.content) {
+						modelAssistantMessage += modelJson.message.content;
+						event.sender.send("ollama:chat-token", modelJson.message.content);
+						}
+					}
+					}
+
+					// Add assistant's follow-up response to history
+					chatHistory.push({ role: "assistant", content: modelAssistantMessage });
+					saveSessions({ sessionId: chatHistory });
+				}
+				} catch (err) {
+				console.error("Error calling model with updated history:", err);
+				}
 			});
 
 			// Wait for all tool calls to complete concurrently
 			await Promise.all(toolPromises);
-		}
+			}
 
-		event.sender.send("ollama:chat-done");
+			event.sender.send("ollama:chat-done");
 
 		} catch (err) {
-		if ((err as Error).name === "AbortError") {
+			if ((err as Error).name === "AbortError") {
 			event.sender.send("ollama:chat-aborted");
-		} else {
+			} else {
 			event.sender.send("ollama:chat-error", `${err}`);
-		}
+			}
 		} finally {
-		chatAbortController = null;
+			chatAbortController = null;
 		}
-	}
-	);
+		});
 
 	ipcMain.on("ollama:stop", (event: IpcMainEvent) => {
 		if (chatAbortController) {
@@ -492,26 +557,47 @@ function register(): void {
 	});
 
 	ipcMain.handle('ollama:gimme-session', async (sessionId: string) => {
+	try {
 		console.log(`Loading session: ${sessionId}`);
-		return loadSessions()[sessionId];
+		const sessions = loadSessions();
+		const session = sessions[sessionId];
+		if (!session) {
+		throw new Error(`Session ${sessionId} not found.`);
+		}
+		return session;
+	} catch (err: any) {
+		console.error("Error loading session:", err);
+		return { error: `Failed to load session: ${err.message}` };
+	}
 	});
 }
 
 function saveSessions(sessions: Record<string, unknown>): void {
-	if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-	fs.writeFileSync(sessionFile, JSON.stringify(sessions, null, 2)); 
+  try {
+    // Check if the session data is different from what's already saved
+    const existingSessions = loadSessions();
+    if (JSON.stringify(existingSessions) !== JSON.stringify(sessions)) {
+      if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+      fs.writeFileSync(sessionFile, JSON.stringify(sessions, null, 2)); 
+      console.log("Sessions saved successfully.");
+    }
+  } catch (err) {
+    console.error("Failed to save sessions:", err);
+  }
 }
 
 function loadSessions(): Record<string, unknown> {
-	if (fs.existsSync(sessionFile)) {
-		try {
-			const raw = fs.readFileSync(sessionFile, "utf-8");
-			return JSON.parse(raw);
-		} catch (err) {
-			console.error("Failed to load sessions:", err);
-		}
-	}
-	return {};
+  if (fs.existsSync(sessionFile)) {
+    try {
+      const raw = fs.readFileSync(sessionFile, "utf-8");
+      return JSON.parse(raw);
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+    }
+  } else {
+    console.warn("Session file does not exist, returning empty sessions.");
+  }
+  return {};
 }
 
 module.exports = { register, serve };
