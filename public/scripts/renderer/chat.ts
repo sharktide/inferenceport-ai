@@ -181,6 +181,8 @@ function showContextMenu(x, y, sessionId, sessionName) {
 			openRenameDialog(sessionId, sessionName);
 		} else if (action === "delete") {
 			deleteSession(sessionId);
+		} else if (action === "report") {
+			openReportDialog()
 		}
 		closeContextMenu();
 	};
@@ -215,20 +217,29 @@ function deleteSession(sessionId) {
 	}
 }
 
-function openRenameDialog(sessionId, currentName) {
-	const dialog = document.getElementById("rename-dialog");
-	const input = document.getElementById("rename-input");
-	const cancelBtn = document.getElementById("rename-cancel");
-	const confirmBtn = document.getElementById("rename-confirm");
+function openReportDialog(): void {
+	const dialog = document.getElementById('report-dialog') as HTMLDivElement;
+	const cancelBtn = document.getElementById('report-close') as HTMLButtonElement;
+	dialog.classList.remove("hidden");
+	const closeDialog = () => dialog.classList.add("hidden");
+	cancelBtn.removeEventListener('click', closeDialog);
+	cancelBtn.addEventListener('click', closeDialog);
+	return void 0
+}
+
+function openRenameDialog(sessionId, currentName): void {
+	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
+	const input = document.getElementById("rename-input") as HTMLInputElement;
+	const cancelBtn = document.getElementById("rename-cancel") as HTMLButtonElement;
+	const confirmBtn = document.getElementById("rename-confirm") as HTMLButtonElement;
 
 	input.value = currentName;
 	dialog.classList.remove("hidden");
 
 	const closeDialog = () => dialog.classList.add("hidden");
-
-	cancelBtn.onclick = closeDialog;
-
-	confirmBtn.onclick = () => {
+	cancelBtn.removeEventListener('click', closeDialog);
+	cancelBtn.addEventListener('click', closeDialog);
+	function rename() {
 		const newName = input.value.trim();
 		if (newName) {
 			sessions[sessionId].name = newName;
@@ -242,10 +253,13 @@ function openRenameDialog(sessionId, currentName) {
 			renderSessionList();
 		}
 		closeDialog();
-	};
+	}
+	confirmBtn.removeEventListener('click', rename);
+	confirmBtn.addEventListener('click', rename);
+	return void 0
 }
 
-function createNewSession() {
+function createNewSession(): void {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
 	sessions[id] = {
@@ -265,15 +279,17 @@ function createNewSession() {
 	})
 	renderSessionList();
 	renderChat();
+	return void 0;
 }
 
-function handleSessionClick(sessionId) {
+function handleSessionClick(sessionId): void {
 	currentSessionId = sessionId;
 	renderSessionList();
 	renderChat();
+	return void 0
 }
 
-function renderSessionList() {
+function renderSessionList(): void {
 	sessionList.innerHTML = "";
 
 	const searchTerm =
@@ -321,10 +337,36 @@ function renderSessionList() {
 			renderSessionList();
 		};
 
+		// Visible menu button (three dots) to open the session context menu without using right-click
+		const menuBtn = document.createElement("button");
+		menuBtn.className = "menu-btn";
+		menuBtn.setAttribute('aria-label', 'Open session menu');
+		menuBtn.title = 'Open session menu';
+		menuBtn.innerText = '⋯';
+		menuBtn.onclick = (e) => {
+			e.stopPropagation(); // Prevent the click from bubbling and immediately closing the menu
+			const rect = menuBtn.getBoundingClientRect();
+			// pageX/pageY expected by showContextMenu
+			const x = rect.right + window.scrollX - 8;
+			const y = rect.bottom + window.scrollY + 4;
+			showContextMenu(x, y, id, name);
+		};
+		menuBtn.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				e.stopPropagation();
+				const rect = menuBtn.getBoundingClientRect();
+				const x = rect.right + window.scrollX - 8;
+				const y = rect.bottom + window.scrollY + 4;
+				showContextMenu(x, y, id, name);
+			}
+		});
+
 		const nameWrapper = document.createElement("div");
 		nameWrapper.className = "session-name-wrapper";
 		nameWrapper.appendChild(nameSpan);
 		nameWrapper.appendChild(star);
+		nameWrapper.appendChild(menuBtn);
 		li.appendChild(nameWrapper);
 
 		sessionList.appendChild(li);
@@ -332,54 +374,73 @@ function renderSessionList() {
 			li.classList.add("merged-session");
 		}
 	});
+	return void 0
 }
 
-function renderChat() {
-	if (!currentSessionId) {
-		currentSessionId = Object.keys(sessions)[0] || null;
-	}
+// function renderChat(): void {
+// 	if (!currentSessionId) {
+// 		currentSessionId = Object.keys(sessions)[0] || null;
+// 	}
 
 
-	const session = sessions[currentSessionId];
-	chatBox.innerHTML = "";
+// 	const session = sessions[currentSessionId];
+// 	chatBox.innerHTML = "";
 
-	if (!session.history || session.history.length === 0) {
-		const emptyMsg = document.createElement("div");
-		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
-		chatBox.appendChild(emptyMsg);
-		return;
-	}
+// 	if (!session.history || session.history.length === 0) {
+// 		const emptyMsg = document.createElement("div");
+// 		emptyMsg.className = "empty-chat";
+// 		emptyMsg.textContent = "Start chatting to see messages here.";
+// 		chatBox.appendChild(emptyMsg);
+// 		return;
+// 	}
 
-	session.history.forEach((msg) => {
-		const bubble = document.createElement("div");
-		bubble.className = `chat-bubble ${
-			msg.role === "user" ? "user-bubble" : "bot-bubble"
-		}`;
-		bubble.innerHTML = window.utils.markdown_parse(msg.content);
-		chatBox.appendChild(bubble);
-	});
+// 	session.history.forEach((msg) => {
+// 		const bubble = document.createElement("div");
+// 		bubble.className = `chat-bubble ${
+// 			msg.role === "user" ? "user-bubble" : "bot-bubble"
+// 		}`;
+// 		bubble.innerHTML = window.utils.markdown_parse(msg.content);
+// 		chatBox.appendChild(bubble);
+// 	});
 
-	renderMathInElement(document.body, {
-		delimiters: [
-			{ left: '$$', right: '$$', display: true },
-			{ left: '$', right: '$', display: true },
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true }
-		],
-		throwOnError: false
-	});
+// 	renderMathInElement(document.body, {
+// 		delimiters: [
+// 			{ left: '$$', right: '$$', display: true },
+// 			{ left: '$', right: '$', display: true },
+// 			{ left: '\\(', right: '\\)', display: false },
+// 			{ left: '\\[', right: '\\]', display: true }
+// 		],
+// 		throwOnError: false
+// 	});
 
-	document.querySelectorAll("pre code").forEach((block) => {
-		// hljs?.highlightElement?.(block); TODO
-		void 0
-	});
+// 	document.querySelectorAll("pre code").forEach((block) => {
+// 		// hljs?.highlightElement?.(block); TODO
+// 		void 0
+// 	});
 
-	chatBox.scrollTop = chatBox.scrollHeight;
-}
+// 	chatBox.scrollTop = chatBox.scrollHeight;
+// 	return void 0
+// }
 
 const actionBtn = document.getElementById("send");
+
 let isStreaming = false;
+let autoScroll = true;
+
+// Helper to check if chatBox is scrolled to bottom
+function isChatBoxAtBottom() {
+	return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 5;
+}
+
+// Listen for user scrolls to toggle autoScroll
+chatBox.addEventListener('scroll', () => {
+	// If user scrolls to bottom, enable autoScroll
+	if (isChatBoxAtBottom()) {
+		autoScroll = true;
+	} else {
+		autoScroll = false;
+	}
+});
 
 let attachedFiles = [];
 
@@ -417,17 +478,17 @@ fileInput.addEventListener("change", async (e) => {
 });
 
 
-function formatAttachedFiles(files) {
+function formatAttachedFiles(files): string {
   if (files.length === 0) return "";
 
-  let output = `<details><summary>Attached Files</summary>\n\n`;
-  for (const file of files) {
-    output += `<details><summary>${file.name}</summary>\n\n`;
-    output += "```\n" + file.content + "\n```\n";
-    output += `</details>\n\n`;
-  }
-  output += `</details>\n\n`;
-  return output;
+  let output: string = `<details><summary>Attached Files</summary>\n\n`;
+	for (const file of files) {
+		output += `\n<details><summary>${file.name}</summary>\n\n`;
+		output += "```\n" + file.content + "\n```\n";
+		output += `\n</details>\n`;
+	}
+	output += `\n</details>\n`;
+	return output;
 }
 
 async function pullModel(name: string): Promise<void> {
@@ -498,17 +559,65 @@ window.ollama.onPullProgress(
 		}
 	}
 );
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
 
-    const models = await window.ollama.listModels();
-    if (models.length === 0) {
-        const defaultModel = "llama3.2:3b";
-        showNotification({
-            message: `No models found. Downloading default model: ${defaultModel}`,
-            type: "info",
-        });
-        await pullModel(defaultModel);
+async function autoNameSession(model: string, prompt: string, sessionId: string): Promise<string> {
+	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
+	const response = await fetch("http://localhost:11434/api/chat", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			model,
+			messages: [
+				{ role: "system", content: "Name this session based on the user prompt that the user submits. Only respond with the title." },
+				{ role: "user", content: `Generate a short title for the following prompt:\n\n${prompt}` }
+			],
+			stream: false,
+		}),
+	});
+	let data;
+	try {
+		data = await response.json();
+	} catch (err) {
+		console.error("[autoNameSession] Failed to parse JSON response:", err);
+		showNotification({ message: "Failed to auto-name session: invalid response from model API.", type: "error" });
+		return "";
+	}
+	if (!data || !data.message || typeof data.message.content !== "string") {
+		console.error("[autoNameSession] Unexpected API response:", data);
+		showNotification({ message: "Failed to auto-name session: unexpected response from model API.", type: "error" });
+		return "";
+	}
+	let title = data.message.content.trim();
+	// Remove surrounding quotes if present
+	if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+		title = title.slice(1, -1).trim();
+	}
+	console.log("[autoNameSession] Received title:", title);
+	sessions[sessionId].name = title;
+	window.ollama.save(sessions);
+	window.auth.getSession().then(async (auth) => {
+		if (isSyncEnabled() && auth?.session?.user) {
+			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+		}
+		renderSessionList();
+	});
+	renderSessionList();
+	console.log("[autoNameSession] Session name set and UI updated.");
+	return title;
+}
+
+form.addEventListener("submit", async (e) => {
+	e.preventDefault();
+
+	console.log("[form.submit] Submit event triggered");
+	const models = await window.ollama.listModels();
+	if (models.length === 0) {
+		const defaultModel = "llama3.2:3b";
+		showNotification({
+			message: `No models found. Downloading default model: ${defaultModel}`,
+			type: "info",
+		});
+		await pullModel(defaultModel);
 		let attempts = 0;
 		while (attempts < 10) {
 			const models = await window.ollama.listModels();
@@ -520,19 +629,25 @@ form.addEventListener("submit", async (e) => {
 		await loadOptions();
 
 		modelSelect.value = defaultModel;
-    }
+	}
 
-    if (isStreaming) {
-        window.ollama.stop?.();
-        return;
-    }
+	if (isStreaming) {
+		window.ollama.stop?.();
+		return;
+	}
 
-    const prompt = input.value.trim();
-    const model = modelSelect.value;
-    if (!prompt || !currentSessionId) return;
-
-    const session = sessions[currentSessionId];
-    session.model = model;
+	const prompt = input.value.trim();
+	const model = modelSelect.value;
+	console.log("[form.submit] Prompt:", prompt, "CurrentSessionId:", currentSessionId);
+	if (!prompt || !currentSessionId) return;
+	if (sessions[currentSessionId].history.length === 0) {
+		console.log("[form.submit] First prompt for session, calling autoNameSession...");
+		autoNameSession(model, prompt, currentSessionId).catch((err) => {
+			console.error("[form.submit] autoNameSession error:", err);
+		});
+	}
+	const session = sessions[currentSessionId];
+	session.model = model;
     const fileBlock = formatAttachedFiles(attachedFiles);
     const fullPrompt = prompt + "\n\n" + fileBlock;
     attachedFiles = [];
@@ -555,22 +670,6 @@ form.addEventListener("submit", async (e) => {
     isStreaming = true;
     updateActionButton();
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    window.ollama.onResponse((chunk) => {
-        fullResponse += chunk;
-        botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 	window.ollama.onToolResponse((toolName, toolResponse, assets) => {
 		console.log(`[onToolResponse] Tool: ${toolName}, Response: ${toolResponse}, Assets:`, assets);
 		assets.forEach((asset) => {
@@ -592,7 +691,6 @@ form.addEventListener("submit", async (e) => {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
 	});
->>>>>>> Stashed changes
 
     window.ollama.onError((err) => {
         botBubble.textContent += `\n⚠️ Error: ${err}`;
@@ -744,14 +842,6 @@ async function setTitle() {
 	document.title = modelSelect.value + " - Chat - InferencePortAI"
 }
 
-<<<<<<< Updated upstream
-function syncPreviewBarWidth() {
-  const typingBar = document.querySelector(".typing-bar");
-  const previewBar = document.querySelector(".file-preview-bar");
-  if (typingBar && previewBar) {
-    previewBar.style.maxWidth = `${typingBar.offsetWidth}px`;
-  }
-=======
 function renderChat() {
     if (!currentSessionId) {
         currentSessionId = Object.keys(sessions)[0] || null;
@@ -883,19 +973,4 @@ function renderChat() {
     if (autoScroll) {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
-
-window.addEventListener("resize", syncPreviewBarWidth);
-syncPreviewBarWidth();
-
-window.onload = renderFileIndicator

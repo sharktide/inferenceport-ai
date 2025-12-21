@@ -251,8 +251,6 @@ function register(): void {
 		}
 	);
 
-<<<<<<< Updated upstream
-=======
 	ipcMain.on("ollama:name-session",
 		async (
 			event: IpcMainEvent,
@@ -281,7 +279,6 @@ function register(): void {
 		}
 	);
 
->>>>>>> Stashed changes
 	ipcMain.on(
 	"ollama:chat-stream",
 	async (event: IpcMainEvent, modelName: string, userMessage: string, searchEnabled: boolean, imgEnabled: boolean) => {
@@ -337,51 +334,10 @@ function register(): void {
 			if (!line.trim()) continue;
 			let json: any;
 			try {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-			const body = {
-				model: modelName,
-				stream: true,
-				messages: [
-				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate." },
-				...chatHistory,
-				],
-				tools,
-			};
-
-			const res = await fetch("http://localhost:11434/api/chat", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-				signal: chatAbortController.signal,
-			});
-
-			if (!res.body) {
-				event.sender.send("ollama:chat-error", "No response stream");
-				return;
-=======
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 				json = JSON.parse(line);
 			} catch (e) {
 				console.error("Error parsing JSON", e);
 				continue;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 			}
 
 			if (json.message?.content) {
@@ -394,109 +350,7 @@ function register(): void {
 				pendingToolCalls.push(...json.message.tool_calls);
 			}
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-			if (pendingToolCalls.length > 0) {
-				for (const toolCall of pendingToolCalls) {
-				let toolResult: any = null;
-
-				const args =
-					typeof toolCall.function.arguments === "string"
-					? JSON.parse(toolCall.function.arguments)
-					: toolCall.function.arguments;
-
-				if (toolCall.function.name === "duckduckgo_search") {
-					toolResult = await duckDuckGoSearch(args.query);
-				} else if (toolCall.function.name === "generate_image") {
-					toolResult = await GenerateImage(args.prompt, args.height, args.width);
-				}
-
-				chatHistory.push({
-					role: "tool",
-					name: toolCall.function.name,
-					content: JSON.stringify(toolResult),
-				});
-				}
-				const followUpRes = await fetch(
-				"http://localhost:11434/api/chat",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-					model: modelName,
-					stream: true,
-					messages: chatHistory,
-					tools,
-					}),
-					signal: chatAbortController.signal,
-				}
-				);
-
-				if (!followUpRes.body) {
-					event.sender.send("ollama:chat-error", "No follow-up stream");
-					return;
-				}
-
-				const followUpReader = followUpRes.body.getReader();
-				buffer = "";
-				assistantMessage = "";
-
-				while (true) {
-					const { value, done } = await followUpReader.read();
-					if (done) break;
-
-					buffer += decoder.decode(value, { stream: true });
-					const lines = buffer.split("\n");
-					buffer = lines.pop()!;
-
-					for (const line of lines) {
-						if (!line.trim()) continue;
-
-						let json: any;
-						try {
-						json = JSON.parse(line);
-						} catch {
-						continue;
-						}
-
-						if (json.message?.content) {
-						assistantMessage += json.message.content;
-						event.sender.send("ollama:chat-token", json.message.content);
-						}
-
-						if (json.done === true) break;
-					}
-				}
-
-				if (assistantMessage.trim()) {
-				chatHistory.push({ role: "assistant", content: assistantMessage });
-				}
-			}
-
-			event.sender.send("ollama:chat-done");
-			} catch (err) {
-			if ((err as Error).name === "AbortError") {
-				event.sender.send("ollama:chat-aborted");;
-			} else {
-				console.error("Chat error:", err);
-				event.sender.send("ollama:chat-error", String(err));
-			}
-			} finally {
-			chatAbortController = null;
-=======
 			if (json.done === true) break;
->>>>>>> Stashed changes
-=======
-			if (json.done === true) break;
->>>>>>> Stashed changes
-=======
-			if (json.done === true) break;
->>>>>>> Stashed changes
-=======
-			if (json.done === true) break;
->>>>>>> Stashed changes
 			}
 		}
 
