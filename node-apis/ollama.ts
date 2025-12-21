@@ -338,6 +338,7 @@ function register(): void {
 			let json: any;
 			try {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			const body = {
 				model: modelName,
 				stream: true,
@@ -359,10 +360,15 @@ function register(): void {
 				event.sender.send("ollama:chat-error", "No response stream");
 				return;
 =======
+=======
+>>>>>>> Stashed changes
 				json = JSON.parse(line);
 			} catch (e) {
 				console.error("Error parsing JSON", e);
 				continue;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 			}
 
@@ -376,6 +382,7 @@ function register(): void {
 				pendingToolCalls.push(...json.message.tool_calls);
 			}
 
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 			if (pendingToolCalls.length > 0) {
 				for (const toolCall of pendingToolCalls) {
@@ -464,6 +471,9 @@ function register(): void {
 			}
 			} finally {
 			chatAbortController = null;
+=======
+			if (json.done === true) break;
+>>>>>>> Stashed changes
 =======
 			if (json.done === true) break;
 >>>>>>> Stashed changes

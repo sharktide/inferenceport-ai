@@ -556,12 +556,15 @@ form.addEventListener("submit", async (e) => {
     updateActionButton();
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     window.ollama.onResponse((chunk) => {
         fullResponse += chunk;
         botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 =======
+=======
+>>>>>>> Stashed changes
 	window.ollama.onToolResponse((toolName, toolResponse, assets) => {
 		console.log(`[onToolResponse] Tool: ${toolName}, Response: ${toolResponse}, Assets:`, assets);
 		assets.forEach((asset) => {
@@ -874,6 +877,9 @@ function renderChat() {
     if (autoScroll) {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }
 
