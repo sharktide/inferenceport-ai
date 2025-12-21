@@ -66,8 +66,8 @@ contextBridge.exposeInMainWorld("ollama", {
 			(__: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		),
 
-	streamPrompt: (model: string, prompt: string): void =>
-		ipcRenderer.send("ollama:chat-stream", model, prompt),
+	streamPrompt: (model: string, prompt: string, searchEnabled: boolean, imgEnabled: boolean): void =>
+		ipcRenderer.send("ollama:chat-stream", model, prompt, searchEnabled, imgEnabled),
 
 	onResponse: (cb: (token: string) => void): void =>
 		ipcRenderer.on(
@@ -83,6 +83,18 @@ contextBridge.exposeInMainWorld("ollama", {
 
 	onDone: (cb: () => void): void =>
 		ipcRenderer.on("ollama:chat-done", () => cb()),
+
+	onToolResponse: (cb: (toolName: string, toolResult: any, assets: any[]) => void): void =>
+		ipcRenderer.on("ollama:tool-result", (event: IpcRendererEvent, toolName: string, toolResult: any, assets: any[]) => cb(toolName, toolResult, assets)),
+
+	gimmeSession: (cb: (sessionId: string) => any[]): void =>
+    ipcRenderer.on(
+        "ollama:gimme-session",
+        (__: Electron.IpcRendererEvent, session: string) => {
+            const result = cb(session);  // This calls the callback with the session and stores the result.
+            // Do something with `result` here if needed.
+        }
+    ),
 
 	onAbort: (cb: () => void): void =>
 		ipcRenderer.on("ollama:chat-aborted", () => cb()),

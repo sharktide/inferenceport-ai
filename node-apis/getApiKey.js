@@ -1,4 +1,5 @@
 export function generateTryItApiKey() {
+    const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
     let myrandomstr = Math.round((Math.random() * 100000000000)) + "";
     const myhashfunction = function() {
         for (var a = [], b = 0; 64 > b; )
@@ -21,6 +22,6 @@ export function generateTryItApiKey() {
         }
         ;
     }();
-    const tryitApiKey = 'tryit-' + myrandomstr + '-' + myhashfunction(navigator.userAgent + myhashfunction(navigator.userAgent + myhashfunction(navigator.userAgent + myrandomstr + 'hackers_become_a_little_stinkier_every_time_they_hack')));
+    const tryitApiKey = 'tryit-' + myrandomstr + '-' + myhashfunction(userAgent + myhashfunction(userAgent + myhashfunction(userAgent + myrandomstr + 'hackers_become_a_little_stinkier_every_time_they_hack')));
     return tryitApiKey;
 }
