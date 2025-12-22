@@ -20,8 +20,7 @@ import { generateTryItApiKey } from "./getApiKey.js";
 import type { IpcMain, IpcMainEvent } from 'electron';
 const fs = require("fs");
 const path = require("path");
-const { exec, spawn } = require("child_process");
-import { execFile } from 'child_process';
+const { exec, spawn, execFile } = require("child_process");
 import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
 const os = require('os');
@@ -43,50 +42,9 @@ type ChatMessage = {
 	tool_calls?: { function: any }[];
 	name?: string;
 };
-
-const tools = [
-	{
-		type: "function",
-		function: {
-			name: "duckduckgo_search",
-			description: "Search the web using DuckDuckGo",
-			parameters: {
-				type: "object",
-				properties: {
-					query: {
-						type: "string",
-						description: "Search query",
-					},
-				},
-				required: ["query"],
-			},
-		},
-	}, {
-		type: "function",
-		function: {
-			name: "generate_image",
-			description: "Generate an image from a prompt and resolution",
-			parameters: {
-				type: "object",
-				properties: {
-					prompt: {
-						prompt: "string",
-						description: "Describe the image you want in great detail (10-30 words)",
-					},
-					width: {
-						width: "number",
-						description: "width of image in pixels up to 1920",
-					},
-					height: {
-						height: "number",
-						description: "height of image in pixels up to 1920",
-					},
-				},
-				required: ["prompt", "width", "height"],
-			},
-		},
-	},
-];
+let availableTools = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "tools.json"), "utf8")
+);
 
 type ModelInfo = {
 	name: string;
@@ -138,35 +96,39 @@ async function duckDuckGoSearch(query: string) {
 }
 
 async function GenerateImage(prompt: string, height: number, width: number) {
-    const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
-    const API_KEY = generateTryItApiKey();
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
+	const image_url = 'https://api.deepai.org/api/text2img';
+	const API_KEY = await generateTryItApiKey();
+	console.log(API_KEY)
+	const response = await fetch(image_url, {
+		method: "POST",
+		headers: {
+			"Api-Key": API_KEY,
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify({
+			width,
+			height,
+			text: prompt,
+			quality: "true",
+			image_generator_version: "hd",
+			use_new_model: "false",
+			use_old_model: "false"
+		})
+	});
 
-    const response = await fetch(image_url, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "API-KEY": API_KEY,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            message: prompt,
-            width,
-            height,
-            I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
-        })
-    });
+	if (!response.ok) {
+		const text = await response.text();
+		throw new Error(`Image generation failed (status ${response.status}): ${text}`);
+	}
 
-    if (!response.ok) {
-        throw { status: response.status, type: 'generate' };
-    }
+	const result = await response.json();
+	if (!result.image) throw new Error("No image returned");
 
-    const result = await response.json();
-    if (!result.image) {
-        throw { status: 500, type: 'generate' };
-    }
+	const imgTag = `<img src="${result.image}" width="${width}" height="${height}" />`;
 
-    return result.image;
+	return {
+		content: imgTag,
+	};
 }
 
 // ====================== End Tool Functions ======================
@@ -276,6 +238,9 @@ function register(): void {
 			search: boolean,
 			imageGen: boolean,
 		) => {
+			let tools: any[] = [];
+			tools.push(availableTools.duckduckgo_search);
+			tools.push(availableTools.generate_image);
 			chatAbortController = new AbortController();
 
 			chatHistory.push({ role: "user", content: userMessage });
@@ -333,7 +298,7 @@ function register(): void {
 					event.sender.send("ollama:chat-token", json.message.content);
 				}
 
-				if (json.message?.tool_calls) {
+				if (json.done === true && json.message?.tool_calls) {
 					pendingToolCalls.push(...json.message.tool_calls);
 				}
 
@@ -357,8 +322,22 @@ function register(): void {
 				if (toolCall.function.name === "duckduckgo_search") {
 					toolResult = await duckDuckGoSearch(args.query);
 				} else if (toolCall.function.name === "generate_image") {
-					toolResult = await GenerateImage(args.prompt, args.height, args.width);
+					let result = await GenerateImage(args.prompt, args.height, args.width);
+					// Use the .content property
+					const imageTag = result.content;
+					assistantMessage = `${imageTag}\n${assistantMessage}`;
+					toolResult = "Image generated successfully. No further action is needed";
+
+					chatHistory.push({
+						role: "tool",
+						name: toolCall.function.name,
+						content: JSON.stringify(toolResult),
+					});
+
+					event.sender.send("ollama:chat-token", assistantMessage);
+					continue;
 				}
+
 
 				chatHistory.push({
 					role: "tool",

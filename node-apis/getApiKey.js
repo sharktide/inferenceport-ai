@@ -21,6 +21,8 @@ export function generateTryItApiKey() {
         }
         ;
     }();
-    const tryitApiKey = 'tryit-' + myrandomstr + '-' + myhashfunction(navigator.userAgent + myhashfunction(navigator.userAgent + myhashfunction(navigator.userAgent + myrandomstr + 'hackers_become_a_little_stinkier_every_time_they_hack')));
+    const chromiumUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36'
+
+    const tryitApiKey = 'tryit-' + myrandomstr + '-' + myhashfunction(chromiumUserAgent + myhashfunction(chromiumUserAgent + myhashfunction(chromiumUserAgent + myrandomstr + 'hackers_become_a_little_stinkier_every_time_they_hack')));
     return tryitApiKey;
 }
