@@ -33,6 +33,8 @@ supabase.auth.onAuthStateChange((_event, session) => {
 type Message = {
   role: string;
   content: string;
+  name?: string;
+  asset?: { id: string; type: "image"; mime: string; base64: string };
 };
 
 type SessionType = {
@@ -46,6 +48,8 @@ type MessageType = {
   session_id: string;
   role: string;
   content: string;
+  name?: string;
+  asset?: { id: string; type: "image"; mime: string; base64: string };
 }
 
 export function register() {
@@ -228,6 +232,8 @@ export function register() {
 				session_id: sessionId,
 				role: m.role,
 				content: m.content,
+				name: m.name,
+				asset: m.asset,
 				created_at: new Date().toISOString(),
 				user_id: userId,
 			}));

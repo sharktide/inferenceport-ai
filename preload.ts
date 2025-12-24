@@ -66,8 +66,14 @@ contextBridge.exposeInMainWorld("ollama", {
 			(__: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		),
 
-	streamPrompt: (model: string, prompt: string): void =>
-		ipcRenderer.send("ollama:chat-stream", model, prompt),
+	streamPrompt: (model: string, prompt: string, searchEnabled: boolean, imgEnabled: boolean): void =>
+		ipcRenderer.send("ollama:chat-stream", model, prompt, searchEnabled, imgEnabled),
+
+	onNewImage: (cb: (response: any) => void): void =>
+		ipcRenderer.on(
+			"ollama:image-result",
+			(__: Electron.IpcRendererEvent, response: any) => cb(response)
+		),
 
 	onResponse: (cb: (token: string) => void): void =>
 		ipcRenderer.on(

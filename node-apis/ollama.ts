@@ -15,7 +15,6 @@ limitations under the License.
 */
 
 const { app, ipcMain, BrowserWindow } = require("electron");
-import { generateTryItApiKey } from "./getApiKey.js";
 //@ts-ignore
 import type { IpcMain, IpcMainEvent } from 'electron';
 const fs = require("fs");
@@ -25,6 +24,8 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 const execFileAsync = promisify(execFile);
 const os = require('os');
+
+const systemPrompt = "You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
 
 const isDev = !app.isPackaged;
 
@@ -41,10 +42,11 @@ type ChatMessage = {
 	role: "user" | "assistant" | "tool";
 	content: string;
 	tool_calls?: { function: any }[];
-	name?: string;
+	name?: string | undefined;
+	asset?: { id: string; type: "image"; mime: string; base64: string };
 };
 
-const tools = [
+const availableTools = [
 	{
 		type: "function",
 		function: {
@@ -137,17 +139,24 @@ async function duckDuckGoSearch(query: string) {
 	};
 }
 
+function createAssetId(): string {
+	return `img_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function messagesForModel(history: ChatMessage[]): ChatMessage[] {
+	return history.map(({ content, role, name }) => ({ content, role, name }));
+}
+
 async function GenerateImage(prompt: string, height: number, width: number) {
     const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
-    const API_KEY = generateTryItApiKey();
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
 
     const response = await fetch(image_url, {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "API-KEY": API_KEY,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         },
         body: JSON.stringify({
             message: prompt,
@@ -166,7 +175,13 @@ async function GenerateImage(prompt: string, height: number, width: number) {
         throw { status: 500, type: 'generate' };
     }
 
-    return result.image;
+	const base64 = result.image;
+	const assetId = createAssetId();
+
+    return {
+		modelPayload: { url: `session://${assetId}`, width, height },
+		asset: { id: assetId, type: "image" as const, mime: "image/png", base64 },
+	};
 }
 
 // ====================== End Tool Functions ======================
@@ -239,34 +254,6 @@ function register(): void {
 		}
 	);
 
-	ipcMain.on("ollama:name-session",
-		async (
-			event: IpcMainEvent,
-			modelName: string,
-			userMessage: string
-		) => {
-			try {
-				const res = await fetch("http://localhost:11434/api/chat", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						model: modelName,
-						messages: [
-							{ role: "system", content: "Provide a concise name for this chat session in less than 10 words." },
-							{ role: "user", content: userMessage }
-						],
-					}),
-				});
-
-				const data = await res.json();
-				const sessionName = data.choices?.[0]?.message?.content || "Unnamed Session";
-				event.sender.send("ollama:session-named", sessionName.trim());
-			} catch (err) {
-				event.sender.send("ollama:session-name-error", `${err}`);
-			}
-		}
-	);
-
 	ipcMain.on(
 		"ollama:chat-stream",
 		async (
@@ -278,6 +265,11 @@ function register(): void {
 		) => {
 			chatAbortController = new AbortController();
 
+			let tools: any[] = [];
+
+			if (search) tools.push(availableTools[0]); // Add search tool if enabled
+			if (imageGen) tools.push(availableTools[1]); // Add image generation tool if enabled
+
 			chatHistory.push({ role: "user", content: userMessage });
 
 			try {
@@ -285,8 +277,8 @@ function register(): void {
 				model: modelName,
 				stream: true,
 				messages: [
-				{ role: "system", content: "You are a helpful assistant that does what the user wants and uses tools when appropriate. Make sure you escape with double back slashes. NO SINGLE BACKSLASHES!" },
-				...chatHistory,
+				{ role: "system", content: systemPrompt },
+				...messagesForModel(chatHistory),
 				],
 				tools,
 			};
@@ -308,6 +300,7 @@ function register(): void {
 
 			let buffer = "";
 			let assistantMessage = "";
+			let asset: any = null;
 			let pendingToolCalls: any[] = [];
 
 			while (true) {
@@ -358,13 +351,18 @@ function register(): void {
 					toolResult = await duckDuckGoSearch(args.query);
 				} else if (toolCall.function.name === "generate_image") {
 					toolResult = await GenerateImage(args.prompt, args.height, args.width);
+					asset = toolResult.asset;
+					toolResult = toolResult.modelPayload;
 				}
 
 				chatHistory.push({
 					role: "tool",
 					name: toolCall.function.name,
 					content: JSON.stringify(toolResult),
+					asset
 				});
+				event.sender.send("ollama:image-result", asset);
+				saveSessions({ chatHistory });
 				}
 				const followUpRes = await fetch(
 				"http://localhost:11434/api/chat",
@@ -374,7 +372,10 @@ function register(): void {
 					body: JSON.stringify({
 					model: modelName,
 					stream: true,
-					messages: chatHistory,
+					messages: [
+					{ role: "system", content: systemPrompt },
+					...messagesForModel(chatHistory),
+					],
 					tools,
 					}),
 					signal: chatAbortController.signal,
@@ -494,6 +495,7 @@ function loadSessions(): Record<string, unknown> {
 	if (fs.existsSync(sessionFile)) {
 		try {
 			const raw = fs.readFileSync(sessionFile, "utf-8");
+			console.log("Session loading: ", raw);
 			return JSON.parse(raw);
 		} catch (err) {
 			console.error("Failed to load sessions:", err);

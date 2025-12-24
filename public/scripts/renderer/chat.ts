@@ -37,7 +37,10 @@ const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
 const modalTitle = document.getElementById("file-preview-title") as HTMLTitleElement;
 const modalContent = document.getElementById("file-preview-content") as HTMLPreElement;
 const modalClose = document.getElementById("file-preview-close") as HTMLButtonElement;
-
+const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
+const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
+let searchEnabled = false;
+let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
 modelSelect?.addEventListener('change', setTitle)
@@ -438,6 +441,28 @@ chatBox.addEventListener('scroll', () => {
 	}
 });
 
+searchBtn.addEventListener("click", () => {
+	if (searchEnabled) {
+		searchEnabled = false;
+		searchBtn.textContent = "Don't search";
+	} else {
+		searchEnabled = true;
+		searchBtn.textContent = "Search";
+	}
+	console.log("searchEnabled", searchEnabled);
+});
+
+imgBtn.addEventListener("click", () => {
+	if (imgEnabled) {
+		imgEnabled = false;
+		imgBtn.textContent = "No Image";
+	} else {
+		imgEnabled = true;
+		imgBtn.textContent = "Image";
+	}
+	console.log("imgEnabled", imgEnabled);
+});
+
 let attachedFiles = [];
 
 attachBtn.addEventListener("click", () => fileInput.click());
@@ -638,7 +663,7 @@ form.addEventListener("submit", async (e) => {
     input.value = "";
     input.style.height = "";
     window.ollama.removeAllListeners?.();
-    window.ollama.streamPrompt(model, fullPrompt);
+    window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled);
 
     let fullResponse = "";
     isStreaming = true;
@@ -700,6 +725,26 @@ form.addEventListener("submit", async (e) => {
 		})
         endStreaming();
     });
+
+	window.ollama.onNewImage((asset) => {
+	const dataUrl = asset.base64.startsWith("data:")
+		? asset.base64
+		: `data:image/png;base64,${asset.base64}`;
+
+	// De-duplication: do not add same image twice
+	const last = session.history.at(-1);
+	if (last?.role === "image" && last.content === dataUrl) {
+		return;
+	}
+
+	session.history.push({
+		role: "image",
+		content: dataUrl
+	});
+
+	// Re-render from canonical state
+	renderChat();
+	});
 });
 
 
@@ -804,107 +849,148 @@ async function setTitle() {
 }
 
 function renderChat() {
-	if (!currentSessionId) {
-		currentSessionId = Object.keys(sessions)[0] || null;
+  // Always re-resolve chatBox to avoid stale DOM references
+  const chatBox = document.getElementById("chat-box");
+  if (!chatBox) {
+    console.warn("renderChat aborted: chatBox not found");
+    return;
+  }
+
+  if (!currentSessionId) {
+    currentSessionId = Object.keys(sessions)[0] || null;
+  }
+
+  const session = sessions[currentSessionId];
+  chatBox.innerHTML = "";
+
+  if (!session || !session.history || session.history.length === 0) {
+    const emptyMsg = document.createElement("div");
+    emptyMsg.className = "empty-chat";
+    emptyMsg.textContent = "Start chatting to see messages here.";
+    chatBox.appendChild(emptyMsg);
+    return;
+  }
+
+  session.history.forEach((msg) => {
+    /* ---------------- USER ---------------- */
+    if (msg.role === "user") {
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble user-bubble";
+      bubble.innerHTML = window.utils.markdown_parse(msg.content || "");
+      chatBox.appendChild(bubble);
+      return;
+    }
+
+    /* ---------------- ASSISTANT ---------------- */
+    if (msg.role === "assistant") {
+      const html = window.utils.markdown_parse(msg.content || "");
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+
+      const botContainer = document.createElement("div");
+      botContainer.className = "chat-bubble bot-bubble";
+
+      Array.from(temp.childNodes).forEach((node) => {
+        // Code blocks
+        if (
+          node.nodeType === Node.ELEMENT_NODE &&
+          node.tagName.toLowerCase() === "pre"
+        ) {
+          const preEl = node;
+          const codeEl = preEl.querySelector("code");
+
+          let lang = "code";
+          if (codeEl?.className) {
+            const match = codeEl.className.match(/language-([\w-]+)/);
+            if (match) lang = match[1];
+          }
+
+          const codeBubble = document.createElement("div");
+          codeBubble.className = "ai-code-bubble";
+
+          const header = document.createElement("div");
+          header.className = "ai-code-header";
+
+          const langLabel = document.createElement("span");
+          langLabel.className = "ai-code-lang";
+          langLabel.textContent = lang;
+
+          const copyBtn = document.createElement("button");
+          copyBtn.className = "ai-copy-btn";
+          copyBtn.textContent = "Copy";
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(codeEl?.textContent || "");
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+          };
+
+          header.appendChild(langLabel);
+          header.appendChild(copyBtn);
+          codeBubble.appendChild(header);
+          codeBubble.appendChild(preEl.cloneNode(true));
+          botContainer.appendChild(codeBubble);
+        } else {
+          // Normal markup (paragraphs, lists, etc.)
+          botContainer.appendChild(node.cloneNode(true));
+        }
+      });
+
+      // IMPORTANT: never gate on textContent
+      chatBox.appendChild(botContainer);
+      return;
+    }
+
+    /* ---------------- IMAGE ---------------- */
+	if (msg.role === "image") {
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble bot-bubble";
+
+	const img = document.createElement("img");
+	img.src = msg.content;
+	img.style.maxWidth = "100%";
+	img.style.borderRadius = "8px";
+	img.style.display = "block";
+
+	// Download button
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "ai-copy-btn"; // reuse styling
+	downloadBtn.textContent = "Download";
+	downloadBtn.style.marginTop = "6px";
+
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = msg.content;
+		a.download = `image-${Date.now()}.png`; // filename
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	botContainer.appendChild(img);
+	botContainer.appendChild(downloadBtn);
+	chatBox.appendChild(botContainer);
+	return;
 	}
 
-	const session = sessions[currentSessionId];
-	chatBox.innerHTML = "";
+    /* ---------------- FALLBACK ---------------- */
+    console.warn("Unknown message role:", msg.role, msg);
+  });
 
-	if (!session.history || session.history.length === 0) {
-		const emptyMsg = document.createElement("div");
-		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
-		chatBox.appendChild(emptyMsg);
-		return;
-	}
+  // Math rendering
+  renderMathInElement(document.body, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },
+      { left: "$", right: "$", display: true },
+      { left: "\\(", right: "\\)", display: false },
+      { left: "\\[", right: "\\]", display: true }
+    ],
+    throwOnError: false
+  });
 
+  // Syntax highlighting placeholder
+  document.querySelectorAll("pre code").forEach(() => void 0);
 
-	session.history.forEach((msg) => {
-		if (msg.role === "user") {
-			// User prompt in bubble
-			const bubble = document.createElement("div");
-			bubble.className = "chat-bubble user-bubble";
-			bubble.innerHTML = window.utils.markdown_parse(msg.content);
-			chatBox.appendChild(bubble);
-		} else {
-			const html = window.utils.markdown_parse(msg.content);
-			const temp = document.createElement("div");
-			temp.innerHTML = html;
-
-			const botContainer = document.createElement("div");
-			botContainer.className = "bot-bubble";
-
-			const nodes = Array.from(temp.childNodes);
-			nodes.forEach((node) => {
-				if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "pre") {
-					const preEl = node as HTMLElement;
-					const codeEl = preEl.querySelector("code");
-					let lang = "";
-					if (codeEl) {
-						const match = (codeEl.className || "").match(/language-([\w-]+)/);
-						if (match) lang = match[1];
-					}
-
-					const codeBubble = document.createElement("div");
-					codeBubble.className = "ai-code-bubble";
-
-					const header = document.createElement("div");
-					header.className = "ai-code-header";
-
-					const langLabel = document.createElement("span");
-					langLabel.className = "ai-code-lang";
-					langLabel.textContent = lang || "code";
-					header.appendChild(langLabel);
-
-					const copyBtn = document.createElement("button");
-					copyBtn.className = "ai-copy-btn";
-					copyBtn.textContent = "Copy";
-					copyBtn.onclick = () => {
-						navigator.clipboard.writeText(codeEl ? (codeEl.textContent || "") : "");
-						copyBtn.textContent = "Copied!";
-						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-					};
-					header.appendChild(copyBtn);
-
-					codeBubble.appendChild(header);
-					codeBubble.appendChild(preEl.cloneNode(true));
-					botContainer.appendChild(codeBubble);
-				} else {
-					// Non-code content: append markup inside bot container
-					const fragment = document.createDocumentFragment();
-					fragment.appendChild(node.cloneNode(true));
-					// Only append if there's visible content
-					if ((fragment.textContent || "").trim() !== "") {
-						botContainer.appendChild(fragment);
-					}
-				}
-			});
-
-			// Append bot container if it contains anything
-			if (botContainer.childNodes.length > 0 && (botContainer.textContent || "").trim() !== "") {
-				chatBox.appendChild(botContainer);
-			}
-		}
-	});
-
-	renderMathInElement(document.body, {
-		delimiters: [
-			{ left: '$$', right: '$$', display: true },
-			{ left: '$', right: '$', display: true },
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true }
-		],
-		throwOnError: false
-	});
-
-	document.querySelectorAll("pre code").forEach((block) => {
-		// hljs?.highlightElement?.(block); TODO
-		void 0
-	});
-
-	// Only scroll if autoScroll is enabled
-	if (autoScroll) {
-		chatBox.scrollTop = chatBox.scrollHeight;
-	}
+  if (autoScroll) {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 }
