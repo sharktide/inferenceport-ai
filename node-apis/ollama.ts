@@ -39,7 +39,7 @@ const ollamaPath = isDev
 
 
 type ChatMessage = {
-	role: "user" | "assistant" | "tool";
+	role: "user" | "assistant" | "tool" | "system" | "image";
 	content: string;
 	tool_calls?: { function: any }[];
 	name?: string | undefined;
