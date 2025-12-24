@@ -151,36 +151,47 @@ async function GenerateImage(prompt: string, height: number, width: number) {
     const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
 
-    const response = await fetch(image_url, {
-        method: "POST",
+    // const response = await fetch(image_url, {
+    //     method: "POST",
+    //     headers: {
+    //         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    //         "Content-Type": "application/json",
+	// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    //     },
+    //     body: JSON.stringify({
+    //         message: prompt,
+    //         width,
+    //         height,
+    //         I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
+    //     })
+    // });
+
+	const response = await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}`, {
+        method: "GET",
         headers: {
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-            "Content-Type": "application/json",
-			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
-        body: JSON.stringify({
-            message: prompt,
-            width,
-            height,
-            I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
-        })
+            "Authorization": `Have fun!`,
+            "Content-Type": "text/plain",
+			"User-Agent": "User agents are useless, let's face it",
+        }
     });
 
     if (!response.ok) {
+		console.error(`[Image Generation] Error: ${response.status} ${response.statusText}`);
         throw { status: response.status, type: 'generate' };
     }
 
-    const result = await response.json();
-    if (!result.image) {
-        throw { status: 500, type: 'generate' };
-    }
+    const result = await response.blob();
+	const arrayBuffer = await result.arrayBuffer();
+	const buffer = Buffer.from(arrayBuffer);
+	const base64 = buffer.toString("base64");
 
-	const base64 = result.image;
+
 	const assetId = createAssetId();
+	const mime = result.type || "image/png";
 
     return {
 		modelPayload: { url: `session://${assetId}`, width, height },
-		asset: { id: assetId, type: "image" as const, mime: "image/png", base64 },
+		asset: { id: assetId, type: "image" as const, mime: mime, base64 },
 	};
 }
 

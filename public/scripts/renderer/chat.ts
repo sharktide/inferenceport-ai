@@ -940,37 +940,40 @@ function renderChat() {
       return;
     }
 
-    /* ---------------- IMAGE ---------------- */
 	if (msg.role === "image") {
-	const botContainer = document.createElement("div");
-	botContainer.className = "chat-bubble bot-bubble";
+		const botContainer = document.createElement("div");
+		botContainer.className = "chat-bubble image-bubble";
 
-	const img = document.createElement("img");
-	img.src = msg.content;
-	img.style.maxWidth = "100%";
-	img.style.borderRadius = "8px";
-	img.style.display = "block";
+		const imageWrapper = document.createElement("div");
+		imageWrapper.className = "image-wrapper";
 
-	// Download button
-	const downloadBtn = document.createElement("button");
-	downloadBtn.className = "ai-copy-btn"; // reuse styling
-	downloadBtn.textContent = "Download";
-	downloadBtn.style.marginTop = "6px";
+		const img = document.createElement("img");
+		img.src = msg.content;
+		img.alt = "Generated image";
 
-	downloadBtn.onclick = () => {
-		const a = document.createElement("a");
-		a.href = msg.content;
-		a.download = `image-${Date.now()}.png`; // filename
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-	};
+		const downloadBtn = document.createElement("button");
+		downloadBtn.className = "image-download-btn";
+		downloadBtn.title = "Download image";
+		downloadBtn.innerText = "Download"
 
-	botContainer.appendChild(img);
-	botContainer.appendChild(downloadBtn);
-	chatBox.appendChild(botContainer);
-	return;
+
+		downloadBtn.onclick = (e) => {
+			e.stopPropagation();
+			const a = document.createElement("a");
+			a.href = msg.content;
+			a.download = `image-${Date.now()}.png`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+		};
+
+		imageWrapper.appendChild(img);
+		imageWrapper.appendChild(downloadBtn);
+		botContainer.appendChild(imageWrapper);
+		chatBox.appendChild(botContainer);
+		return;
 	}
+
 
     /* ---------------- FALLBACK ---------------- */
     console.warn("Unknown message role:", msg.role, msg);
