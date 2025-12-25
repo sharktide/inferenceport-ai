@@ -95,6 +95,21 @@
   flex-direction: column;
 }
 
+.image-bubble {
+  background: var(--bg-light);
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+  margin-bottom: 18px;
+  margin-top: 8px;
+  padding: 0;
+  position: relative;
+  max-width: 90%;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+}
+
 .ai-code-header {
   display: flex;
   align-items: flex-start;
@@ -778,4 +793,50 @@ details summary {
   .typing-bar textarea {
     font-size: 14px;
   }
+}
+
+.image-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.image-wrapper img {
+  max-width: 250px;
+  border-radius: 8px;
+  display: block;
+}
+
+
+/* Show on hover */
+.image-wrapper:hover .image-download-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1.05);
+}
+
+.image-download-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+.image-download-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+
+  width: 100px;
+  height: 28px;
+  border-radius: 6px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  cursor: pointer;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  font-size: 10px;
 }
