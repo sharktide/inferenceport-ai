@@ -293,8 +293,8 @@ function register(): void {
 				],
 				tools,
 			};
-
-			const res = await fetch("http://localhost:11434/api/chat", {
+			let res;
+			res = await fetch("http://localhost:11434/api/chat", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
@@ -304,6 +304,25 @@ function register(): void {
 			if (!res.body) {
 				event.sender.send("ollama:chat-error", "No response stream");
 				return;
+			}
+
+			if (!res.ok) {
+				body.tools = []
+				res = await fetch("http://localhost:11434/api/chat", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(body),
+					signal: chatAbortController.signal,
+				});
+				if (!res.body) {
+					event.sender.send("ollama:chat-error", "No response stream");
+					return;
+				}
+				if (!res.ok) {
+					const errorText = await res.text();
+					event.sender.send("ollama:chat-error", `Error: ${res.status} ${errorText}`);
+					return;
+				}
 			}
 
 			const reader = res.body.getReader();
