@@ -86,7 +86,7 @@ Type definitions for the exposed APIs are in `global.d.ts` and mirrored by the `
 The preload exposes these top-level objects on `window` for renderer code:
 
 - `window.ollama` — methods like `listModels()`, `runModel(name)`, `deleteModel(name)`, `pullModel(name)`, streaming helpers `streamPrompt()` and events `onResponse`, `onError`, `onDone`, and session persistence helpers `load()`/`save()`.
-- `window.utils` — helpers such as `web_open(url)`, `markdown_parse(markdown)`, `saveFile(path, content)` and `getPath()`.
+- `window.utils` — helpers such as `web_open(url)`, `markdown_parse_and_purify(markdown)`, `saveFile(path, content)` and `getPath()`.
 - `window.hfspaces` — helpers for fetching and sharing HF Spaces cards and website cards.
 
 See `global.d.ts` and `preload.ts` for full signatures.

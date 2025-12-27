@@ -39,7 +39,7 @@ declare global {
 
         utils: {
             web_open: (url: string) => Promise<void>;
-            markdown_parse: (markdown: string) => string;
+            markdown_parse_and_purify: (markdown: string) => string;
             saveFile: (filePath: string, content: string) => Promise<void>;
             getPath: () => Promise<string>;
             getWarning: (modelSize: string) => Promise<{

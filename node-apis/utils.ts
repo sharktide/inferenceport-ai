@@ -157,7 +157,7 @@ function register() {
 		}
 	);
 
-	ipcMain.on("utils:markdown_parse", (event: IpcMainEvent, markdown: string) => {
+	ipcMain.on("utils:markdown_parse_and_purify", (event: IpcMainEvent, markdown: string) => {
 		try {
 			const dirty = mdit.render(markdown);
 			const clean = sanitizeHtml(dirty, {

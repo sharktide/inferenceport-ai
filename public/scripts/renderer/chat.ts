@@ -27,7 +27,7 @@ const chatBox = document.getElementById("chat-box") as HTMLDivElement;
 const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
-const modelSelect = document.getElementById("model-select") as HTMLOptionElement;
+const modelSelect = document.getElementById("model-select") as HTMLSelectElement;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById("new-session-btn") as HTMLButtonElement;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
@@ -672,7 +672,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onResponse((chunk) => {
 		fullResponse += chunk;
-		botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
+		botBubble.innerHTML = window.utils.markdown_parse_and_purify(fullResponse);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
@@ -876,14 +876,14 @@ function renderChat() {
     if (msg.role === "user") {
       const bubble = document.createElement("div");
       bubble.className = "chat-bubble user-bubble";
-      bubble.innerHTML = window.utils.markdown_parse(msg.content || "");
+      bubble.innerHTML = window.utils.markdown_parse_and_purify(msg.content || "");
       chatBox.appendChild(bubble);
       return;
     }
 
     /* ---------------- ASSISTANT ---------------- */
     if (msg.role === "assistant") {
-      const html = window.utils.markdown_parse(msg.content || "");
+      const html = window.utils.markdown_parse_and_purify(msg.content || "");
       const temp = document.createElement("div");
       temp.innerHTML = html;
 

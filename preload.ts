@@ -113,8 +113,8 @@ contextBridge.exposeInMainWorld("utils", {
 	web_open: (url: string): Promise<void> =>
 		ipcRenderer.invoke("utils:web_open", url),
 
-	markdown_parse: (markdown: string): string =>
-		ipcRenderer.sendSync("utils:markdown_parse", markdown),
+	markdown_parse_and_purify: (markdown: string): string =>
+		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),
 
 	DOMPurify: (html: string): string =>
 		ipcRenderer.sendSync("utils:DOMPurify", html),
