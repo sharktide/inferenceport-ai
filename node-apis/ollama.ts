@@ -72,15 +72,15 @@ const availableTools = [
 				type: "object",
 				properties: {
 					prompt: {
-						prompt: "string",
+						type: "string",
 						description: "Describe the image you want in great detail (10-30 words)",
 					},
 					width: {
-						width: "number",
+						type: "number",
 						description: "width of image in pixels up to 1920",
 					},
 					height: {
-						height: "number",
+						type: "number",
 						description: "height of image in pixels up to 1920",
 					},
 				},
@@ -166,14 +166,7 @@ async function GenerateImage(prompt: string, height: number, width: number) {
     //     })
     // });
 
-	const response = await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}`, {
-        method: "GET",
-        headers: {
-            "Authorization": `Have fun!`,
-            "Content-Type": "text/plain",
-			"User-Agent": "User agents are useless, let's face it",
-        }
-    });
+	const response = await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}`)
 
     if (!response.ok) {
 		console.error(`[Image Generation] Error: ${response.status} ${response.statusText}`);
