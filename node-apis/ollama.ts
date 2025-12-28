@@ -147,46 +147,104 @@ function messagesForModel(history: ChatMessage[]): ChatMessage[] {
 	return history.map(({ content, role, name }) => ({ content, role, name }));
 }
 
-async function GenerateImage(prompt: string, height: number, width: number) {
-    const image_url = 'https://nwgeoyqlnoxpwirtpdbc.supabase.co/functions/v1/swift-api';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53Z2VveXFsbm94cHdpcnRwZGJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1ODU0MzgsImV4cCI6MjA4MTE2MTQzOH0.KIyR8JTncBQz4YnYo4JfsY24i9Gne77FJOv9d2qVUBk';
+async function GenerateImage(
+  prompt: string,
+  width: number,
+  height: number
+) {
+  const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-    // const response = await fetch(image_url, {
-    //     method: "POST",
-    //     headers: {
-    //         "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-    //         "Content-Type": "application/json",
-	// 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-    //     },
-    //     body: JSON.stringify({
-    //         message: prompt,
-    //         width,
-    //         height,
-    //         I_AGREE_THAT_HACKING_IS_A_SERIOUS_CRIME_AND_I_AM_NOT_ABUSING_THIS_API: true // Feel free to use this API, but please don't spam
-    //     })
-    // });
+  LOG(trace, "ENTER GenerateImage", { prompt, width, height });
 
-	const response = await fetch(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}`)
+  const url =
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
+    `?width=${width}&height=${height}`;
 
-    if (!response.ok) {
-		console.error(`[Image Generation] Error: ${response.status} ${response.statusText}`);
-        throw { status: response.status, type: 'generate' };
-    }
+  LOG(trace, "FETCH URL", url);
 
-    const result = await response.blob();
-	const arrayBuffer = await result.arrayBuffer();
-	const buffer = Buffer.from(arrayBuffer);
-	const base64 = buffer.toString("base64");
+  let response: Response;
+  try {
+    response = await fetch(url);
+    LOG(trace, "FETCH RESOLVED", {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+    });
+  } catch (e) {
+    LOG_ERR(trace, "FETCH THREW", e);
+    throw e;
+  }
 
+  if (!response.ok) {
+    LOG_ERR(trace, "NON-OK RESPONSE", {
+      status: response.status,
+      statusText: response.statusText,
+    });
+    throw new Error(`Image fetch failed: ${response.status}`);
+  }
 
-	const assetId = createAssetId();
-	const mime = result.type || "image/png";
+  const contentType = response.headers.get("content-type");
+  LOG(trace, "CONTENT-TYPE", contentType);
 
-    return {
-		modelPayload: { url: `session://${assetId}`, width, height },
-		asset: { id: assetId, type: "image" as const, mime: mime, base64 },
-	};
+  let arrayBuffer: ArrayBuffer;
+  try {
+    arrayBuffer = await response.arrayBuffer();
+    LOG(trace, "ARRAYBUFFER RECEIVED", {
+      byteLength: arrayBuffer.byteLength,
+    });
+  } catch (e) {
+    LOG_ERR(trace, "ARRAYBUFFER FAILED", e);
+    throw e;
+  }
+
+  if (arrayBuffer.byteLength === 0) {
+    LOG_ERR(trace, "EMPTY IMAGE BUFFER");
+    throw new Error("Empty image buffer");
+  }
+
+  let base64: string;
+  try {
+    base64 = Buffer.from(arrayBuffer).toString("base64");
+    LOG(trace, "BASE64 ENCODED", {
+      length: base64.length,
+      head: base64.slice(0, 32),
+    });
+  } catch (e) {
+    LOG_ERR(trace, "BASE64 ENCODE FAILED", e);
+    throw e;
+  }
+
+  LOG(trace, "EXIT GenerateImage OK");
+
+  return {
+    asset: {
+      base64,
+      mime: contentType || "image/unknown",
+      width,
+      height,
+      trace,
+    },
+  };
 }
+
+
+function LOG(trace: string, label: string, ...args: any[]) {
+  const time = new Date().toISOString();
+  console.log(
+    `[${time}] [${trace}] ${label}`,
+    ...args
+  );
+}
+
+function LOG_ERR(trace: string, label: string, ...args: any[]) {
+  const time = new Date().toISOString();
+  console.error(
+    `[${time}] [${trace}] ❌ ${label}`,
+    ...args
+  );
+}
+
 
 // ====================== End Tool Functions ======================
 
@@ -373,7 +431,12 @@ function register(): void {
 				if (toolCall.function.name === "duckduckgo_search") {
 					toolResult = await duckDuckGoSearch(args.query);
 				} else if (toolCall.function.name === "generate_image") {
+					LOG("GenerateImage", "TOOL CALL START", toolCall);
+
 					toolResult = await GenerateImage(args.prompt, args.height, args.width);
+				  	LOG("GenerateImage", "TOOL CALL SUCCESS", {
+						hasAsset: !!toolResult?.asset,
+					});
 					asset = toolResult.asset;
 					toolResult = toolResult.modelPayload;
 				}
