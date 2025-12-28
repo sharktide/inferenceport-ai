@@ -624,6 +624,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onResponse((chunk) => {
 		fullResponse += chunk;
+		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML = window.utils.markdown_parse_and_purify(fullResponse);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
@@ -828,6 +829,7 @@ function renderChat() {
     if (msg.role === "user") {
       const bubble = document.createElement("div");
       bubble.className = "chat-bubble user-bubble";
+	  // nosemgrep: javascript.browser.security.insecure-innerhtml
       bubble.innerHTML = window.utils.markdown_parse_and_purify(msg.content || "");
       chatBox.appendChild(bubble);
       return;
@@ -835,6 +837,7 @@ function renderChat() {
 
     /* ---------------- ASSISTANT ---------------- */
     if (msg.role === "assistant") {
+	  // nosemgrep: javascript.browser.security.insecure-innerhtml
       const html = window.utils.markdown_parse_and_purify(msg.content || "");
       const temp = document.createElement("div");
       temp.innerHTML = html;
