@@ -747,26 +747,6 @@ form.addEventListener("submit", async (e) => {
 		});
 		endStreaming();
 	});
-
-	window.ollama.onNewImage((asset) => {
-		const dataUrl = asset.base64.startsWith("data:")
-			? asset.base64
-			: `data:image/png;base64,${asset.base64}`;
-
-		// De-duplication: do not add same image twice
-		const last = session.history.at(-1);
-		if (last?.role === "image" && last.content === dataUrl) {
-			return;
-		}
-
-		session.history.push({
-			role: "image",
-			content: dataUrl,
-		});
-
-		// Re-render from canonical state
-		renderChat();
-	});
 });
 
 function renderFileIndicator() {
@@ -1026,3 +1006,22 @@ function renderChat() {
 		chatBox.scrollTop = chatBox.scrollHeight;
 	}
 }
+
+
+window.ollama.onNewImage((asset) => {
+	const dataUrl = asset.base64.startsWith("data:")
+		? asset.base64
+		: `data:image/png;base64,${asset.base64}`;
+
+	const last = session.history.at(-1);
+	if (last?.role === "image" && last.content === dataUrl) {
+		return;
+	}
+
+	session.history.push({
+		role: "image",
+		content: dataUrl,
+	});
+
+	renderChat();
+});
