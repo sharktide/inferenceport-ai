@@ -323,7 +323,6 @@ function register(): void {
 
 			let buffer = "";
 			let assistantMessage = "";
-			let asset: any = null;
 			let pendingToolCalls: any[] = [];
 
 			while (true) {
@@ -363,6 +362,7 @@ function register(): void {
 
 			if (pendingToolCalls.length > 0) {
 				for (const toolCall of pendingToolCalls) {
+				let asset: any = null;
 				let toolResult: any = null;
 
 				const args =
