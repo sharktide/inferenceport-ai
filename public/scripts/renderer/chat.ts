@@ -55,6 +55,8 @@ const modalClose = document.getElementById(
 ) as HTMLButtonElement;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
+const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
+const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
 let searchEnabled = false;
 let imgEnabled = false;
 let sessions = {};
@@ -430,10 +432,10 @@ chatBox.addEventListener("scroll", () => {
 searchBtn.addEventListener("click", () => {
 	if (searchEnabled) {
 		searchEnabled = false;
-		searchBtn.textContent = "Don't search";
+		searchLabel.textContent = "Don't Search";
 	} else {
 		searchEnabled = true;
-		searchBtn.textContent = "Search";
+		searchLabel.textContent = "Search";
 	}
 	console.log("searchEnabled", searchEnabled);
 });
@@ -441,10 +443,10 @@ searchBtn.addEventListener("click", () => {
 imgBtn.addEventListener("click", () => {
 	if (imgEnabled) {
 		imgEnabled = false;
-		imgBtn.textContent = "No Image";
+		imageLabel.textContent = "No Image";
 	} else {
 		imgEnabled = true;
-		imgBtn.textContent = "Image";
+		imageLabel.textContent = "Image";
 	}
 	console.log("imgEnabled", imgEnabled);
 });
