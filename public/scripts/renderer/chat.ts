@@ -1007,8 +1007,14 @@ function renderChat() {
 	}
 }
 
-
 window.ollama.onNewImage((asset) => {
+	if (!currentSessionId || !sessions[currentSessionId]) {
+		console.warn("[onNewImage] No active session, dropping image");
+		return;
+	}
+
+	const session = sessions[currentSessionId];
+
 	const dataUrl = asset.base64.startsWith("data:")
 		? asset.base64
 		: `data:image/png;base64,${asset.base64}`;
@@ -1022,6 +1028,8 @@ window.ollama.onNewImage((asset) => {
 		role: "image",
 		content: dataUrl,
 	});
+
+	window.ollama.save(sessions);
 
 	renderChat();
 });
