@@ -16,27 +16,30 @@ limitations under the License.
 
 const { app, ipcMain, BrowserWindow } = require("electron");
 //@ts-ignore
-import type { IpcMain, IpcMainEvent } from 'electron';
+import type { IpcMain, IpcMainEvent } from "electron";
 const fs = require("fs");
 const path = require("path");
 const { exec, spawn } = require("child_process");
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { execFile } from "child_process";
+import { promisify } from "util";
 const execFileAsync = promisify(execFile);
-const os = require('os');
+const os = require("os");
 
-const systemPrompt = "You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
+const systemPrompt =
+	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
 
 const isDev = !app.isPackaged;
 
-const ollamaBinary = process.platform === "win32"
-  	? "ollama.exe"
-  	: "ollama";
+const ollamaBinary = process.platform === "win32" ? "ollama.exe" : "ollama";
 
 const ollamaPath = isDev
 	? path.join("vendor", "electron-ollama", ollamaBinary)
-  : path.join(process.resourcesPath, "vendor", "electron-ollama", ollamaBinary);
-
+	: path.join(
+			process.resourcesPath,
+			"vendor",
+			"electron-ollama",
+			ollamaBinary
+	  );
 
 type ChatMessage = {
 	role: "user" | "assistant" | "tool" | "system" | "image";
@@ -63,7 +66,8 @@ const availableTools = [
 				required: ["query"],
 			},
 		},
-	}, {
+	},
+	{
 		type: "function",
 		function: {
 			name: "generate_image",
@@ -73,7 +77,8 @@ const availableTools = [
 				properties: {
 					prompt: {
 						type: "string",
-						description: "Describe the image you want in great detail (10-30 words)",
+						description:
+							"Describe the image you want in great detail (10-30 words)",
 					},
 					width: {
 						type: "number",
@@ -113,29 +118,29 @@ function stripAnsi(str: string): string {
 }
 
 async function serve(): Promise<string> {
-  return new Promise((resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
 			if (err) return reject(err);
 			resolve(stdout);
 		});
-  });
+	});
 }
 // ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
 	const res = await fetch(
-		`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
+		`https://api.duckduckgo.com/?q=${encodeURIComponent(
+			query
+		)}&format=json&no_html=1&skip_disambig=1`
 	);
 	const data = await res.json();
 
 	return {
 		abstract: data.AbstractText,
 		heading: data.Heading,
-		related: (data.RelatedTopics || [])
-			.slice(0, 5)
-			.map((r: any) => ({
-				text: r.Text,
-				url: r.FirstURL,
-			})),
+		related: (data.RelatedTopics || []).slice(0, 5).map((r: any) => ({
+			text: r.Text,
+			url: r.FirstURL,
+		})),
 	};
 }
 
@@ -147,104 +152,92 @@ function messagesForModel(history: ChatMessage[]): ChatMessage[] {
 	return history.map(({ content, role, name }) => ({ content, role, name }));
 }
 
-async function GenerateImage(
-  prompt: string,
-  width: number,
-  height: number
-) {
-  const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+async function GenerateImage(prompt: string, width: number, height: number) {
+	const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-  LOG(trace, "ENTER GenerateImage", { prompt, width, height });
+	LOG(trace, "ENTER GenerateImage", { prompt, width, height });
 
-  const url =
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-    `?width=${width}&height=${height}`;
+	const url =
+		`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
+		`?width=${width}&height=${height}`;
 
-  LOG(trace, "FETCH URL", url);
+	LOG(trace, "FETCH URL", url);
 
-  let response: Response;
-  try {
-    response = await fetch(url);
-    LOG(trace, "FETCH RESOLVED", {
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-    });
-  } catch (e) {
-    LOG_ERR(trace, "FETCH THREW", e);
-    throw e;
-  }
+	let response: Response;
+	try {
+		response = await fetch(url);
+		LOG(trace, "FETCH RESOLVED", {
+			ok: response.ok,
+			status: response.status,
+			statusText: response.statusText,
+			headers: Object.fromEntries(response.headers.entries()),
+		});
+	} catch (e) {
+		LOG_ERR(trace, "FETCH THREW", e);
+		throw e;
+	}
 
-  if (!response.ok) {
-    LOG_ERR(trace, "NON-OK RESPONSE", {
-      status: response.status,
-      statusText: response.statusText,
-    });
-    throw new Error(`Image fetch failed: ${response.status}`);
-  }
+	if (!response.ok) {
+		LOG_ERR(trace, "NON-OK RESPONSE", {
+			status: response.status,
+			statusText: response.statusText,
+		});
+		throw new Error(`Image fetch failed: ${response.status}`);
+	}
 
-  const contentType = response.headers.get("content-type");
-  LOG(trace, "CONTENT-TYPE", contentType);
+	const contentType = response.headers.get("content-type");
+	LOG(trace, "CONTENT-TYPE", contentType);
 
-  let arrayBuffer: ArrayBuffer;
-  try {
-    arrayBuffer = await response.arrayBuffer();
-    LOG(trace, "ARRAYBUFFER RECEIVED", {
-      byteLength: arrayBuffer.byteLength,
-    });
-  } catch (e) {
-    LOG_ERR(trace, "ARRAYBUFFER FAILED", e);
-    throw e;
-  }
+	let arrayBuffer: ArrayBuffer;
+	try {
+		arrayBuffer = await response.arrayBuffer();
+		LOG(trace, "ARRAYBUFFER RECEIVED", {
+			byteLength: arrayBuffer.byteLength,
+		});
+	} catch (e) {
+		LOG_ERR(trace, "ARRAYBUFFER FAILED", e);
+		throw e;
+	}
 
-  if (arrayBuffer.byteLength === 0) {
-    LOG_ERR(trace, "EMPTY IMAGE BUFFER");
-    throw new Error("Empty image buffer");
-  }
+	if (arrayBuffer.byteLength === 0) {
+		LOG_ERR(trace, "EMPTY IMAGE BUFFER");
+		throw new Error("Empty image buffer");
+	}
 
-  let base64: string;
-  try {
-    base64 = Buffer.from(arrayBuffer).toString("base64");
-    LOG(trace, "BASE64 ENCODED", {
-      length: base64.length,
-      head: base64.slice(0, 32),
-    });
-  } catch (e) {
-    LOG_ERR(trace, "BASE64 ENCODE FAILED", e);
-    throw e;
-  }
+	let base64: string;
+	try {
+		base64 = Buffer.from(arrayBuffer).toString("base64");
+		LOG(trace, "BASE64 ENCODED", {
+			length: base64.length,
+			head: base64.slice(0, 32),
+		});
+	} catch (e) {
+		LOG_ERR(trace, "BASE64 ENCODE FAILED", e);
+		throw e;
+	}
 
-  LOG(trace, "EXIT GenerateImage OK");
+	LOG(trace, "EXIT GenerateImage OK");
 
-  return {
-    asset: {
-      base64,
-      mime: contentType || "image/unknown",
-      width,
-      height,
-      trace,
-    },
-  };
+	return {
+		asset: {
+			base64,
+			mime: contentType || "image/unknown",
+			width,
+			height,
+			trace,
+		},
+	};
 }
 
-
 function LOG(trace: string, label: string, ...args: any[]) {
-  const time = new Date().toISOString();
-  console.log(
-    `[${time}] [${trace}] ${label}`,
-    ...args
-  );
+	const time = new Date().toISOString();
+	console.log(`[${time}] [${trace}] ${label}`, ...args);
 }
 
 function LOG_ERR(trace: string, label: string, ...args: any[]) {
-  const time = new Date().toISOString();
-  console.error(
-    `[${time}] [${trace}] ❌ ${label}`,
-    ...args
-  );
+	const time = new Date().toISOString();
+	console.error(`[${time}] [${trace}] ❌ ${label}`, ...args);
 }
-
 
 // ====================== End Tool Functions ======================
 
@@ -293,10 +286,13 @@ function register(): void {
 		"ollama:run",
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
-				exec(`"${ollamaPath}" run ${modelName}`, (err: Error | null, stdout: string) => {
-					if (err) return reject(err);
-					resolve(stdout);
-				});
+				exec(
+					`"${ollamaPath}" run ${modelName}`,
+					(err: Error | null, stdout: string) => {
+						if (err) return reject(err);
+						resolve(stdout);
+					}
+				);
 			});
 		}
 	);
@@ -323,7 +319,7 @@ function register(): void {
 			modelName: string,
 			userMessage: string,
 			search: boolean,
-			imageGen: boolean,
+			imageGen: boolean
 		) => {
 			chatAbortController = new AbortController();
 
@@ -335,150 +331,65 @@ function register(): void {
 			chatHistory.push({ role: "user", content: userMessage });
 
 			try {
-			const body = {
-				model: modelName,
-				stream: true,
-				messages: [
-				{ role: "system", content: systemPrompt },
-				...messagesForModel(chatHistory),
-				],
-				tools,
-			};
-			let res;
-			res = await fetch("http://localhost:11434/api/chat", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-				signal: chatAbortController.signal,
-			});
-
-			if (!res.body) {
-				event.sender.send("ollama:chat-error", "No response stream");
-				return;
-			}
-
-			if (!res.ok) {
-				body.tools = []
+				const body = {
+					model: modelName,
+					stream: true,
+					messages: [
+						{ role: "system", content: systemPrompt },
+						...messagesForModel(chatHistory),
+					],
+					tools,
+				};
+				let res;
 				res = await fetch("http://localhost:11434/api/chat", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(body),
 					signal: chatAbortController.signal,
 				});
+
 				if (!res.body) {
-					event.sender.send("ollama:chat-error", "No response stream");
+					event.sender.send(
+						"ollama:chat-error",
+						"No response stream"
+					);
 					return;
 				}
+
 				if (!res.ok) {
-					const errorText = await res.text();
-					event.sender.send("ollama:chat-error", `Error: ${res.status} ${errorText}`);
-					return;
-				}
-			}
-
-			const reader = res.body.getReader();
-			const decoder = new TextDecoder();
-
-			let buffer = "";
-			let assistantMessage = "";
-			let pendingToolCalls: any[] = [];
-
-			while (true) {
-				const { value, done } = await reader.read();
-				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split("\n");
-				buffer = lines.pop()!;
-
-				for (const line of lines) {
-				if (!line.trim()) continue;
-
-				let json: any;
-				try {
-					json = JSON.parse(line);
-				} catch {
-					continue;
-				}
-
-				if (json.message?.content) {
-					assistantMessage += json.message.content;
-					event.sender.send("ollama:chat-token", json.message.content);
-				}
-
-				if (json.message?.tool_calls) {
-					pendingToolCalls.push(...json.message.tool_calls);
-				}
-
-				if (json.done === true) break;
-				}
-			}
-
-			if (assistantMessage.trim()) {
-				chatHistory.push({ role: "assistant", content: assistantMessage });
-			}
-
-			if (pendingToolCalls.length > 0) {
-				for (const toolCall of pendingToolCalls) {
-				let asset: any = null;
-				let toolResult: any = null;
-
-				const args =
-					typeof toolCall.function.arguments === "string"
-					? JSON.parse(toolCall.function.arguments)
-					: toolCall.function.arguments;
-
-				if (toolCall.function.name === "duckduckgo_search") {
-					toolResult = await duckDuckGoSearch(args.query);
-				} else if (toolCall.function.name === "generate_image") {
-					LOG("GenerateImage", "TOOL CALL START", toolCall);
-
-					toolResult = await GenerateImage(args.prompt, args.height, args.width);
-				  	LOG("GenerateImage", "TOOL CALL SUCCESS", {
-						hasAsset: !!toolResult?.asset,
+					body.tools = [];
+					res = await fetch("http://localhost:11434/api/chat", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(body),
+						signal: chatAbortController.signal,
 					});
-					asset = toolResult.asset;
-					toolResult = toolResult.modelPayload;
+					if (!res.body) {
+						event.sender.send(
+							"ollama:chat-error",
+							"No response stream"
+						);
+						return;
+					}
+					if (!res.ok) {
+						const errorText = await res.text();
+						event.sender.send(
+							"ollama:chat-error",
+							`Error: ${res.status} ${errorText}`
+						);
+						return;
+					}
 				}
 
-				chatHistory.push({
-					role: "tool",
-					name: toolCall.function.name,
-					content: JSON.stringify(toolResult),
-					asset
-				});
-				event.sender.send("ollama:image-result", asset);
-				saveSessions({ chatHistory });
-				}
-				const followUpRes = await fetch(
-				"http://localhost:11434/api/chat",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-					model: modelName,
-					stream: true,
-					messages: [
-					{ role: "system", content: systemPrompt },
-					...messagesForModel(chatHistory),
-					],
-					tools,
-					}),
-					signal: chatAbortController.signal,
-				}
-				);
+				const reader = res.body.getReader();
+				const decoder = new TextDecoder();
 
-				if (!followUpRes.body) {
-					event.sender.send("ollama:chat-error", "No follow-up stream");
-					return;
-				}
-
-				const followUpReader = followUpRes.body.getReader();
-				buffer = "";
-				assistantMessage = "";
+				let buffer = "";
+				let assistantMessage = "";
+				let pendingToolCalls: any[] = [];
 
 				while (true) {
-					const { value, done } = await followUpReader.read();
+					const { value, done } = await reader.read();
 					if (done) break;
 
 					buffer += decoder.decode(value, { stream: true });
@@ -490,14 +401,21 @@ function register(): void {
 
 						let json: any;
 						try {
-						json = JSON.parse(line);
+							json = JSON.parse(line);
 						} catch {
-						continue;
+							continue;
 						}
 
 						if (json.message?.content) {
-						assistantMessage += json.message.content;
-						event.sender.send("ollama:chat-token", json.message.content);
+							assistantMessage += json.message.content;
+							event.sender.send(
+								"ollama:chat-token",
+								json.message.content
+							);
+						}
+
+						if (json.message?.tool_calls) {
+							pendingToolCalls.push(...json.message.tool_calls);
 						}
 
 						if (json.done === true) break;
@@ -505,11 +423,119 @@ function register(): void {
 				}
 
 				if (assistantMessage.trim()) {
-				chatHistory.push({ role: "assistant", content: assistantMessage });
+					chatHistory.push({
+						role: "assistant",
+						content: assistantMessage,
+					});
 				}
-			}
 
-			event.sender.send("ollama:chat-done");
+				if (pendingToolCalls.length > 0) {
+					for (const toolCall of pendingToolCalls) {
+						let asset: any = null;
+						let toolResult: any = null;
+
+						const args =
+							typeof toolCall.function.arguments === "string"
+								? JSON.parse(toolCall.function.arguments)
+								: toolCall.function.arguments;
+
+						if (toolCall.function.name === "duckduckgo_search") {
+							toolResult = await duckDuckGoSearch(args.query);
+						} else if (
+							toolCall.function.name === "generate_image"
+						) {
+							LOG("GenerateImage", "TOOL CALL START", toolCall);
+
+							toolResult = await GenerateImage(
+								args.prompt,
+								args.height,
+								args.width
+							);
+							LOG("GenerateImage", "TOOL CALL SUCCESS", {
+								hasAsset: !!toolResult?.asset,
+							});
+							asset = toolResult.asset;
+							toolResult = toolResult.modelPayload;
+						}
+
+						chatHistory.push({
+							role: "tool",
+							name: toolCall.function.name,
+							content: JSON.stringify(toolResult),
+							asset,
+						});
+						event.sender.send("ollama:image-result", asset);
+						saveSessions({ chatHistory });
+					}
+					const followUpRes = await fetch(
+						"http://localhost:11434/api/chat",
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({
+								model: modelName,
+								stream: true,
+								messages: [
+									{ role: "system", content: systemPrompt },
+									...messagesForModel(chatHistory),
+								],
+								tools,
+							}),
+							signal: chatAbortController.signal,
+						}
+					);
+
+					if (!followUpRes.body) {
+						event.sender.send(
+							"ollama:chat-error",
+							"No follow-up stream"
+						);
+						return;
+					}
+
+					const followUpReader = followUpRes.body.getReader();
+					buffer = "";
+					assistantMessage = "";
+
+					while (true) {
+						const { value, done } = await followUpReader.read();
+						if (done) break;
+
+						buffer += decoder.decode(value, { stream: true });
+						const lines = buffer.split("\n");
+						buffer = lines.pop()!;
+
+						for (const line of lines) {
+							if (!line.trim()) continue;
+
+							let json: any;
+							try {
+								json = JSON.parse(line);
+							} catch {
+								continue;
+							}
+
+							if (json.message?.content) {
+								assistantMessage += json.message.content;
+								event.sender.send(
+									"ollama:chat-token",
+									json.message.content
+								);
+							}
+
+							if (json.done === true) break;
+						}
+					}
+
+					if (assistantMessage.trim()) {
+						chatHistory.push({
+							role: "assistant",
+							content: assistantMessage,
+						});
+					}
+				}
+
+				event.sender.send("ollama:chat-done");
 			} catch (err) {
 				if ((err as Error).name === "AbortError") {
 					event.sender.send("ollama:chat-aborted");
@@ -530,7 +556,6 @@ function register(): void {
 		}
 	});
 
-
 	ipcMain.handle(
 		"ollama:pull",
 		(_event: IpcMainEvent, modelName: string): Promise<string> => {
@@ -539,7 +564,10 @@ function register(): void {
 
 				const sendProgress = (data: Buffer) => {
 					const clean = stripAnsi(data.toString());
-					const payload: PullProgress = { model: modelName, output: clean };
+					const payload: PullProgress = {
+						model: modelName,
+						output: clean,
+					};
 					const win = BrowserWindow.getAllWindows()[0];
 					if (win) {
 						win.webContents.send("ollama:pull-progress", payload);
@@ -562,14 +590,16 @@ function register(): void {
 			saveSessions(sessions)
 	);
 
-	ipcMain.handle('ollama:available', async () => {
-		  try {
-			const { stdout } = await execFileAsync(ollamaPath, ['--version'], { timeout: 7000 });
-			return typeof stdout === 'string' && stdout.trim().length > 0;
+	ipcMain.handle("ollama:available", async () => {
+		try {
+			const { stdout } = await execFileAsync(ollamaPath, ["--version"], {
+				timeout: 7000,
+			});
+			return typeof stdout === "string" && stdout.trim().length > 0;
 		} catch (err) {
 			return false;
 		}
-	})
+	});
 }
 
 function saveSessions(sessions: Record<string, unknown>): void {
