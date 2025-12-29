@@ -571,6 +571,15 @@ async function autoNameSession(
 		}),
 	});
 	let data;
+	if (!response.ok) {
+    console.error("[autoNameSession] API error status:", response.status, response.statusText);
+		showNotification({
+			message: `Failed to auto-name session: ${response.status} ${response.statusText}`,
+			type: "error",
+		});
+		return new Date().toLocaleString();
+;
+	}
 	try {
 		data = await response.json();
 	} catch (err) {
@@ -580,7 +589,7 @@ async function autoNameSession(
 				"Failed to auto-name session: invalid response from model API.",
 			type: "error",
 		});
-		return "";
+		return new Date().toLocaleString();
 	}
 	if (!data || !data.message || typeof data.message.content !== "string") {
 		console.error("[autoNameSession] Unexpected API response:", data);
@@ -589,10 +598,9 @@ async function autoNameSession(
 				"Failed to auto-name session: unexpected response from model API.",
 			type: "error",
 		});
-		return "";
+		return new Date().toLocaleString();
 	}
 	let title = data.message.content.trim();
-	// Remove surrounding quotes if present
 	if (
 		(title.startsWith('"') && title.endsWith('"')) ||
 		(title.startsWith("'") && title.endsWith("'"))
