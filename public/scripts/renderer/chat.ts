@@ -905,31 +905,33 @@ function renderChat() {
 			botContainer.className = "chat-bubble bot-bubble";
 
 			Array.from(temp.childNodes).forEach((node) => {
+				const el = node as HTMLElement;
 				if (
-					node.nodeType === Node.ELEMENT_NODE &&
-					node.tagName.toLowerCase() === "pre"
+					el.nodeType === Node.ELEMENT_NODE &&
+					el.tagName.toLowerCase() === "pre"
 				) {
-					const preEl = node;
+					const preEl = el as HTMLPreElement;
 					const codeEl = preEl.querySelector("code");
 
 					let lang = "code";
-					if (codeEl?.className) {
+
+					if (codeEl.className) {
 						const match =
 							codeEl.className.match(/language-([\w-]+)/);
 						if (match) lang = match[1];
 					}
 
-					const codeBubble = document.createElement("div");
+					const codeBubble = document.createElement("div") as HTMLDivElement;
 					codeBubble.className = "ai-code-bubble";
 
-					const header = document.createElement("div");
+					const header = document.createElement("div") as HTMLDivElement;
 					header.className = "ai-code-header";
 
-					const langLabel = document.createElement("span");
+					const langLabel = document.createElement("span") as HTMLSpanElement;
 					langLabel.className = "ai-code-lang";
 					langLabel.textContent = lang;
 
-					const copyBtn = document.createElement("button");
+					const copyBtn = document.createElement("button") as HTMLButtonElement;
 					copyBtn.className = "ai-copy-btn";
 					copyBtn.textContent = "Copy";
 					copyBtn.onclick = () => {
@@ -955,13 +957,13 @@ function renderChat() {
 		}
 
 		if (msg.role === "image") {
-			const botContainer = document.createElement("div");
+			const botContainer = document.createElement("div") as HTMLDivElement;
 			botContainer.className = "chat-bubble image-bubble";
 
-			const imageWrapper = document.createElement("div");
+			const imageWrapper = document.createElement("div") as HTMLDivElement;
 			imageWrapper.className = "image-wrapper";
 
-			const img = document.createElement("img");
+			const img = document.createElement("img") as HTMLImageElement;
 			img.src = msg.content;
 			img.alt = "Generated image";
 
@@ -972,7 +974,7 @@ function renderChat() {
 
 			downloadBtn.onclick = (e) => {
 				e.stopPropagation();
-				const a = document.createElement("a");
+				const a = document.createElement("a") as HTMLLinkElement;
 				a.href = msg.content;
 				a.download = `image-${Date.now()}.png`;
 				document.body.appendChild(a);
