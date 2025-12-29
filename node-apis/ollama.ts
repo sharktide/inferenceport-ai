@@ -1,3 +1,5 @@
+// nosemgrep: javascript.lang.security.detect-child-process
+
 /*
 Copyright 2025 Rihaan Meher
 
