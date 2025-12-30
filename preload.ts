@@ -14,93 +14,75 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const { contextBridge, ipcRenderer } = require("electron");
-import type { IpcMainInvokeEvent, IpcRendererEvent } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
+import type { IpcRendererEvent } from "electron";
 
-type ModelInfo = {
+type Role = "user" | "assistant" | "tool" | "system" | "image";
+type AssetRole = "image";
+type ChatMessage = {
+	role: Role
+	content: string;
+	tool_calls?: { function: any }[]
+};
+
+type ChatAsset = {
+	role: AssetRole
+	content: string
+}
+
+export type ModelInfo = {
 	name: string;
 	id: string;
 	size: string;
 	modified: string;
 };
 
-type PullProgress = {
+export type PullProgress = {
 	model: string;
 	output: string;
 };
 
-type Session = {
-  name: string;
-  model: string;
-  favorite: boolean;
-  history: Message[];
+export type Session = {
+	name: string;
+	model: string;
+	favorite: boolean;
+	history: ChatMessage[];
 };
 
-type Message = {
-  session_id: string;
-  role: string;
-  content: string;
-}
-
-type Sessions = Record<string, Session>;
+export type Sessions = Record<string, Session>;
 
 contextBridge.exposeInMainWorld("ollama", {
+	// ===== Models =====
 	listModels: (): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list"),
-
-	runModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:run", name),
-
-	deleteModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:delete", name),
-
+	runModel: (name: string): Promise<string> => ipcRenderer.invoke("ollama:run", name),
+	deleteModel: (name: string): Promise<string> => ipcRenderer.invoke("ollama:delete", name),
 	resetChat: (): Promise<void> => ipcRenderer.invoke("ollama:reset"),
-
-	stop: (): void => ipcRenderer.send("ollama:stop"),
-
-	pullModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:pull", name),
-
-	onPullProgress: (cb: (data: PullProgress) => void): void =>
-		ipcRenderer.on(
-			"ollama:pull-progress",
-			(__: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
-		),
+	pullModel: (name: string): Promise<string> => ipcRenderer.invoke("ollama:pull", name),
+	onPullProgress: (cb: (data: PullProgress) => void): void => {
+		ipcRenderer.on("ollama:pull-progress", (_e: Electron.IpcRendererEvent, data) => cb(data));
+	},
+	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
 
 	streamPrompt: (model: string, prompt: string, searchEnabled: boolean, imgEnabled: boolean): void =>
 		ipcRenderer.send("ollama:chat-stream", model, prompt, searchEnabled, imgEnabled),
+	stop: (): void => ipcRenderer.send("ollama:stop"),
 
-	onNewImage: (cb: (response: any) => void): void =>
-		ipcRenderer.on(
-			"ollama:image-result",
-			(__: Electron.IpcRendererEvent, response: any) => cb(response)
-		),
+	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
+		ipcRenderer.on("ollama:new-asset", (_e: Electron.IpcRendererEvent, msg: ChatAsset) => cb(msg));
+	},
 
-	onResponse: (cb: (token: string) => void): void =>
-		ipcRenderer.on(
-			"ollama:chat-token",
-			(__: Electron.IpcRendererEvent, token: string) => cb(token)
-		),
-
-	onError: (cb: (err: string) => void): void =>
-		ipcRenderer.on(
-			"ollama:chat-error",
-			(__: Electron.IpcRendererEvent, err: string) => cb(err)
-		),
-
-	onDone: (cb: () => void): void =>
-		ipcRenderer.on("ollama:chat-done", () => cb()),
-
-	onAbort: (cb: () => void): void =>
-		ipcRenderer.on("ollama:chat-aborted", () => cb()),
+	onResponse: (cb: (token: string) => void): void => {
+		ipcRenderer.on("ollama:chat-token", (_e: Electron.IpcRendererEvent, token: string) => cb(token));
+	},
+	onError: (cb: (err: string) => void): void => {
+		ipcRenderer.on("ollama:chat-error", (_e: Electron.IpcRendererEvent, err: string) => cb(err));
+	},
+	onDone: (cb: () => void): void => { ipcRenderer.on("ollama:chat-done", cb) },
+	onAbort: (cb: () => void): void => { ipcRenderer.on("ollama:chat-aborted", cb) },
 
 	load: (): Promise<Sessions> => ipcRenderer.invoke("sessions:load"),
-
-	save: (sessions: Sessions): Promise<void> =>
-		ipcRenderer.invoke("sessions:save", sessions),
-
+	save: (sessions: Sessions): Promise<void> => ipcRenderer.invoke("sessions:save", sessions),
 	getPath: (): Promise<string> => ipcRenderer.invoke("session:getPath"),
-
-	isAvailable: async (): Promise<boolean> => ipcRenderer.invoke('ollama:available'),
 
 	removeAllListeners: (): void => {
 		ipcRenderer.removeAllListeners("ollama:chat-token");
@@ -109,63 +91,47 @@ contextBridge.exposeInMainWorld("ollama", {
 	},
 });
 
+// ===== Utilities =====
 contextBridge.exposeInMainWorld("utils", {
-	web_open: (url: string): Promise<void> =>
-		ipcRenderer.invoke("utils:web_open", url),
-
+	web_open: (url: string) => ipcRenderer.invoke("utils:web_open", url),
 	markdown_parse_and_purify: (markdown: string): string =>
 		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),
-
-	DOMPurify: (html: string): string =>
-		ipcRenderer.sendSync("utils:DOMPurify", html),
-
-	saveFile: (filePath: string, content: string): Promise<void> => {
-		return ipcRenderer.invoke('utils:saveFile', filePath, content);
-	},
-	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
-	getWarning: (modelSize: string) =>
-		ipcRenderer.invoke('utils:get-hardware-performance-warning', modelSize),
-	isFirstLaunch: () => ipcRenderer.invoke("utils:is-first-launch"),
-  	resetFirstLaunch: () => ipcRenderer.invoke("utils:reset-first-launch")
+	DOMPurify: (html: string): string => ipcRenderer.sendSync("utils:DOMPurify", html),
+	saveFile: (filePath: string, content: string) => ipcRenderer.invoke("utils:saveFile", filePath, content),
+	getPath: () : Promise<string> => ipcRenderer.invoke("utils:getPath"),
+	getWarning: (modelSize: string) => ipcRenderer.invoke("utils:get-hardware-performance-warning", modelSize),
+	isFirstLaunch: (): Promise<boolean> => ipcRenderer.invoke("utils:is-first-launch"),
+	resetFirstLaunch: (): Promise<void> => ipcRenderer.invoke("utils:reset-first-launch"),
 });
 
+// ===== HF Spaces =====
 contextBridge.exposeInMainWorld("hfspaces", {
-	get_cards: (): string =>
-		ipcRenderer.invoke("hfspaces:get-cards"),
-	delete: (username: string, repo: string): void =>
-		ipcRenderer.invoke("hfspaces:delete", username, repo),
-    share: (username: string, repo: string) => ipcRenderer.invoke("hfspaces:share", username, repo),
-	get_website_cards: (): string =>
-		ipcRenderer.invoke("hfspaces:get-website-cards"),
-	delete_website: (url: string): void =>
-		ipcRenderer.invoke("hfspaces:delete-website", url),
-    share_website: (url: string, title: string) => ipcRenderer.invoke("hfspaces:share-website", url, title)
-})
-
-contextBridge.exposeInMainWorld('auth', {
-	signInWithEmail: (email: string, password: string) =>
-		ipcRenderer.invoke('auth:signInWithEmail', email, password),
-
-	signUpWithEmail: (email: string, password: string) =>
-		ipcRenderer.invoke('auth:signUpWithEmail', email, password),
-
-	signOut: () => ipcRenderer.invoke('auth:signOut'),
-
-	getSession: () => ipcRenderer.invoke('auth:getSession'),
-
-	onAuthStateChange: (callback: (session: any) => void) => {
-		ipcRenderer.invoke('auth:onAuthStateChange');
-		ipcRenderer.on('auth:stateChanged', (_event: IpcMainInvokeEvent, session: Session) => {
-		callback(session);
-		});
-	},
-	resetPassword: async (email: string) => await ipcRenderer.invoke("auth:resetPassword", email),
-	verifyPassword: async (password: string) => await ipcRenderer.invoke("auth:verify-password", { password }),
-	deleteAccount: async () => await ipcRenderer.invoke("auth:delete-account"),
-	setUsername: (userId: string, username: string) => ipcRenderer.invoke('auth:setUsername', userId, username),
+	get_cards: () => ipcRenderer.invoke("hfspaces:get-cards"),
+	delete: (username: string, repo: string) => ipcRenderer.invoke("hfspaces:delete", username, repo),
+	share: (username: string, repo: string) => ipcRenderer.invoke("hfspaces:share", username, repo),
+	get_website_cards: () => ipcRenderer.invoke("hfspaces:get-website-cards"),
+	delete_website: (url: string) => ipcRenderer.invoke("hfspaces:delete-website", url),
+	share_website: (url: string, title: string) => ipcRenderer.invoke("hfspaces:share-website", url, title),
 });
 
+// ===== Authentication =====
+contextBridge.exposeInMainWorld("auth", {
+	signInWithEmail: (email: string, password: string) => ipcRenderer.invoke("auth:signInWithEmail", email, password),
+	signUpWithEmail: (email: string, password: string) => ipcRenderer.invoke("auth:signUpWithEmail", email, password),
+	signOut: () => ipcRenderer.invoke("auth:signOut"),
+	getSession: () => ipcRenderer.invoke("auth:getSession"),
+	onAuthStateChange: (callback: (session: Session) => void) => {
+		ipcRenderer.invoke("auth:onAuthStateChange");
+		ipcRenderer.on("auth:stateChanged", (_e, session) => callback(session));
+	},
+	resetPassword: (email: string) => ipcRenderer.invoke("auth:resetPassword", email),
+	verifyPassword: (password: string) => ipcRenderer.invoke("auth:verify-password", { password }),
+	deleteAccount: () => ipcRenderer.invoke("auth:delete-account"),
+	setUsername: (userId: string, username: string) => ipcRenderer.invoke("auth:setUsername", userId, username),
+});
+
+// ===== Sync =====
 contextBridge.exposeInMainWorld("sync", {
- 	getRemoteSessions: () => ipcRenderer.invoke("sync:getRemoteSessions"),
-  	saveAllSessions: (sessions: Record<string, Sessions>) => ipcRenderer.invoke("sync:saveAllSessions", sessions),
+	getRemoteSessions: () => ipcRenderer.invoke("sync:getRemoteSessions"),
+	saveAllSessions: (sessions: Record<string, Sessions>) => ipcRenderer.invoke("sync:saveAllSessions", sessions),
 });

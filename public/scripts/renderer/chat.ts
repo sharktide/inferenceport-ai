@@ -1017,19 +1017,60 @@ function renderChat() {
 	}
 }
 
-window.ollama.onNewImage((asset) => {
-	if (!currentSessionId || !sessions[currentSessionId]) {
-		console.warn("[onNewImage] No active session, dropping image");
-		return;
+function renderImageAsset(dataUrl: string) {
+	const chatBox = document.getElementById("chat-box");
+	if (!chatBox) return;
+
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const imageWrapper = document.createElement("div");
+	imageWrapper.className = "image-wrapper";
+
+	const img = document.createElement("img");
+	img.src = dataUrl;
+	img.alt = "Generated image";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `image-${Date.now()}.png`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	imageWrapper.appendChild(img);
+	imageWrapper.appendChild(downloadBtn);
+	botContainer.appendChild(imageWrapper);
+
+	chatBox.appendChild(botContainer);
+
+	if (autoScroll) {
+		chatBox.scrollTop = chatBox.scrollHeight;
 	}
+}
+
+window.ollama.onNewAsset((msg) => {
+	console.log("Received new asset:", msg);
+
+	if (!currentSessionId || !sessions[currentSessionId]) return;
+	console.log("Current session ID:", currentSessionId);
 
 	const session = sessions[currentSessionId];
-
-	const dataUrl = asset.base64.startsWith("data:")
-		? asset.base64
-		: `data:image/png;base64,${asset.base64}`;
-
 	const last = session.history.at(-1);
+
+	if (last?.role === msg.role && last?.content === msg.content) return;
+	window.ollama.save(sessions);
+
+	const dataUrl = msg.content.startsWith("data:")
+		? msg.content
+		: `data:image/png;base64,${msg.content}`;
+
+
 	if (last?.role === "image" && last.content === dataUrl) {
 		return;
 	}
@@ -1039,7 +1080,5 @@ window.ollama.onNewImage((asset) => {
 		content: dataUrl,
 	});
 
-	window.ollama.save(sessions);
-
-	renderChat();
+	renderImageAsset(dataUrl);
 });

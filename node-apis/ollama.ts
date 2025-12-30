@@ -17,7 +17,6 @@ limitations under the License.
 */
 
 const { app, ipcMain, BrowserWindow } = require("electron");
-//@ts-ignore
 import type { IpcMain, IpcMainEvent } from "electron";
 const fs = require("fs");
 const path = require("path");
@@ -43,13 +42,18 @@ const ollamaPath = isDev
 			ollamaBinary
 	  );
 
+type Role = "user" | "assistant" | "tool" | "system" | "image";
+type AssetRole = "image";
 type ChatMessage = {
-	role: "user" | "assistant" | "tool" | "system" | "image";
+	role: Role
 	content: string;
-	tool_calls?: { function: any }[];
-	name?: string | undefined;
-	asset?: { id: string; type: "image"; mime: string; base64: string };
+	tool_calls?: { function: any }[]
 };
+
+type ChatAsset = {
+	role: AssetRole
+	content: string
+}
 
 const availableTools = [
 	{
@@ -151,7 +155,7 @@ function createAssetId(): string {
 }
 
 function messagesForModel(history: ChatMessage[]): ChatMessage[] {
-	return history.map(({ content, role, name }) => ({ content, role, name }));
+	return history.map(({ content, role }) => ({ content, role }));
 }
 
 async function GenerateImage(prompt: string, width: number, height: number) {
@@ -221,14 +225,9 @@ async function GenerateImage(prompt: string, width: number, height: number) {
 	LOG(trace, "EXIT GenerateImage OK");
 
 	return {
-		asset: {
-			base64,
-			mime: contentType || "image/unknown",
-			width,
-			height,
-			trace,
-		},
+		dataUrl: `data:${contentType || "image/png"};base64,${base64}`,
 	};
+
 }
 
 function LOG(trace: string, label: string, ...args: any[]) {
@@ -448,25 +447,31 @@ function register(): void {
 						) {
 							LOG("GenerateImage", "TOOL CALL START", toolCall);
 
-							toolResult = await GenerateImage(
+							const { dataUrl } = await GenerateImage(
 								args.prompt,
 								args.height,
 								args.width
 							);
 							LOG("GenerateImage", "TOOL CALL SUCCESS", {
-								hasAsset: !!toolResult?.asset,
+								hasDataUrl: !!dataUrl,
 							});
-							asset = toolResult.asset;
-							toolResult = toolResult.modelPayload;
+
+							const assetToSend: ChatAsset = {
+								role: "image",
+								content: dataUrl,
+							};
+
+							console.log("Sending new asset:", assetToSend);
+
+							event.sender.send("ollama:new-asset", assetToSend);
+
+							toolResult = "Image generated successfully.";
 						}
 
 						chatHistory.push({
 							role: "tool",
-							name: toolCall.function.name,
 							content: JSON.stringify(toolResult),
-							asset,
 						});
-						event.sender.send("ollama:image-result", asset);
 						saveSessions({ chatHistory });
 					}
 					const followUpRes = await fetch(

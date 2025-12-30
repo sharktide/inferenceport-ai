@@ -35,6 +35,7 @@ declare global {
             getPath: () => Promise<string>;
             removeAllListeners: () => void;
             isAvailable: () => boolean;
+            onNewAsset: (cb: (msg: ChatAsset) => void) => void;
         };
 
         utils: {
