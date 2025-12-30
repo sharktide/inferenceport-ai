@@ -449,8 +449,8 @@ function register(): void {
 
 							const { dataUrl } = await GenerateImage(
 								args.prompt,
-								args.height,
-								args.width
+								args.width,
+								args.height
 							);
 							LOG("GenerateImage", "TOOL CALL SUCCESS", {
 								hasDataUrl: !!dataUrl,
