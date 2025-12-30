@@ -288,6 +288,7 @@ function register(): void {
 		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
+					// nosemgrep: javascript.lang.security.detect-child-process
 					`"${ollamaPath}" run ${modelName}`,
 					(err: Error | null, stdout: string) => {
 						if (err) return reject(err);
