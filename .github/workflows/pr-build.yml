@@ -1,0 +1,121 @@
+name: Build Electron App (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-win64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '23'
+
+      - name: Install dependencies
+        run: npm ci && npm install -g typescript
+
+      - name: Build Electron app (unsigned)
+        run: npm run build
+
+      - name: Upload Windows x64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Electron-win64-build
+          path: dist/*
+
+  build-arm:
+    runs-on: windows-11-arm
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci && npm install -g typescript
+
+      - name: Build Electron app (unsigned)
+        run: npm run build
+
+      - name: Upload Windows ARM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Electron-winaarch64-build
+          path: dist/*
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '23'
+
+      - name: Install dependencies
+        run: npm ci && npm install -g typescript
+
+      - name: Build Electron app (unsigned)
+        run: npm run build
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Electron-macOS-build
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.pkg
+
+  build-macos-x86:
+    runs-on: macos-15-intel
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '23'
+
+      - name: Install dependencies
+        run: npm ci && npm install -g typescript
+
+      - name: Build Electron app (unsigned)
+        run: npm run build
+
+      - name: Upload macOS x86 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Electron-macOS-x86-build
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.pkg
+
+  comment-artifacts:
+    runs-on: ubuntu-latest
+    needs: [build-win64, build-arm, build-macos, build-macos-x86]
+    steps:
+      - name: Generate artifact summary
+        run: |
+          echo "### Unsigned Build Artifacts" > artifacts.md
+          echo "- Windows x64: Electron-win64-build" >> artifacts.md
+          echo "- Windows ARM: Electron-winaarch64-build" >> artifacts.md
+          echo "- macOS (Apple Silicon): Electron-macOS-build" >> artifacts.md
+          echo "- macOS (Intel): Electron-macOS-x86-build" >> artifacts.md
+
+      - name: Comment on PR with artifact summary
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: artifacts.md
