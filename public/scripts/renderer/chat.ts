@@ -18,7 +18,13 @@ limitations under the License.
 
 import { urlToHttpOptions } from "url";
 import { showNotification } from "../helper/notification.js";
-import { mergeLocalAndRemoteSessions, LocalSessionMap, RemoteSessionMap, safeCallRemote, isOffline } from "../helper/sync.js";
+import {
+	mergeLocalAndRemoteSessions,
+	LocalSessionMap,
+	RemoteSessionMap,
+	safeCallRemote,
+	isOffline,
+} from "../helper/sync.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -27,20 +33,35 @@ const chatBox = document.getElementById("chat-box") as HTMLDivElement;
 const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
-const modelSelect = document.getElementById("model-select") as HTMLOptionElement;
+const modelSelect = document.getElementById(
+	"model-select"
+) as HTMLSelectElement;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
-const newSessionBtn = document.getElementById("new-session-btn") as HTMLButtonElement;
+const newSessionBtn = document.getElementById(
+	"new-session-btn"
+) as HTMLButtonElement;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
-const modalTitle = document.getElementById("file-preview-title") as HTMLTitleElement;
-const modalContent = document.getElementById("file-preview-content") as HTMLPreElement;
-const modalClose = document.getElementById("file-preview-close") as HTMLButtonElement;
-
+const modalTitle = document.getElementById(
+	"file-preview-title"
+) as HTMLTitleElement;
+const modalContent = document.getElementById(
+	"file-preview-content"
+) as HTMLPreElement;
+const modalClose = document.getElementById(
+	"file-preview-close"
+) as HTMLButtonElement;
+const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
+const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
+const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
+const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
+let searchEnabled = false;
+let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
-modelSelect?.addEventListener('change', setTitle)
+modelSelect?.addEventListener("change", setTitle);
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -50,7 +71,7 @@ function stripAnsi(str: string): string {
 
 function isSyncEnabled() {
 	try {
-		return localStorage.getItem('sync_enabled') === 'true';
+		return localStorage.getItem("sync_enabled") === "true";
 	} catch (e) {
 		return false;
 	}
@@ -113,9 +134,12 @@ async function loadOptions() {
 		/* -------- Local sessions -------- */
 		try {
 			const local = await window.ollama.load();
-			sessions = (local && typeof local === "object") ? local : {};
+			sessions = local && typeof local === "object" ? local : {};
 		} catch (e) {
-			console.warn("Failed to load local sessions:", e);
+			console.warn(
+				"Failed to load local sessions, starting with empty:",
+				e
+			);
 			sessions = {};
 		}
 		setSessionProgress(20);
@@ -147,7 +171,6 @@ async function loadOptions() {
 				else if (modelSelect.value === "manage-models")
 					window.location.href = "../installed.html";
 			});
-
 		} catch (err) {
 			console.warn("Could not list models:", err);
 			modelSelect.innerHTML = `<option>error loading models</option>`;
@@ -188,9 +211,12 @@ async function loadOptions() {
 				await window.ollama.save(sessions);
 				setSessionProgress(90);
 
-				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
-				);
+				const freshAuth = await window.auth.getSession();
+				if (freshAuth?.session?.user) {
+					await safeCallRemote(() =>
+						window.sync.saveAllSessions(sessions)
+					);
+				}
 			}
 		}
 
@@ -200,13 +226,17 @@ async function loadOptions() {
 		renderChat();
 		setSessionProgress(95);
 
-		if (urlParams.model) {
-			modelSelect.value = urlParams.model;
-		} else {
-			modelSelect.value =
-				sessions[currentSessionId]?.model ?? modelSelect.value;
+		try {
+			if (urlParams.model != null) {
+				modelSelect.value = urlParams.model;
+			} else {
+				modelSelect.value =
+					sessions[currentSessionId]?.model ?? modelSelect.value;
+			}
+		} catch (e) {
+			console.warn(e);
+			void 0;
 		}
-
 	} catch (err) {
 		console.error(err);
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
@@ -215,13 +245,13 @@ async function loadOptions() {
 
 		if (await isOffline()) {
 			showNotification({
-				message: "⚠️ No internet connection — Using offline sessions only.",
+				message:
+					"⚠️ No internet connection — Using offline sessions only.",
 				type: "warning",
 			});
 		}
 	}
 }
-
 
 function generateSessionId() {
 	return crypto.randomUUID();
@@ -240,7 +270,7 @@ function showContextMenu(x, y, sessionId, sessionName) {
 		} else if (action === "delete") {
 			deleteSession(sessionId);
 		} else if (action === "report") {
-			openReportDialog()
+			openReportDialog();
 		}
 		closeContextMenu();
 	};
@@ -267,36 +297,44 @@ function deleteSession(sessionId) {
 
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
-				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+				await safeCallRemote(() =>
+					window.sync.saveAllSessions(sessions)
+				);
 			}
 			renderSessionList();
 			location.reload();
-		})
+		});
 	}
 }
 
 function openReportDialog(): void {
-	const dialog = document.getElementById('report-dialog') as HTMLDivElement;
-	const cancelBtn = document.getElementById('report-close') as HTMLButtonElement;
+	const dialog = document.getElementById("report-dialog") as HTMLDivElement;
+	const cancelBtn = document.getElementById(
+		"report-close"
+	) as HTMLButtonElement;
 	dialog.classList.remove("hidden");
 	const closeDialog = () => dialog.classList.add("hidden");
-	cancelBtn.removeEventListener('click', closeDialog);
-	cancelBtn.addEventListener('click', closeDialog);
-	return void 0
+	cancelBtn.removeEventListener("click", closeDialog);
+	cancelBtn.addEventListener("click", closeDialog);
+	return void 0;
 }
 
 function openRenameDialog(sessionId, currentName): void {
 	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
 	const input = document.getElementById("rename-input") as HTMLInputElement;
-	const cancelBtn = document.getElementById("rename-cancel") as HTMLButtonElement;
-	const confirmBtn = document.getElementById("rename-confirm") as HTMLButtonElement;
+	const cancelBtn = document.getElementById(
+		"rename-cancel"
+	) as HTMLButtonElement;
+	const confirmBtn = document.getElementById(
+		"rename-confirm"
+	) as HTMLButtonElement;
 
 	input.value = currentName;
 	dialog.classList.remove("hidden");
 
 	const closeDialog = () => dialog.classList.add("hidden");
-	cancelBtn.removeEventListener('click', closeDialog);
-	cancelBtn.addEventListener('click', closeDialog);
+	cancelBtn.removeEventListener("click", closeDialog);
+	cancelBtn.addEventListener("click", closeDialog);
 	function rename() {
 		const newName = input.value.trim();
 		if (newName) {
@@ -304,17 +342,19 @@ function openRenameDialog(sessionId, currentName): void {
 			window.ollama.save(sessions);
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
-					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+					await safeCallRemote(() =>
+						window.sync.saveAllSessions(sessions)
+					);
 				}
 				renderSessionList();
-			})
+			});
 			renderSessionList();
 		}
 		closeDialog();
 	}
-	confirmBtn.removeEventListener('click', rename);
-	confirmBtn.addEventListener('click', rename);
-	return void 0
+	confirmBtn.removeEventListener("click", rename);
+	confirmBtn.addEventListener("click", rename);
+	return void 0;
 }
 
 function createNewSession(): void {
@@ -334,7 +374,7 @@ function createNewSession(): void {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
 		renderSessionList();
-	})
+	});
 	renderSessionList();
 	renderChat();
 	return void 0;
@@ -344,7 +384,7 @@ function handleSessionClick(sessionId): void {
 	currentSessionId = sessionId;
 	renderSessionList();
 	renderChat();
-	return void 0
+	return void 0;
 }
 
 function renderSessionList(): void {
@@ -354,7 +394,9 @@ function renderSessionList(): void {
 		document.getElementById("session-search")?.value?.toLowerCase() || "";
 
 	const sortedSessions = Object.entries(sessions)
-		.filter(([, session]) => session.name?.toLowerCase().includes(searchTerm))
+		.filter(([, session]) =>
+			session.name?.toLowerCase().includes(searchTerm)
+		)
 		.sort(([, a], [, b]) => {
 			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
 			return (a.name || "").localeCompare(b.name || "");
@@ -388,19 +430,21 @@ function renderSessionList(): void {
 
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
-					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+					await safeCallRemote(() =>
+						window.sync.saveAllSessions(sessions)
+					);
 				}
 				renderSessionList();
-			})
+			});
 			renderSessionList();
 		};
 
 		// Visible menu button (three dots) to open the session context menu without using right-click
 		const menuBtn = document.createElement("button");
 		menuBtn.className = "menu-btn";
-		menuBtn.setAttribute('aria-label', 'Open session menu');
-		menuBtn.title = 'Open session menu';
-		menuBtn.innerText = '⋯';
+		menuBtn.setAttribute("aria-label", "Open session menu");
+		menuBtn.title = "Open session menu";
+		menuBtn.innerText = "⋯";
 		menuBtn.onclick = (e) => {
 			e.stopPropagation(); // Prevent the click from bubbling and immediately closing the menu
 			const rect = menuBtn.getBoundingClientRect();
@@ -409,8 +453,8 @@ function renderSessionList(): void {
 			const y = rect.bottom + window.scrollY + 4;
 			showContextMenu(x, y, id, name);
 		};
-		menuBtn.addEventListener('keydown', (e) => {
-			if (e.key === 'Enter' || e.key === ' ') {
+		menuBtn.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
 				e.preventDefault();
 				e.stopPropagation();
 				const rect = menuBtn.getBoundingClientRect();
@@ -432,67 +476,19 @@ function renderSessionList(): void {
 			li.classList.add("merged-session");
 		}
 	});
-	return void 0
+	return void 0;
 }
-
-// function renderChat(): void {
-// 	if (!currentSessionId) {
-// 		currentSessionId = Object.keys(sessions)[0] || null;
-// 	}
-
-
-// 	const session = sessions[currentSessionId];
-// 	chatBox.innerHTML = "";
-
-// 	if (!session.history || session.history.length === 0) {
-// 		const emptyMsg = document.createElement("div");
-// 		emptyMsg.className = "empty-chat";
-// 		emptyMsg.textContent = "Start chatting to see messages here.";
-// 		chatBox.appendChild(emptyMsg);
-// 		return;
-// 	}
-
-// 	session.history.forEach((msg) => {
-// 		const bubble = document.createElement("div");
-// 		bubble.className = `chat-bubble ${
-// 			msg.role === "user" ? "user-bubble" : "bot-bubble"
-// 		}`;
-// 		bubble.innerHTML = window.utils.markdown_parse(msg.content);
-// 		chatBox.appendChild(bubble);
-// 	});
-
-// 	renderMathInElement(document.body, {
-// 		delimiters: [
-// 			{ left: '$$', right: '$$', display: true },
-// 			{ left: '$', right: '$', display: true },
-// 			{ left: '\\(', right: '\\)', display: false },
-// 			{ left: '\\[', right: '\\]', display: true }
-// 		],
-// 		throwOnError: false
-// 	});
-
-// 	document.querySelectorAll("pre code").forEach((block) => {
-// 		// hljs?.highlightElement?.(block); TODO
-// 		void 0
-// 	});
-
-// 	chatBox.scrollTop = chatBox.scrollHeight;
-// 	return void 0
-// }
 
 const actionBtn = document.getElementById("send");
 
 let isStreaming = false;
 let autoScroll = true;
 
-// Helper to check if chatBox is scrolled to bottom
 function isChatBoxAtBottom() {
 	return chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight < 5;
 }
 
-// Listen for user scrolls to toggle autoScroll
-chatBox.addEventListener('scroll', () => {
-	// If user scrolls to bottom, enable autoScroll
+chatBox.addEventListener("scroll", () => {
 	if (isChatBoxAtBottom()) {
 		autoScroll = true;
 	} else {
@@ -500,24 +496,45 @@ chatBox.addEventListener('scroll', () => {
 	}
 });
 
+searchBtn.addEventListener("click", () => {
+	if (searchEnabled) {
+		searchEnabled = false;
+		searchLabel.textContent = "Don't Search";
+	} else {
+		searchEnabled = true;
+		searchLabel.textContent = "Search";
+	}
+	console.log("searchEnabled", searchEnabled);
+});
+
+imgBtn.addEventListener("click", () => {
+	if (imgEnabled) {
+		imgEnabled = false;
+		imageLabel.textContent = "No Image";
+	} else {
+		imgEnabled = true;
+		imageLabel.textContent = "Image";
+	}
+	console.log("imgEnabled", imgEnabled);
+});
+
 let attachedFiles = [];
 
 attachBtn.addEventListener("click", () => fileInput.click());
 
 fileInput.addEventListener("change", async (e) => {
-  const files = Array.from(e.target.files);
-  for (const file of files) {
-    const text = await file.text();
-    attachedFiles.push({ name: file.name, content: text });
-  }
-  renderFileIndicator();
+	const files = Array.from(e.target.files);
+	for (const file of files) {
+		const text = await file.text();
+		attachedFiles.push({ name: file.name, content: text });
+	}
+	renderFileIndicator();
 });
 
-
 function formatAttachedFiles(files): string {
-  if (files.length === 0) return "";
+	if (files.length === 0) return "";
 
-  let output: string = `<details><summary>Attached Files</summary>\n\n`;
+	let output: string = `<details><summary>Attached Files</summary>\n\n`;
 	for (const file of files) {
 		output += `\n<details><summary>${file.name}</summary>\n\n`;
 		output += "```\n" + file.content + "\n```\n";
@@ -528,21 +545,20 @@ function formatAttachedFiles(files): string {
 }
 
 async function pullModel(name: string): Promise<void> {
-    try {
-        await window.ollama.pullModel(name);
-        showNotification({
-            message: `Model pulled: ${name}`,
-            type: "success",
-            actions: [{ label: "Ok", onClick: () => void 0 }],
-        });
-    } catch (err: any) {
-        showNotification({
-            message: `Error pulling model: ${err.message}`,
-            type: "error",
-        });
-    }
+	try {
+		await window.ollama.pullModel(name);
+		showNotification({
+			message: `Model pulled: ${name}`,
+			type: "success",
+			actions: [{ label: "Ok", onClick: () => void 0 }],
+		});
+	} catch (err: any) {
+		showNotification({
+			message: `Error pulling model: ${err.message}`,
+			type: "error",
+		});
+	}
 }
-
 
 window.ollama.onPullProgress(
 	({ model, output }: { model: string; output: string }) => {
@@ -596,7 +612,11 @@ window.ollama.onPullProgress(
 	}
 );
 
-async function autoNameSession(model: string, prompt: string, sessionId: string): Promise<string> {
+async function autoNameSession(
+	model: string,
+	prompt: string,
+	sessionId: string
+): Promise<string> {
 	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
 	const response = await fetch("http://localhost:11434/api/chat", {
 		method: "POST",
@@ -604,28 +624,57 @@ async function autoNameSession(model: string, prompt: string, sessionId: string)
 		body: JSON.stringify({
 			model,
 			messages: [
-				{ role: "system", content: "Name this session based on the user prompt that the user submits. Only respond with the title." },
-				{ role: "user", content: `Generate a short title for the following prompt:\n\n${prompt}` }
+				{
+					role: "system",
+					content:
+						"Name this session based on the user prompt that the user submits. Only respond with the title.",
+				},
+				{
+					role: "user",
+					content: `Generate a short title for the following prompt:\n\n${prompt}`,
+				},
 			],
 			stream: false,
 		}),
 	});
 	let data;
+	if (!response.ok) {
+		console.error(
+			"[autoNameSession] API error status:",
+			response.status,
+			response.statusText
+		);
+		showNotification({
+			message: `Failed to auto-name session: ${response.status} ${response.statusText}`,
+			type: "error",
+		});
+		return new Date().toLocaleString();
+	}
 	try {
 		data = await response.json();
 	} catch (err) {
 		console.error("[autoNameSession] Failed to parse JSON response:", err);
-		showNotification({ message: "Failed to auto-name session: invalid response from model API.", type: "error" });
-		return "";
+		showNotification({
+			message:
+				"Failed to auto-name session: invalid response from model API.",
+			type: "error",
+		});
+		return new Date().toLocaleString();
 	}
 	if (!data || !data.message || typeof data.message.content !== "string") {
 		console.error("[autoNameSession] Unexpected API response:", data);
-		showNotification({ message: "Failed to auto-name session: unexpected response from model API.", type: "error" });
-		return "";
+		showNotification({
+			message:
+				"Failed to auto-name session: unexpected response from model API.",
+			type: "error",
+		});
+		return new Date().toLocaleString();
 	}
 	let title = data.message.content.trim();
-	// Remove surrounding quotes if present
-	if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+	if (
+		(title.startsWith('"') && title.endsWith('"')) ||
+		(title.startsWith("'") && title.endsWith("'"))
+	) {
 		title = title.slice(1, -1).trim();
 	}
 	console.log("[autoNameSession] Received title:", title);
@@ -657,8 +706,8 @@ form.addEventListener("submit", async (e) => {
 		let attempts = 0;
 		while (attempts < 10) {
 			const models = await window.ollama.listModels();
-			if (models.some(m => m.name === defaultModel)) break;
-			await new Promise(r => setTimeout(r, 1000));
+			if (models.some((m) => m.name === defaultModel)) break;
+			await new Promise((r) => setTimeout(r, 1000));
 			attempts++;
 		}
 
@@ -674,104 +723,117 @@ form.addEventListener("submit", async (e) => {
 
 	const prompt = input.value.trim();
 	const model = modelSelect.value;
-	console.log("[form.submit] Prompt:", prompt, "CurrentSessionId:", currentSessionId);
+	console.log(
+		"[form.submit] Prompt:",
+		prompt,
+		"CurrentSessionId:",
+		currentSessionId
+	);
 	if (!prompt || !currentSessionId) return;
 	if (sessions[currentSessionId].history.length === 0) {
-		console.log("[form.submit] First prompt for session, calling autoNameSession...");
+		console.log(
+			"[form.submit] First prompt for session, calling autoNameSession..."
+		);
 		autoNameSession(model, prompt, currentSessionId).catch((err) => {
 			console.error("[form.submit] autoNameSession error:", err);
 		});
 	}
 	const session = sessions[currentSessionId];
 	session.model = model;
-    const fileBlock = formatAttachedFiles(attachedFiles);
-    const fullPrompt = prompt + "\n\n" + fileBlock;
-    attachedFiles = [];
-    renderFileIndicator();
-    session.history.push({ role: "user", content: fullPrompt });
-    renderChat();
+	const fileBlock = formatAttachedFiles(attachedFiles);
+	const fullPrompt = prompt + "\n\n" + fileBlock;
+	attachedFiles = [];
+	renderFileIndicator();
+	session.history.push({ role: "user", content: fullPrompt });
+	renderChat();
 
-    const botBubble = document.createElement("div");
-    botBubble.className = "chat-bubble bot-bubble";
-    botBubble.textContent = "🤖 Thinking";
-    chatBox.appendChild(botBubble);
-    chatBox.scrollTop = chatBox.scrollHeight;
+	const botBubble = document.createElement("div");
+	botBubble.className = "chat-bubble bot-bubble";
+	botBubble.textContent = "🤖 Thinking";
+	chatBox.appendChild(botBubble);
+	chatBox.scrollTop = chatBox.scrollHeight;
 
-    input.value = "";
-    input.style.height = "";
-    window.ollama.removeAllListeners?.();
-    window.ollama.streamPrompt(model, fullPrompt);
+	input.value = "";
+	input.style.height = "";
+	window.ollama.removeAllListeners?.();
+	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled);
 
-    let fullResponse = "";
-    isStreaming = true;
-    updateActionButton();
-
+	let fullResponse = "";
+	isStreaming = true;
+	updateActionButton();
 
 	window.ollama.onResponse((chunk) => {
 		fullResponse += chunk;
-		botBubble.innerHTML = window.utils.markdown_parse(fullResponse);
+		// nosemgrep: javascript.browser.security.insecure-innerhtml
+		botBubble.innerHTML =
+			window.utils.markdown_parse_and_purify(fullResponse);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
 	});
 
-    window.ollama.onError((err) => {
-        botBubble.textContent += `\n⚠️ Error: ${err}`;
-        window.ollama.save(sessions);
-		window.auth.getSession().then(async (auth) => {
-			if (isSyncEnabled() && auth?.session?.user) {
-				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
-			}
-			renderSessionList();
-		})
-        endStreaming();
-    });
-
-    window.ollama.onDone(() => {
-        session.history.push({ role: "assistant", content: fullResponse });
-        const status = document.createElement("div");
-        status.textContent = "✅ Done";
-        status.style.marginTop = "8px";
-        status.style.fontSize = "14px";
-        status.style.color = "#3ca374";
-        botBubble.appendChild(status);
+	window.ollama.onError((err) => {
+		botBubble.textContent += `\n⚠️ Error: ${err}`;
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
-				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+				await safeCallRemote(() =>
+					window.sync.saveAllSessions(sessions)
+				);
 			}
 			renderSessionList();
-		})
-        endStreaming();
-    });
+		});
+		endStreaming();
+	});
 
-    window.ollama.onAbort(() => {
-        session.history.push({ role: "assistant", content: fullResponse });
-        const status = document.createElement("div");
-        status.textContent = "⚠︎ Interrupted";
-        status.style.marginTop = "8px";
-        status.style.fontSize = "14px";
-        status.style.color = "#d9534f";
-        botBubble.appendChild(status);
+	window.ollama.onDone(() => {
+		session.history.push({ role: "assistant", content: fullResponse });
+		const status = document.createElement("div");
+		status.textContent = "✅ Done";
+		status.style.marginTop = "8px";
+		status.style.fontSize = "14px";
+		status.style.color = "#3ca374";
+		botBubble.appendChild(status);
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
-				await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+				await safeCallRemote(() =>
+					window.sync.saveAllSessions(sessions)
+				);
 			}
 			renderSessionList();
-		})
-        endStreaming();
-    });
+		});
+		endStreaming();
+	});
+
+	window.ollama.onAbort(() => {
+		session.history.push({ role: "assistant", content: fullResponse });
+		const status = document.createElement("div");
+		status.textContent = "⚠︎ Interrupted";
+		status.style.marginTop = "8px";
+		status.style.fontSize = "14px";
+		status.style.color = "#d9534f";
+		botBubble.appendChild(status);
+		window.ollama.save(sessions);
+		window.auth.getSession().then(async (auth) => {
+			if (isSyncEnabled() && auth?.session?.user) {
+				await safeCallRemote(() =>
+					window.sync.saveAllSessions(sessions)
+				);
+			}
+			renderSessionList();
+		});
+		endStreaming();
+	});
 });
 
-
 function renderFileIndicator() {
-    fileBar.innerHTML = "";
+	fileBar.innerHTML = "";
 
-    if (attachedFiles.length === 0) {
-        fileBar.style.display = "none";
-        return;
-    }
+	if (attachedFiles.length === 0) {
+		fileBar.style.display = "none";
+		return;
+	}
 
 	fileBar.style.display = "flex";
 
@@ -782,7 +844,8 @@ function renderFileIndicator() {
 		icon.setAttribute("data-index", String(index));
 
 		icon.addEventListener("click", (e) => {
-			if ((e.target as HTMLElement).classList.contains("file-remove")) return;
+			if ((e.target as HTMLElement).classList.contains("file-remove"))
+				return;
 			openFilePreview(file);
 		});
 
@@ -802,70 +865,83 @@ function renderFileIndicator() {
 	});
 }
 
-
 function updateActionButton() {
-    if (isStreaming) {
-        actionBtn.textContent = "⏹";
-        actionBtn.classList.add("streaming");
-        actionBtn.setAttribute("aria-label", "Stop streaming");
-    } else {
-        actionBtn.textContent = "⬆️";
-        actionBtn.classList.remove("streaming");
-        actionBtn.setAttribute("aria-label", "Send");
-    }
+	if (isStreaming) {
+		actionBtn.textContent = "⏹";
+		actionBtn.classList.add("streaming");
+		actionBtn.setAttribute("aria-label", "Stop streaming");
+	} else {
+		actionBtn.textContent = "⬆️";
+		actionBtn.classList.remove("streaming");
+		actionBtn.setAttribute("aria-label", "Send");
+	}
 }
 
 function endStreaming() {
-    isStreaming = false;
-    updateActionButton();
+	isStreaming = false;
+	updateActionButton();
 }
 
-const textarea = document.getElementById('chat-input') as HTMLInputElement;
-textarea.addEventListener('input', () => {
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
+const textarea = document.getElementById("chat-input") as HTMLInputElement;
+textarea.addEventListener("input", () => {
+	textarea.style.height = "auto";
+	textarea.style.height = textarea.scrollHeight + "px";
 });
-textarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        (document.getElementById('send') as HTMLButtonElement).click();
-    }
+textarea.addEventListener("keydown", (e) => {
+	if (e.key === "Enter" && !e.shiftKey) {
+		e.preventDefault();
+		(document.getElementById("send") as HTMLButtonElement).click();
+	}
 });
 
 newSessionBtn.addEventListener("click", createNewSession);
 
-(document.getElementById("session-search") as HTMLInputElement)
-	.addEventListener("input", renderSessionList);
+(
+	document.getElementById("session-search") as HTMLInputElement
+).addEventListener("input", renderSessionList);
 
 document.addEventListener("click", (e) => {
-  if (e.target.classList.contains("file-preview-btn")) {
-    const index = e.target.dataset.index;
-    const file = attachedFiles[index];
-    (document.getElementById("file-preview-title") as HTMLTitleElement).textContent = file.name;
-    (document.getElementById("file-preview-content") as HTMLPreElement).textContent = file.content;
-    (document.getElementById("file-preview-modal") as HTMLDivElement).classList.remove("hidden");
-  }
+	if (e.target.classList.contains("file-preview-btn")) {
+		const index = e.target.dataset.index;
+		const file = attachedFiles[index];
+		(
+			document.getElementById("file-preview-title") as HTMLTitleElement
+		).textContent = file.name;
+		(
+			document.getElementById("file-preview-content") as HTMLPreElement
+		).textContent = file.content;
+		(
+			document.getElementById("file-preview-modal") as HTMLDivElement
+		).classList.remove("hidden");
+	}
 });
 
 document.getElementById("file-preview-close").addEventListener("click", () => {
-  document.getElementById("file-preview-modal").classList.add("hidden");
+	document.getElementById("file-preview-modal").classList.add("hidden");
 });
 
 function openFilePreview(file) {
-  modalTitle.textContent = file.name;
-  modalContent.textContent = file.content;
-  modal.classList.remove("hidden");
+	modalTitle.textContent = file.name;
+	modalContent.textContent = file.content;
+	modal.classList.remove("hidden");
 }
 
 modalClose.addEventListener("click", () => {
-  modal.classList.add("hidden");
+	modal.classList.add("hidden");
 });
 
 async function setTitle() {
-	document.title = modelSelect.value + " - Chat - InferencePortAI"
+	document.title = modelSelect.value + " - Chat - InferencePortAI";
 }
 
 function renderChat() {
+	// Always re-resolve chatBox to avoid stale DOM references
+	const chatBox = document.getElementById("chat-box");
+	if (!chatBox) {
+		console.warn("renderChat aborted: chatBox not found");
+		return;
+	}
+
 	if (!currentSessionId) {
 		currentSessionId = Object.keys(sessions)[0] || null;
 	}
@@ -873,7 +949,7 @@ function renderChat() {
 	const session = sessions[currentSessionId];
 	chatBox.innerHTML = "";
 
-	if (!session.history || session.history.length === 0) {
+	if (!session || !session.history || session.history.length === 0) {
 		const emptyMsg = document.createElement("div");
 		emptyMsg.className = "empty-chat";
 		emptyMsg.textContent = "Start chatting to see messages here.";
@@ -881,92 +957,209 @@ function renderChat() {
 		return;
 	}
 
-
 	session.history.forEach((msg) => {
+		/* ---------------- USER ---------------- */
 		if (msg.role === "user") {
-			// User prompt in bubble
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble";
-			bubble.innerHTML = window.utils.markdown_parse(msg.content);
+			// nosemgrep: javascript.browser.security.insecure-innerhtml
+			bubble.innerHTML = window.utils.markdown_parse_and_purify(
+				msg.content || ""
+			);
 			chatBox.appendChild(bubble);
-		} else {
-			const html = window.utils.markdown_parse(msg.content);
+			return;
+		}
+
+		/* ---------------- ASSISTANT ---------------- */
+		if (msg.role === "assistant") {
+			// nosemgrep: javascript.browser.security.insecure-innerhtml
+			const html = window.utils.markdown_parse_and_purify(
+				msg.content || ""
+			);
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
 
 			const botContainer = document.createElement("div");
-			botContainer.className = "bot-bubble";
+			botContainer.className = "chat-bubble bot-bubble";
 
-			const nodes = Array.from(temp.childNodes);
-			nodes.forEach((node) => {
-				if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName.toLowerCase() === "pre") {
-					const preEl = node as HTMLElement;
+			Array.from(temp.childNodes).forEach((node) => {
+				const el = node as HTMLElement;
+				if (
+					el.nodeType === Node.ELEMENT_NODE &&
+					el.tagName.toLowerCase() === "pre"
+				) {
+					const preEl = el as HTMLPreElement;
 					const codeEl = preEl.querySelector("code");
-					let lang = "";
-					if (codeEl) {
-						const match = (codeEl.className || "").match(/language-([\w-]+)/);
+
+					let lang = "code";
+
+					if (codeEl.className) {
+						const match =
+							codeEl.className.match(/language-([\w-]+)/);
 						if (match) lang = match[1];
 					}
 
-					const codeBubble = document.createElement("div");
+					const codeBubble = document.createElement(
+						"div"
+					) as HTMLDivElement;
 					codeBubble.className = "ai-code-bubble";
 
-					const header = document.createElement("div");
+					const header = document.createElement(
+						"div"
+					) as HTMLDivElement;
 					header.className = "ai-code-header";
 
-					const langLabel = document.createElement("span");
+					const langLabel = document.createElement(
+						"span"
+					) as HTMLSpanElement;
 					langLabel.className = "ai-code-lang";
-					langLabel.textContent = lang || "code";
-					header.appendChild(langLabel);
+					langLabel.textContent = lang;
 
-					const copyBtn = document.createElement("button");
+					const copyBtn = document.createElement(
+						"button"
+					) as HTMLButtonElement;
 					copyBtn.className = "ai-copy-btn";
 					copyBtn.textContent = "Copy";
 					copyBtn.onclick = () => {
-						navigator.clipboard.writeText(codeEl ? (codeEl.textContent || "") : "");
+						navigator.clipboard.writeText(
+							codeEl?.textContent || ""
+						);
 						copyBtn.textContent = "Copied!";
 						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
 					};
-					header.appendChild(copyBtn);
 
+					header.appendChild(langLabel);
+					header.appendChild(copyBtn);
 					codeBubble.appendChild(header);
 					codeBubble.appendChild(preEl.cloneNode(true));
 					botContainer.appendChild(codeBubble);
 				} else {
-					// Non-code content: append markup inside bot container
-					const fragment = document.createDocumentFragment();
-					fragment.appendChild(node.cloneNode(true));
-					// Only append if there's visible content
-					if ((fragment.textContent || "").trim() !== "") {
-						botContainer.appendChild(fragment);
-					}
+					botContainer.appendChild(node.cloneNode(true));
 				}
 			});
 
-			// Append bot container if it contains anything
-			if (botContainer.childNodes.length > 0 && (botContainer.textContent || "").trim() !== "") {
-				chatBox.appendChild(botContainer);
-			}
+			chatBox.appendChild(botContainer);
+			return;
 		}
+
+		if (msg.role === "image") {
+			const botContainer = document.createElement(
+				"div"
+			) as HTMLDivElement;
+			botContainer.className = "chat-bubble image-bubble";
+
+			const imageWrapper = document.createElement(
+				"div"
+			) as HTMLDivElement;
+			imageWrapper.className = "image-wrapper";
+
+			const img = document.createElement("img") as HTMLImageElement;
+			img.src = msg.content;
+			img.alt = "Generated image";
+
+			const downloadBtn = document.createElement("button");
+			downloadBtn.className = "image-download-btn";
+			downloadBtn.title = "Download image";
+			downloadBtn.innerText = "Download";
+
+			downloadBtn.onclick = (e) => {
+				e.stopPropagation();
+				const a = document.createElement("a") as HTMLLinkElement;
+				a.href = msg.content;
+				a.download = `image-${Date.now()}.png`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+			};
+
+			imageWrapper.appendChild(img);
+			imageWrapper.appendChild(downloadBtn);
+			botContainer.appendChild(imageWrapper);
+			chatBox.appendChild(botContainer);
+			return;
+		}
+
+		console.warn("Unknown message role:", msg.role, msg);
 	});
 
 	renderMathInElement(document.body, {
 		delimiters: [
-			{ left: '$$', right: '$$', display: true },
-			{ left: '$', right: '$', display: true },
-			{ left: '\\(', right: '\\)', display: false },
-			{ left: '\\[', right: '\\]', display: true }
+			{ left: "$$", right: "$$", display: true },
+			{ left: "$", right: "$", display: true },
+			{ left: "\\(", right: "\\)", display: false },
+			{ left: "\\[", right: "\\]", display: true },
 		],
-		throwOnError: false
+		throwOnError: false,
 	});
 
-	document.querySelectorAll("pre code").forEach((block) => {
-		// hljs?.highlightElement?.(block); TODO
-		void 0
-	});
+	document.querySelectorAll("pre code").forEach(() => void 0);
 
-	// Only scroll if autoScroll is enabled
 	if (autoScroll) {
 		chatBox.scrollTop = chatBox.scrollHeight;
 	}
 }
+
+function renderImageAsset(dataUrl: string) {
+	const chatBox = document.getElementById("chat-box");
+	if (!chatBox) return;
+
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const imageWrapper = document.createElement("div");
+	imageWrapper.className = "image-wrapper";
+
+	const img = document.createElement("img");
+	img.src = dataUrl;
+	img.alt = "Generated image";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `image-${Date.now()}.png`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	imageWrapper.appendChild(img);
+	imageWrapper.appendChild(downloadBtn);
+	botContainer.appendChild(imageWrapper);
+
+	chatBox.appendChild(botContainer);
+
+	if (autoScroll) {
+		chatBox.scrollTop = chatBox.scrollHeight;
+	}
+}
+
+window.ollama.onNewAsset((msg) => {
+	console.log("Received new asset:", msg);
+
+	if (!currentSessionId || !sessions[currentSessionId]) return;
+	console.log("Current session ID:", currentSessionId);
+
+	const session = sessions[currentSessionId];
+	const last = session.history.at(-1);
+
+	if (last?.role === msg.role && last?.content === msg.content) return;
+	window.ollama.save(sessions);
+
+	const dataUrl = msg.content.startsWith("data:")
+		? msg.content
+		: `data:image/png;base64,${msg.content}`;
+
+	if (last?.role === "image" && last.content === dataUrl) {
+		return;
+	}
+
+	session.history.push({
+		role: "image",
+		content: dataUrl,
+	});
+
+	renderImageAsset(dataUrl);
+});
