@@ -80,29 +80,29 @@ function isSyncEnabled() {
 let sessionProgress = 0;
 let loaderVisible = false;
 
-function showSessionProgress() {
-	const loader = document.getElementById("session-loader");
+function showSessionProgress(): void {
+	const loader = document.getElementById("session-loader") as HTMLDivElement;
 	if (!loader) return;
 
 	loader.classList.remove("hidden", "fading");
 	loaderVisible = true;
 }
 
-function setSessionProgress(value) {
-	const bar = document.getElementById("session-progress-bar");
+function setSessionProgress(value: number): void {
+	const bar = document.getElementById("session-progress-bar") as HTMLDivElement;
 	if (!bar) return;
 
-	// Clamp and animate
 	const clamped = Math.min(100, Math.max(0, value));
 	bar.style.width = `${clamped}%`;
 }
 
-async function hideSessionProgress() {
+async function hideSessionProgress(): void {
 	if (!loaderVisible) return;
 
-	const bar = document.getElementById("session-progress-bar");
-	const loader = document.getElementById("session-loader");
+	const bar = document.getElementById("session-progress-bar") as HTMLDivElement;
+	const loader = document.getElementById("session-loader") as HTMLDivElement;
 
+	if (!loader) return;
 	if (bar) bar.style.width = "100%";
 
 	await new Promise((r) => setTimeout(r, 450));
@@ -113,7 +113,6 @@ async function hideSessionProgress() {
 		document.getElementById("app-root")?.classList.remove("hidden");
 	}, 120);
 
-	// Fully hide loader
 	setTimeout(() => {
 		loader.classList.add("hidden");
 		loader.classList.remove("fading");
