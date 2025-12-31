@@ -57,7 +57,6 @@
 			.search-icon {
 				font-size: 14px;
 			}
-			/* Full-screen blocking loader */
 			.session-loader {
 				position: fixed;
 				top: var(--navbar-height, 80px);
@@ -70,32 +69,28 @@
 				justify-content: center;
 				z-index: 9000;
 				opacity: 1;
-				transition: opacity 280ms ease;
+				transition: opacity 2s ease;
 			}
-
-			/* Hide helper */
+			.session-loader.fading {
+				opacity: 0;
+			}
 			.session-loader.hidden {
 				display: none;
 			}
-
-			/* Loader card */
 			.loader-card {
 				width: min(420px, 80%);
 				display: flex;
 				flex-direction: column;
 				gap: 14px;
 			}
-
-			/* Thick progress track */
 			.loader-track {
 				width: 100%;
-				height: 12px; /* thickness */
+				height: 12px;
 				border-radius: 999px;
 				background: rgba(255, 255, 255, 0.08);
 				overflow: hidden;
 			}
 
-			/* Animated bar */
 			#session-progress-bar {
 				height: 100%;
 				width: 0%;
@@ -106,7 +101,6 @@
 				animation: shimmer 1.6s linear infinite;
 			}
 
-			/* Subtle motion */
 			@keyframes shimmer {
 				0% {
 					background-position: 0% 0;
