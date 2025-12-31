@@ -7,10 +7,40 @@ on:
 permissions:
   contents: read
   pull-requests: write
-
 jobs:
-  build-win64:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            node: 23
+            artifact: Electron-win64-build
+            header: build-win64
+            path: dist/*
+          - os: windows-11-arm
+            node: 24
+            artifact: Electron-winaarch64-build
+            header: build-arm
+            path: dist/*
+          - os: macos-latest
+            node: 24
+            artifact: Electron-macOS-build
+            header: build-macos
+            path: |
+              dist/*.dmg
+              dist/*.zip
+              dist/*.pkg
+          - os: macos-15-intel
+            node: 24
+            artifact: Electron-macOS-x86-build
+            header: build-macos-x86
+            path: |
+              dist/*.dmg
+              dist/*.zip
+              dist/*.pkg
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -18,7 +48,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23'
+          node-version: ${{ matrix.node }}
 
       - name: Install dependencies
         run: npm ci && npm install -g typescript
@@ -26,156 +56,36 @@ jobs:
       - name: Build Electron app (unsigned)
         run: npm run build
 
-      - name: Upload Windows x64 artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Electron-win64-build
-          path: dist/*
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+
+      - name: Collect device info
+        id: device
+        run: |
+          echo "os_name=$(uname -s)" >> $GITHUB_ENV
+          echo "os_release=$(uname -r)" >> $GITHUB_ENV
+          echo "arch=$(uname -m)" >> $GITHUB_ENV
 
       - name: Comment success on PR
         if: success()
         uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
-          header: build-win64
+          header: ${{ matrix.header }}
           message: |
-            ✅ Windows x64 build succeeded.
-            Artifact: **Electron-win64-build**
-            Device: Windows x86_64
-            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }})
-
-      - name: Comment failure on PR
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: build-win64
-          message: |
-            ❌ Windows x64 build failed. Check logs.
-            Device: Windows x86_64
-            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
-
-  build-arm:
-    runs-on: windows-11-arm
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '24'
-      - name: Install dependencies
-        run: npm ci && npm install -g typescript
-      - name: Build Electron app (unsigned)
-        run: npm run build
-      - name: Upload Windows ARM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Electron-winaarch64-build
-          path: dist/*
-      - name: Comment success on PR
-        if: success()
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: build-arm
-          message: |
-            ✅ Windows ARM build succeeded.
-            Device: Windows on ARM (x64)
-            Artifact: **Electron-winaarch64-build**
+            ✅ Build succeeded.
+            Artifact: **${{ matrix.artifact }}**
+            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
             You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
 
       - name: Comment failure on PR
         if: failure()
         uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
-          header: build-arm
+          header: ${{ matrix.header }}
           message: |
-            ❌ Windows ARM build failed. Check logs.
-            Device: Windows on ARM (x64)
+            ❌ Build failed. Check logs.
+            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
             You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
-
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '23'
-      - name: Install dependencies
-        run: npm ci && npm install -g typescript
-      - name: Build Electron app (unsigned)
-        run: npm run build
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Electron-macOS-build
-          path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
-      - name: Comment success on PR
-        if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: build-macos
-          message: |
-            ✅ macOS (Apple Silicon) build succeeded.
-            Device: MacOS 15 AARCH64 Running on Apple Sillicon
-            Artifact: **Electron-macOS-build**
-            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days
-
-      - name: Comment failure on PR
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: build-macos
-          message: |
-            ❌ macOS (Apple Silicon) build failed. Check logs.
-            Device: MacOS 15 AARCH64 Running on Apple Sillicon
-            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
-
-
-  build-macos-x86:
-    runs-on: macos-15-intel
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '23'
-      - name: Install dependencies
-        run: npm ci && npm install -g typescript
-      - name: Build Electron app (unsigned)
-        run: npm run build
-      - name: Upload macOS x86 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Electron-macOS-x86-build
-          path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
-      - name: Comment success on PR
-        if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: build-macos-x86
-          message: |
-            ✅ macOS (Intel, x86_64) build succeeded.
-            Device: MacOS 15 x86_64 Running on Intel CPU
-            Artifact: **Electron-macOS-x86-build**
-            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
-
-      - name: Comment failure on PR
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: build-macos-x86
-          message: |
-            ❌ macOS (Intel) build failed. Check logs.
-            Device: MacOS 15 x86_64 Running on Intel CPU
-            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
-
-
