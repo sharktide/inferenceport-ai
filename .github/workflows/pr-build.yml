@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read        # allow checkout
+  pull-requests: write  # allow commenting on PRs
+
 jobs:
   build-win64:
     runs-on: windows-latest
@@ -28,46 +32,70 @@ jobs:
           name: Electron-win64-build
           path: dist/*
 
+      - name: Comment success on PR
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-win64
+          message: |
+            ✅ Windows x64 build succeeded.
+            Artifact: **Electron-win64-build**
+
+      - name: Comment failure on PR
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-win64
+          message: |
+            ❌ Windows x64 build failed. Check logs.
+
   build-arm:
     runs-on: windows-11-arm
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '24'
-
       - name: Install dependencies
         run: npm ci && npm install -g typescript
-
       - name: Build Electron app (unsigned)
         run: npm run build
-
       - name: Upload Windows ARM artifact
         uses: actions/upload-artifact@v4
         with:
           name: Electron-winaarch64-build
           path: dist/*
+      - name: Comment success on PR
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-arm
+          message: |
+            ✅ Windows ARM build succeeded.
+            Artifact: **Electron-winaarch64-build**
+      - name: Comment failure on PR
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-arm
+          message: |
+            ❌ Windows ARM build failed. Check logs.
 
   build-macos:
     runs-on: macos-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '23'
-
       - name: Install dependencies
         run: npm ci && npm install -g typescript
-
       - name: Build Electron app (unsigned)
         run: npm run build
-
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
@@ -76,24 +104,35 @@ jobs:
             dist/*.dmg
             dist/*.zip
             dist/*.pkg
+      - name: Comment success on PR
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-macos
+          message: |
+            ✅ macOS (Apple Silicon) build succeeded.
+            Artifact: **Electron-macOS-build**
+      - name: Comment failure on PR
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-macos
+          message: |
+            ❌ macOS (Apple Silicon) build failed. Check logs.
 
   build-macos-x86:
     runs-on: macos-15-intel
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '23'
-
       - name: Install dependencies
         run: npm ci && npm install -g typescript
-
       - name: Build Electron app (unsigned)
         run: npm run build
-
       - name: Upload macOS x86 artifact
         uses: actions/upload-artifact@v4
         with:
@@ -102,20 +141,18 @@ jobs:
             dist/*.dmg
             dist/*.zip
             dist/*.pkg
-
-  comment-artifacts:
-    runs-on: ubuntu-latest
-    needs: [build-win64, build-arm, build-macos, build-macos-x86]
-    steps:
-      - name: Generate artifact summary
-        run: |
-          echo "### Unsigned Build Artifacts" > artifacts.md
-          echo "- Windows x64: Electron-win64-build" >> artifacts.md
-          echo "- Windows ARM: Electron-winaarch64-build" >> artifacts.md
-          echo "- macOS (Apple Silicon): Electron-macOS-build" >> artifacts.md
-          echo "- macOS (Intel): Electron-macOS-x86-build" >> artifacts.md
-
-      - name: Comment on PR with artifact summary
+      - name: Comment success on PR
+        if: success()
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: artifacts.md
+          header: build-macos-x86
+          message: |
+            ✅ macOS (Intel) build succeeded.
+            Artifact: **Electron-macOS-x86-build**
+      - name: Comment failure on PR
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: build-macos-x86
+          message: |
+            ❌ macOS (Intel) build failed. Check logs.
