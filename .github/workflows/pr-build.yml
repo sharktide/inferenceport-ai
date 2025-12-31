@@ -5,8 +5,8 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read        # allow checkout
-  pull-requests: write  # allow commenting on PRs
+  contents: read
+  pull-requests: write
 
 jobs:
   build-win64:
@@ -34,20 +34,24 @@ jobs:
 
       - name: Comment success on PR
         if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: build-win64
           message: |
             ✅ Windows x64 build succeeded.
             Artifact: **Electron-win64-build**
+            Device: Windows x86_64
+            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }})
 
       - name: Comment failure on PR
         if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: build-win64
           message: |
             ❌ Windows x64 build failed. Check logs.
+            Device: Windows x86_64
+            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
 
   build-arm:
     runs-on: windows-11-arm
@@ -69,19 +73,25 @@ jobs:
           path: dist/*
       - name: Comment success on PR
         if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: build-arm
           message: |
             ✅ Windows ARM build succeeded.
+            Device: Windows on ARM (x64)
             Artifact: **Electron-winaarch64-build**
+            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+
       - name: Comment failure on PR
         if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: build-arm
           message: |
             ❌ Windows ARM build failed. Check logs.
+            Device: Windows on ARM (x64)
+            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+
 
   build-macos:
     runs-on: macos-latest
@@ -111,7 +121,10 @@ jobs:
           header: build-macos
           message: |
             ✅ macOS (Apple Silicon) build succeeded.
+            Device: MacOS 15 AARCH64 Running on Apple Sillicon
             Artifact: **Electron-macOS-build**
+            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days
+
       - name: Comment failure on PR
         if: failure()
         uses: marocchino/sticky-pull-request-comment@v2
@@ -119,6 +132,9 @@ jobs:
           header: build-macos
           message: |
             ❌ macOS (Apple Silicon) build failed. Check logs.
+            Device: MacOS 15 AARCH64 Running on Apple Sillicon
+            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+
 
   build-macos-x86:
     runs-on: macos-15-intel
@@ -147,8 +163,11 @@ jobs:
         with:
           header: build-macos-x86
           message: |
-            ✅ macOS (Intel) build succeeded.
+            ✅ macOS (Intel, x86_64) build succeeded.
+            Device: MacOS 15 x86_64 Running on Intel CPU
             Artifact: **Electron-macOS-x86-build**
+            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+
       - name: Comment failure on PR
         if: failure()
         uses: marocchino/sticky-pull-request-comment@v2
@@ -156,3 +175,7 @@ jobs:
           header: build-macos-x86
           message: |
             ❌ macOS (Intel) build failed. Check logs.
+            Device: MacOS 15 x86_64 Running on Intel CPU
+            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+
+
