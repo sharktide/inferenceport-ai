@@ -57,10 +57,81 @@
 			.search-icon {
 				font-size: 14px;
 			}
+			.session-loader {
+				position: fixed;
+				top: var(--navbar-height, 80px);
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: var(--bg-light);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 9000;
+				opacity: 1;
+				transition: opacity 2s ease;
+			}
+			.session-loader.fading {
+				opacity: 0;
+			}
+			.session-loader.hidden {
+				display: none;
+			}
+			.loader-card {
+				width: min(420px, 80%);
+				display: flex;
+				flex-direction: column;
+				gap: 14px;
+			}
+			.loader-track {
+				width: 100%;
+				height: 12px;
+				border-radius: 999px;
+				background: rgba(255, 255, 255, 0.08);
+				overflow: hidden;
+			}
+
+			#session-progress-bar {
+				height: 100%;
+				width: 0%;
+				border-radius: 999px;
+				background: linear-gradient(90deg, #e5c846, #f1d763, #d5e546);
+				background-size: 200% 100%;
+				transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1);
+				animation: shimmer 1.6s linear infinite;
+			}
+
+			@keyframes shimmer {
+				0% {
+					background-position: 0% 0;
+				}
+				100% {
+					background-position: 200% 0;
+				}
+			}
+
+			.loader-text {
+				text-align: center;
+				font-size: 13px;
+				opacity: 0.7;
+				letter-spacing: 0.3px;
+			}
+
+			#app-root.hidden {
+				display: none;
+			}
 		</style>
 	</head>
 	<body>
 		<type1-navbar></type1-navbar>
+		<div id="session-loader" class="session-loader hidden">
+			<div class="loader-card">
+				<div class="loader-track">
+					<div id="session-progress-bar"></div>
+				</div>
+				<div class="loader-text">Loading sessions…</div>
+			</div>
+		</div>
 
 		<div id="rename-dialog" class="modal hidden">
 			<div class="modal-content">
@@ -78,7 +149,11 @@
 			<div class="context-item" data-action="delete">Delete Session</div>
 		</div>
 
-		<main style="padding: 40px; padding-top: 10px">
+		<main
+			id="app-root"
+			class="hidden"
+			style="padding: 40px; padding-top: 10px"
+		>
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>
