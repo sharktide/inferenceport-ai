@@ -91,23 +91,32 @@ function getFirstRunPath() {
 function isFirstLaunch(): boolean {
 	const markerPath = getFirstRunPath();
 
-	if (!fs.existsSync(markerPath)) {
-		fs.writeFileSync(
-			markerPath,
-			JSON.stringify({ firstRunCompleted: true }),
-			"utf-8"
-		);
+	try {
+		const fd = fs.openSync(markerPath, "wx");
+		fs.writeSync(fd, JSON.stringify({ firstRunCompleted: true }), "utf-8");
+		fs.closeSync(fd);
 		return true;
+	} catch (err: any) {
+		if (err.code === "EEXIST") {
+			return false;
+		}
+		throw err;
 	}
-
-	return false;
 }
 
 function resetFirstLaunch(): void {
 	const markerPath = getFirstRunPath();
 
-	if (fs.existsSync(markerPath)) {
-		fs.unlinkSync(markerPath);
+	const base = app.getPath("userData");
+	const resolved = path.resolve(markerPath);
+	if (!resolved.startsWith(path.resolve(base) + path.sep)) {
+		throw new Error("Invalid marker path");
+	}
+
+	try {
+		fs.unlinkSync(resolved);
+	} catch (err: any) {
+		if (err.code !== "ENOENT") throw err;
 	}
 }
 
@@ -217,14 +226,25 @@ function register() {
 	ipcMain.handle(
 		"utils:saveFile",
 		async (_event: IpcMainEvent, filePath: string, content: string) => {
-			try {
-				const dir = path.dirname(filePath);
-				await fs.mkdirSync(dir, { recursive: true });
-				await fs.writeFileSync(filePath, content);
-			} catch (err) {
-				console.error("Failed to save file:", err);
-				throw err;
+			const base = app.getPath("userData");
+			const resolved = path.resolve(filePath);
+
+			// **Label:** Containment check
+			if (!resolved.startsWith(path.resolve(base) + path.sep)) {
+				throw new Error("Path outside userData");
 			}
+
+			// **Label:** Ensure directory exists
+			await fs.promises.mkdir(path.dirname(resolved), {
+				recursive: true,
+			});
+
+			// **Label:** Atomic write via temp + rename
+			const tmp = resolved + ".tmp-" + String(process.pid);
+			await fs.promises.writeFile(tmp, content, { mode: 0o600 });
+			await fs.promises.rename(tmp, resolved);
+
+			return true;
 		}
 	);
 
