@@ -43,15 +43,15 @@ const ollamaPath = isDev
 type Role = "user" | "assistant" | "tool" | "system" | "image";
 type AssetRole = "image";
 type ChatMessage = {
-	role: Role
+	role: Role;
 	content: string;
-	tool_calls?: { function: any }[]
+	tool_calls?: { function: any }[];
 };
 
 type ChatAsset = {
-	role: AssetRole
-	content: string
-}
+	role: AssetRole;
+	content: string;
+};
 
 const availableTools = [
 	{
@@ -225,7 +225,6 @@ async function GenerateImage(prompt: string, width: number, height: number) {
 	return {
 		dataUrl: `data:${contentType || "image/png"};base64,${base64}`,
 	};
-
 }
 
 function LOG(trace: string, label: string, ...args: any[]) {

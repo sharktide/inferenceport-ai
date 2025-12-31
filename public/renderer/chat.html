@@ -1,53 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8" />
-	<title>Chat - InferencePortAI</title>
-	<link rel="stylesheet" href="../styles/styles.css" />
-	<script type="module" src="../Components.js"></script>
-	<script type="module" src="../scripts/staticload/theme.js"></script>
-	<link rel="stylesheet" href="../publicvendor/katex/katex.min.css" crossorigin="anonymous">
-	<script defer src="../publicvendor/katex/katex.min.js" crossorigin="anonymous"></script>
-	<script defer src="../publicvendor/katex/auto-render.min.js" crossorigin="anonymous"></script>
-	<script>
-		document.addEventListener("DOMContentLoaded", function () {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: true },
-                    { left: '\\(', right: '\\)', display: false },
-                    { left: '\\[', right: '\\]', display: true }
-                ],
-                throwOnError: false
-            });
-		});
-	</script>
-	<style>
-		.search-btn {
-			margin-top: 6px;
-			display: inline-flex;
-			align-items: center;
-			gap: 6px;
-			padding: 6px 12px;
-			font-size: 14px;
-			border-radius: 6px;
-			border: 1px solid #ccc;
-			background: #f9f9f9;
-			cursor: pointer;
-			display: inline-flex;
-			width: auto;
-		}
+	<head>
+		<meta charset="UTF-8" />
+		<title>Chat - InferencePortAI</title>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<script type="module" src="../Components.js"></script>
+		<script type="module" src="../scripts/staticload/theme.js"></script>
+		<link
+			rel="stylesheet"
+			href="../publicvendor/katex/katex.min.css"
+			crossorigin="anonymous"
+		/>
+		<script
+			defer
+			src="../publicvendor/katex/katex.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script
+			defer
+			src="../publicvendor/katex/auto-render.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script>
+			document.addEventListener("DOMContentLoaded", function () {
+				renderMathInElement(document.body, {
+					delimiters: [
+						{ left: "$$", right: "$$", display: true },
+						{ left: "$", right: "$", display: true },
+						{ left: "\\(", right: "\\)", display: false },
+						{ left: "\\[", right: "\\]", display: true },
+					],
+					throwOnError: false,
+				});
+			});
+		</script>
+		<style>
+			.search-btn {
+				margin-top: 6px;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 6px 12px;
+				font-size: 14px;
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #f9f9f9;
+				cursor: pointer;
+				display: inline-flex;
+				width: auto;
+			}
 
-		.search-btn:hover {
-			background: #f0f0f0;
-		}
+			.search-btn:hover {
+				background: #f0f0f0;
+			}
 
-		.search-icon {
-			font-size: 14px;
-		}
-	</style>
-
-</head>
+			.search-icon {
+				font-size: 14px;
+			}
+		</style>
+	</head>
 	<body>
 		<type1-navbar></type1-navbar>
 
@@ -67,7 +78,7 @@
 			<div class="context-item" data-action="delete">Delete Session</div>
 		</div>
 
-		<main style="padding: 40px; padding-top: 10px;">
+		<main style="padding: 40px; padding-top: 10px">
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>
@@ -89,7 +100,6 @@
 				</section>
 			</div>
 			<div id="notification-container"></div>
-
 		</main>
 		<script type="module" src="../scripts/renderer/chat.js"></script>
 	</body>

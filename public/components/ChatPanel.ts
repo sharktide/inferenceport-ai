@@ -1,7 +1,6 @@
 export class ChatBox extends HTMLElement {
-    connectedCallback() {
-        this.innerHTML = 
-        `
+	connectedCallback() {
+		this.innerHTML = `
             <input type="file" id="file-upload" multiple style="display:none" />
             <form id="chat-form" role="form">
                 <div class="typing-bar">
@@ -40,8 +39,7 @@ export class ChatBox extends HTMLElement {
                 </div>
             </form>
         `;
-    }
+	}
 }
 
 customElements.define("chat-box", ChatBox);
-

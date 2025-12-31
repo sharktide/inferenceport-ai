@@ -572,13 +572,16 @@ async function autoNameSession(
 	});
 	let data;
 	if (!response.ok) {
-    console.error("[autoNameSession] API error status:", response.status, response.statusText);
+		console.error(
+			"[autoNameSession] API error status:",
+			response.status,
+			response.statusText
+		);
 		showNotification({
 			message: `Failed to auto-name session: ${response.status} ${response.statusText}`,
 			type: "error",
 		});
 		return new Date().toLocaleString();
-;
 	}
 	try {
 		data = await response.json();
@@ -929,17 +932,25 @@ function renderChat() {
 						if (match) lang = match[1];
 					}
 
-					const codeBubble = document.createElement("div") as HTMLDivElement;
+					const codeBubble = document.createElement(
+						"div"
+					) as HTMLDivElement;
 					codeBubble.className = "ai-code-bubble";
 
-					const header = document.createElement("div") as HTMLDivElement;
+					const header = document.createElement(
+						"div"
+					) as HTMLDivElement;
 					header.className = "ai-code-header";
 
-					const langLabel = document.createElement("span") as HTMLSpanElement;
+					const langLabel = document.createElement(
+						"span"
+					) as HTMLSpanElement;
 					langLabel.className = "ai-code-lang";
 					langLabel.textContent = lang;
 
-					const copyBtn = document.createElement("button") as HTMLButtonElement;
+					const copyBtn = document.createElement(
+						"button"
+					) as HTMLButtonElement;
 					copyBtn.className = "ai-copy-btn";
 					copyBtn.textContent = "Copy";
 					copyBtn.onclick = () => {
@@ -965,10 +976,14 @@ function renderChat() {
 		}
 
 		if (msg.role === "image") {
-			const botContainer = document.createElement("div") as HTMLDivElement;
+			const botContainer = document.createElement(
+				"div"
+			) as HTMLDivElement;
 			botContainer.className = "chat-bubble image-bubble";
 
-			const imageWrapper = document.createElement("div") as HTMLDivElement;
+			const imageWrapper = document.createElement(
+				"div"
+			) as HTMLDivElement;
 			imageWrapper.className = "image-wrapper";
 
 			const img = document.createElement("img") as HTMLImageElement;
@@ -1069,7 +1084,6 @@ window.ollama.onNewAsset((msg) => {
 	const dataUrl = msg.content.startsWith("data:")
 		? msg.content
 		: `data:image/png;base64,${msg.content}`;
-
 
 	if (last?.role === "image" && last.content === dataUrl) {
 		return;
