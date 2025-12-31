@@ -56,101 +56,163 @@ function isSyncEnabled() {
 	}
 }
 
+let sessionProgress = 0;
+let loaderVisible = false;
+
+function showSessionProgress() {
+	const loader = document.getElementById("session-loader");
+	if (!loader) return;
+
+	loader.classList.remove("hidden", "fading");
+	loaderVisible = true;
+}
+
+function setSessionProgress(value) {
+	const bar = document.getElementById("session-progress-bar");
+	if (!bar) return;
+
+	// Clamp and animate
+	const clamped = Math.min(100, Math.max(0, value));
+	bar.style.width = `${clamped}%`;
+}
+
+async function hideSessionProgress() {
+	if (!loaderVisible) return;
+
+	const bar = document.getElementById("session-progress-bar");
+	const loader = document.getElementById("session-loader");
+
+	if (bar) bar.style.width = "100%";
+
+	await new Promise((r) => setTimeout(r, 450));
+
+	loader.classList.add("fading");
+
+	setTimeout(() => {
+		document.getElementById("app-root")?.classList.remove("hidden");
+	}, 120);
+
+	// Fully hide loader
+	setTimeout(() => {
+		loader.classList.add("hidden");
+		loader.classList.remove("fading");
+		loaderVisible = false;
+	}, 300);
+}
+
+
+
 document.addEventListener("DOMContentLoaded", loadOptions);
 
 async function loadOptions() {
+	showSessionProgress();
+
 	try {
+		setSessionProgress(5);
+
+		/* -------- Local sessions -------- */
 		try {
 			const local = await window.ollama.load();
 			sessions = (local && typeof local === "object") ? local : {};
 		} catch (e) {
-		console.warn("Failed to load local sessions, starting with empty:", e);
-		sessions = {};
+			console.warn("Failed to load local sessions:", e);
+			sessions = {};
 		}
+		setSessionProgress(20);
 
+		/* -------- Models -------- */
 		try {
 			const models = await window.ollama.listModels();
-			models.forEach((model) => {
+			const total = Math.max(models.length, 1);
+
+			models.forEach((model, i) => {
 				const option = document.createElement("option");
 				option.value = model.name;
 				option.textContent = model.name;
 				modelSelect.appendChild(option);
+
+				// 20% → 45%
+				setSessionProgress(20 + (25 * (i + 1)) / total);
 			});
-			const addmore = document.createElement("option");
-			addmore.value = "add-more-models";
-			addmore.textContent = "➕ Add more models...";
-			modelSelect.appendChild(addmore);
 
-			const manage = document.createElement("option");
-			manage.value = "manage-models";
-			manage.textContent = "✏️ Manage models...";
-			modelSelect.appendChild(manage);
+			modelSelect.insertAdjacentHTML(
+				"beforeend",
+				`<option value="add-more-models">➕ Add more models...</option>
+				 <option value="manage-models">✏️ Manage models...</option>`
+			);
 
-			modelSelect.addEventListener("change", async () => {
-				if (modelSelect.value === "add-more-models") {
+			modelSelect.addEventListener("change", () => {
+				if (modelSelect.value === "add-more-models")
 					window.location.href = "../marketplace.html";
-				} else if (modelSelect.value === "manage-models") {
+				else if (modelSelect.value === "manage-models")
 					window.location.href = "../installed.html";
-				}
 			});
 
 		} catch (err) {
 			console.warn("Could not list models:", err);
 			modelSelect.innerHTML = `<option>error loading models</option>`;
 		}
+		setSessionProgress(45);
 
-		const auth = await window.auth.getSession?.();
+		/* -------- Auth + sync -------- */
+		const auth = await window.auth.getSession();
+		setSessionProgress(55);
+
 		if (isSyncEnabled() && auth?.session?.user) {
 			const remoteResponse = await safeCallRemote(
 				() => window.sync.getRemoteSessions(),
 				{ sessions: null }
 			);
+			setSessionProgress(65);
 
 			if (!remoteResponse?.error && remoteResponse?.sessions) {
-				const userId = auth?.session?.user?.id ?? null;
-				const remoteSessions = remoteResponse.sessions as SessionMap;
-				for (const id in sessions) {
+				const userId = auth.session.user.id;
+				const ids = Object.keys(sessions);
+				const total = Math.max(ids.length, 1);
+
+				ids.forEach((id, i) => {
 					if (sessions[id].userId && sessions[id].userId !== userId) {
 						delete sessions[id];
 					}
-				}
+					setSessionProgress(65 + (10 * (i + 1)) / total);
+				});
 
-				// Save the filtered sessions back to storage
 				await window.ollama.save(sessions);
+				setSessionProgress(80);
 
 				sessions = mergeLocalAndRemoteSessions(
 					sessions as SessionMap,
-					remoteSessions ?? {}
+					remoteResponse.sessions
 				);
 
 				await window.ollama.save(sessions);
+				setSessionProgress(90);
 
-				const freshAuth = await window.auth.getSession();
-				if (freshAuth?.session?.user) {
-					await safeCallRemote(() => window.sync.saveAllSessions(sessions));
-				}
+				await safeCallRemote(() =>
+					window.sync.saveAllSessions(sessions)
+				);
 			}
 		}
 
+		/* -------- Final UI -------- */
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
+		setSessionProgress(95);
 
-		try {
-			if (urlParams.model != null) {
-				modelSelect.value = urlParams.model;
-			} else {
-				modelSelect.value = sessions[currentSessionId]?.model ?? modelSelect.value;
-			}
-		} catch (e) {
-			console.warn(e);
-			void 0
+		if (urlParams.model) {
+			modelSelect.value = urlParams.model;
+		} else {
+			modelSelect.value =
+				sessions[currentSessionId]?.model ?? modelSelect.value;
 		}
 
 	} catch (err) {
-		modelSelect.innerHTML = `<option>Error loading models</option>`;
 		console.error(err);
+		modelSelect.innerHTML = `<option>Error loading models</option>`;
 	} finally {
+		hideSessionProgress();
+
 		if (await isOffline()) {
 			showNotification({
 				message: "⚠️ No internet connection — Using offline sessions only.",

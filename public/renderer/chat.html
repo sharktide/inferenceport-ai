@@ -1,39 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-			<script>
-				window.addEventListener('DOMContentLoaded', function() {
-					if (window.marked) {
-						window.marked.setOptions({ gfm: true });
-					}
+	<head>
+		<meta charset="UTF-8" />
+		<title>Chat - InferencePortAI</title>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<script type="module" src="../Components.js"></script>
+		<script type="module" src="../scripts/staticload/theme.js"></script>
+		<link
+			rel="stylesheet"
+			href="../publicvendor/katex/katex.min.css"
+			crossorigin="anonymous"
+		/>
+		<script
+			defer
+			src="../publicvendor/katex/katex.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script
+			defer
+			src="../publicvendor/katex/auto-render.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script>
+			document.addEventListener("DOMContentLoaded", function () {
+				renderMathInElement(document.body, {
+					delimiters: [
+						{ left: "$$", right: "$$", display: true },
+						{ left: "$", right: "$", display: true },
+						{ left: "\\(", right: "\\)", display: false },
+						{ left: "\\[", right: "\\]", display: true },
+					],
+					throwOnError: false,
 				});
-			</script>
-	<meta charset="UTF-8" />
-	<title>Chat - InferencePortAI</title>
-	<link rel="stylesheet" href="../styles/styles.css" />
-	<script type="module" src="../Components.js"></script>
-	<script type="module" src="../scripts/staticload/theme.js"></script>
-	<link rel="stylesheet" href="../publicvendor/katex/katex.min.css" crossorigin="anonymous">
-	<script defer src="../publicvendor/katex/katex.min.js" crossorigin="anonymous"></script>
-	<script defer src="../publicvendor/katex/auto-render.min.js" crossorigin="anonymous"></script>
-	<script src="../publicvendor/marked/marked.min.js"></script>
-	<script>
-		document.addEventListener("DOMContentLoaded", function () {
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: true },
-                    { left: '\\(', right: '\\)', display: false },
-                    { left: '\\[', right: '\\]', display: true }
-                ],
-                throwOnError: false
-            });
-		});
-	</script>
+			});
+		</script>
+		<style>
+			.search-btn {
+				margin-top: 6px;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 6px 12px;
+				font-size: 14px;
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #f9f9f9;
+				cursor: pointer;
+				display: inline-flex;
+				width: auto;
+			}
 
-</head>
+			.search-btn:hover {
+				background: #f0f0f0;
+			}
+
+			.search-icon {
+				font-size: 14px;
+			}
+			/* Full-screen blocking loader */
+			.session-loader {
+				position: fixed;
+				top: var(--navbar-height, 80px);
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: var(--bg-light);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 9000;
+				opacity: 1;
+				transition: opacity 280ms ease;
+			}
+
+			/* Hide helper */
+			.session-loader.hidden {
+				display: none;
+			}
+
+			/* Loader card */
+			.loader-card {
+				width: min(420px, 80%);
+				display: flex;
+				flex-direction: column;
+				gap: 14px;
+			}
+
+			/* Thick progress track */
+			.loader-track {
+				width: 100%;
+				height: 12px; /* thickness */
+				border-radius: 999px;
+				background: rgba(255, 255, 255, 0.08);
+				overflow: hidden;
+			}
+
+			/* Animated bar */
+			#session-progress-bar {
+				height: 100%;
+				width: 0%;
+				border-radius: 999px;
+				background: linear-gradient(90deg, #e5c846, #f1d763, #d5e546);
+				background-size: 200% 100%;
+				transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1);
+				animation: shimmer 1.6s linear infinite;
+			}
+
+			/* Subtle motion */
+			@keyframes shimmer {
+				0% {
+					background-position: 0% 0;
+				}
+				100% {
+					background-position: 200% 0;
+				}
+			}
+
+			.loader-text {
+				text-align: center;
+				font-size: 13px;
+				opacity: 0.7;
+				letter-spacing: 0.3px;
+			}
+
+			#app-root.hidden {
+				display: none;
+			}
+			
+		</style>
+	</head>
 	<body>
 		<type1-navbar></type1-navbar>
+		<div id="session-loader" class="session-loader hidden">
+			<div class="loader-card">
+				<div class="loader-track">
+					<div id="session-progress-bar"></div>
+				</div>
+				<div class="loader-text">Loading sessions…</div>
+			</div>
+		</div>
 
 		<div id="rename-dialog" class="modal hidden">
 			<div class="modal-content">
@@ -68,8 +173,11 @@
 			<div class="context-item" data-action="report">Report Content</div>
 		</div>
 
-		<main style="padding-bottom: 0px;">
-			<div id="notification-container"></div>
+		<main
+			id="app-root"
+			class="hidden"
+			style="padding: 40px; padding-top: 10px"
+		>
 			<div class="chat-container">
 				<aside class="sidebar">
 					<h2>Sessions</h2>
