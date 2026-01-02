@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2020"
-  },
-  "include": ["preload.ts", "main.ts", "node-apis"]
-}

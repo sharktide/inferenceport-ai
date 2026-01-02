@@ -14,13 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//@ts-ignore
-const { app, ipcMain, BrowserWindow, dialog } = require("electron");
-import type { IpcMainEvent } from 'electron'
-//@ts-ignore
-const fs = require("fs");
-//@ts-ignore
-const path = require("path");
+import { app, ipcMain, BrowserWindow, dialog } from "electron";
+import type { IpcMainInvokeEvent } from 'electron'
+import fs from "fs";
+import path from "path";
 
 const spaceDir: string = path.join(app.getPath("userData"), "spaces");
 const siteDir: string = path.join(app.getPath("userData"), "websites");
@@ -30,14 +27,12 @@ interface TypeData {
     emoji: string;
     background: string;
 
-    // HF spaces
     title: string;
     author: string;
 
     sdk: string;
     short_description: string;
 
-    // Website
     url: string;
 }
 
@@ -271,27 +266,25 @@ async function shareSite(url: string, title: string): Promise<void> {
     console.warn(`No matching website found for ${title}`);
 }
 
-//@ts-ignore
-function register(): void {
+export default function register(): void {
     ipcMain.handle("hfspaces:get-cards", (): string => {
         return getData();
     });
-    ipcMain.handle("hfspaces:delete", (_event: IpcMainEvent, username: string, repo: string): boolean => {
+    ipcMain.handle("hfspaces:delete", (_event: IpcMainInvokeEvent, username: string, repo: string): boolean => {
         return deleteSpaceByUserRepo(username, repo);
     });
-    ipcMain.handle("hfspaces:share", async (_event: IpcMainEvent, username: string, repo: string) => {
+    ipcMain.handle("hfspaces:share", async (_event: IpcMainInvokeEvent, username: string, repo: string) => {
         await share(username, repo);
     });
     ipcMain.handle("hfspaces:get-website-cards", (): string => {
         return getWebsiteData();
     });
-    ipcMain.handle("hfspaces:delete-website", (_event: IpcMainEvent, url: string): boolean => {
+    ipcMain.handle("hfspaces:delete-website", (_event: IpcMainInvokeEvent, url: string): boolean => {
         return deleteWebsiteByURL(url);
     });
-    ipcMain.handle("hfspaces:share-website", async (_event: IpcMainEvent, url: string, title: string) => {
+    ipcMain.handle("hfspaces:share-website", async (_event: IpcMainInvokeEvent, url: string, title: string) => {
         await shareSite(url, title);
     });
 
 }
 
-module.exports = { register };

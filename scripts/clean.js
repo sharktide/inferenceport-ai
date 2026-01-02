@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const { glob } = require("glob");
-const fs = require("fs/promises");
-const path = require("path");
+import { glob } from "glob";
+import { unlink, readFile, writeFile } from "fs/promises";
+import { resolve } from "path";
 
 (async () => {
-	const gitignorePath = path.resolve(".gitignore");
+	const gitignorePath = resolve(".gitignore");
 	const tsFiles = await glob("**/*.ts", { ignore: ["node_modules/**"] });
 
 	const generatedFiles = [];
@@ -30,7 +30,7 @@ const path = require("path");
 			const target = `${base}${ext}`;
 			generatedFiles.push(target);
 			try {
-				await fs.unlink(target);
+				await unlink(target);
 			} catch (err) {
 				if (err.code !== "ENOENT") {
 					console.error(`Failed to delete ${target}:`, err);
@@ -47,7 +47,24 @@ const path = require("path");
 			const target = `${base}${ext}`;
 			generatedFiles.push(target);
 			try {
-				await fs.unlink(target);
+				await unlink(target);
+			} catch (err) {
+				if (err.code !== "ENOENT") {
+					console.error(`Failed to delete ${target}:`, err);
+				}
+			}
+		}
+	}
+
+	const ctsFiles = await glob("**/*.cts", { ignore: ["node_modules/**"] });
+
+	for (const ctsFile of ctsFiles) {
+		const base = ctsFile.replace(/\.cts$/, "");
+		for (const ext of [".cjs", ".cjs.map", ".d.cts", ".d.cts.map"]) {
+			const target = `${base}${ext}`;
+			generatedFiles.push(target);
+			try {
+				await unlink(target);
 			} catch (err) {
 				if (err.code !== "ENOENT") {
 					console.error(`Failed to delete ${target}:`, err);
@@ -57,7 +74,7 @@ const path = require("path");
 	}
 
 	try {
-		const existing = await fs.readFile(gitignorePath, "utf-8");
+		const existing = await readFile(gitignorePath, "utf-8");
 		const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
 
 		let updated = false;
@@ -70,7 +87,7 @@ const path = require("path");
 
 		if (updated) {
 			const sorted = Array.from(lines).filter(Boolean).sort();
-			await fs.writeFile(gitignorePath, sorted.join("\n") + "\n", "utf-8");
+			await writeFile(gitignorePath, sorted.join("\n") + "\n", "utf-8");
 			console.log(".gitignore updated with generated files.");
 		}
 	} catch (err) {

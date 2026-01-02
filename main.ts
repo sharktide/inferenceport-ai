@@ -14,14 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const { app, BrowserWindow, ipcMain, screen, Menu } = require("electron");
-const path = require("path");
-const ollamaHandlers = require("./node-apis/ollama");
-const utilsHandlers = require("./node-apis/utils");
-const authHandlers = require("./node-apis/auth")
-const spaces = require('./node-apis/spaces');
-const fixPath = require("fix-path").default;
+import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
+import type { MenuItemConstructorOptions } from "electron";
+import path from "path";
+import ollamaHandlers, { serve } from "./node-apis/ollama.js";
+import utilsHandlers from "./node-apis/utils.js";
+import authHandlers from "./node-apis/auth.js";
+import spaces from './node-apis/spaces.js';
+import fixPath from "fix-path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 fixPath();
+
 
 let mainWindow: any = null;
 
@@ -32,12 +40,12 @@ function createWindow() {
         width: width,
         height: height,
         webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
+            preload: path.join(__dirname, "preload.cjs"),
         },
         icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
     });
 
-	const template = [
+	const template: MenuItemConstructorOptions[] = [
 		{
 			label: 'Marketplace',
 			submenu: [
@@ -71,10 +79,11 @@ function createWindow() {
 				{
 				label: 'Toggle Developer Tools',
 				accelerator: process.platform === 'darwin' ? 'Cmd+Alt+I' : 'Ctrl+Shift+I',
-				click: (_item: Electron.MenuItem, focusedWindow: Electron.BrowserWindow | undefined) => {
-				if (focusedWindow) {
-					focusedWindow.webContents.toggleDevTools();
-				}
+				click: (_item: Electron.MenuItem, focusedWindow: any, _event: Electron.KeyboardEvent) => {
+					const fw = focusedWindow as Electron.BrowserWindow | undefined;
+					if (fw) {
+						fw.webContents.toggleDevTools();
+					}
 				}
 				},
 				{ role: 'reload' }
@@ -198,7 +207,7 @@ app.whenReady().then(() => {
 	try {
 		if (process.defaultApp) {
 			app.setAsDefaultProtocolClient('inferenceport-ai', process.execPath, [
-				path.resolve(process.argv[1])]
+				path.resolve(process.argv[1]!)]
 			);
 		} else {
 			app.setAsDefaultProtocolClient('inferenceport-ai');
@@ -211,13 +220,13 @@ app.whenReady().then(() => {
 	ipcMain.handle("session:getPath", () => {
 		return chatDir;
 	});
-	ollamaHandlers.register();
-	utilsHandlers.register();
-	authHandlers.register()
-	spaces.register();
+	ollamaHandlers();
+	utilsHandlers();
+	authHandlers()
+	spaces();
 	createWindow();
 	try {
-		ollamaHandlers.serve();
+		serve();
 	} catch (ex) {
 		console.log(`NOTICE An exception was thrown inside a block allowed to fail. No further action is needed: ${ex}`);
 	}

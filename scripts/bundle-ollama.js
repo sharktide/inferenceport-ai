@@ -1,18 +1,17 @@
-const path = require('path')
-const fs = require('fs')
-const fsp = require('fs/promises')
-const { ElectronOllama } = require('electron-ollama')
+import { resolve, join } from 'path'
+import { readdir, rename, rm } from 'fs/promises'
+import { ElectronOllama } from 'electron-ollama'
 
 async function moveBinariesToRoot(version, os, arch) {
-    const vendorRoot = path.resolve(__dirname, '../vendor/electron-ollama')
-    const sourceDir = path.join(vendorRoot, version, os, arch)
+    const vendorRoot = resolve(__dirname, '../vendor/electron-ollama')
+    const sourceDir = join(vendorRoot, version, os, arch)
 
     try {
-        const files = await fsp.readdir(sourceDir)
+        const files = await readdir(sourceDir)
         for (const file of files) {
-            const src = path.join(sourceDir, file)
-            const dest = path.join(vendorRoot, file)
-            await fsp.rename(src, dest)
+            const src = join(sourceDir, file)
+            const dest = join(vendorRoot, file)
+            await rename(src, dest)
         }
         console.log(`Moved binaries from ${sourceDir} to ${vendorRoot}`)
     } catch (err) {
@@ -21,13 +20,13 @@ async function moveBinariesToRoot(version, os, arch) {
 }
 
 async function removeCudaFolders() {
-    const vendorRoot = path.resolve(__dirname, '../vendor/electron-ollama')
+    const vendorRoot = resolve(__dirname, '../vendor/electron-ollama')
     const cudaVersions = ['lib/ollama/cuda_v12', 'lib/ollama/cuda_v13']
 
     for (const version of cudaVersions) {
-        const cudaPath = path.join(vendorRoot, version)
+        const cudaPath = join(vendorRoot, version)
         try {
-            await fsp.rm(cudaPath, { recursive: true, force: true })
+            await rm(cudaPath, { recursive: true, force: true })
             console.log(`Removed ${version} folder from ${vendorRoot}`)
         } catch (err) {
             console.warn(`Could not remove ${version}: ${err.message}`)
@@ -46,7 +45,7 @@ async function bundleOllama() {
         process.exit(1)
     }
 
-    const eo = new ElectronOllama({ basePath: path.resolve(__dirname, '../vendor') })
+    const eo = new ElectronOllama({ basePath: resolve(__dirname, '../vendor') })
     const metadata = await eo.getMetadata('latest')
     await eo.download(metadata.version, { os, arch })
 

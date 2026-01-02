@@ -1,8 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { app, ipcMain, BrowserWindow, session } from "electron";
-import { IpcMainEvent, IpcMainInvokeEvent } from "electron/main";
-const fs = require("fs");
-const path = require("path");
+
+import fs from "fs";
+import path from "path";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
@@ -12,7 +13,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const sessionFile = path.join(app.getPath("userData"), "supabase-session.json");
 const profilesFile = path.join(app.getPath("userData"), "profiles.json");
 
-// Try to restore session
 async function restoreSession() {
 	if (fs.existsSync(sessionFile)) {
 		const session = JSON.parse(fs.readFileSync(sessionFile, "utf-8"));
@@ -22,8 +22,7 @@ async function restoreSession() {
 	}
 }
 
-// Save session whenever it changes
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
 	if (session) {
 		fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
 	} else {
@@ -53,7 +52,7 @@ type MessageType = {
 	asset?: { id: string; type: "image"; mime: string; base64: string };
 };
 
-export function register() {
+export default function register() {
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,

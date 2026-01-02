@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { contextBridge, ipcRenderer } from "electron";
+const { contextBridge, ipcRenderer } = require("electron");
 
 type Role = "user" | "assistant" | "tool" | "system" | "image";
 type AssetRole = "image";
@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld("ollama", {
 	onPullProgress: (cb: (data: PullProgress) => void): void => {
 		ipcRenderer.on(
 			"ollama:pull-progress",
-			(_e: Electron.IpcRendererEvent, data) => cb(data)
+			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		);
 	},
 	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
@@ -163,7 +163,7 @@ contextBridge.exposeInMainWorld("auth", {
 	getSession: () => ipcRenderer.invoke("auth:getSession"),
 	onAuthStateChange: (callback: (session: Session) => void) => {
 		ipcRenderer.invoke("auth:onAuthStateChange");
-		ipcRenderer.on("auth:stateChanged", (_e, session) => callback(session));
+		ipcRenderer.on("auth:stateChanged", (_e: any, session: Session) => callback(session));
 	},
 	resetPassword: (email: string) =>
 		ipcRenderer.invoke("auth:resetPassword", email),
