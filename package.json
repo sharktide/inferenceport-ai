@@ -41,7 +41,7 @@
       "public/**/*",
       "node-apis/*",
       "main.js",
-      "preload.mjs",
+      "preload.cjs",
       "package.json",
       "!**/vendor/**/*",
       "!./scripts/*",
