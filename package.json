@@ -25,7 +25,7 @@
     "systeminformation": "^5.27.11"
   },
   "devDependencies": {
-    "@types/dompurify": "^3.0.5",
+    "@types/dompurify": "^3.2.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.3.0",
     "@types/sanitize-html": "^2.16.0",
