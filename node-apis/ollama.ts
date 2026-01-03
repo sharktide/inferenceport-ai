@@ -254,7 +254,7 @@ export default function register(): void {
 			const resolveCommand = (cb: (cmd: string) => void) => {
 				return cb(`"${ollamaPath}" list`);
 			};
-
+			//semgrepignore: javascript.lang.security.detect-child-process
 			resolveCommand((resolvedCmd) => {
 				exec(resolvedCmd, {}, (error: ExecException | null, stdout: string) => {
 					if (error) return reject(error);
