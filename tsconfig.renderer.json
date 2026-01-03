@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "esnext",
-    "target": "es2020"
-  },
-  "include": ["public", "global.d.ts"]
-}

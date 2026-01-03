@@ -16,12 +16,9 @@ limitations under the License.
 
 //@ts-nocheck
 
-import { urlToHttpOptions } from "url";
 import { showNotification } from "../helper/notification.js";
 import {
 	mergeLocalAndRemoteSessions,
-	LocalSessionMap,
-	RemoteSessionMap,
 	safeCallRemote,
 	isOffline,
 } from "../helper/sync.js";

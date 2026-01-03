@@ -14,15 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const { app, ipcMain, BrowserWindow } = require("electron");
-import type { IpcMain, IpcMainEvent } from "electron";
-const fs = require("fs");
-const path = require("path");
-const { exec, spawn } = require("child_process");
+import { app, ipcMain, BrowserWindow } from "electron";
+import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
+
+import fs from "fs";
+import path from "path";
+import { exec, spawn } from "child_process";
 import { execFile } from "child_process";
+import type { ExecException } from "child_process";
 import { promisify } from "util";
+import os from "os";
+
 const execFileAsync = promisify(execFile);
-const os = require("os");
 
 const systemPrompt =
 	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
@@ -121,7 +124,7 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
-async function serve(): Promise<string> {
+export async function serve(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
 			if (err) return reject(err);
@@ -237,10 +240,8 @@ function LOG_ERR(trace: string, label: string, ...args: any[]) {
 	console.error(`[${time}] [${trace}] ❌ ${label}`, ...args);
 }
 
-// ====================== End Tool Functions ======================
-
 let chatAbortController: AbortController | null = null;
-function register(): void {
+export default function register(): void {
 	try {
 		execFileAsync(ollamaPath);
 	} catch {
@@ -253,10 +254,10 @@ function register(): void {
 			const resolveCommand = (cb: (cmd: string) => void) => {
 				return cb(`"${ollamaPath}" list`);
 			};
-
+			//nosemgrep: javascript.lang.security.detect-child-process
 			resolveCommand((resolvedCmd) => {
-				exec(resolvedCmd, (err: Error, stdout: string) => {
-					if (err) return reject(err);
+				exec(resolvedCmd, {}, (error: ExecException | null, stdout: string) => {
+					if (error) return reject(error);
 
 					const lines = stdout.trim().split("\n").slice(1);
 					const models = lines
@@ -282,7 +283,7 @@ function register(): void {
 
 	ipcMain.handle(
 		"ollama:run",
-		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
+		async (_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
 					// nosemgrep: javascript.lang.security.detect-child-process
@@ -298,7 +299,7 @@ function register(): void {
 
 	ipcMain.handle(
 		"ollama:delete",
-		async (_event: IpcMainEvent, modelName: string): Promise<string> => {
+		async (_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
 					`"${ollamaPath}" rm ${modelName}`,
@@ -563,7 +564,7 @@ function register(): void {
 
 	ipcMain.handle(
 		"ollama:pull",
-		(_event: IpcMainEvent, modelName: string): Promise<string> => {
+		(_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				const child = spawn(ollamaPath, ["pull", modelName]);
 
@@ -591,7 +592,7 @@ function register(): void {
 	ipcMain.handle("sessions:load", () => loadSessions());
 	ipcMain.handle(
 		"sessions:save",
-		(_event: Electron.IpcMainEvent, sessions: Record<string, unknown>) =>
+		(_event: Electron.IpcMainInvokeEvent, sessions: Record<string, unknown>) =>
 			saveSessions(sessions)
 	);
 
@@ -625,4 +626,3 @@ function loadSessions(): Record<string, unknown> {
 	return {};
 }
 
-module.exports = { register, serve };

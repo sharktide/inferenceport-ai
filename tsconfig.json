@@ -1,23 +1,27 @@
 {
-  "include": ["public", "main.ts", "preload.ts", "global.d.ts"],
+  "include": ["main.ts", "preload.cts", "node-apis", "public", "global.d.ts"],
   "exclude": ["node_modules", "dist"],
   "compilerOptions": {
+    "target": "es2020",
     "module": "nodenext",
-    "target": "esnext",
+    "moduleResolution": "nodenext",
     "types": ["node"],
 
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
 
+    "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "strict": true,
-    "jsx": "react-jsx",
-    "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
+
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true
   }
 }

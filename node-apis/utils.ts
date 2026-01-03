@@ -14,15 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const sanitizeHtml = require("sanitize-html");
-//@ts-ignore
-import type { IpcMainEvent } from "electron";
+import sanitizeHtml from "sanitize-html";
+import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
-const fs = require("fs");
-const path = require("path");
-const { shell, app, ipcMain } = require("electron");
-const si = require("systeminformation");
-const MDIT = require("markdown-it");
+import fs from "fs";
+import path from "path";
+import { shell, app, ipcMain } from "electron";
+import si from "systeminformation";
+import MDIT from "markdown-it";
 
 import type { Systeminformation } from "systeminformation";
 
@@ -93,7 +92,7 @@ function isFirstLaunch(): boolean {
 
 	try {
 		const fd = fs.openSync(markerPath, "wx");
-		fs.writeSync(fd, JSON.stringify({ firstRunCompleted: true }), "utf-8");
+		fs.writeSync(fd, JSON.stringify({ firstRunCompleted: true }), undefined, "utf-8");
 		fs.closeSync(fd);
 		return true;
 	} catch (err: any) {
@@ -143,7 +142,7 @@ function parseModelSize(modelSize: string) {
 	return parseFloat(lower);
 }
 
-function register() {
+export default function register() {
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
 	});
@@ -155,7 +154,7 @@ function register() {
 
 	ipcMain.handle(
 		"utils:web_open",
-		async (_event: IpcMainEvent, url: string) => {
+		async (_event: IpcMainInvokeEvent, url: string) => {
 			shell.openExternal(url);
 		}
 	);
@@ -225,21 +224,18 @@ function register() {
 
 	ipcMain.handle(
 		"utils:saveFile",
-		async (_event: IpcMainEvent, filePath: string, content: string) => {
+		async (_event: IpcMainInvokeEvent, filePath: string, content: string) => {
 			const base = app.getPath("userData");
 			const resolved = path.resolve(filePath);
 
-			// **Label:** Containment check
 			if (!resolved.startsWith(path.resolve(base) + path.sep)) {
 				throw new Error("Path outside userData");
 			}
 
-			// **Label:** Ensure directory exists
 			await fs.promises.mkdir(path.dirname(resolved), {
 				recursive: true,
 			});
 
-			// **Label:** Atomic write via temp + rename
 			const tmp = resolved + ".tmp-" + String(process.pid);
 			await fs.promises.writeFile(tmp, content, { mode: 0o600 });
 			await fs.promises.rename(tmp, resolved);
@@ -256,7 +252,7 @@ function register() {
 
 	ipcMain.handle(
 		"utils:get-hardware-performance-warning",
-		async (_event: IpcMainEvent, modelSizeRaw: string) => {
+		async (_event: IpcMainInvokeEvent, modelSizeRaw: string) => {
 			const modelSize = parseModelSize(modelSizeRaw);
 			await initHardwareInfo();
 
@@ -315,7 +311,3 @@ function register() {
 		}
 	);
 }
-
-module.exports = {
-	register,
-};
