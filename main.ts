@@ -79,8 +79,8 @@ function createWindow() {
 				{
 				label: 'Toggle Developer Tools',
 				accelerator: process.platform === 'darwin' ? 'Cmd+Alt+I' : 'Ctrl+Shift+I',
-				click: (_item: Electron.MenuItem, focusedWindow: Electron.BrowserWindow | undefined, _event: Electron.KeyboardEvent) => {
-					if (focusedWindow) {
+				click: (_item: Electron.MenuItem, focusedWindow: Electron.BaseWindow | undefined, _event: Electron.KeyboardEvent) => {
+					if (focusedWindow instanceof BrowserWindow) {
 						focusedWindow.webContents.toggleDevTools();
 					}
 				}
