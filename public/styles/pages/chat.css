@@ -358,19 +358,6 @@
 	box-sizing: border-box;
 }
 
-.feature-btns {
-	width: 100%;
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 12px;
-
-	order: 999;
-}
-
-.feature-btns button:hover {
-	background-color: "" !important;
-}
 .send-btn {
 	background: linear-gradient(180deg, var(--primary-color, #3178c6), #235a92);
 	color: white;
@@ -633,7 +620,6 @@ details summary {
 	gap: 8px;
 }
 
-/* HARD-LOCK textarea appearance to typing bar */
 .typing-bar textarea,
 .typing-bar textarea:hover,
 .typing-bar textarea:focus,
@@ -648,7 +634,6 @@ details summary {
 	-moz-appearance: none !important;
 }
 
-/* Dark theme lock */
 [data-theme="dark"] .typing-bar textarea,
 [data-theme="dark"] .typing-bar textarea:hover,
 [data-theme="dark"] .typing-bar textarea:focus,
@@ -660,10 +645,6 @@ details summary {
 	outline: none !important;
 }
 
-/* ===============================
-   TYPING BAR — FINAL LAYOUT
-================================ */
-
 .typing-bar {
 	display: flex;
 	flex-wrap: wrap;
@@ -673,11 +654,10 @@ details summary {
 	width: 100%;
 	padding: 16px;
 	border-radius: 24px;
-	background: rgba(255, 255, 255, 0.05);
+	background: var(--gray);
 	box-sizing: border-box;
 }
 
-/* ---------- ROW 1: FILE PREVIEWS ---------- */
 .file-preview-bar {
 	flex: 0 0 100%;
 	width: 100%;
