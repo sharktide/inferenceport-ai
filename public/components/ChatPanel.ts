@@ -4,21 +4,20 @@ export class ChatBox extends HTMLElement {
             <input type="file" id="file-upload" multiple style="display:none" />
             <form id="chat-form" role="form">
                 <div class="typing-bar">
-                    <div id="file-preview-bar" class="file-preview-bar"></div>
 
+                    <div id="file-preview-bar" class="file-preview-bar"></div>
                     <textarea
                         id="chat-input"
                         placeholder="Ask anything - try 'Hey! Search for Cookie Recipes'"
-                        rows="4">
-                    </textarea>
+                        rows="4"></textarea>
 
                     <div class="feature-btns">
                     <button type="button" id="search-btn" class="search-btn" aria-label="Search">
-                        <span id="search-text">Don't Search</span>
+                        <span id="search-text">Web Search</span>
                     </button>
                     <br>
                     <button type="button" id="img-btn" class="search-btn" aria-label="Search">
-                        <span id="img-text">No Image</span>
+                        <span id="img-text">Image Generation</span>
                     </button>
                     </div>
 
