@@ -54,12 +54,14 @@ const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
 const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
 const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
+const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
+const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
+
 let searchEnabled = false;
 let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
 modelSelect?.addEventListener("change", setTitle);
-
 const urlParams = new URLSearchParams(window.location.search);
 
 function stripAnsi(str: string): string {
@@ -120,6 +122,7 @@ async function hideSessionProgress(): void {
 
 
 document.addEventListener("DOMContentLoaded", loadOptions);
+document.addEventListener("DOMContentLoaded", updateTextareaState);
 
 async function loadOptions() {
 	showSessionProgress();
@@ -127,7 +130,6 @@ async function loadOptions() {
 	try {
 		setSessionProgress(5);
 
-		/* -------- Local sessions -------- */
 		try {
 			const local = await window.ollama.load();
 			sessions = local && typeof local === "object" ? local : {};
@@ -140,7 +142,6 @@ async function loadOptions() {
 		}
 		setSessionProgress(20);
 
-		/* -------- Models -------- */
 		try {
 			const models = await window.ollama.listModels();
 			const total = Math.max(models.length, 1);
@@ -151,7 +152,6 @@ async function loadOptions() {
 				option.textContent = model.name;
 				modelSelect.appendChild(option);
 
-				// 20% → 45%
 				setSessionProgress(20 + (25 * (i + 1)) / total);
 			});
 
@@ -173,7 +173,6 @@ async function loadOptions() {
 		}
 		setSessionProgress(45);
 
-		/* -------- Auth + sync -------- */
 		const auth = await window.auth.getSession();
 		setSessionProgress(55);
 
@@ -216,7 +215,6 @@ async function loadOptions() {
 			}
 		}
 
-		/* -------- Final UI -------- */
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
@@ -435,16 +433,14 @@ function renderSessionList(): void {
 			renderSessionList();
 		};
 
-		// Visible menu button (three dots) to open the session context menu without using right-click
 		const menuBtn = document.createElement("button");
 		menuBtn.className = "menu-btn";
 		menuBtn.setAttribute("aria-label", "Open session menu");
 		menuBtn.title = "Open session menu";
 		menuBtn.innerText = "⋯";
 		menuBtn.onclick = (e) => {
-			e.stopPropagation(); // Prevent the click from bubbling and immediately closing the menu
+			e.stopPropagation();
 			const rect = menuBtn.getBoundingClientRect();
-			// pageX/pageY expected by showContextMenu
 			const x = rect.right + window.scrollX - 8;
 			const y = rect.bottom + window.scrollY + 4;
 			showContextMenu(x, y, id, name);
@@ -495,10 +491,10 @@ chatBox.addEventListener("scroll", () => {
 searchBtn.addEventListener("click", () => {
 	if (searchEnabled) {
 		searchEnabled = false;
-		searchLabel.textContent = "Don't Search";
+		searchLabel.style.color = "";
 	} else {
 		searchEnabled = true;
-		searchLabel.textContent = "Search";
+		Object.assign(searchLabel.style, { color: "#f9d400ff" });
 	}
 	console.log("searchEnabled", searchEnabled);
 });
@@ -506,10 +502,10 @@ searchBtn.addEventListener("click", () => {
 imgBtn.addEventListener("click", () => {
 	if (imgEnabled) {
 		imgEnabled = false;
-		imageLabel.textContent = "No Image";
+		imageLabel.style.color = "";
 	} else {
 		imgEnabled = true;
-		imageLabel.textContent = "Image";
+		Object.assign(imageLabel.style, { color: "#f9d400ff" });
 	}
 	console.log("imgEnabled", imgEnabled);
 });
@@ -689,6 +685,12 @@ async function autoNameSession(
 
 form.addEventListener("submit", async (e) => {
 	e.preventDefault();
+	const prompt = input.value.trim();
+	input.value = "";
+
+	typingBar.classList.add("empty");
+
+	updateTextareaState();
 
 	console.log("[form.submit] Submit event triggered");
 	const models = await window.ollama.listModels();
@@ -717,7 +719,6 @@ form.addEventListener("submit", async (e) => {
 		return;
 	}
 
-	const prompt = input.value.trim();
 	const model = modelSelect.value;
 	console.log(
 		"[form.submit] Prompt:",
@@ -749,8 +750,6 @@ form.addEventListener("submit", async (e) => {
 	chatBox.appendChild(botBubble);
 	chatBox.scrollTop = chatBox.scrollHeight;
 
-	input.value = "";
-	input.style.height = "";
 	window.ollama.removeAllListeners?.();
 	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled);
 
@@ -878,11 +877,43 @@ function endStreaming() {
 	updateActionButton();
 }
 
-const textarea = document.getElementById("chat-input") as HTMLInputElement;
-textarea.addEventListener("input", () => {
+try {
+	textarea.autocomplete = "off";
+} catch (err) {
+	void 1;
+}
+
+const LINE_HEIGHT = 1.6 * 16;
+const BASE_PADDING = 32;
+const MAX_LINES = 3;
+
+function updateTextareaState() {
+	const value = textarea.value;
+
+	if (value.length === 0) {
+		typingBar.classList.add("empty");
+
+		textarea.style.overflowY = "hidden";
+		textarea.style.height = `${LINE_HEIGHT + BASE_PADDING}px`;
+		return;
+	}
+
+	typingBar.classList.remove("empty");
+
 	textarea.style.height = "auto";
-	textarea.style.height = textarea.scrollHeight + "px";
-});
+
+	const scrollHeight = textarea.scrollHeight;
+	const maxHeight = LINE_HEIGHT * MAX_LINES + BASE_PADDING;
+
+	if (scrollHeight > maxHeight) {
+		textarea.style.height = `${maxHeight}px`;
+		textarea.style.overflowY = "auto";
+	} else {
+		textarea.style.height = `${scrollHeight}px`;
+		textarea.style.overflowY = "hidden";
+	}
+}
+
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {
 		e.preventDefault();
@@ -1159,3 +1190,5 @@ window.ollama.onNewAsset((msg) => {
 
 	renderImageAsset(dataUrl);
 });
+
+textarea.addEventListener("input", updateTextareaState);

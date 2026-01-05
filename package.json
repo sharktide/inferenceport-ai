@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "node scripts/clean.js",
-    "watch": "tsc -p tsconfig.renderer.json --watch",
+    "watch": "tsc --watch",
     "compile": "tsc",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
     "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish never && npm run clean",
