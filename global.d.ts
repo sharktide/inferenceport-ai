@@ -36,8 +36,8 @@ declare global {
 			removeAllListeners: () => void;
 			isAvailable: () => boolean;
 			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
-			getToolSupportingModels: () => Promise<Array<string>>;
-			fetchToolSupportingModels: () => Promise<Array<string>>;
+			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 		};
 
 		utils: {

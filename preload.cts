@@ -120,8 +120,8 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.removeAllListeners("ollama:chat-done");
 	},
 
-	getToolSupportingModels: (): Promise<Array<string>> => ipcRenderer.invoke("ollama:get-tool-models"),
-	fetchToolSupportingModels: (): Promise<Array<string>> => ipcRenderer.invoke("ollama:fetch-tool-models")
+	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
+	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models")
 });
 
 // ===== Utilities =====
