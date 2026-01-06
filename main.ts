@@ -17,7 +17,7 @@ limitations under the License.
 import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
-import ollamaHandlers, { serve } from "./node-apis/ollama.js";
+import ollamaHandlers, { serve, fetchSupportedTools } from "./node-apis/ollama.js";
 import utilsHandlers from "./node-apis/utils.js";
 import authHandlers from "./node-apis/auth.js";
 import spaces from './node-apis/spaces.js';
@@ -226,6 +226,11 @@ app.whenReady().then(() => {
 	createWindow();
 	try {
 		serve();
+	} catch (ex) {
+		console.log(`NOTICE An exception was thrown inside a block allowed to fail. No further action is needed: ${ex}`);
+	}
+	try {
+		fetchSupportedTools();
 	} catch (ex) {
 		console.log(`NOTICE An exception was thrown inside a block allowed to fail. No further action is needed: ${ex}`);
 	}
