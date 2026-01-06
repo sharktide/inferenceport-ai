@@ -326,6 +326,7 @@ export default function register(): void {
 			};
 			//nosemgrep: javascript.lang.security.detect-child-process
 			resolveCommand((resolvedCmd) => {
+				//nosemgrep: javascript.lang.security.detect-child-process
 				exec(
 					resolvedCmd,
 					{},
