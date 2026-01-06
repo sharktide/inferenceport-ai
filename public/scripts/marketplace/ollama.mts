@@ -20,9 +20,19 @@ let availableModels: AvailableModel[] = [];
 
 let currentModelName = "";
 let currentModelSizes: string[] = [];
+let toolSupportingModels: Set<string> = new Set();
+
+const TOOL_FEATURES = [
+	{ key: "web", label: "Web search", icon: "🌐" },
+	{ key: "image", label: "Image generation", icon: "🖼️" },
+];
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+}
+
+function modelSupportsTools(modelName: string): boolean {
+	return toolSupportingModels.has(modelName.toLowerCase());
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -30,13 +40,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 	const availableContainer = document.getElementById("available-models");
 	if (!installedContainer || !availableContainer) return;
 
-	//@ts-ignore
 	installedModels = await window.ollama.listModels();
 	availableModels = await fetchAvailableModels();
+
+	const { supportsTools } = await window.ollama.getToolSupportingModels();
+	toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
 
 	renderInstalledModels();
 	renderAvailableModels();
 });
+
 
 async function fetchAvailableModels(): Promise<AvailableModel[]> {
 	const response = await fetch("https://ollama.com/library");
@@ -274,12 +287,29 @@ function renderAvailableModels(filter: string = ""): void {
 				.map((tag) => `<span class="model-tag">${tag}</span>`)
 				.join(" ");
 
+			const supportsTools = modelSupportsTools(model.name);
+
+			const featureBadges = supportsTools
+				? TOOL_FEATURES.map(
+						(f) =>
+							`<span class="feature-badge on">${f.icon} ${f.label}</span>`
+				).join("")
+				: TOOL_FEATURES.map(
+						(f) =>
+							`<span class="feature-badge off">${f.icon} ${f.label}</span>`
+				).join("");
+
+
 			card.innerHTML = `
         <h2>${model.name}</h2>
         <p class="model-description">${
 					model.description ?? "No description available."
 				}</p>
         <div class="model-tags">${tagBadges}</div>
+		<div class="model-features">
+			${featureBadges}
+		</div>
+
         <div class="model-meta">
           <p><strong>Pulls:</strong> ${model.pulls}</p>
           <p><strong>Updated:</strong> ${model.updated}</p>
