@@ -31,3 +31,30 @@ Copyright 2025 Rihaan Meher
 .marketplace-btn {
   margin-top: auto;
 }
+
+.model-features {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin: 6px 0 10px;
+}
+
+.feature-badge {
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-weight: 500;
+	user-select: none;
+	white-space: nowrap;
+}
+
+.feature-badge.on {
+	background: rgba(49, 120, 198, 0.14);
+	color: #3178c6;
+}
+
+.feature-badge.off {
+	background: rgba(0, 0, 0, 0.08);
+	color: #777;
+	text-decoration: line-through;
+}
