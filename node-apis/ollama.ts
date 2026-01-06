@@ -124,6 +124,14 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+let cachedSupportsTools: string[] | null = null;
+let writeInProgress: Promise<void> | null = null;
+const dataFilePath = path.join(dataDir, "supportsTools.json");
+
+async function ensureDir() {
+	await fs.promises.mkdir(path.dirname(dataFilePath), { recursive: true });
+}
+
 export async function serve(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
@@ -247,6 +255,61 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
+
+	ipcMain.handle("ollama:fetch-tool-models", async () => {
+		const response = await fetch("https://ollama.com/search?c=tools");
+		if (!response.ok) {
+			throw new Error(`Failed to fetch models: ${response.statusText}`);
+		}
+
+		const html = await response.text();
+		const names: string[] = [];
+
+		const liRegex = /<li[^>]*x-test-model[^>]*>([\s\S]*?)<\/li>/g;
+		let match;
+		while ((match = liRegex.exec(html)) !== null) {
+			const liContent = match[1];
+			const nameMatch = liContent!.match(/<h2[^>]*>\s*<span[^>]*x-test-search-response-title[^>]*>(.*?)<\/span>/);
+			const name = nameMatch?.[1]?.trim();
+			if (name) {
+			names.push(name);
+			}
+		}
+
+		cachedSupportsTools = names;
+
+		await ensureDir();
+		const writeTask = fs.promises.writeFile(
+			dataFilePath,
+			JSON.stringify({ supportsTools: names }, null, 2),
+			"utf-8"
+		);
+		writeInProgress = writeTask;
+		await writeTask;
+		writeInProgress = null;
+
+		return { supportsTools: names };
+	});
+
+	ipcMain.handle("ollama:get-tool-models", async () => {
+		if (cachedSupportsTools) {
+			return { supportsTools: cachedSupportsTools };
+		}
+
+		if (writeInProgress) {
+			await writeInProgress;
+		}
+
+		try {
+			const data = await fs.promises.readFile(dataFilePath, "utf-8");
+			const parsed = JSON.parse(data) as { supportsTools: string[] };
+			cachedSupportsTools = parsed.supportsTools;
+			return parsed;
+		} catch {
+			return { supportsTools: [] };
+		}
+	});
+
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
 			const isMac = os.platform() === "darwin";
