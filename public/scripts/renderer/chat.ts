@@ -56,6 +56,7 @@ const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
 const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
+const featureWarning = document.getElementById("feature-warning") as HTMLParagraphElement;
 
 let searchEnabled = false;
 let imgEnabled = false;
@@ -1191,4 +1192,17 @@ window.ollama.onNewAsset((msg) => {
 	renderImageAsset(dataUrl);
 });
 
+modelSelect.addEventListener("change", async () => {
+	const { supportsTools } = await window.ollama.getToolSupportingModels();
+
+	if (supportsTools.includes(modelSelect.value.split(":")[0])) {
+		typingBar.classList.remove("no-tools");
+		featureWarning.style.display = "none"; // optional, CSS already handles
+	} else {
+		typingBar.classList.add("no-tools");
+		featureWarning.style.display = "block";
+	}
+})
+
 textarea.addEventListener("input", updateTextareaState);
+

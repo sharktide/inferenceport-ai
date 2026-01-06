@@ -20,6 +20,7 @@ export class ChatBox extends HTMLElement {
                         <span id="img-text">Image Generation</span>
                     </button>
                     </div>
+                    <p style="display:none;" id="feature-warning">The selected model does not support web search or image generation.</p>
 
                     <div class="typing-actions">
                         <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
