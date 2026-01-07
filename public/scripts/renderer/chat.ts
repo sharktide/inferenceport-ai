@@ -56,7 +56,9 @@ const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
 const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
-const featureWarning = document.getElementById("feature-warning") as HTMLParagraphElement;
+const featureWarning = document.getElementById(
+	"feature-warning"
+) as HTMLParagraphElement;
 
 let searchEnabled = false;
 let imgEnabled = false;
@@ -77,6 +79,22 @@ function isSyncEnabled() {
 	}
 }
 
+let modelsSupportsTools: string[] = [];
+let toolNotice: string | null = null;
+
+async function setToolSupport() {
+	if (
+		modelsSupportsTools.includes(modelSelect.value.split(":")[0]) ||
+		toolNotice
+	) {
+		typingBar.classList.remove("no-tools");
+		featureWarning.style.display = "none";
+	} else {
+		typingBar.classList.add("no-tools");
+		featureWarning.style.display = "block";
+	}
+}
+
 let sessionProgress = 0;
 let loaderVisible = false;
 
@@ -89,7 +107,9 @@ function showSessionProgress(): void {
 }
 
 function setSessionProgress(value: number): void {
-	const bar = document.getElementById("session-progress-bar") as HTMLDivElement;
+	const bar = document.getElementById(
+		"session-progress-bar"
+	) as HTMLDivElement;
 	if (!bar) return;
 
 	const clamped = Math.min(100, Math.max(0, value));
@@ -99,7 +119,9 @@ function setSessionProgress(value: number): void {
 async function hideSessionProgress(): void {
 	if (!loaderVisible) return;
 
-	const bar = document.getElementById("session-progress-bar") as HTMLDivElement;
+	const bar = document.getElementById(
+		"session-progress-bar"
+	) as HTMLDivElement;
 	const loader = document.getElementById("session-loader") as HTMLDivElement;
 
 	if (!loader) return;
@@ -119,8 +141,6 @@ async function hideSessionProgress(): void {
 		loaderVisible = false;
 	}, 300);
 }
-
-
 
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
@@ -142,6 +162,21 @@ async function loadOptions() {
 			sessions = {};
 		}
 		setSessionProgress(20);
+
+		try {
+			const { supportsTools } =
+				await window.ollama.getToolSupportingModels();
+			modelsSupportsTools = supportsTools || [];
+		} catch (e) {
+			modelsSupportsTools = [];
+			toolNotice =
+				"Could not fetch model capabilities. Web search and image generation may not work as expected.";
+			showNotification({
+				message: toolNotice,
+				type: "warning",
+				actions: [{ label: "Dismiss", onClick: () => void 0 }],
+			});
+		}
 
 		try {
 			const models = await window.ollama.listModels();
@@ -1192,17 +1227,6 @@ window.ollama.onNewAsset((msg) => {
 	renderImageAsset(dataUrl);
 });
 
-modelSelect.addEventListener("change", async () => {
-	const { supportsTools } = await window.ollama.getToolSupportingModels();
-
-	if (supportsTools.includes(modelSelect.value.split(":")[0])) {
-		typingBar.classList.remove("no-tools");
-		featureWarning.style.display = "none"; // optional, CSS already handles
-	} else {
-		typingBar.classList.add("no-tools");
-		featureWarning.style.display = "block";
-	}
-})
+modelSelect.addEventListener("change", setToolSupport);
 
 textarea.addEventListener("input", updateTextareaState);
-
