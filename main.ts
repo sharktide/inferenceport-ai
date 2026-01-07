@@ -17,10 +17,13 @@ limitations under the License.
 import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
-import ollamaHandlers, { serve } from "./node-apis/ollama.js";
+import ollamaHandlers, {
+	serve,
+	fetchSupportedTools,
+} from "./node-apis/ollama.js";
 import utilsHandlers from "./node-apis/utils.js";
 import authHandlers from "./node-apis/auth.js";
-import spaces from './node-apis/spaces.js';
+import spaces from "./node-apis/spaces.js";
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -30,87 +33,136 @@ const __dirname = dirname(__filename);
 
 fixPath();
 
-
 let mainWindow: any = null;
 
+function fireAndForget(promise: Promise<any>, label: string) {
+	promise.catch((err) => {
+		const stack = (err?.stack || String(err)).split("\n")[0];
+		console.warn(`[fireAndForget] [${label}]`, stack);
+	});
+}
+
 function createWindow() {
-    const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.workAreaSize;
-    mainWindow = new BrowserWindow({
-        width: width,
-        height: height,
-        webPreferences: {
-            preload: path.join(__dirname, "preload.cjs"),
-        },
-        icon: path.join(__dirname, 'public', 'assets', 'img', 'logo.png')
-    });
+	const primaryDisplay = screen.getPrimaryDisplay();
+	const { width, height } = primaryDisplay.workAreaSize;
+	mainWindow = new BrowserWindow({
+		width: width,
+		height: height,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.cjs"),
+		},
+		icon: path.join(__dirname, "public", "assets", "img", "logo.png"),
+	});
 
 	const template: MenuItemConstructorOptions[] = [
 		{
-			label: 'Marketplace',
-			submenu: [
-				{ label: 'Launch', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace.html")) },
-				{ type: 'separator' },
-				{ label: 'Ollama', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace", "ollama.html")) },
-				{ label: 'Spaces', click: () => mainWindow.loadFile(path.join(__dirname, "public", "marketplace", "spaces.html")) },
-			]
-		},
-		{
-			label: 'Edit',
-			submenu: [
-				{ label: 'Undo', role: 'undo' },
-				{ label: 'Redo', role: 'redo' },
-				{ type: 'separator' },
-				{ label: 'Cut', role: 'cut' },
-				{ label: 'Copy', role: 'copy' },
-				{ label: 'Paste', role: 'paste' }
-			]
-		},
-		{
-			label: 'Window',
-			submenu: [
-				{ role: 'minimize' },
-				{ role: 'close' }
-			]
-		},
-		{
-			label: 'View',
+			label: "Marketplace",
 			submenu: [
 				{
-				label: 'Toggle Developer Tools',
-				accelerator: process.platform === 'darwin' ? 'Cmd+Alt+I' : 'Ctrl+Shift+I',
-				click: (_item: Electron.MenuItem, focusedWindow: Electron.BaseWindow | undefined, _event: Electron.KeyboardEvent) => {
-					if (focusedWindow instanceof BrowserWindow) {
-						focusedWindow.webContents.toggleDevTools();
-					}
-				}
+					label: "Launch",
+					click: () =>
+						mainWindow.loadFile(
+							path.join(__dirname, "public", "marketplace.html")
+						),
 				},
-				{ role: 'reload' }
-			]
+				{ type: "separator" },
+				{
+					label: "Ollama",
+					click: () =>
+						mainWindow.loadFile(
+							path.join(
+								__dirname,
+								"public",
+								"marketplace",
+								"ollama.html"
+							)
+						),
+				},
+				{
+					label: "Spaces",
+					click: () =>
+						mainWindow.loadFile(
+							path.join(
+								__dirname,
+								"public",
+								"marketplace",
+								"spaces.html"
+							)
+						),
+				},
+			],
+		},
+		{
+			label: "Edit",
+			submenu: [
+				{ label: "Undo", role: "undo" },
+				{ label: "Redo", role: "redo" },
+				{ type: "separator" },
+				{ label: "Cut", role: "cut" },
+				{ label: "Copy", role: "copy" },
+				{ label: "Paste", role: "paste" },
+			],
+		},
+		{
+			label: "Window",
+			submenu: [{ role: "minimize" }, { role: "close" }],
+		},
+		{
+			label: "View",
+			submenu: [
+				{
+					label: "Toggle Developer Tools",
+					accelerator:
+						process.platform === "darwin"
+							? "Cmd+Alt+I"
+							: "Ctrl+Shift+I",
+					click: (
+						_item: Electron.MenuItem,
+						focusedWindow: Electron.BaseWindow | undefined,
+						_event: Electron.KeyboardEvent
+					) => {
+						if (focusedWindow instanceof BrowserWindow) {
+							focusedWindow.webContents.toggleDevTools();
+						}
+					},
+				},
+				{ role: "reload" },
+			],
 		},
 
 		{
-			label: 'Help',
+			label: "Help",
 			submenu: [
 				{
-					label: 'GitHub',
+					label: "GitHub",
 					click: async () => {
-						const { shell } = require('electron');
-						await shell.openExternal('https://github.com/sharktide/inferenceport-ai');
-					}
+						const { shell } = require("electron");
+						await shell.openExternal(
+							"https://github.com/sharktide/inferenceport-ai"
+						);
+					},
 				},
-				{ label: 'Report Bug', click: async () => {
-					const { shell } = require('electron');
-					await shell.openExternal('https://github.com/sharktide/inferenceport-ai/issues/new')
-				}},
-				{ label: 'Pull Request', click: async () => {
-					const { shell } = require('electron');
-					await shell.openExternal('https://github.com/sharktide/inferenceport-ai/pulls/new')
-				}}
-			]
-		}
+				{
+					label: "Report Bug",
+					click: async () => {
+						const { shell } = require("electron");
+						await shell.openExternal(
+							"https://github.com/sharktide/inferenceport-ai/issues/new"
+						);
+					},
+				},
+				{
+					label: "Pull Request",
+					click: async () => {
+						const { shell } = require("electron");
+						await shell.openExternal(
+							"https://github.com/sharktide/inferenceport-ai/pulls/new"
+						);
+					},
+				},
+			],
+		},
 	];
-
 
 	mainWindow.loadFile("public/index.html");
 	const menu = Menu.buildFromTemplate(template);
@@ -121,70 +173,89 @@ function openFromDeepLink(url: string) {
 	if (!mainWindow) return;
 	try {
 		const parsed = new URL(url);
-		const pathname = parsed.pathname || '/';
-		const host = parsed.hostname || '';
-		// map common paths
-		if (pathname === '/' || pathname === '') {
-			mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+		const pathname = parsed.pathname || "/";
+		const host = parsed.hostname || "";
+		if (pathname === "/" || pathname === "") {
+			mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
 			return;
 		}
-		// remove leading slash
-		const cleaned = pathname.replace(/^\//, '');
-		// handle basic routes
-		if (cleaned.startsWith('marketplace')) {
-			// e.g. inferenceport-ai://marketplace/ollama
-			const parts = cleaned.split('/');
+		const cleaned = pathname.replace(/^\//, "");
+		if (cleaned.startsWith("marketplace")) {
+			const parts = cleaned.split("/");
 			if (parts.length >= 2 && parts[1]) {
 				const page = parts[1];
-				if (page === 'ollama') {
-					mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace', 'ollama.html'));
+				if (page === "ollama") {
+					mainWindow.loadFile(
+						path.join(
+							__dirname,
+							"public",
+							"marketplace",
+							"ollama.html"
+						)
+					);
 					return;
 				}
-				if (page === 'spaces') {
-					mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace', 'spaces.html'));
+				if (page === "spaces") {
+					mainWindow.loadFile(
+						path.join(
+							__dirname,
+							"public",
+							"marketplace",
+							"spaces.html"
+						)
+					);
 					return;
 				}
 			}
-			mainWindow.loadFile(path.join(__dirname, 'public', 'marketplace.html'));
+			mainWindow.loadFile(
+				path.join(__dirname, "public", "marketplace.html")
+			);
 			return;
 		}
 
-		if (cleaned === 'installed') {
-			mainWindow.loadFile(path.join(__dirname, 'public', 'installed.html'));
+		if (cleaned === "installed") {
+			mainWindow.loadFile(
+				path.join(__dirname, "public", "installed.html")
+			);
 			return;
 		}
 
-		if (cleaned === 'settings' || cleaned === 'profile' || cleaned === 'account') {
-			mainWindow.loadFile(path.join(__dirname, 'public', 'settings.html'));
+		if (
+			cleaned === "settings" ||
+			cleaned === "profile" ||
+			cleaned === "account"
+		) {
+			mainWindow.loadFile(
+				path.join(__dirname, "public", "settings.html")
+			);
 			return;
 		}
 
-		if (cleaned === 'auth' || cleaned === 'login' || cleaned === 'signin') {
-			mainWindow.loadFile(path.join(__dirname, 'public', 'auth.html'));
+		if (cleaned === "auth" || cleaned === "login" || cleaned === "signin") {
+			mainWindow.loadFile(path.join(__dirname, "public", "auth.html"));
 			return;
 		}
 
-		if (cleaned === 'reset-pswrd') {
-			mainWindow.loadFile(path.join(__dirname, 'public', 'reset-pswrd.html'));
+		if (cleaned === "reset-pswrd") {
+			mainWindow.loadFile(
+				path.join(__dirname, "public", "reset-pswrd.html")
+			);
 			return;
 		}
 
-		// fallback
-		mainWindow.loadFile(path.join(__dirname, 'public', 'index.html'));
+		mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
 	} catch (e) {
-		console.warn('Failed to open deep link', e);
+		console.warn("Failed to open deep link", e);
 	}
 }
 
-// register protocol handling and single-instance behaviour
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
 }
 
-app.on('second-instance', (_event: any, argv: string[]) => {
-	// windows deep link arrives in argv as the protocol url
-	const urlArg = argv.find(a => a && a.startsWith('inferenceport-ai://'));
+app.on("second-instance", (_event: any, argv: string[]) => {
+	const urlArg = argv.find((a) => a && a.startsWith("inferenceport-ai://"));
 	if (urlArg) {
 		if (mainWindow) {
 			if (mainWindow.isMinimized()) mainWindow.restore();
@@ -194,8 +265,7 @@ app.on('second-instance', (_event: any, argv: string[]) => {
 	}
 });
 
-// macOS open-url
-app.on('open-url', (event: any, url: string) => {
+app.on("open-url", (event: any, url: string) => {
 	event.preventDefault();
 	if (mainWindow) openFromDeepLink(url);
 });
@@ -205,30 +275,31 @@ app.whenReady().then(() => {
 
 	try {
 		if (process.defaultApp) {
-			app.setAsDefaultProtocolClient('inferenceport-ai', process.execPath, [
-				path.resolve(process.argv[1]!)]
+			app.setAsDefaultProtocolClient(
+				"inferenceport-ai",
+				process.execPath,
+				[path.resolve(process.argv[1]!)]
 			);
 		} else {
-			app.setAsDefaultProtocolClient('inferenceport-ai');
+			app.setAsDefaultProtocolClient("inferenceport-ai");
 		}
-
 	} catch (e) {
-		console.warn('Unable to set protocol client', e);
+		console.warn("Unable to set protocol client", e);
 	}
 
-	ipcMain.handle("session:getPath", () => {
-		return chatDir;
-	});
+	ipcMain.handle("session:getPath", () => chatDir);
 	ollamaHandlers();
 	utilsHandlers();
-	authHandlers()
+	authHandlers();
 	spaces();
 	createWindow();
-	try {
-		serve();
-	} catch (ex) {
-		console.log(`NOTICE An exception was thrown inside a block allowed to fail. No further action is needed: ${ex}`);
-	}
+
+	fireAndForget(serve(), "serve");
+	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
+});
+
+app.on("window-all-closed", () => {
+	app.quit();
 });
 
 app.on("window-all-closed", () => {

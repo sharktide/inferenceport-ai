@@ -124,6 +124,14 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+let cachedSupportsTools: string[] | null = null;
+let writeInProgress: Promise<void> | null = null;
+const dataFilePath = path.join(dataDir, "supportsTools.json");
+
+async function ensureDir() {
+	await fs.promises.mkdir(path.dirname(dataFilePath), { recursive: true });
+}
+
 export async function serve(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
@@ -132,6 +140,46 @@ export async function serve(): Promise<string> {
 		});
 	});
 }
+
+export async function fetchSupportedTools(): Promise<{
+	supportsTools: string[];
+}> {
+	const response = await fetch("https://ollama.com/search?c=tools");
+	if (!response.ok) {
+		throw new Error(`Failed to fetch models: ${response.statusText}`);
+	}
+
+	const html = await response.text();
+	const names: string[] = [];
+
+	const liRegex = /<li[^>]*x-test-model[^>]*>([\s\S]*?)<\/li>/g;
+	let match;
+	while ((match = liRegex.exec(html)) !== null) {
+		const liContent = match[1];
+		const nameMatch = liContent!.match(
+			/<h2[^>]*>\s*<span[^>]*x-test-search-response-title[^>]*>(.*?)<\/span>/
+		);
+		const name = nameMatch?.[1]?.trim();
+		if (name) {
+			names.push(name);
+		}
+	}
+
+	cachedSupportsTools = names;
+
+	await ensureDir();
+	const writeTask = fs.promises.writeFile(
+		dataFilePath,
+		JSON.stringify({ supportsTools: names }, null, 2),
+		"utf-8"
+	);
+	writeInProgress = writeTask;
+	await writeTask;
+	writeInProgress = null;
+
+	return { supportsTools: names };
+}
+
 // ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
 	const res = await fetch(
@@ -247,6 +295,28 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
+
+	ipcMain.handle("ollama:fetch-tool-models", async () => {return await fetchSupportedTools();});
+
+	ipcMain.handle("ollama:get-tool-models", async () => {
+		if (cachedSupportsTools) {
+			return { supportsTools: cachedSupportsTools };
+		}
+
+		if (writeInProgress) {
+			await writeInProgress;
+		}
+
+		try {
+			const data = await fs.promises.readFile(dataFilePath, "utf-8");
+			const parsed = JSON.parse(data) as { supportsTools: string[] };
+			cachedSupportsTools = parsed.supportsTools;
+			return parsed;
+		} catch {
+			return { supportsTools: [] };
+		}
+	});
+
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
 			const isMac = os.platform() === "darwin";
@@ -256,23 +326,28 @@ export default function register(): void {
 			};
 			//nosemgrep: javascript.lang.security.detect-child-process
 			resolveCommand((resolvedCmd) => {
-				exec(resolvedCmd, {}, (error: ExecException | null, stdout: string) => {
-					if (error) return reject(error);
+				//nosemgrep: javascript.lang.security.detect-child-process
+				exec(
+					resolvedCmd,
+					{},
+					(error: ExecException | null, stdout: string) => {
+						if (error) return reject(error);
 
-					const lines = stdout.trim().split("\n").slice(1);
-					const models = lines
-						.filter((line) => line.trim())
-						.map((line) => {
-							const parts = line.trim().split(/\s{2,}/);
-							return {
-								name: parts[0] ?? "Unknown",
-								id: parts[1] ?? "Unknown",
-								size: parts[2] ?? "Unknown",
-								modified: parts[3] ?? "Unknown",
-							};
-						});
-					resolve(models);
-				});
+						const lines = stdout.trim().split("\n").slice(1);
+						const models = lines
+							.filter((line) => line.trim())
+							.map((line) => {
+								const parts = line.trim().split(/\s{2,}/);
+								return {
+									name: parts[0] ?? "Unknown",
+									id: parts[1] ?? "Unknown",
+									size: parts[2] ?? "Unknown",
+									modified: parts[3] ?? "Unknown",
+								};
+							});
+						resolve(models);
+					}
+				);
 			});
 		});
 	});
@@ -283,7 +358,10 @@ export default function register(): void {
 
 	ipcMain.handle(
 		"ollama:run",
-		async (_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
+		async (
+			_event: IpcMainInvokeEvent,
+			modelName: string
+		): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
 					// nosemgrep: javascript.lang.security.detect-child-process
@@ -299,7 +377,10 @@ export default function register(): void {
 
 	ipcMain.handle(
 		"ollama:delete",
-		async (_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
+		async (
+			_event: IpcMainInvokeEvent,
+			modelName: string
+		): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
 					`"${ollamaPath}" rm ${modelName}`,
@@ -592,8 +673,10 @@ export default function register(): void {
 	ipcMain.handle("sessions:load", () => loadSessions());
 	ipcMain.handle(
 		"sessions:save",
-		(_event: Electron.IpcMainInvokeEvent, sessions: Record<string, unknown>) =>
-			saveSessions(sessions)
+		(
+			_event: Electron.IpcMainInvokeEvent,
+			sessions: Record<string, unknown>
+		) => saveSessions(sessions)
 	);
 
 	ipcMain.handle("ollama:available", async () => {
@@ -625,4 +708,3 @@ function loadSessions(): Record<string, unknown> {
 	}
 	return {};
 }
-

@@ -119,6 +119,9 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.removeAllListeners("ollama:chat-error");
 		ipcRenderer.removeAllListeners("ollama:chat-done");
 	},
+
+	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
+	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models")
 });
 
 // ===== Utilities =====
@@ -153,7 +156,6 @@ contextBridge.exposeInMainWorld("hfspaces", {
 		ipcRenderer.invoke("hfspaces:share-website", url, title),
 });
 
-// ===== Authentication =====
 contextBridge.exposeInMainWorld("auth", {
 	signInWithEmail: (email: string, password: string) =>
 		ipcRenderer.invoke("auth:signInWithEmail", email, password),
