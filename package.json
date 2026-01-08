@@ -32,7 +32,7 @@
     "electron": "^39.2.7",
     "electron-builder": "^26.2.0",
     "electron-ollama": "0.1.25",
-    "glob": "^11.0.3"
+    "glob": "^13.0.0"
   },
   "build": {
     "appId": "com.sharktide.inferenceport",
