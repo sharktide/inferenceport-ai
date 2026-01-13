@@ -34,6 +34,12 @@ Prerequisites:
 
 Typical workflow:
 
+1. Change to src:
+
+```
+cd src
+```
+
 1. Install dependencies:
 
 ```powershell
