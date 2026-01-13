@@ -19,7 +19,7 @@ import { unlink, readFile, writeFile } from "fs/promises";
 import { resolve } from "path";
 
 (async () => {
-	const gitignorePath = resolve(".gitignore");
+	const gitignorePath = resolve("../.gitignore");
 	const tsFiles = await glob("**/*.ts", { ignore: ["node_modules/**"] });
 
 	const generatedFiles = [];
