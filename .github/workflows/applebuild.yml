@@ -24,9 +24,11 @@ jobs:
           node-version: '23'
 
       - name: Install dependencies
+        working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
+        working-directory: src
         run: npm run build
 
       - name: Upload macOS artifact
@@ -34,9 +36,9 @@ jobs:
         with:
           name: Electron-macOS-build
           path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
+            src/dist/*.dmg
+            src/dist/*.zip
+            src/dist/*.pkg
   build-macos-x86:
     runs-on: macos-15-intel
     env:
@@ -57,9 +59,11 @@ jobs:
           node-version: '23'
 
       - name: Install dependencies
+        working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
+        working-directory: src
         run: npm run build
 
       - name: Upload macOS artifact
@@ -67,7 +71,7 @@ jobs:
         with:
           name: Electron-macOS-x86-build
           path: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.pkg
+            src/dist/*.dmg
+            src/dist/*.zip
+            src/dist/*.pkg
 

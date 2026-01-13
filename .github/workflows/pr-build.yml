@@ -18,28 +18,28 @@ jobs:
             name: Windows x86_64 (Unisigned)
             artifact: Electron-win64-build
             header: build-win64
-            path: dist/*
+            path: src/dist/*
           - os: windows-11-arm
             name: Windows ARM x64 (Unisigned)
             artifact: Electron-winaarch64-build
             header: build-arm
-            path: dist/*
+            path: src/dist/*
           - os: macos-latest
             name: MacOS ARM x64 (Unisigned)
             artifact: Electron-macOS-build
             header: build-macos
             path: |
-              dist/*.dmg
-              dist/*.zip
-              dist/*.pkg
+              src/dist/*.dmg
+              src/dist/*.zip
+              src/dist/*.pkg
           - os: macos-15-intel
             name: MacOS x86_64 (Unisigned)
             artifact: Electron-macOS-x86-build
             header: build-macos-x86
             path: |
-              dist/*.dmg
-              dist/*.zip
-              dist/*.pkg
+              src/dist/*.dmg
+              src/dist/*.zip
+              src/dist/*.pkg
 
     runs-on: ${{ matrix.os }}
 
@@ -53,9 +53,11 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
+        working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build Electron app (unsigned)
+        working-directory: src
         run: npm run build
 
       - name: Upload artifact

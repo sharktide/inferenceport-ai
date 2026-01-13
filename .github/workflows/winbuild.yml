@@ -17,9 +17,11 @@ jobs:
           node-version: '23'
 
       - name: Install dependencies
+        working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
+        working-directory: src
         run: npm run build
 
       - name: Upload Windows x86 artifact
@@ -27,7 +29,7 @@ jobs:
         with:
           name: Electron-win64-build
           path: |
-            dist/*
+            src/dist/*
   build-arm:
     runs-on: windows-11-arm
 
@@ -41,9 +43,11 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
+        working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build and sign Electron app
+        working-directory: src
         run: npm run build
 
       - name: Upload Windows ARM artifact
@@ -51,4 +55,4 @@ jobs:
         with:
           name: Electron-winaarch64-build
           path: |
-            dist/*
+            src/dist/*
