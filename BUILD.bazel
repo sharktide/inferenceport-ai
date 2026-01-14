@@ -1,0 +1,6 @@
+exports_files(["package.json", "tsconfig.json"])
+
+alias(
+    name = "desktop_app",
+    actual = "//src:desktop_app",
+)

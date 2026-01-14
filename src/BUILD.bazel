@@ -1,0 +1,21 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+
+ts_project(
+    name = "ts_sources",
+    srcs = glob(
+        ["**/*.ts", "**/*.cts", "**/*.mts"],
+        exclude = ["node_modules/**"],
+    ),
+    tsconfig = "tsconfig.json",
+    out_dir = "dist",
+)
+
+js_binary(
+    name = "desktop_app",
+    entry_point = "dist/main.js",
+    data = [
+        "package.json",
+        ":ts_sources",
+    ],
+)
