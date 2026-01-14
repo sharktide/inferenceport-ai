@@ -1,0 +1,3 @@
+build --spawn_strategy=local
+build --strategy=TsValidateOptions=local
+build --shell_executable=C:/Windows/System32/cmd.exe

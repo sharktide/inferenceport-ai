@@ -6,17 +6,25 @@ module(
 bazel_dep(name = "aspect_rules_js", version = "2.9.1")
 bazel_dep(name = "aspect_rules_ts", version = "3.8.1")
 
+rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext", dev_dependency = True)
+
 npm = use_extension(
     "@aspect_rules_js//npm:extensions.bzl",
     "npm",
 )
+
 npm.npm_translate_lock(
     name = "npm",
-    lock_file = "//:package-lock.json",
-    package_jsons = ["//:package.json"],
+    npm_package_lock = "//:package-lock.json",
 )
+
 use_repo(
     npm,
     "npm",
-    "npm_typescript",
 )
+
+rules_ts_ext.deps(
+    ts_version_from = "//src:package.json",
+)
+
+use_repo(rules_ts_ext, "npm_typescript")

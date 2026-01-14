@@ -33,7 +33,7 @@
     "electron-builder": "^26.4.0",
     "electron-ollama": "0.1.25",
     "glob": "^13.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "5.9.3"
   },
   "build": {
     "appId": "com.sharktide.inferenceport",
