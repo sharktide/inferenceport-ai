@@ -1,22 +1,14 @@
-load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("//defs:tsgo.bzl", "tsgo_project")
 
-ts_project(
+tsgo_project(
     name = "ts_sources",
-    srcs = glob(
-        ["**/*.ts", "**/*.cts", "**/*.mts"],
-        exclude = ["node_modules/**"],
-    ),
+    srcs = glob(["**/*.ts", "**/*.cts", "**/*.mts"]),
     tsconfig = "tsconfig.json",
-    out_dir = "dist",
-    transpiler = "tsc",
 )
 
-js_binary(
+genrule(
     name = "desktop_app",
-    entry_point = "dist/main.js",
-    data = [
-        "package.json",
-        ":ts_sources",
-    ],
+    srcs = [":ts_sources"],
+    outs = ["desktop_app.out"],
+    cmd = "C:\\Users\\rihaan.meher\\AppData\\Local\nvm\\v23.3.0\\node.exe $(location :ts_sources)/main.js > $@",
 )
