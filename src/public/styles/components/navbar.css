@@ -11,12 +11,51 @@ nav {
   top: 0;
   z-index: 999;
   align-items: center;
+  overflow: hidden;
+  max-height: 8px; /* start collapsed visually */
+  transition: max-height 280ms ease, padding 280ms ease, border-color 280ms ease;
 }
 
 .logo {
   font-size: 22px;
   font-weight: 700;
   color: var(--blue);
+}
+
+/* Collapsed state applied by JS */
+nav.collapsed {
+  max-height: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: transparent;
+}
+
+/* Expanded state (default when not collapsed) */
+nav:not(.collapsed) {
+  max-height: 140px;
+  padding: 12px 40px;
+  border-bottom-color: var(--secondary-color);
+}
+
+/* Smoothly hide/show inner elements */
+.logo,
+.nav-links {
+  transition: opacity 220ms ease, transform 220ms ease;
+  will-change: opacity, transform;
+}
+
+nav.collapsed .logo,
+nav.collapsed .nav-links {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+nav:not(.collapsed) .logo,
+nav:not(.collapsed) .nav-links {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
 
 .nav-links {
@@ -69,6 +108,12 @@ nav {
   nav {
     flex-direction: column;
     align-items: center;
+  }
+
+  /* mobile: don't use collapsed small-line behavior */
+  nav {
+    max-height: none;
+    padding: 15px 20px;
   }
   .nav-links {
     display: none;
