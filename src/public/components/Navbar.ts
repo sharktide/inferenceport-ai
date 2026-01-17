@@ -21,7 +21,11 @@ function setupNavbar(nav: HTMLElement) {
         observer.disconnect();
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    setAuthVisibility();
+
+	if (!document.getElementById('user-indicator')) {
+	    observer.observe(document.body, { childList: true, subtree: true });
+	}
 
     nav.addEventListener('mouseenter', () => {
         clearTimeout(hideTimer);
