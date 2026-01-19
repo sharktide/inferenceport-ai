@@ -85,7 +85,8 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "hardenedRuntime": true
     },
     "linux": {
       "target": "AppImage"
