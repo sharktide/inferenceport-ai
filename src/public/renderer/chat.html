@@ -147,8 +147,24 @@
 		<div id="session-context-menu" class="context-menu hidden">
 			<div class="context-item" data-action="rename">Rename</div>
 			<div class="context-item" data-action="delete">Delete Session</div>
+			<div class="context-item" data-action="report">Report Content</div>
+			<div class="context-item" data-action="delete_all" style="color: red;">Delete All Sessions</div>
 		</div>
-
+		<div id="report-dialog" class="modal hidden">
+			<div class="modal-content" style="width: 500px;">
+				<h3>Report Inappropriate Content</h3>
+				<p>In the event that one of the models used here outputs 
+					inappropriate content, you may report it by following the 
+					instructions here: 
+					<a href="javascript:window.utils.web_open('https://InferencePortAI.vercel.app/security.html#reporting')">
+						InferencePortAI Reporting Instructions
+					</a>
+				</p>
+				<div class="modal-actions">
+					<button id="report-close">Close</button>
+				</div>
+			</div>
+		</div>
 		<main
 			id="app-root"
 			class="hidden"
