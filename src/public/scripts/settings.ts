@@ -1,4 +1,3 @@
-import "./staticload/theme.js"
 const usernameInput = document.getElementById('username') as HTMLInputElement;
 const saveButton = document.getElementById('save') as HTMLButtonElement;
 const status = document.getElementById('status') as HTMLParagraphElement;
@@ -125,5 +124,3 @@ window.addEventListener("DOMContentLoaded", async () => {
     msg.textContent = 'Sign in to use account controls.';
     details.appendChild(msg);
 });
-
-// Clear status messages when dialogs are closed
