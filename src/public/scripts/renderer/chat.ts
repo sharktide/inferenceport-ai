@@ -295,12 +295,31 @@ function showContextMenu(x, y, sessionId, sessionName) {
 
 	const handleClick = (e) => {
 		const action = e.target.dataset.action;
-		if (action === "rename") {
-			openRenameDialog(sessionId, sessionName);
-		} else if (action === "delete") {
-			deleteSession(sessionId);
-		} else if (action === "report") {
-			openReportDialog();
+		switch (action) {
+			case "delete":
+				deleteSession(sessionId);
+				break;
+			case "delete_all":
+				if (confirm("Are you sure you want to delete all sessions? This cannot be undone.")) {
+					sessions = {};
+					currentSessionId = null;
+					window.ollama.save(sessions);
+					window.auth.getSession().then(async (auth) => {
+						if (isSyncEnabled() && auth?.session?.user) {
+							await safeCallRemote(() =>
+								window.sync.saveAllSessions(sessions)
+							);
+						}
+						location.reload();
+					});
+				}
+				break;
+			case "rename":
+				openRenameDialog(sessionId, sessionName);
+				break;
+			case "report":
+				openReportDialog();
+				break;
 		}
 		closeContextMenu();
 	};
