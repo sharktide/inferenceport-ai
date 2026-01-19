@@ -75,6 +75,7 @@ class AuthManager {
             container.style.marginLeft = "auto";
             container.style.marginRight = "18px";
             container.style.opacity = "0";
+            container.style.transition = "opacity 0.3s ease";
             container.style.display = "flex";
             container.style.alignItems = "center";
             container.style.gap = "8px";
