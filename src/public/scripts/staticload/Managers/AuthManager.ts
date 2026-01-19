@@ -74,6 +74,7 @@ class AuthManager {
             container.id = "user-indicator";
             container.style.marginLeft = "auto";
             container.style.marginRight = "18px";
+            container.style.opacity = "0";
             container.style.display = "flex";
             container.style.alignItems = "center";
             container.style.gap = "8px";
