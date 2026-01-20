@@ -30,7 +30,7 @@
     "@types/node": "^25.0.9",
     "@types/sanitize-html": "^2.16.0",
     "@typescript/native-preview": "^7.0.0-dev.20260120.1",
-    "electron": "^40.0.0",
+    "electron": "37.3.1",
     "electron-builder": "26.2.0",
     "electron-ollama": "0.1.25",
     "glob": "^13.0.0"
