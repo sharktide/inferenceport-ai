@@ -86,7 +86,7 @@
         "dmg",
         "zip"
       ],
-      "notarize": false,
+      "notarize": true,
       "forceCodeSigning": true
     },
     "linux": {
