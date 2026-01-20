@@ -8,7 +8,7 @@
     <script type="module" src="../scripts/staticload/index.js"></script>
 </head>
 <body>
-    <marketplace-navbar></marketplace>
+    <marketplace-navbar></marketplace-navbar>
 
     <main style="padding: 40px">
         <section class="settings-container" style="padding: 40px 30px; margin-top: 40px;">
@@ -41,7 +41,7 @@
             <div id="tab-upload" class="tab-content" style="display: none;">
                 <h2 style="text-align: center;">📤 Upload Existing .import File</h2>
                 <div id="drop-zone">
-                    <p>Drop your `.import` file here or <span class="click-to-upload">click to select</span></p>
+                    <p>Drop your `.import` file here or <span class="click-to-upload" id="click-to-upload">click to select</span></p>
                     <input type="file" id="import-upload" accept=".import" hidden />
                 </div>
             </div>

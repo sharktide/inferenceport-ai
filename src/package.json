@@ -31,8 +31,8 @@
     "@types/sanitize-html": "^2.16.0",
     "@typescript/native-preview": "^7.0.0-dev.20260120.1",
     "electron": "^40.0.0",
-    "electron-builder": "^26.4.0",
     "electron-ollama": "https://github.com/sharktide/electron-ollama-authenticated.git",
+    "electron-builder": "26.2.0",
     "glob": "^13.0.0"
   },
   "build": {
