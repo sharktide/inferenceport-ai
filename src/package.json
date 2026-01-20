@@ -86,7 +86,6 @@
         "dmg",
         "zip"
       ],
-      "hardenedRuntime": true,
       "notarize": false,
       "forceCodeSigning": true
     },
