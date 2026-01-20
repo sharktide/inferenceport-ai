@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
       - name: Verify Signature
-        run: codesign -vv src/dist/InferencePort-AI-1.4.0-arm64-mac.zip
+        run: codesign -vv "src/dist/InferencePort AI-1.4.0-arm64-mac.zip"
   
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
