@@ -88,7 +88,7 @@ jobs:
         run: npm run build
       - name: Verify Signature
         run: |
-          unzip "src/dist/InferencePort AI-1.4.0-arm64-mac.zip" -d tmp_app
+          unzip "src/dist/InferencePort AI-1.4.0-mac.zip" -d tmp_app
           codesign -vv "tmp_app/InferencePort AI.app"
 
       - name: Notarize
