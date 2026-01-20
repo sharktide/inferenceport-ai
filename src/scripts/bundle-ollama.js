@@ -54,6 +54,7 @@ async function bundleOllama() {
 
 	const eo = new ElectronOllama({
 		basePath: resolve(__dirname, "../vendor"),
+		githubToken: process.env.GH_TOKEN,
 	});
 	const metadata = await eo.getMetadata("latest");
 	await eo.download(metadata.version, { os, arch });
