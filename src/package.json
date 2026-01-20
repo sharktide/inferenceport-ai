@@ -86,6 +86,7 @@
         "dmg",
         "zip"
       ],
+      "notarize": false,
       "hardenedRuntime": true
     },
     "linux": {
