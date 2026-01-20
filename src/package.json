@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
     "@types/markdown-it": "^14.1.2",
-    "@types/node": "^25.0.8",
+    "@types/node": "^25.0.9",
     "@types/sanitize-html": "^2.16.0",
     "@typescript/native-preview": "^7.0.0-dev.20260116.1",
     "electron": "^39.2.7",
