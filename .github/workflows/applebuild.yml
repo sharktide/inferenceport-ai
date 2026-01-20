@@ -38,7 +38,7 @@ jobs:
 
       - name: Notarize
         run: |
-          xcrun notarytool submit "InferencePortAI.zip" \
+          xcrun notarytool submit  "src/dist/InferencePort AI-1.4.0-arm64-mac.zip" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
