@@ -35,6 +35,22 @@ jobs:
         run: |
           unzip "src/dist/InferencePort AI-1.4.0-arm64-mac.zip" -d tmp_app
           codesign -vv "tmp_app/InferencePort AI.app"
+
+      - name: Notarize
+        run: |
+          xcrun notarytool submit "InferencePortAI.zip" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait
+
+      - name: Staple Ticket
+        run: |
+          xcrun stapler staple "tmp_app/InferencePort AI.app"
+          spctl -a -vv "tmp_app/InferencePort AI.app"
+          rm -rf  "src/dist/InferencePort AI-1.4.0-arm64-mac.zip"
+          ditto -c -k --keepParent "tmp_app/InferencePort AI.app"  "src/dist/InferencePort AI-1.4.0-arm64-mac.zip"
+
   
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
