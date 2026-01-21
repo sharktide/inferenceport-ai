@@ -13,6 +13,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo
@@ -30,6 +32,12 @@ jobs:
       - name: Build and sign Electron app
         working-directory: src
         run: npm run publish
+
+      - name: Verify Identity
+        working-directory: src
+        run: |
+          ditto -x -k dist/*.zip dist/unzipped
+          codesign -vvv --strict dist/unzipped/*.app
 
   build-macos-x86:
     runs-on: macos-15-intel
@@ -40,6 +48,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo
@@ -58,3 +68,8 @@ jobs:
         working-directory: src
         run: npm run publish
 
+      - name: Verify Identity
+        working-directory: src
+        run: |
+          ditto -x -k dist/*.zip dist/unzipped
+          codesign -vvv --strict dist/unzipped/*.app

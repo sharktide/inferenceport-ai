@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-15
     env:
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
@@ -13,6 +13,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo
@@ -30,7 +32,7 @@ jobs:
       - name: Build and sign Electron app
         working-directory: src
         run: npm run build
-
+  
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
@@ -39,6 +41,7 @@ jobs:
             src/dist/*.dmg
             src/dist/*.zip
             src/dist/*.pkg
+
   build-macos-x86:
     runs-on: macos-15-intel
     env:
@@ -48,6 +51,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo

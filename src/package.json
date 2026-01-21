@@ -43,15 +43,16 @@
       "main.js",
       "preload.cjs",
       "package.json",
-      "!**/vendor/**/*",
       "!./scripts/*",
       "LICENSE",
-      "third_party_licenses"
+      "third_party_licenses",
+      "!**/._*"
     ],
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
-        "to": "vendor/electron-ollama"
+        "to": "vendor/electron-ollama",
+        "filter": ["!**/._*"]
       }
     ],
     "publish": {
@@ -83,9 +84,10 @@
     "mac": {
       "target": [
         "dmg",
-        "zip"
+        "zip",
+        "pkg"
       ],
-      "hardenedRuntime": true
+      "notarize": true
     },
     "linux": {
       "target": "AppImage"
