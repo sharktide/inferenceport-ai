@@ -44,11 +44,16 @@
       "main.js",
       "preload.cjs",
       "package.json",
-      "!**/vendor/**/*",
+      "vendor/**/*",
       "!./scripts/*",
       "LICENSE",
       "third_party_licenses"
     ],
+
+    "asarUnpack": [
+        "vendor/**/*"
+    ]
+
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
