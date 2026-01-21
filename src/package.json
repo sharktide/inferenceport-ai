@@ -52,7 +52,8 @@
     "extraResources": [
       {
         "from": "vendor/electron-ollama",
-        "to": "vendor/electron-ollama"
+        "to": "vendor/electron-ollama",
+        "filter": ["!**/._*"]
       }
     ],
     "publish": {
