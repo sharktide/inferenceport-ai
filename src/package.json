@@ -83,10 +83,9 @@
     },
     "mac": {
       "target": [
-        "dmg",
-        "zip"
+        "pkg"
       ],
-      "notarize": true,
+      "notarize": false,
       "forceCodeSigning": true
     },
     "linux": {
