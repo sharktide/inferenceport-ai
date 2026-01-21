@@ -92,7 +92,6 @@
         "zip",
         "pkg"
       ],
-      "notarize": true,
       "forceCodeSigning": true
     },
     "linux": {
