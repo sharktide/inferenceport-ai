@@ -87,7 +87,7 @@
         "zip",
         "pkg"
       ],
-      "notarize": false,
+      "notarize": true,
       "forceCodeSigning": true
     },
     "linux": {
