@@ -71,7 +71,6 @@ jobs:
 
       - name: Fallback codesign if publish fails
         working-directory: src
-        if: failure()
         run: |
           echo "Publish failed, attempting manual codesign..."
           ditto -x -k dist/mac/*.zip dist/unzipped
