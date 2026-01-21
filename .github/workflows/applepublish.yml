@@ -37,7 +37,7 @@ jobs:
         working-directory: src
         run: |
           echo "Attempting manual codesign..."
-          ditto -x -k dist/mac-arm64/*.zip dist/unzipped
+          ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
 
   build-macos-x86:
@@ -73,6 +73,6 @@ jobs:
         working-directory: src
         run: |
           echo "Publish failed, attempting manual codesign..."
-          ditto -x -k dist/mac/*.zip dist/unzipped
+          ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
 
