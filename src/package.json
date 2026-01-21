@@ -29,10 +29,10 @@
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.0.9",
     "@types/sanitize-html": "^2.16.0",
+    "@types/tar": "^6.1.13",
     "@typescript/native-preview": "^7.0.0-dev.20260120.1",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
-    "electron-ollama": "0.1.25",
     "glob": "^13.0.0"
   },
   "build": {
@@ -53,7 +53,9 @@
       {
         "from": "vendor/electron-ollama",
         "to": "vendor/electron-ollama",
-        "filter": ["!**/._*"]
+        "filter": [
+          "!**/._*"
+        ]
       }
     ],
     "publish": {
