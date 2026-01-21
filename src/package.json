@@ -47,7 +47,8 @@
       "vendor/**/*",
       "!./scripts/*",
       "LICENSE",
-      "third_party_licenses"
+      "third_party_licenses",
+      "!**/._*"
     ],
 
     "asarUnpack": [
