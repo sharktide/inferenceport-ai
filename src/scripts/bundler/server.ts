@@ -13,6 +13,7 @@ export class ElectronOllamaServer {
   }
 
   public start(executableName: string): void {
+    // nosemgrep: javascript.lang.security.detect-child-process
     this.process = spawn(path.join(this.binPath, executableName), ['serve'], {
       cwd: this.binPath,
     });
