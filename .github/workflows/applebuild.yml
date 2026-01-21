@@ -13,6 +13,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo
@@ -69,6 +71,8 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
 
     steps:
       - name: Checkout repo
