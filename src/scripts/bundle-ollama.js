@@ -1,6 +1,6 @@
 import { resolve, join, dirname } from "path";
 import { readdir, rename, rm } from "fs/promises";
-import { ElectronOllama } from "electron-ollama";
+import { ElectronOllama } from "./bundler/index.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
