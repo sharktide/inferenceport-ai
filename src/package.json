@@ -55,12 +55,6 @@
         "vendor/**/*"
     ],
 
-    "extraResources": [
-      {
-        "from": "vendor/electron-ollama",
-        "to": "vendor/electron-ollama"
-      }
-    ],
     "publish": {
       "provider": "github",
       "owner": "sharktide",
@@ -93,7 +87,7 @@
         "zip",
         "pkg"
       ],
-      "notarize": true,
+      "notarize": true
     },
     "linux": {
       "target": "AppImage"
