@@ -44,17 +44,17 @@
       "main.js",
       "preload.cjs",
       "package.json",
-      "vendor/**/*",
       "!./scripts/*",
       "LICENSE",
       "third_party_licenses",
       "!**/._*"
     ],
-
-    "asarUnpack": [
-        "vendor/**/*"
+    "extraResources": [
+      {
+        "from": "vendor/electron-ollama",
+        "to": "vendor/electron-ollama"
+      }
     ],
-
     "publish": {
       "provider": "github",
       "owner": "sharktide",
