@@ -93,8 +93,7 @@
         "zip",
         "pkg"
       ],
-      "notarize": false,
-      "forceCodeSigning": true
+      "notarize": true,
     },
     "linux": {
       "target": "AppImage"
