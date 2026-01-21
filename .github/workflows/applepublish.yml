@@ -33,10 +33,9 @@ jobs:
         working-directory: src
         run: npm run publish
 
-      - name: Fallback codesign if publish fails
+      - name: Verify Identity
         working-directory: src
         run: |
-          echo "Attempting manual codesign..."
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
 
@@ -69,10 +68,8 @@ jobs:
         working-directory: src
         run: npm run publish
 
-      - name: Fallback codesign if publish fails
+      - name: Verify Identity
         working-directory: src
         run: |
-          echo "Publish failed, attempting manual codesign..."
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
-
