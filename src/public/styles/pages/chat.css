@@ -7,7 +7,7 @@
 	width: 250px;
 	background-color: var(--gray);
 	padding: 20px;
-	border-right: 1px solid #ccc;
+	border-radius: 25px;
 	overflow-y: auto;
 }
 
@@ -33,6 +33,7 @@
 	flex: 1;
 	padding: 40px;
 	padding-top: 0px;
+	padding-bottom: 0px;
 	display: flex;
 	flex-direction: column;
 	justify-content: flex-end;
@@ -114,7 +115,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: #222c37;
+	background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -126,7 +127,7 @@
 }
 
 .ai-code-lang {
-	background: #1a2027;
+	background: #2d3541;
 	color: #b3b3b3;
 	border-radius: 6px;
 	padding: 2px 8px;
@@ -136,7 +137,7 @@
 }
 
 .ai-copy-btn {
-	background: #2d3a4a;
+	background: #445566;
 	color: #fff;
 	border: none;
 	border-radius: 4px;
@@ -163,7 +164,7 @@
 }
 
 .ai-copy-btn:hover {
-	background: #3a4a5a;
+	background: #525d6d;
 }
 
 .ai-code-bubble pre,
@@ -188,7 +189,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: #222c37;
+		background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -274,7 +275,7 @@
 #model-select {
 	padding: 10px;
 	font-size: 16px;
-	border: 1px solid #ccc;
+	border: 1px solid #444;
 	border-radius: var(--border-radius);
 	background-color: var(--bg-light);
 	color: var(--text-dark);
@@ -519,7 +520,7 @@ details summary {
 	min-width: 44px;
 	height: 44px;
 	padding: 8px 12px;
-	border-radius: 10px;
+	border-radius: 30px;
 	font-size: 15px;
 	display: inline-flex;
 	align-items: center;
@@ -646,6 +647,7 @@ details summary {
 	border-radius: 24px;
 	background: var(--gray);
 	box-sizing: border-box;
+	justify-content: center;
 }
 
 .file-preview-bar {
@@ -673,6 +675,7 @@ details summary {
 	max-height: calc(1.6em * 3 + 32px);
 
 	padding: 16px 18px;
+	padding-bottom: 5px;
 	resize: none;
 	overflow-y: hidden;
 
@@ -694,6 +697,7 @@ details summary {
 	flex-direction: column;
 	gap: 12px;
 	align-items: stretch;
+	justify-content: center;
 }
 
 .feature-btns {
@@ -724,6 +728,7 @@ details summary {
 	opacity: 1;
 	transform: translateY(0);
 	position: static;
+	border-radius: 40px;
 	transition:
 		opacity 140ms ease,
 		transform 160ms cubic-bezier(0.2, 0, 0, 1),

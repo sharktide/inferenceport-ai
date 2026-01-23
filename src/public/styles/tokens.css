@@ -18,12 +18,12 @@ Copyright 2025 Rihaan Meher
 
 [data-theme="dark"] {
   --blue: #90caf9;
-  --light-blue: #1e1e1e;
+  --light-blue: #353535;
   --dark-text: #f0f0f0;
-  --gray: #2c2c2c;
+  --gray: #353535;
   --primary-color: #90caf9;
-  --secondary-color: #1e1e1e;
+  --secondary-color: #353535;
   --text-dark: #f0f0f0;
-  --bg-light: #121212;
-  --input-bg: #2a2a2a;
+  --bg-light: #1f1f1f;
+  --input-bg: #313131;
 }
