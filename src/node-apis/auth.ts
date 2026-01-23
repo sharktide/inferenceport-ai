@@ -44,14 +44,6 @@ type SessionType = {
 	history: Message[];
 };
 
-type MessageType = {
-	session_id: string;
-	role: string;
-	content: string;
-	name?: string;
-	asset?: { id: string; type: "image"; mime: string; base64: string };
-};
-
 export default function register() {
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
 		const { data, error } = await supabase.auth.signInWithPassword({
