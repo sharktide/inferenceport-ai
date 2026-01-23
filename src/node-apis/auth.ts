@@ -34,7 +34,6 @@ type Message = {
 	role: string;
 	content: string;
 	name?: string;
-	asset?: { id: string; type: "image"; mime: string; base64: string };
 };
 
 type SessionType = {
