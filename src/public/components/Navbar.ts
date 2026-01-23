@@ -23,9 +23,17 @@ function setupNavbar(nav: HTMLElement) {
 
     setAuthVisibility();
 
-	if (!document.getElementById('user-indicator')) {
-	    observer.observe(document.body, { childList: true, subtree: true });
-	}
+    if (!document.getElementById('user-indicator')) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+        if (e.clientY < 40) {
+            clearTimeout(hideTimer);
+            nav.classList.remove('collapsed');
+            setAuthVisibility();
+        }
+    });
 
     nav.addEventListener('mouseenter', () => {
         clearTimeout(hideTimer);
