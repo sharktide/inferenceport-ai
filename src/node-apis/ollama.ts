@@ -25,8 +25,11 @@ import type { ExecException } from "child_process";
 import { promisify } from "util";
 import os from "os";
 
-const execFileAsync = promisify(execFile);
+import type { ToolDefinition } from "./types/tools.js";
+import toolSchema from "./assets/tools.json" with { type: "json" };
 
+const execFileAsync = promisify(execFile);
+const availableTools = (toolSchema as ToolDefinition[])
 const systemPrompt =
 	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
 
@@ -55,52 +58,6 @@ type ChatAsset = {
 	role: AssetRole;
 	content: string;
 };
-
-const availableTools = [
-	{
-		type: "function",
-		function: {
-			name: "duckduckgo_search",
-			description: "Search the web using DuckDuckGo",
-			parameters: {
-				type: "object",
-				properties: {
-					query: {
-						type: "string",
-						description: "Search query",
-					},
-				},
-				required: ["query"],
-			},
-		},
-	},
-	{
-		type: "function",
-		function: {
-			name: "generate_image",
-			description: "Generate an image from a prompt and resolution",
-			parameters: {
-				type: "object",
-				properties: {
-					prompt: {
-						type: "string",
-						description:
-							"Describe the image you want in great detail (10-30 words)",
-					},
-					width: {
-						type: "number",
-						description: "width of image in pixels up to 1920",
-					},
-					height: {
-						type: "number",
-						description: "height of image in pixels up to 1920",
-					},
-				},
-				required: ["prompt", "width", "height"],
-			},
-		},
-	},
-];
 
 type ModelInfo = {
 	name: string;
