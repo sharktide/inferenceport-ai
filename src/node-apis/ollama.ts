@@ -25,7 +25,7 @@ import type { ExecException } from "child_process";
 import { promisify } from "util";
 import os from "os";
 
-import type { ToolDefinition } from "./types/tools.js";
+import type { ToolDefinition, Role, AssetRole, ChatMessage, ChatAsset, ModelInfo, PullProgress } from "./types/index.types.d.ts";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
@@ -46,30 +46,7 @@ const ollamaPath = isDev
 			ollamaBinary
 	  );
 
-type Role = "user" | "assistant" | "tool" | "system" | "image";
-type AssetRole = "image";
-type ChatMessage = {
-	role: Role;
-	content: string;
-	tool_calls?: { function: any }[];
-};
 
-type ChatAsset = {
-	role: AssetRole;
-	content: string;
-};
-
-type ModelInfo = {
-	name: string;
-	id: string;
-	size: string;
-	modified: string;
-};
-
-type PullProgress = {
-	model: string;
-	output: string;
-};
 
 let chatHistory: ChatMessage[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;

@@ -5,6 +5,8 @@ import { app, ipcMain, BrowserWindow, session } from "electron";
 import fs from "fs";
 import path from "path";
 
+import type { Message, SessionType } from "./types/index.types.d.ts";
+
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
 const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
@@ -30,18 +32,7 @@ supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | nul
 	}
 });
 
-type Message = {
-	role: string;
-	content: string;
-	name?: string;
-};
 
-type SessionType = {
-	name: string;
-	model: string;
-	favorite: boolean;
-	history: Message[];
-};
 
 export default function register() {
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
