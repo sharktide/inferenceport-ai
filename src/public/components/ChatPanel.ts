@@ -22,11 +22,6 @@ export class ChatBox extends HTMLElement {
                     </div>
                     <p style="display:none;" id="feature-warning">The selected model does not support web search or image generation. Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
 
-                    <div class="typing-actions">
-                        <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
-                        <button type="submit" class="stop-btn" aria-label="Send" id="send">⬆️</button>
-                    </div>
-
                     <div id="file-preview-modal" class="modal hidden">
                         <div class="modal-content full-screen">
                             <h3 id="file-preview-title"></h3>
@@ -36,6 +31,10 @@ export class ChatBox extends HTMLElement {
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="typing-actions">
+                    <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
+                    <button type="submit" class="stop-btn" aria-label="Send" id="send">⬆️</button>
                 </div>
             </form>
         `;
