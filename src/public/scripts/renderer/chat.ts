@@ -972,7 +972,9 @@ function updateTextareaState() {
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {
 		e.preventDefault();
-		(document.getElementById("send") as HTMLButtonElement).click();
+		if (!isStreaming){
+			(document.getElementById("send") as HTMLButtonElement).click();
+		}
 	}
 });
 
