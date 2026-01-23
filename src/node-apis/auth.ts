@@ -260,7 +260,6 @@ export default function register() {
 					role: m.role,
 					content: m.content,
 					name: m.name,
-					asset: m.asset,
 					created_at: new Date().toISOString(),
 					user_id: userId,
 				}));
