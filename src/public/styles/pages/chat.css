@@ -1,6 +1,15 @@
+#app-root {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	padding: 10px;
+}
+
 .chat-container {
 	display: flex;
-	height: calc(100vh - 80px);
+	flex: 1;
+	min-height: 0;
 }
 
 .sidebar {
