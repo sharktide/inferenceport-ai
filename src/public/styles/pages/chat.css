@@ -115,7 +115,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: #222c37;
+	background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -127,7 +127,7 @@
 }
 
 .ai-code-lang {
-	background: #1a2027;
+	background: #2d3541;
 	color: #b3b3b3;
 	border-radius: 6px;
 	padding: 2px 8px;
@@ -137,7 +137,7 @@
 }
 
 .ai-copy-btn {
-	background: #2d3a4a;
+	background: #445566;
 	color: #fff;
 	border: none;
 	border-radius: 4px;
@@ -164,7 +164,7 @@
 }
 
 .ai-copy-btn:hover {
-	background: #3a4a5a;
+	background: #525d6d;
 }
 
 .ai-code-bubble pre,
@@ -189,7 +189,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: #222c37;
+		background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -275,7 +275,7 @@
 #model-select {
 	padding: 10px;
 	font-size: 16px;
-	border: 1px solid #ccc;
+	border: 1px solid #444;
 	border-radius: var(--border-radius);
 	background-color: var(--bg-light);
 	color: var(--text-dark);
