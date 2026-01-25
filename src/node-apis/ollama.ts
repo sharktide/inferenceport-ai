@@ -92,9 +92,9 @@ export async function serve(): Promise<string> {
 	}
 
 	return new Promise((resolve, reject) => {
-		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
+		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string, stderr: string) => {
 			if (err) {
-				console.log(stdout);
+				err.message += `: ${stderr}`;
 				reject(err);
 			} else {
 				resolve(stdout);
