@@ -16,7 +16,7 @@ limitations under the License.
 
 import { glob } from "glob";
 import { unlink, readFile, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { resolve, basename } from "path";
 
 (async () => {
 	const gitignorePath = resolve("../.gitignore");
@@ -78,7 +78,7 @@ import { resolve } from "path";
 		const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
 		let updated = false;
 		for (const file of generatedFiles) {
-			if (file.includes(".types.")) continue;
+			if (basename(file).includes(".types.")) continue;
 
 			if (!lines.has(file)) {
 				lines.add(file);
