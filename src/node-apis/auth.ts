@@ -250,7 +250,6 @@ export default function register() {
 					session_id: sessionId,
 					role: m.role,
 					content: m.content,
-					name: m.name,
 					created_at: new Date().toISOString(),
 					user_id: userId,
 				}));
