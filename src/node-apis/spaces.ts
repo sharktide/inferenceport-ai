@@ -22,19 +22,7 @@ import path from "path";
 const spaceDir: string = path.join(app.getPath("userData"), "spaces");
 const siteDir: string = path.join(app.getPath("userData"), "websites");
 
-interface TypeData {
-    type: string;
-    emoji: string;
-    background: string;
-
-    title: string;
-    author: string;
-
-    sdk: string;
-    short_description: string;
-
-    url: string;
-}
+import type { ImportSchema } from "./types/index.types.d.ts";
 
 function getWebsites(): string[] {
     try {
@@ -57,7 +45,7 @@ function deleteWebsiteByURL(url: string): boolean {
         const fullPath = path.join(siteDir, file);
         try {
             const content = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
 
             if (data.type === "website" && data.url === url) {
                 fs.unlinkSync(fullPath);
@@ -80,7 +68,7 @@ function getWebsiteData(): string {
         const fullPath: string = path.join(siteDir, file);
         try {
             const content: string = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
             if (data.type === "website") {
             html += `
                 <div class="marketplace-card" siteId="${data.url}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
@@ -137,7 +125,7 @@ function deleteSpaceByUserRepo(username: string, repo: string): boolean {
         const fullPath = path.join(spaceDir, file);
         try {
             const content = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
 
             if (data.type === "space" && data.author === username && data.title === repo) {
                 fs.unlinkSync(fullPath);
@@ -161,7 +149,7 @@ function getData(): string {
         const fullPath: string = path.join(spaceDir, file);
         try {
             const content: string = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
             if (data.type === "space") {
             html += `
                 <div class="marketplace-card" spaceid="${data.author}/${data.title}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
@@ -201,7 +189,7 @@ async function share(username: string, repo: string): Promise<void> {
         const fullPath = path.join(spaceDir, file);
         try {
             const content = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
 
             if (data.type === "space" && data.author === username && data.title === repo) {
                 const win = BrowserWindow.getFocusedWindow();
@@ -237,7 +225,7 @@ async function shareSite(url: string, title: string): Promise<void> {
         const fullPath = path.join(siteDir, file);
         try {
             const content = fs.readFileSync(fullPath, "utf-8");
-            const data: TypeData = JSON.parse(content);
+            const data: ImportSchema = JSON.parse(content);
 
             if (data.type === "website" && data.url === url && data.title === title) {
                 const win = BrowserWindow.getFocusedWindow();

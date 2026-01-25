@@ -13,3 +13,12 @@ export type ToolDefinition = {
 		parameters: ToolParametersSchema;
 	};
 };
+
+export type ToolCallFunction = {
+  name: string;
+  arguments: string | Record<string, unknown>;
+};
+
+export type ToolCall = {
+  function: ToolCallFunction;
+};

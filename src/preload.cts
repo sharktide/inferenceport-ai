@@ -16,39 +16,7 @@ limitations under the License.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-type Role = "user" | "assistant" | "tool" | "system" | "image";
-type AssetRole = "image";
-type ChatMessage = {
-	role: Role;
-	content: string;
-	tool_calls?: { function: any }[];
-};
-
-type ChatAsset = {
-	role: AssetRole;
-	content: string;
-};
-
-export type ModelInfo = {
-	name: string;
-	id: string;
-	size: string;
-	modified: string;
-};
-
-export type PullProgress = {
-	model: string;
-	output: string;
-};
-
-export type Session = {
-	name: string;
-	model: string;
-	favorite: boolean;
-	history: ChatMessage[];
-};
-
-export type Sessions = Record<string, Session>;
+import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====

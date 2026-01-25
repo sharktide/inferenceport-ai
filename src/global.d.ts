@@ -126,7 +126,11 @@ declare global {
 	type Session = {
 		model: string;
 		name: string;
-		history: Array<string>;
+		history: Array<{
+			role: string;
+			content: string;
+			tool_calls?: any[];
+		}>;
 		favorite: boolean;
 	};
 
