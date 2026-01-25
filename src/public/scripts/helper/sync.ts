@@ -93,7 +93,7 @@ export async function isOffline(timeout = 10000) {
     const id = setTimeout(() => controller.abort(), timeout);
 
     try {
-        await fetch("https://www.example.com/", {
+        await fetch("http://edge-http.microsoft.com/captiveportal/generate_204", {
             method: "HEAD",
             mode: "no-cors",
             signal: controller.signal,
