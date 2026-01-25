@@ -2,7 +2,7 @@ export type Role = "user" | "assistant" | "tool" | "system" | "image";
 export type AssetRole = "image";
 
 export type ChatMessage = {
-  role: Role | string;
+  role: Role;
   content: string;
   tool_calls?: ToolCall[];
 };
