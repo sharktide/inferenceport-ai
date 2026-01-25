@@ -129,7 +129,6 @@ declare global {
 		history: Array<{
 			role: string;
 			content: string;
-			name?: string;
 			tool_calls?: any[];
 		}>;
 		favorite: boolean;
