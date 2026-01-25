@@ -24,7 +24,7 @@ import { execFile } from "child_process";
 import type { ExecException } from "child_process";
 import { promisify } from "util";
 import os from "os";
-
+import net from "net";
 import type { ToolDefinition, Role, AssetRole, ChatMessage, ChatAsset, ModelInfo, PullProgress } from "./types/index.types.d.ts";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 
@@ -66,11 +66,39 @@ async function ensureDir() {
 	await fs.promises.mkdir(path.dirname(dataFilePath), { recursive: true });
 }
 
+function isPortOpen(port: number, host = "127.0.0.1", timeout = 2000) {
+	return new Promise((resolve) => {
+		const socket = net.connect({ port, host });
+		const timer = setTimeout(() => {
+			socket.destroy();
+			resolve(false);
+		}, timeout);
+
+		socket.on("connect", () => {
+			clearTimeout(timer);
+			socket.destroy();
+			resolve(true);
+		});
+		socket.on("error", () => {
+			clearTimeout(timer);
+			resolve(false);
+		});
+	});
+}
+
 export async function serve(): Promise<string> {
+	if (await isPortOpen(11434)) {
+		return "Ollama server already running";
+	}
+
 	return new Promise((resolve, reject) => {
 		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string) => {
-			if (err) return reject(err);
-			resolve(stdout);
+			if (err) {
+				console.log(stdout);
+				reject(err);
+			} else {
+				resolve(stdout);
+			}
 		});
 	});
 }
