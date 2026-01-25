@@ -35,12 +35,18 @@ fixPath();
 
 let mainWindow: any = null;
 
-function fireAndForget(promise: Promise<any>, label: string) {
-	promise.catch((err) => {
-		const stack = (err?.stack || String(err)).split("\n")[0];
-		console.warn(`[fireAndForget] [${label}]`, stack);
-	});
+function fireAndForget<T>(promise: Promise<T>, label: string) {
+  promise
+    .then((result) => {
+      console.info(`[fireAndForget] [${label}] resolved:`, 
+        result === undefined ? "<no value>" : result);
+    })
+    .catch((err) => {
+      const stackLine = (err?.stack || String(err)).split("\n")[0];
+      console.warn(`[fireAndForget] [${label}] rejected:`, stackLine);
+    });
 }
+
 
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
