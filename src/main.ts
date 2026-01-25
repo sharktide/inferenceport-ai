@@ -35,11 +35,18 @@ fixPath();
 
 let mainWindow: any = null;
 
-function fireAndForget(promise: Promise<any>, label: string) {
-	promise.catch((err) => {
-		const stack = (err?.stack || String(err)).split("\n")[0];
-		console.warn(`[fireAndForget] [${label}]`, stack);
-	});
+function fireAndForget<T>(promise: Promise<T>, label: string) {
+	promise
+		.then((result) => {
+			console.info(
+				`[fireAndForget] [${label}] resolved:`,
+				result === undefined ? "<no value>" : result,
+			);
+		})
+		.catch((err) => {
+			const stackLine = (err?.stack || String(err)).split("\n")[0];
+			console.warn(`[fireAndForget] [${label}] rejected:`, stackLine);
+		});
 }
 
 function createWindow() {
@@ -62,7 +69,7 @@ function createWindow() {
 					label: "Launch",
 					click: () =>
 						mainWindow.loadFile(
-							path.join(__dirname, "public", "marketplace.html")
+							path.join(__dirname, "public", "marketplace.html"),
 						),
 				},
 				{ type: "separator" },
@@ -74,8 +81,8 @@ function createWindow() {
 								__dirname,
 								"public",
 								"marketplace",
-								"ollama.html"
-							)
+								"ollama.html",
+							),
 						),
 				},
 				{
@@ -86,8 +93,8 @@ function createWindow() {
 								__dirname,
 								"public",
 								"marketplace",
-								"spaces.html"
-							)
+								"spaces.html",
+							),
 						),
 				},
 			],
@@ -119,7 +126,7 @@ function createWindow() {
 					click: (
 						_item: Electron.MenuItem,
 						focusedWindow: Electron.BaseWindow | undefined,
-						_event: Electron.KeyboardEvent
+						_event: Electron.KeyboardEvent,
 					) => {
 						if (focusedWindow instanceof BrowserWindow) {
 							focusedWindow.webContents.toggleDevTools();
@@ -138,7 +145,7 @@ function createWindow() {
 					click: async () => {
 						const { shell } = require("electron");
 						await shell.openExternal(
-							"https://github.com/sharktide/inferenceport-ai"
+							"https://github.com/sharktide/inferenceport-ai",
 						);
 					},
 				},
@@ -147,7 +154,7 @@ function createWindow() {
 					click: async () => {
 						const { shell } = require("electron");
 						await shell.openExternal(
-							"https://github.com/sharktide/inferenceport-ai/issues/new"
+							"https://github.com/sharktide/inferenceport-ai/issues/new",
 						);
 					},
 				},
@@ -156,7 +163,7 @@ function createWindow() {
 					click: async () => {
 						const { shell } = require("electron");
 						await shell.openExternal(
-							"https://github.com/sharktide/inferenceport-ai/pulls/new"
+							"https://github.com/sharktide/inferenceport-ai/pulls/new",
 						);
 					},
 				},
@@ -190,8 +197,8 @@ function openFromDeepLink(url: string) {
 							__dirname,
 							"public",
 							"marketplace",
-							"ollama.html"
-						)
+							"ollama.html",
+						),
 					);
 					return;
 				}
@@ -201,21 +208,21 @@ function openFromDeepLink(url: string) {
 							__dirname,
 							"public",
 							"marketplace",
-							"spaces.html"
-						)
+							"spaces.html",
+						),
 					);
 					return;
 				}
 			}
 			mainWindow.loadFile(
-				path.join(__dirname, "public", "marketplace.html")
+				path.join(__dirname, "public", "marketplace.html"),
 			);
 			return;
 		}
 
 		if (cleaned === "installed") {
 			mainWindow.loadFile(
-				path.join(__dirname, "public", "installed.html")
+				path.join(__dirname, "public", "installed.html"),
 			);
 			return;
 		}
@@ -226,7 +233,7 @@ function openFromDeepLink(url: string) {
 			cleaned === "account"
 		) {
 			mainWindow.loadFile(
-				path.join(__dirname, "public", "settings.html")
+				path.join(__dirname, "public", "settings.html"),
 			);
 			return;
 		}
@@ -238,7 +245,7 @@ function openFromDeepLink(url: string) {
 
 		if (cleaned === "reset-pswrd") {
 			mainWindow.loadFile(
-				path.join(__dirname, "public", "reset-pswrd.html")
+				path.join(__dirname, "public", "reset-pswrd.html"),
 			);
 			return;
 		}
@@ -278,7 +285,7 @@ app.whenReady().then(() => {
 			app.setAsDefaultProtocolClient(
 				"inferenceport-ai",
 				process.execPath,
-				[path.resolve(process.argv[1]!)]
+				[path.resolve(process.argv[1]!)],
 			);
 		} else {
 			app.setAsDefaultProtocolClient("inferenceport-ai");
