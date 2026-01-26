@@ -675,6 +675,25 @@ details summary {
 	justify-content: flex-end;
 }
 
+/* Add responsive styles for action buttons */
+.typing-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    .typing-actions {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+}
+
+.typing-bar:not(.empty) + .typing-actions {
+    flex-direction: column !important;
+    align-items: flex-end !important;
+}
+
 .feature-btns {
 	flex: 1 1 100%;
 	order: 3;
