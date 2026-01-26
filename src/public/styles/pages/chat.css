@@ -761,3 +761,32 @@ details summary {
 	transform: none;
 	pointer-events: auto;
 }
+
+.typing-actions {
+	transition: none;
+}
+
+#attach-btn,
+.feature-btns {
+	transition:
+		transform 220ms cubic-bezier(0.2, 0, 0, 1),
+		opacity 160ms ease;
+}
+
+.typing-bar.empty ~ .typing-actions #attach-btn {
+	transform: translateX(0) rotate(0deg);
+	opacity: 1;
+}
+
+.typing-bar.empty ~ .typing-actions .feature-btns {
+	transform: translateX(-8px);
+	opacity: 1;
+}
+
+.typing-bar:not(.empty) ~ .typing-actions #attach-btn {
+	transform: translateY(-36px) rotate(0deg);
+}
+
+.typing-bar:not(.empty) ~ .typing-actions .feature-btns {
+	transform: translateY(-12px);
+}
