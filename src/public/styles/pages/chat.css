@@ -672,8 +672,8 @@
 }
 
 .typing-bar:not(.empty) + .typing-actions {
-	flex-direction: column !important;
-	align-items: flex-end !important;
+	flex-direction: column;
+	align-items: flex-end;
 }
 
 .feature-btns {
