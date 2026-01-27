@@ -1,4 +1,6 @@
 name: Build, Sign, and Publish Electron App (Windows)
+permissions:
+    contents: read
 
 on:
     workflow_dispatch:
