@@ -103,44 +103,49 @@ export async function serve(): Promise<string> {
 	});
 }
 
-export async function fetchSupportedTools(): Promise<{
-	supportsTools: string[];
-}> {
-	const response = await fetch("https://ollama.com/search?c=tools");
-	if (!response.ok) {
-		throw new Error(`Failed to fetch models: ${response.statusText}`);
-	}
+export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
+    const response = await fetch(
+        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai/MISC/prod/toolSupportingModels.json"
+    );
 
-	const html = await response.text();
-	const names: string[] = [];
+    if (!response.ok) {
+        throw new Error(`Failed to fetch tool-supporting models: ${response.statusText}`);
+    }
 
-	const liRegex = /<li[^>]*x-test-model[^>]*>([\s\S]*?)<\/li>/g;
-	let match;
-	while ((match = liRegex.exec(html)) !== null) {
-		const liContent = match[1];
-		const nameMatch = liContent!.match(
-			/<h2[^>]*>\s*<span[^>]*x-test-search-response-title[^>]*>(.*?)<\/span>/
-		);
-		const name = nameMatch?.[1]?.trim();
-		if (name) {
-			names.push(name);
-		}
-	}
+    let data: unknown;
+    try {
+        data = await response.json();
+    } catch (err) {
+        throw new Error("Failed to parse tool-supporting models JSON");
+    }
 
-	cachedSupportsTools = names;
+    if (
+        !data ||
+        typeof data !== "object" ||
+        !("supportsTools" in data) ||
+        !Array.isArray((data as any).supportsTools) ||
+        !(data as any).supportsTools.every((name: any) => typeof name === "string")
+    ) {
+        throw new Error("Invalid tool-supporting models JSON shape");
+    }
 
-	await ensureDir();
-	const writeTask = fs.promises.writeFile(
-		dataFilePath,
-		JSON.stringify({ supportsTools: names }, null, 2),
-		"utf-8"
-	);
-	writeInProgress = writeTask;
-	await writeTask;
-	writeInProgress = null;
+    const supportsTools = (data as { supportsTools: string[] }).supportsTools;
 
-	return { supportsTools: names };
+    cachedSupportsTools = supportsTools;
+
+    await ensureDir();
+    const writeTask = fs.promises.writeFile(
+        dataFilePath,
+        JSON.stringify({ supportsTools }, null, 2),
+        "utf-8"
+    );
+    writeInProgress = writeTask;
+    await writeTask;
+    writeInProgress = null;
+
+    return { supportsTools };
 }
+
 
 // ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
