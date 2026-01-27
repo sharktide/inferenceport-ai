@@ -115,21 +115,24 @@ export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }
     let data: unknown;
     try {
         data = await response.json();
-    } catch (err) {
+    } catch {
         throw new Error("Failed to parse tool-supporting models JSON");
     }
 
-    if (
-        !data ||
-        typeof data !== "object" ||
-        !("supportsTools" in data) ||
-        !Array.isArray((data as any).supportsTools) ||
-        !(data as any).supportsTools.every((name: any) => typeof name === "string")
+    let supportsTools: string[];
+    if (Array.isArray(data) && data.every(name => typeof name === "string")) {
+        supportsTools = data;
+    } else if (
+        data &&
+        typeof data === "object" &&
+        "supportsTools" in data &&
+        Array.isArray((data as any).supportsTools) &&
+        (data as any).supportsTools.every((name: any) => typeof name === "string")
     ) {
+        supportsTools = (data as { supportsTools: string[] }).supportsTools;
+    } else {
         throw new Error("Invalid tool-supporting models JSON shape");
     }
-
-    const supportsTools = (data as { supportsTools: string[] }).supportsTools;
 
     cachedSupportsTools = supportsTools;
 
