@@ -59,6 +59,25 @@ jobs:
               src/dist/*.zip
               src/dist/*.pkg
 
+          - os: ubuntu-latest
+            name: Linux x86_64
+            artifact: Electron-linux-x64-build
+            header: build-linux
+            path: |
+              src/dist/*.AppImage
+              src/dist/*.deb
+              src/dist/*.tar.xz
+
+          - os: ubuntu-24.04-arm
+            name: Linux ARM x64
+            artifact: Electron-linux-arm64-build
+            header: build-linux-arm
+            path: |
+              src/dist/*.AppImage
+              src/dist/*.deb
+              src/dist/*.tar.xz
+
+
     runs-on: ${{ matrix.os }}
 
     steps:
