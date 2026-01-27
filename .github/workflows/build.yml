@@ -1,31 +1,39 @@
-name: Build Electron App (PR)
+name: Build
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
 
 permissions:
   contents: read
   pull-requests: write
 jobs:
   build:
+    permissions:
+      contents: read
+      pull-requests: write
     name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
-            name: Windows x86_64 (Unisigned)
+            name: Windows x86_64
             artifact: Electron-win64-build
             header: build-win64
             path: src/dist/*
           - os: windows-11-arm
-            name: Windows ARM x64 (Unisigned)
+            name: Windows ARM x64
             artifact: Electron-winaarch64-build
             header: build-arm
             path: src/dist/*
           - os: macos-latest
-            name: MacOS ARM x64 (Unisigned)
+            name: MacOS ARM x64
             artifact: Electron-macOS-build
             header: build-macos
             path: |
@@ -33,7 +41,7 @@ jobs:
               src/dist/*.zip
               src/dist/*.pkg
           - os: macos-15-intel
-            name: MacOS x86_64 (Unisigned)
+            name: MacOS x86_64
             artifact: Electron-macOS-x86-build
             header: build-macos-x86
             path: |
@@ -54,6 +62,16 @@ jobs:
 
       - name: Install dependencies
         working-directory: src
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+          CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+          CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
+
         run: npm ci && npm install -g typescript
 
       - name: Build Electron app (unsigned)
@@ -66,30 +84,23 @@ jobs:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
 
-      - name: Collect device info
-        id: device
-        run: |
-          echo "os_name=$(uname -s)" >> $GITHUB_ENV
-          echo "os_release=$(uname -r)" >> $GITHUB_ENV
-          echo "arch=$(uname -m)" >> $GITHUB_ENV
-
       - name: Comment success on PR
-        if: success()
+        if: success() && github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: ${{ matrix.header }}
           message: |
             ✅ Build succeeded.
             Artifact: **${{ matrix.artifact }}**
-            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
+            Device: ${{ runner.os }} ${{ runner.arch }}
             You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
 
       - name: Comment failure on PR
-        if: failure()
+        if: failure() && github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
         with:
           header: ${{ matrix.header }}
           message: |
             ❌ Build failed. Check logs.
-            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
+            Device: ${{ runner.os }} ${{ runner.arch }}
             You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
