@@ -210,7 +210,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-		background: #353f4d;
+	background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -467,23 +467,6 @@
 	border: 0;
 }
 
-/* details {
-  background: var(--bg-light);
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 10px;
-  font-family: monospace;
-  white-space: pre-wrap;
-}
-
-details summary {
-  padding: 4px 0;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-dark);
-} */
-
 .icon-btn {
 	background: transparent;
 	color: var(--text-dark, #000);
@@ -547,7 +530,6 @@ details summary {
 	display: block;
 }
 
-/* Show on hover */
 .image-wrapper:hover .image-download-btn {
 	opacity: 1;
 	pointer-events: auto;
@@ -577,7 +559,9 @@ details summary {
 
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 0.15s ease, transform 0.15s ease;
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s ease;
 	font-size: 10px;
 }
 
@@ -663,7 +647,6 @@ details summary {
 	will-change: height;
 }
 
-
 .typing-actions {
 	flex: 0 0 auto;
 	order: 4;
@@ -673,6 +656,24 @@ details summary {
 	gap: 12px;
 	align-items: center;
 	justify-content: flex-end;
+}
+
+.typing-actions {
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
+}
+
+@media (max-width: 768px) {
+	.typing-actions {
+		flex-direction: column;
+		align-items: flex-end;
+	}
+}
+
+.typing-bar:not(.empty) + .typing-actions {
+	flex-direction: column;
+	align-items: flex-end;
 }
 
 .feature-btns {
@@ -688,7 +689,6 @@ details summary {
 	margin-top: 0;
 }
 
-
 .typing-bar.empty .feature-btns,
 .typing-bar.empty #attach-btn {
 	opacity: 0;
@@ -698,7 +698,6 @@ details summary {
 	right: 12px;
 	bottom: 12px;
 }
-
 
 .feature-btns,
 #attach-btn {
@@ -713,20 +712,26 @@ details summary {
 }
 
 #feature-warning {
-	display: none;
-	width: 100%;
-	font-size: 13px;
-	line-height: 1.4;
-	color: #0061b0;
+    display: none;
+    width: 98.4%;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #0061b0;
 
-	padding: 8px 12px;
-	border-radius: 12px;
-	background: rgba(0, 120, 176, 0.08);
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(0, 120, 176, 0.08);
 
-	text-align: left;
-	box-sizing: border-box;
-	order: 4;
+    text-align: left;
+    box-sizing: border-box;
+    order: 4;
+
+    align-self: center;
+    margin-inline: auto;
 }
+
+
+
 
 .typing-bar.no-tools .feature-btns {
 	display: none;
@@ -741,4 +746,33 @@ details summary {
 	opacity: 1;
 	transform: none;
 	pointer-events: auto;
+}
+
+.typing-actions {
+	transition: none;
+}
+
+#attach-btn,
+.feature-btns {
+	transition:
+		transform 220ms cubic-bezier(0.2, 0, 0, 1),
+		opacity 160ms ease;
+}
+
+.typing-bar.empty ~ .typing-actions #attach-btn {
+	transform: translateX(0) rotate(0deg);
+	opacity: 1;
+}
+
+.typing-bar.empty ~ .typing-actions .feature-btns {
+	transform: translateX(-8px);
+	opacity: 1;
+}
+
+.typing-bar:not(.empty) ~ .typing-actions #attach-btn {
+	transform: translateY(-36px) rotate(0deg);
+}
+
+.typing-bar:not(.empty) ~ .typing-actions .feature-btns {
+	transform: translateY(-12px);
 }
