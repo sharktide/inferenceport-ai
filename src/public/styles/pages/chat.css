@@ -394,6 +394,7 @@
 	flex-wrap: wrap;
 	padding: 4px 0;
 	margin: 0;
+	padding: 10px;
 }
 
 .file-preview-bar:empty {
