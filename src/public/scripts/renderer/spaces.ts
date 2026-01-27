@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+const HF_ID_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/;
 const params = new URLSearchParams(window.location.search);
 
 const spinner = document.getElementById("spinner") as HTMLDivElement;
@@ -27,8 +28,14 @@ document.title = `${repo} - ${author} - InferencePortAI`;
 author = author?.replace(/\s+/g, "-") ?? "";
 repo = repo?.replace(/\s+/g, "-") ?? "";
 
+const isValidAuthor = !!author && HF_ID_REGEX.test(author);
+const isValidRepo = !!repo && HF_ID_REGEX.test(repo);
+
 if (!author || !repo) {
 	console.error("Missing 'author' or 'repo' in URL parameters.");
+} else if (!isValidAuthor || !isValidRepo) {
+	console.error("Invalid 'author' or 'repo' in URL parameters.");
+	spinner.style.display = "none";
 } else {
 	const spaceUrl =
 		sdk == "static"
