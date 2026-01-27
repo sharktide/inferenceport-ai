@@ -41,7 +41,7 @@
     "productName": "InferencePort AI",
     "files": [
       "public/**/*",
-      "node-apis/*",
+      "node-apis/**",
       "main.js",
       "preload.cjs",
       "package.json",
