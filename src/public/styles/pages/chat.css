@@ -727,7 +727,7 @@
     order: 4;
 
     align-self: center;
-    margin-inline: auto; /* 👈 this is the key */
+    margin-inline: auto;
 }
 
 
