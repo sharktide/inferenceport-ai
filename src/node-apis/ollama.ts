@@ -105,7 +105,7 @@ export async function serve(): Promise<string> {
 
 export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
     const response = await fetch(
-        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai/MISC/prod/toolSupportingModels.json"
+        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json"
     );
 
     if (!response.ok) {
