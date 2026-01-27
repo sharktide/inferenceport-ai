@@ -39,7 +39,7 @@ async function removeCudaFolders() {
 }
 
 async function bundleOllama() {
-	const platformMap = { win32: "windows", darwin: "darwin" };
+	const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
 	const archMap = { x64: "amd64", arm64: "arm64" };
 
 	const os = platformMap[process.platform];
