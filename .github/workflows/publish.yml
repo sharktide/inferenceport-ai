@@ -5,6 +5,8 @@ on:
 
 jobs:
   build-macos:
+    permissions:
+      contents: write
     runs-on: macos-26
     env:
       CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -40,6 +42,8 @@ jobs:
           codesign -vvv --strict dist/unzipped/*.app
 
   build-macos-x86:
+    permissions:
+      contents: write
     runs-on: macos-15-intel
     env:
       CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -75,6 +79,8 @@ jobs:
           codesign -vvv --strict dist/unzipped/*.app
           
   build-win64:
+    permissions:
+      contents: write
     runs-on: windows-2022
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -97,6 +103,8 @@ jobs:
         run: npm run publish
   
   build-arm:
+    permissions:
+      contents: write
     runs-on: windows-11-arm
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
