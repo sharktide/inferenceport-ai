@@ -94,7 +94,8 @@
       "notarize": true
     },
     "linux": {
-      "target": "AppImage"
+      "target": [ "AppImage", "deb", "tar.xz" ],
+      "artifactName": "${productName}-LinuxSetup-${version}-${arch}.${ext}"
     },
     "nsis": {
       "perMachine": true
