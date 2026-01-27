@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 const headerText = `Copyright 2025 Rihaan Meher
 
@@ -33,45 +33,45 @@ limitations under the License.`;
 
 // Comment styles per file type
 const commentStyles = {
-  '.js': { open: '/*', close: '*/' },
-  '.ts': { open: '/*', close: '*/' },
-  '.css': { open: '/*', close: '*/' },
-  '.html': { open: '<!--', close: '-->' }
+	".js": { open: "/*", close: "*/" },
+	".ts": { open: "/*", close: "*/" },
+	".css": { open: "/*", close: "*/" },
+	".html": { open: "<!--", close: "-->" },
 };
 
 const targetExtensions = Object.keys(commentStyles);
 
 function formatHeader(ext) {
-  const { open, close } = commentStyles[ext];
-  return `${open}\n${headerText}\n${close}\n`;
+	const { open, close } = commentStyles[ext];
+	return `${open}\n${headerText}\n${close}\n`;
 }
 
 function processFile(filePath) {
-  const ext = path.extname(filePath);
-  const header = formatHeader(ext);
-  const content = fs.readFileSync(filePath, 'utf8');
+	const ext = path.extname(filePath);
+	const header = formatHeader(ext);
+	const content = fs.readFileSync(filePath, "utf8");
 
-  if (content.includes(headerText)) return; // Skip if already added
+	if (content.includes(headerText)) return; // Skip if already added
 
-  const updatedContent =
-    ext === '.html' ? content + '\n' + header : header + '\n' + content;
+	const updatedContent =
+		ext === ".html" ? content + "\n" + header : header + "\n" + content;
 
-  fs.writeFileSync(filePath, updatedContent, 'utf8');
-  console.log(`✔️ Updated: ${filePath}`);
+	fs.writeFileSync(filePath, updatedContent, "utf8");
+	console.log(`✔️ Updated: ${filePath}`);
 }
 
 function walkDir(dir) {
-  fs.readdirSync(dir).forEach(file => {
-    const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
+	fs.readdirSync(dir).forEach((file) => {
+		const fullPath = path.join(dir, file);
+		const stat = fs.statSync(fullPath);
 
-    if (stat.isDirectory()) {
-      if (file === 'node_modules') return; // Skip node_modules
-      walkDir(fullPath);
-    } else if (targetExtensions.includes(path.extname(fullPath))) {
-      processFile(fullPath);
-    }
-  });
+		if (stat.isDirectory()) {
+			if (file === "node_modules") return; // Skip node_modules
+			walkDir(fullPath);
+		} else if (targetExtensions.includes(path.extname(fullPath))) {
+			processFile(fullPath);
+		}
+	});
 }
 
 // Start from current directory
