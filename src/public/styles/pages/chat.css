@@ -210,7 +210,7 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-		background: #353f4d;
+	background: #353f4d;
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
@@ -467,23 +467,6 @@
 	border: 0;
 }
 
-/* details {
-  background: var(--bg-light);
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 10px;
-  margin-top: 10px;
-  font-family: monospace;
-  white-space: pre-wrap;
-}
-
-details summary {
-  padding: 4px 0;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-dark);
-} */
-
 .icon-btn {
 	background: transparent;
 	color: var(--text-dark, #000);
@@ -547,7 +530,6 @@ details summary {
 	display: block;
 }
 
-/* Show on hover */
 .image-wrapper:hover .image-download-btn {
 	opacity: 1;
 	pointer-events: auto;
@@ -577,7 +559,9 @@ details summary {
 
 	opacity: 0;
 	pointer-events: none;
-	transition: opacity 0.15s ease, transform 0.15s ease;
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s ease;
 	font-size: 10px;
 }
 
@@ -663,7 +647,6 @@ details summary {
 	will-change: height;
 }
 
-
 .typing-actions {
 	flex: 0 0 auto;
 	order: 4;
@@ -675,23 +658,22 @@ details summary {
 	justify-content: flex-end;
 }
 
-/* Add responsive styles for action buttons */
 .typing-actions {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
+	display: flex;
+	flex-direction: row;
+	gap: 8px;
 }
 
 @media (max-width: 768px) {
-    .typing-actions {
-        flex-direction: column;
-        align-items: flex-end;
-    }
+	.typing-actions {
+		flex-direction: column;
+		align-items: flex-end;
+	}
 }
 
 .typing-bar:not(.empty) + .typing-actions {
-    flex-direction: column !important;
-    align-items: flex-end !important;
+	flex-direction: column !important;
+	align-items: flex-end !important;
 }
 
 .feature-btns {
@@ -707,7 +689,6 @@ details summary {
 	margin-top: 0;
 }
 
-
 .typing-bar.empty .feature-btns,
 .typing-bar.empty #attach-btn {
 	opacity: 0;
@@ -717,7 +698,6 @@ details summary {
 	right: 12px;
 	bottom: 12px;
 }
-
 
 .feature-btns,
 #attach-btn {
