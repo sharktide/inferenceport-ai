@@ -37,7 +37,9 @@ declare global {
 			isAvailable: () => boolean;
 			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
-			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			fetchToolSupportingModels: () => Promise<{
+				supportsTools: string[];
+			}>;
 		};
 
 		utils: {
@@ -71,7 +73,7 @@ declare global {
 		auth: {
 			signInWithEmail: (
 				email: string,
-				password: string
+				password: string,
 			) => Promise<{
 				session?: any;
 				user?: any;
@@ -79,23 +81,23 @@ declare global {
 			}>;
 			signUpWithEmail: (
 				email: string,
-				password: string
+				password: string,
 			) => Promise<{
 				user?: any;
 				error?: string;
 			}>;
 			setUsername: (
 				userId: string,
-				username: string
+				username: string,
 			) => Promise<{ success?: boolean; profile?: any; error?: string }>;
 			signOut: () => Promise<{ success?: boolean; error?: string }>;
 			getSession: () => Promise<{ session?: any; error?: string }>;
 			onAuthStateChange: (callback: (session: any) => void) => void;
 			resetPassword: (
-				email: string
+				email: string,
 			) => Promise<{ status: boolean; error: any }>;
 			verifyPassword: (
-				password: string
+				password: string,
 			) => Promise<{ success: boolean; error: string | undefined }>;
 			deleteAccount: () => Promise<{
 				success: boolean;
@@ -106,7 +108,7 @@ declare global {
 		sync: {
 			getRemoteSessions: () => Promise<Record<string, Session>>;
 			saveAllSessions: (
-				sessions: Record<string, Sessions>
+				sessions: Record<string, Sessions>,
 			) => Promise<string | { error: string }>;
 		};
 	}

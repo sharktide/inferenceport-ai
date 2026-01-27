@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -7,7 +7,7 @@
 		<script type="module" src="Components.js"></script>
 		<style>
 			button:disabled {
-			    pointer-events: none;
+				pointer-events: none;
 				opacity: 0.5;
 				cursor: not-allowed;
 			}
@@ -23,11 +23,18 @@
 					<div class="modal-content">
 						<h2>Change Username</h2>
 						<p>Pick your new username:</p>
-						<input type="text" id="username" placeholder="Enter username" style="max-width: 200px;">
+						<input
+							type="text"
+							id="username"
+							placeholder="Enter username"
+							style="max-width: 200px"
+						/>
 						<br />
 						<div class="modal-actions">
 							<button id="rename-cancel">Cancel</button>
-							<button id="save" style="max-width: 200px;">Save</button>
+							<button id="save" style="max-width: 200px">
+								Save
+							</button>
 						</div>
 						<p id="status"></p>
 					</div>
@@ -35,40 +42,107 @@
 				<div id="delete-dialog" class="modal hidden">
 					<div class="modal-content">
 						<h2>Delete Account</h2>
-						<p>Are you SURE you want to delete your account? This action is irreversible!</p>
+						<p>
+							Are you SURE you want to delete your account? This
+							action is irreversible!
+						</p>
 						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
-							<button onclick="document.getElementById('delete-dialog').style.display = 'none'; document.getElementById('delete-password-dialog').style.display = 'flex'" style="max-width: 200px; color: red !important">Continue</button>
+							<button
+								onclick="
+									document.getElementById(
+										'delete-dialog',
+									).style.display = 'none'
+								"
+							>
+								Cancel
+							</button>
+							<button
+								onclick="
+									document.getElementById(
+										'delete-dialog',
+									).style.display = 'none';
+									document.getElementById(
+										'delete-password-dialog',
+									).style.display = 'flex';
+								"
+								style="max-width: 200px; color: red !important"
+							>
+								Continue
+							</button>
 						</div>
 					</div>
 				</div>
 				<div id="delete-password-dialog" class="modal hidden">
 					<div class="modal-content">
 						<h2>Delete Account</h2>
-						<p>Please enter your password to permanently delete your account.</p>
-						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
+						<p>
+							Please enter your password to permanently delete
+							your account.
+						</p>
+						<input
+							type="password"
+							id="password"
+							placeholder="Enter password"
+							style="max-width: 275x"
+						/>
 						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-password-dialog').style.display = 'none'">Cancel</button>
-							<button style="max-width: 200px; color: red !important" id="deleteforreal">Delete</button>
+							<button
+								onclick="
+									document.getElementById(
+										'delete-password-dialog',
+									).style.display = 'none'
+								"
+							>
+								Cancel
+							</button>
+							<button
+								style="max-width: 200px; color: red !important"
+								id="deleteforreal"
+							>
+								Delete
+							</button>
 						</div>
 						<p id="delete-password-status"></p>
 					</div>
 				</div>
-				<details open><summary>General</summary>
-					<p> </p>
+				<details open>
+					<summary>General</summary>
+					<p></p>
 					<div>
-						<button id="theme-toggle" class="theme-toggle">🌙 Dark Mode</button>
+						<button id="theme-toggle" class="theme-toggle">
+							🌙 Dark Mode
+						</button>
 					</div>
 				</details>
-				<p> </p>
-				<details open id="account-settings"><Summary>Account</Summary>
-					<p> </p>
+				<p></p>
+				<details open id="account-settings">
+					<summary>Account</summary>
+					<p></p>
 					<div>
-						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>
+						<button
+							onclick="
+								document.getElementById(
+									'rename-dialog',
+								).style.display = 'flex'
+							"
+							class="theme-toggle"
+						>
+							Change Username
+						</button>
 					</div>
-					<p> </p>
+					<p></p>
 					<div>
-						<button onclick="document.getElementById('delete-dialog').style.display = 'flex'" class="theme-toggle red" style="color: red !important">Delete Account</button>
+						<button
+							onclick="
+								document.getElementById(
+									'delete-dialog',
+								).style.display = 'flex'
+							"
+							class="theme-toggle red"
+							style="color: red !important"
+						>
+							Delete Account
+						</button>
 					</div>
 				</details>
 				<!--
@@ -80,21 +154,47 @@
 			</select>
 		</div>
 		-->
-					<p> </p>
-					<details open><summary>Syncing</summary>
-						<p> </p>
-						<p>
-							<label>
-								<input type="checkbox" id="sync-chats"> Enable chat sync
-							</label>
-						</p>
-						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
-						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
-					</details>
+				<p></p>
+				<details open>
+					<summary>Syncing</summary>
+					<p></p>
+					<p>
+						<label>
+							<input type="checkbox" id="sync-chats" /> Enable
+							chat sync
+						</label>
+					</p>
+					<p class="muted">
+						Syncing is <strong>off by default</strong>. When
+						enabled, your chat sessions will be synced to
+						InferencePort AI. Only you and InferencePort AI can
+						access your chats.
+					</p>
+					<p class="muted">
+						Signing in is optional — you only need an account to
+						enable sync.
+					</p>
+				</details>
 			</div>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
-
+			<footer>
+				Copyright (c) 2025 Rihaan Meher. Licensed under the Apache
+				License 2.0
+			</footer>
+			<footer>
+				<p>
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>. We reserve the right to change these terms and policies
+					at anytime without any further notice.
+				</p>
+			</footer>
 		</main>
 		<script type="module" src="scripts/settings.js"></script>
 	</body>

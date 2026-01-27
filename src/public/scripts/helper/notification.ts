@@ -48,4 +48,4 @@ function showNotification({
 	container.appendChild(box);
 }
 
-export { showNotification }
+export { showNotification };

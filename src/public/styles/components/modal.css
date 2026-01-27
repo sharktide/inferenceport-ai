@@ -2,107 +2,107 @@
 Copyright 2025 Rihaan Meher
 */
 .modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
 }
 
 .modal.hidden {
-  display: none;
+	display: none;
 }
 
 .modal-content {
-  position: relative;
-  background-color: var(--bg-light);
-  color: var(--text-dark);
-  padding: 20px;
-  border-radius: 8px;
-  width: 300px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  text-align: center;
+	position: relative;
+	background-color: var(--bg-light);
+	color: var(--text-dark);
+	padding: 20px;
+	border-radius: 8px;
+	width: 300px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+	text-align: center;
 }
 
 .modal-content h2,
 .modal-content h3 {
-  margin-top: 0;
-  margin-bottom: 12px;
+	margin-top: 0;
+	margin-bottom: 12px;
 }
 
 .modal-content select {
-  margin: 10px 0;
-  padding: 6px;
-  width: 100%;
+	margin: 10px 0;
+	padding: 6px;
+	width: 100%;
 }
 
 .modal-content button {
-  margin-top: 10px;
-  padding: 8px 16px;
+	margin-top: 10px;
+	padding: 8px 16px;
 }
 
 .modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 15px;
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 15px;
 }
 
 .close-btn {
-  cursor: pointer;
-  font-size: 24px;
-  position: absolute;
-  top: 10px;
-  right: 15px;
+	cursor: pointer;
+	font-size: 24px;
+	position: absolute;
+	top: 10px;
+	right: 15px;
 }
 
 .modal.full-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-light);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  padding: 40px;
-  overflow: auto;
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: var(--bg-light);
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	padding: 40px;
+	overflow: auto;
 }
 
 .modal-content.full-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
 }
 
 #file-preview-title {
-  font-size: 20px;
-  margin-bottom: 20px;
-  padding-top: 10px;
-  color: var(--text-dark);
+	font-size: 20px;
+	margin-bottom: 20px;
+	padding-top: 10px;
+	color: var(--text-dark);
 }
 
 #file-preview-content {
-  white-space: pre-wrap;
-  font-family: monospace;
-  font-size: 14px;
-  background: var(--gray);
-  padding: 20px;
-  border-radius: 8px;
-  flex: 1;
-  overflow-y: auto;
-  text-align: left;
+	white-space: pre-wrap;
+	font-family: monospace;
+	font-size: 14px;
+	background: var(--gray);
+	padding: 20px;
+	border-radius: 8px;
+	flex: 1;
+	overflow-y: auto;
+	text-align: left;
 }
 
 #file-preview-close {
-  padding: 10px;
-  align-self: center;
+	padding: 10px;
+	align-self: center;
 }

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -8,19 +8,19 @@
 		<script type="module" src="scripts/staticload/index.js"></script>
 		<style>
 			#card-scroll-wrapper {
-			overflow: hidden;
-			width: 100%;
+				overflow: hidden;
+				width: 100%;
 			}
 
 			.card-grid {
-			display: flex;
-			gap: 20px;
-			animation: scroll-loop 30s linear infinite;
+				display: flex;
+				gap: 20px;
+				animation: scroll-loop 30s linear infinite;
 			}
 
 			.marketplace-card {
-			max-width: 500px;
-			flex-shrink: 0;
+				max-width: 500px;
+				flex-shrink: 0;
 			}
 
 			@keyframes scroll-loop {
@@ -31,7 +31,6 @@
 					transform: translateX(-50%);
 				}
 			}
-
 		</style>
 		<script src="scripts/authrender.js" type="module"></script>
 	</head>
@@ -42,21 +41,41 @@
 			<h1>Sign In or Sign Up</h1>
 
 			<form id="auth-form" style="padding-right: 20px">
-				<h2 id="rst" style="display: none;">Reset Password</h2>
-				<input type="email" id="email" placeholder="Email" required>
-				<input type="password" id="password" placeholder="Password" required>
-                <div class="social-buttons" id="social-buttons">
+				<h2 id="rst" style="display: none">Reset Password</h2>
+				<input type="email" id="email" placeholder="Email" required />
+				<input
+					type="password"
+					id="password"
+					placeholder="Password"
+					required
+				/>
+				<div class="social-buttons" id="social-buttons"></div>
+				<div class="auth-action-buttons">
+					<button id="login" type="button">Log In</button>
+					<button id="signup" type="button">Sign Up</button>
 				</div>
-                <div class="auth-action-buttons">
-                    <button id="login" type="button">Log In</button>
-                    <button id="signup" type="button">Sign Up</button>
-                </div>
-                <a id="forgot-password" class="forgot-link">Forgot Password?</a>
-                <p id="status"></p> 
-            </form>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
-
+				<a id="forgot-password" class="forgot-link">Forgot Password?</a>
+				<p id="status"></p>
+			</form>
+			<footer>
+				Copyright (c) 2025 Rihaan Meher. Licensed under the Apache
+				License 2.0
+			</footer>
+			<footer>
+				<p>
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>. We reserve the right to change these terms and policies
+					at anytime without any further notice.
+				</p>
+			</footer>
 		</main>
 	</body>
 </html>

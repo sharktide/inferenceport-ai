@@ -1,106 +1,106 @@
 {
-  "name": "InferencePortAI",
-  "version": "1.4.2",
-  "main": "main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "clean": "node scripts/clean.js",
-    "watch": "tsc --watch",
-    "compile": "tsc",
-    "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish never && npm run clean",
-    "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish always && npm run clean",
-    "prepack": "node scripts/bundle-ollama.js"
-  },
-  "keywords": [],
-  "type": "module",
-  "author": "Rihaan Meher",
-  "license": "Apache 2.0",
-  "description": "AI, anywhere",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.93.1",
-    "fix-path": "^5.0.0",
-    "markdown-it": "^14.1.0",
-    "sanitize-html": "^2.17.0",
-    "systeminformation": "^5.30.6"
-  },
-  "devDependencies": {
-    "@types/dompurify": "^3.2.0",
-    "@types/markdown-it": "^14.1.2",
-    "@types/node": "^25.0.10",
-    "@types/sanitize-html": "^2.16.0",
-    "@types/tar": "^6.1.13",
-    "@typescript/native-preview": "^7.0.0-dev.20260126.1",
-    "electron": "^40.0.0",
-    "electron-builder": "^26.4.0",
-    "typescript": "^5.9.3",
-    "glob": "^13.0.0"
-  },
-  "build": {
-    "appId": "com.sharktide.inferenceport",
-    "productName": "InferencePort AI",
-    "files": [
-      "public/**/*",
-      "node-apis/**",
-      "main.js",
-      "preload.cjs",
-      "package.json",
-      "!./scripts/*",
-      "LICENSE",
-      "third_party_licenses",
-      "!**/._*"
-    ],
-    "extraResources": [
-      {
-        "from": "vendor/electron-ollama",
-        "to": "vendor/electron-ollama",
-        "filter": [
-          "!**/._*"
-        ]
-      }
-    ],
-    "publish": {
-      "provider": "github",
-      "owner": "sharktide",
-      "repo": "InferencePort-AI",
-      "releaseType": "release"
-    },
-    "fileAssociations": [
-      {
-        "ext": "import",
-        "name": "InferencePortAI Metadata File",
-        "role": "Editor"
-      }
-    ],
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": [
-        "appx",
-        "zip",
-        "msi",
-        "nsis"
-      ],
-      "appId": "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip",
-        "pkg"
-      ],
-      "notarize": true
-    },
-    "linux": {
-      "target": "AppImage"
-    },
-    "nsis": {
-      "perMachine": true
-    },
-    "appx": {
-      "customManifestPath": "build/AppxManifest.xml"
-    }
-  }
+	"name": "InferencePortAI",
+	"version": "1.4.2",
+	"main": "main.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"clean": "node scripts/clean.js",
+		"watch": "tsc --watch",
+		"compile": "tsc",
+		"start": "npm run clean && npm run compile && npx electron . && npm run clean",
+		"build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish never && npm run clean",
+		"publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish always && npm run clean",
+		"prepack": "node scripts/bundle-ollama.js"
+	},
+	"keywords": [],
+	"type": "module",
+	"author": "Rihaan Meher",
+	"license": "Apache 2.0",
+	"description": "AI, anywhere",
+	"dependencies": {
+		"@supabase/supabase-js": "^2.93.1",
+		"fix-path": "^5.0.0",
+		"markdown-it": "^14.1.0",
+		"sanitize-html": "^2.17.0",
+		"systeminformation": "^5.30.6"
+	},
+	"devDependencies": {
+		"@types/dompurify": "^3.2.0",
+		"@types/markdown-it": "^14.1.2",
+		"@types/node": "^25.0.10",
+		"@types/sanitize-html": "^2.16.0",
+		"@types/tar": "^6.1.13",
+		"@typescript/native-preview": "^7.0.0-dev.20260126.1",
+		"electron": "^40.0.0",
+		"electron-builder": "^26.4.0",
+		"typescript": "^5.9.3",
+		"glob": "^13.0.0"
+	},
+	"build": {
+		"appId": "com.sharktide.inferenceport",
+		"productName": "InferencePort AI",
+		"files": [
+			"public/**/*",
+			"node-apis/**",
+			"main.js",
+			"preload.cjs",
+			"package.json",
+			"!./scripts/*",
+			"LICENSE",
+			"third_party_licenses",
+			"!**/._*"
+		],
+		"extraResources": [
+			{
+				"from": "vendor/electron-ollama",
+				"to": "vendor/electron-ollama",
+				"filter": [
+					"!**/._*"
+				]
+			}
+		],
+		"publish": {
+			"provider": "github",
+			"owner": "sharktide",
+			"repo": "InferencePort-AI",
+			"releaseType": "release"
+		},
+		"fileAssociations": [
+			{
+				"ext": "import",
+				"name": "InferencePortAI Metadata File",
+				"role": "Editor"
+			}
+		],
+		"directories": {
+			"output": "dist"
+		},
+		"win": {
+			"target": [
+				"appx",
+				"zip",
+				"msi",
+				"nsis"
+			],
+			"appId": "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
+			"artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+		},
+		"mac": {
+			"target": [
+				"dmg",
+				"zip",
+				"pkg"
+			],
+			"notarize": true
+		},
+		"linux": {
+			"target": "AppImage"
+		},
+		"nsis": {
+			"perMachine": true
+		},
+		"appx": {
+			"customManifestPath": "build/AppxManifest.xml"
+		}
+	}
 }

@@ -24,15 +24,15 @@ async function restoreSession() {
 	}
 }
 
-supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-	if (session) {
-		fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
-	} else {
-		if (fs.existsSync(sessionFile)) fs.unlinkSync(sessionFile);
-	}
-});
-
-
+supabase.auth.onAuthStateChange(
+	(_event: AuthChangeEvent, session: Session | null) => {
+		if (session) {
+			fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
+		} else {
+			if (fs.existsSync(sessionFile)) fs.unlinkSync(sessionFile);
+		}
+	},
+);
 
 export default function register() {
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
@@ -112,7 +112,7 @@ export default function register() {
 
 			if (error) return { error: error.message };
 			return { success: true, profile: data };
-		}
+		},
 	);
 
 	ipcMain.handle("auth:onAuthStateChange", () => {
@@ -120,7 +120,7 @@ export default function register() {
 		const { data: listener } = supabase.auth.onAuthStateChange(
 			(_eventType, session) => {
 				win?.webContents.send("auth:stateChanged", session);
-			}
+			},
 		);
 		return { success: true };
 	});
@@ -132,7 +132,7 @@ export default function register() {
 			email,
 			{
 				redirectTo: "https://inferenceportai.vercel.app/reset.html",
-			}
+			},
 		);
 
 		if (error) return { error: error.message };
@@ -264,7 +264,7 @@ export default function register() {
 			}
 
 			return { success: true };
-		}
+		},
 	);
 
 	ipcMain.handle("auth:verify-password", async (event, { password }) => {
@@ -284,7 +284,7 @@ export default function register() {
 					Authorization: `Bearer ${sb.access_token}`,
 				},
 				body: JSON.stringify({ email: sb.user.email, password }),
-			}
+			},
 		);
 
 		if (!res.ok) {
@@ -345,7 +345,7 @@ export default function register() {
 					Authorization: `Bearer ${sb?.access_token}`,
 					...(cookieHeader ? { Cookie: cookieHeader } : {}),
 				},
-			}
+			},
 		);
 
 		const out = await res.json().catch(() => ({}));
@@ -353,7 +353,7 @@ export default function register() {
 
 		await session.defaultSession.cookies.remove(
 			"https://dpixehhdbtzsbckfektd.supabase.co",
-			"pw_verified"
+			"pw_verified",
 		);
 
 		return { success: true };

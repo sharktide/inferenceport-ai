@@ -33,7 +33,7 @@ function detailsBlock(md: any): void {
 			state: any,
 			startLine: number,
 			endLine: number,
-			silent: boolean
+			silent: boolean,
 		): boolean => {
 			const start = state.bMarks[startLine!] + state.tShift[startLine!];
 			const max = state.eMarks[startLine!];
@@ -64,7 +64,7 @@ function detailsBlock(md: any): void {
 			token.content = content;
 
 			return true;
-		}
+		},
 	);
 }
 
@@ -92,7 +92,12 @@ function isFirstLaunch(): boolean {
 
 	try {
 		const fd = fs.openSync(markerPath, "wx");
-		fs.writeSync(fd, JSON.stringify({ firstRunCompleted: true }), undefined, "utf-8");
+		fs.writeSync(
+			fd,
+			JSON.stringify({ firstRunCompleted: true }),
+			undefined,
+			"utf-8",
+		);
 		fs.closeSync(fd);
 		return true;
 	} catch (err: any) {
@@ -156,7 +161,7 @@ export default function register() {
 		"utils:web_open",
 		async (_event: IpcMainInvokeEvent, url: string) => {
 			shell.openExternal(url);
-		}
+		},
 	);
 
 	ipcMain.on(
@@ -178,10 +183,10 @@ export default function register() {
 								[]
 							).concat(["class", "id"]),
 							details: ["open"],
-						}
+						},
 					),
 					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(
-						["data"]
+						["data"],
 					),
 				});
 				event.returnValue = clean;
@@ -190,7 +195,7 @@ export default function register() {
 					err instanceof Error ? err.message : String(err)
 				}</p>`;
 			}
-		}
+		},
 	);
 
 	ipcMain.on("utils:DOMPurify", (event: IpcMainEvent, html: string) => {
@@ -208,7 +213,7 @@ export default function register() {
 							sanitizeHtml.defaults.allowedAttributes["*"] || []
 						).concat(["class", "id"]),
 						details: ["open"],
-					}
+					},
 				),
 				allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat([
 					"data",
@@ -224,7 +229,11 @@ export default function register() {
 
 	ipcMain.handle(
 		"utils:saveFile",
-		async (_event: IpcMainInvokeEvent, filePath: string, content: string) => {
+		async (
+			_event: IpcMainInvokeEvent,
+			filePath: string,
+			content: string,
+		) => {
 			const base = app.getPath("userData");
 			const resolved = path.resolve(filePath);
 
@@ -241,7 +250,7 @@ export default function register() {
 			await fs.promises.rename(tmp, resolved);
 
 			return true;
-		}
+		},
 	);
 
 	const AppDataDir = app.getPath("userData");
@@ -308,6 +317,6 @@ export default function register() {
 				avx512: hasAVX512,
 				warning,
 			};
-		}
+		},
 	);
 }

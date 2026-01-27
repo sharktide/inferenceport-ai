@@ -31,24 +31,24 @@ const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const modelSelect = document.getElementById(
-	"model-select"
+	"model-select",
 ) as HTMLSelectElement;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
-	"new-session-btn"
+	"new-session-btn",
 ) as HTMLButtonElement;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
 const modalTitle = document.getElementById(
-	"file-preview-title"
+	"file-preview-title",
 ) as HTMLTitleElement;
 const modalContent = document.getElementById(
-	"file-preview-content"
+	"file-preview-content",
 ) as HTMLPreElement;
 const modalClose = document.getElementById(
-	"file-preview-close"
+	"file-preview-close",
 ) as HTMLButtonElement;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
@@ -57,7 +57,7 @@ const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
-	"feature-warning"
+	"feature-warning",
 ) as HTMLParagraphElement;
 
 let searchEnabled = false;
@@ -108,7 +108,7 @@ function showSessionProgress(): void {
 
 function setSessionProgress(value: number): void {
 	const bar = document.getElementById(
-		"session-progress-bar"
+		"session-progress-bar",
 	) as HTMLDivElement;
 	if (!bar) return;
 
@@ -120,7 +120,7 @@ async function hideSessionProgress(): void {
 	if (!loaderVisible) return;
 
 	const bar = document.getElementById(
-		"session-progress-bar"
+		"session-progress-bar",
 	) as HTMLDivElement;
 	const loader = document.getElementById("session-loader") as HTMLDivElement;
 
@@ -157,7 +157,7 @@ async function loadOptions() {
 		} catch (e) {
 			console.warn(
 				"Failed to load local sessions, starting with empty:",
-				e
+				e,
 			);
 			sessions = {};
 		}
@@ -194,7 +194,7 @@ async function loadOptions() {
 			modelSelect.insertAdjacentHTML(
 				"beforeend",
 				`<option value="add-more-models">➕ Add more models...</option>
-				 <option value="manage-models">✏️ Manage models...</option>`
+				 <option value="manage-models">✏️ Manage models...</option>`,
 			);
 
 			modelSelect.addEventListener("change", () => {
@@ -215,7 +215,7 @@ async function loadOptions() {
 		if (isSyncEnabled() && auth?.session?.user) {
 			const remoteResponse = await safeCallRemote(
 				() => window.sync.getRemoteSessions(),
-				{ sessions: null }
+				{ sessions: null },
 			);
 			setSessionProgress(65);
 
@@ -236,7 +236,7 @@ async function loadOptions() {
 
 				sessions = mergeLocalAndRemoteSessions(
 					sessions as SessionMap,
-					remoteResponse.sessions
+					remoteResponse.sessions,
 				);
 
 				await window.ollama.save(sessions);
@@ -245,7 +245,7 @@ async function loadOptions() {
 				const freshAuth = await window.auth.getSession();
 				if (freshAuth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 			}
@@ -300,14 +300,18 @@ function showContextMenu(x, y, sessionId, sessionName) {
 				deleteSession(sessionId);
 				break;
 			case "delete_all":
-				if (confirm("Are you sure you want to delete all sessions? This cannot be undone.")) {
+				if (
+					confirm(
+						"Are you sure you want to delete all sessions? This cannot be undone.",
+					)
+				) {
 					sessions = {};
 					currentSessionId = null;
 					window.ollama.save(sessions);
 					window.auth.getSession().then(async (auth) => {
 						if (isSyncEnabled() && auth?.session?.user) {
 							await safeCallRemote(() =>
-								window.sync.saveAllSessions(sessions)
+								window.sync.saveAllSessions(sessions),
 							);
 						}
 						location.reload();
@@ -347,7 +351,7 @@ function deleteSession(sessionId) {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -359,7 +363,7 @@ function deleteSession(sessionId) {
 function openReportDialog(): void {
 	const dialog = document.getElementById("report-dialog") as HTMLDivElement;
 	const cancelBtn = document.getElementById(
-		"report-close"
+		"report-close",
 	) as HTMLButtonElement;
 	dialog.classList.remove("hidden");
 	const closeDialog = () => dialog.classList.add("hidden");
@@ -372,10 +376,10 @@ function openRenameDialog(sessionId, currentName): void {
 	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
 	const input = document.getElementById("rename-input") as HTMLInputElement;
 	const cancelBtn = document.getElementById(
-		"rename-cancel"
+		"rename-cancel",
 	) as HTMLButtonElement;
 	const confirmBtn = document.getElementById(
-		"rename-confirm"
+		"rename-confirm",
 	) as HTMLButtonElement;
 
 	input.value = currentName;
@@ -392,7 +396,7 @@ function openRenameDialog(sessionId, currentName): void {
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 				renderSessionList();
@@ -444,7 +448,7 @@ function renderSessionList(): void {
 
 	const sortedSessions = Object.entries(sessions)
 		.filter(([, session]) =>
-			session.name?.toLowerCase().includes(searchTerm)
+			session.name?.toLowerCase().includes(searchTerm),
 		)
 		.sort(([, a], [, b]) => {
 			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
@@ -480,7 +484,7 @@ function renderSessionList(): void {
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 				renderSessionList();
@@ -613,7 +617,7 @@ window.ollama.onPullProgress(
 		if (!container) return;
 
 		let box = container.querySelector(
-			`[data-model="${model}"]`
+			`[data-model="${model}"]`,
 		) as HTMLElement | null;
 
 		if (!box) {
@@ -640,7 +644,7 @@ window.ollama.onPullProgress(
 
 		if (pre) {
 			pre.textContent = clean.includes("\r")
-				? clean.split("\r").pop() ?? ""
+				? (clean.split("\r").pop() ?? "")
 				: clean;
 		}
 
@@ -656,13 +660,13 @@ window.ollama.onPullProgress(
 			actions.appendChild(finishBtn);
 			box.appendChild(actions);
 		}
-	}
+	},
 );
 
 async function autoNameSession(
 	model: string,
 	prompt: string,
-	sessionId: string
+	sessionId: string,
 ): Promise<string> {
 	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
 	const response = await fetch("http://localhost:11434/api/chat", {
@@ -689,7 +693,7 @@ async function autoNameSession(
 		console.error(
 			"[autoNameSession] API error status:",
 			response.status,
-			response.statusText
+			response.statusText,
 		);
 		showNotification({
 			message: `Failed to auto-name session: ${response.status} ${response.statusText}`,
@@ -779,12 +783,12 @@ form.addEventListener("submit", async (e) => {
 		"[form.submit] Prompt:",
 		prompt,
 		"CurrentSessionId:",
-		currentSessionId
+		currentSessionId,
 	);
 	if (!prompt || !currentSessionId) return;
 	if (sessions[currentSessionId].history.length === 0) {
 		console.log(
-			"[form.submit] First prompt for session, calling autoNameSession..."
+			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
 		autoNameSession(model, prompt, currentSessionId).catch((err) => {
 			console.error("[form.submit] autoNameSession error:", err);
@@ -828,7 +832,7 @@ form.addEventListener("submit", async (e) => {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -848,7 +852,7 @@ form.addEventListener("submit", async (e) => {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -868,7 +872,7 @@ form.addEventListener("submit", async (e) => {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -972,7 +976,7 @@ function updateTextareaState() {
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {
 		e.preventDefault();
-		if (!isStreaming){
+		if (!isStreaming) {
 			(document.getElementById("send") as HTMLButtonElement).click();
 		}
 	}
@@ -1048,7 +1052,7 @@ function renderChat() {
 			bubble.className = "chat-bubble user-bubble";
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = window.utils.markdown_parse_and_purify(
-				msg.content || ""
+				msg.content || "",
 			);
 			chatBox.appendChild(bubble);
 			return;
@@ -1058,7 +1062,7 @@ function renderChat() {
 		if (msg.role === "assistant") {
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			const html = window.utils.markdown_parse_and_purify(
-				msg.content || ""
+				msg.content || "",
 			);
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
@@ -1084,29 +1088,29 @@ function renderChat() {
 					}
 
 					const codeBubble = document.createElement(
-						"div"
+						"div",
 					) as HTMLDivElement;
 					codeBubble.className = "ai-code-bubble";
 
 					const header = document.createElement(
-						"div"
+						"div",
 					) as HTMLDivElement;
 					header.className = "ai-code-header";
 
 					const langLabel = document.createElement(
-						"span"
+						"span",
 					) as HTMLSpanElement;
 					langLabel.className = "ai-code-lang";
 					langLabel.textContent = lang;
 
 					const copyBtn = document.createElement(
-						"button"
+						"button",
 					) as HTMLButtonElement;
 					copyBtn.className = "ai-copy-btn";
 					copyBtn.textContent = "Copy";
 					copyBtn.onclick = () => {
 						navigator.clipboard.writeText(
-							codeEl?.textContent || ""
+							codeEl?.textContent || "",
 						);
 						copyBtn.textContent = "Copied!";
 						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
@@ -1128,12 +1132,12 @@ function renderChat() {
 
 		if (msg.role === "image") {
 			const botContainer = document.createElement(
-				"div"
+				"div",
 			) as HTMLDivElement;
 			botContainer.className = "chat-bubble image-bubble";
 
 			const imageWrapper = document.createElement(
-				"div"
+				"div",
 			) as HTMLDivElement;
 			imageWrapper.className = "image-wrapper";
 

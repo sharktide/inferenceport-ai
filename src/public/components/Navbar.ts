@@ -1,49 +1,51 @@
 function setupNavbar(nav: HTMLElement) {
-    let hideTimer: number | undefined;
+	let hideTimer: number | undefined;
 
-    nav.classList.add('collapsed');
+	nav.classList.add("collapsed");
 
-    const setAuthVisibility = () => {
-        const auth = document.getElementById('user-indicator') as HTMLDivElement | null;
-        if (!auth) return;
+	const setAuthVisibility = () => {
+		const auth = document.getElementById(
+			"user-indicator",
+		) as HTMLDivElement | null;
+		if (!auth) return;
 
-        const isExpanded = !nav.classList.contains('collapsed');
+		const isExpanded = !nav.classList.contains("collapsed");
 
-        auth.style.opacity = isExpanded ? "1" : "0";
-        auth.style.pointerEvents = isExpanded ? "auto" : "none";
-    };
+		auth.style.opacity = isExpanded ? "1" : "0";
+		auth.style.pointerEvents = isExpanded ? "auto" : "none";
+	};
 
-    const observer = new MutationObserver(() => {
-        const auth = document.getElementById('user-indicator');
-        if (!auth) return;
+	const observer = new MutationObserver(() => {
+		const auth = document.getElementById("user-indicator");
+		if (!auth) return;
 
-        setAuthVisibility();
-        observer.disconnect();
-    });
+		setAuthVisibility();
+		observer.disconnect();
+	});
 
-    setAuthVisibility();
+	setAuthVisibility();
 
-	if (!document.getElementById('user-indicator')) {
-	    observer.observe(document.body, { childList: true, subtree: true });
+	if (!document.getElementById("user-indicator")) {
+		observer.observe(document.body, { childList: true, subtree: true });
 	}
 
-    nav.addEventListener('mouseenter', () => {
-        clearTimeout(hideTimer);
-        nav.classList.remove('collapsed');
-        setAuthVisibility();
-    });
+	nav.addEventListener("mouseenter", () => {
+		clearTimeout(hideTimer);
+		nav.classList.remove("collapsed");
+		setAuthVisibility();
+	});
 
-    nav.addEventListener('mouseleave', () => {
-        hideTimer = window.setTimeout(() => {
-            nav.classList.add('collapsed');
-            setAuthVisibility();
-        }, 1200);
-    });
+	nav.addEventListener("mouseleave", () => {
+		hideTimer = window.setTimeout(() => {
+			nav.classList.add("collapsed");
+			setAuthVisibility();
+		}, 1200);
+	});
 }
 
 export class RootNavbar extends HTMLElement {
-    connectedCallback() {
-        this.innerHTML = `
+	connectedCallback() {
+		this.innerHTML = `
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
@@ -59,13 +61,13 @@ export class RootNavbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
-    }
+		const nav = this.querySelector("nav");
+		if (nav) setupNavbar(nav);
+	}
 }
 export class Type1Navbar extends HTMLElement {
-    connectedCallback() {
-        this.innerHTML = `
+	connectedCallback() {
+		this.innerHTML = `
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
@@ -81,13 +83,13 @@ export class Type1Navbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
-    }
+		const nav = this.querySelector("nav");
+		if (nav) setupNavbar(nav);
+	}
 }
 export class MarketplaceNavbar extends HTMLElement {
-    connectedCallback() {
-        this.innerHTML = `
+	connectedCallback() {
+		this.innerHTML = `
             <nav>
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
@@ -103,9 +105,9 @@ export class MarketplaceNavbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
-    }
+		const nav = this.querySelector("nav");
+		if (nav) setupNavbar(nav);
+	}
 }
 customElements.define("root-navbar", RootNavbar);
 customElements.define("type1-navbar", Type1Navbar);

@@ -2,141 +2,153 @@
 Copyright 2025 Rihaan Meher
 */
 .provider-select-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background-color: var(--bg-light);
-  padding: 40px 20px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	background-color: var(--bg-light);
+	padding: 40px 20px;
 }
 
 .provider-select-container h1 {
-  font-size: 32px;
-  margin-bottom: 40px;
-  color: var(--text-dark);
+	font-size: 32px;
+	margin-bottom: 40px;
+	color: var(--text-dark);
 }
 
 .provider-card-grid {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
+	display: flex;
+	gap: 40px;
+	flex-wrap: wrap;
 }
 
 .provider-card {
-  width: 300px;
-  padding: 15px;
-  border-radius: var(--border-radius);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.2s ease;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+	width: 300px;
+	padding: 15px;
+	border-radius: var(--border-radius);
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+	cursor: pointer;
+	transition: transform 0.2s ease;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
 .provider-card:hover {
-  transform: translateY(-6px);
+	transform: translateY(-6px);
 }
 
 .provider-card img {
-  width: 80px;
-  margin-bottom: 20px;
+	width: 80px;
+	margin-bottom: 20px;
 }
 
 .provider-card h2 {
-  font-size: 22px;
-  margin-bottom: 12px;
+	font-size: 22px;
+	margin-bottom: 12px;
 }
 
 .provider-card p {
-  font-size: 14px;
-  margin: 6px 0;
+	font-size: 14px;
+	margin: 6px 0;
 }
 
 .provider-card.black {
-  background-color: #4a4a4a;
-  color: white;
+	background-color: #4a4a4a;
+	color: white;
 }
 
 .provider-card.yellow {
-  background-color: #fff8dc;
-  color: #333;
+	background-color: #fff8dc;
+	color: #333;
 }
 
 .provider-subtitle {
-  font-size: 16px;
-  color: var(--dark-text);
-  margin-bottom: 40px;
+	font-size: 16px;
+	color: var(--dark-text);
+	margin-bottom: 40px;
 }
 
 .black-bg {
-  background-color: #4a4a4a;
-  color: rgb(209, 209, 209);
+	background-color: #4a4a4a;
+	color: rgb(209, 209, 209);
 }
 
 /* Marketplace-specific cards reuse .marketplace-card from card.css */
 
 .provider-card button {
-  align-self: flex-end;
+	align-self: flex-end;
 }
 
 .recommendation-grid .card {
-  width: 220px;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  background: var(--bg-light);
+	width: 220px;
+	padding: 12px;
+	border-radius: 8px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	background: var(--bg-light);
 }
-.recommend-card h3 { margin: 0 0 6px 0; }
-.recommend-card p { margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted); }
-.recommend-card .card-actions { text-align: right; }
-.recommend-card button { padding: 8px 10px; border-radius: 6px; }
+.recommend-card h3 {
+	margin: 0 0 6px 0;
+}
+.recommend-card p {
+	margin: 0 0 10px 0;
+	font-size: 13px;
+	color: var(--text-muted);
+}
+.recommend-card .card-actions {
+	text-align: right;
+}
+.recommend-card button {
+	padding: 8px 10px;
+	border-radius: 6px;
+}
 
 .info-content .close {
-  float: right;
-  font-size: 20px;
-  cursor: pointer;
+	float: right;
+	font-size: 20px;
+	cursor: pointer;
 }
 
 /* Base modal styling */
 .info-modal {
-  display: none; /* hidden by default */
-  position: fixed;
-  z-index: 999;
-  left: 0; top: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+	display: none; /* hidden by default */
+	position: fixed;
+	z-index: 999;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.5);
+	opacity: 0;
+	transition: opacity 0.3s ease;
 }
 
 /* Modal content box */
 .info-content {
-  background: #fff;
-  margin: 15% auto;
-  padding: 20px;
-  border-radius: 8px;
-  width: 400px;
-  transform: scale(0.9);
-  transition: transform 0.3s ease;
+	background: #fff;
+	margin: 15% auto;
+	padding: 20px;
+	border-radius: 8px;
+	width: 400px;
+	transform: scale(0.9);
+	transition: transform 0.3s ease;
 }
 
 /* Active state (when shown) */
 .info-modal.show {
-  display: block;
-  opacity: 1;
+	display: block;
+	opacity: 1;
 }
 
 .info-modal.show .info-content {
-  transform: scale(1);
+	transform: scale(1);
 }
 
 /* Closing animation */
 .info-modal.hide {
-  opacity: 0;
+	opacity: 0;
 }
 
 .info-modal.hide .info-content {
-  transform: scale(0.9);
+	transform: scale(0.9);
 }
-

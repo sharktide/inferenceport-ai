@@ -2,27 +2,27 @@
 Copyright 2025 Rihaan Meher
 */
 #drop-zone {
-  border: 2px dashed var(--primary-color);
-  border-radius: var(--border-radius);
-  padding: 40px;
-  text-align: center;
-  background-color: var(--gray);
-  color: var(--dark-text);
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+	border: 2px dashed var(--primary-color);
+	border-radius: var(--border-radius);
+	padding: 40px;
+	text-align: center;
+	background-color: var(--gray);
+	color: var(--dark-text);
+	cursor: pointer;
+	transition: background-color 0.3s ease;
 }
 
 #drop-zone:hover {
-  background-color: var(--light-blue);
+	background-color: var(--light-blue);
 }
 
 #drop-zone p {
-  margin: 0;
-  font-size: 16px;
+	margin: 0;
+	font-size: 16px;
 }
 
 .click-to-upload {
-  color: var(--blue);
-  text-decoration: underline;
-  cursor: pointer;
+	color: var(--blue);
+	text-decoration: underline;
+	cursor: pointer;
 }

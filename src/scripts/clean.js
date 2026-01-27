@@ -75,7 +75,9 @@ import { resolve, basename } from "path";
 
 	try {
 		const existing = await readFile(gitignorePath, "utf-8");
-		const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
+		const lines = new Set(
+			existing.split(/\r?\n/).map((line) => line.trim()),
+		);
 		let updated = false;
 		for (const file of generatedFiles) {
 			if (basename(file).includes(".types.")) continue;

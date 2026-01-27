@@ -15,10 +15,10 @@ export type ToolDefinition = {
 };
 
 export type ToolCallFunction = {
-  name: string;
-  arguments: string | Record<string, unknown>;
+	name: string;
+	arguments: string | Record<string, unknown>;
 };
 
 export type ToolCall = {
-  function: ToolCallFunction;
+	function: ToolCallFunction;
 };

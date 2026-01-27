@@ -1,28 +1,35 @@
 {
-  "include": ["main.ts", "preload.cts", "node-apis", "public", "global.d.ts", "scripts"],
-  "exclude": ["node_modules", "dist"],
-  "compilerOptions": {
-    "target": "es2020",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "types": ["node"],
+	"include": [
+		"main.ts",
+		"preload.cts",
+		"node-apis",
+		"public",
+		"global.d.ts",
+		"scripts"
+	],
+	"exclude": ["node_modules", "dist"],
+	"compilerOptions": {
+		"target": "es2020",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"types": ["node"],
 
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+		"sourceMap": true,
+		"declaration": true,
+		"declarationMap": true,
 
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "isolatedModules": true,
-    "noUncheckedSideEffectImports": true,
-    "moduleDetection": "force",
-    "skipLibCheck": true,
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"isolatedModules": true,
+		"noUncheckedSideEffectImports": true,
+		"moduleDetection": "force",
+		"skipLibCheck": true,
 
-    "jsx": "react-jsx",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "verbatimModuleSyntax": true
-  }
+		"jsx": "react-jsx",
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"verbatimModuleSyntax": true
+	}
 }

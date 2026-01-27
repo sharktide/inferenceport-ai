@@ -47,7 +47,7 @@ async function bundleOllama() {
 
 	if (!os || !arch) {
 		console.error(
-			`Unsupported platform: ${process.platform} ${process.arch}`
+			`Unsupported platform: ${process.platform} ${process.arch}`,
 		);
 		process.exit(1);
 	}
@@ -63,7 +63,7 @@ async function bundleOllama() {
 
 	if (process.env.GPU_ONLY === "true") {
 		console.log(
-			"GPU_ONLY build detected — keeping CUDA binaries, zip-only packaging"
+			"GPU_ONLY build detected — keeping CUDA binaries, zip-only packaging",
 		);
 	} else {
 		await removeCudaFolders();

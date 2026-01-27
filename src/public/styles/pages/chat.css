@@ -713,26 +713,23 @@
 }
 
 #feature-warning {
-    display: none;
-    width: 98.4%;
-    font-size: 13px;
-    line-height: 1.4;
-    color: #0061b0;
+	display: none;
+	width: 98.4%;
+	font-size: 13px;
+	line-height: 1.4;
+	color: #0061b0;
 
-    padding: 8px 12px;
-    border-radius: 12px;
-    background: rgba(0, 120, 176, 0.08);
+	padding: 8px 12px;
+	border-radius: 12px;
+	background: rgba(0, 120, 176, 0.08);
 
-    text-align: left;
-    box-sizing: border-box;
-    order: 4;
+	text-align: left;
+	box-sizing: border-box;
+	order: 4;
 
-    align-self: center;
-    margin-inline: auto;
+	align-self: center;
+	margin-inline: auto;
 }
-
-
-
 
 .typing-bar.no-tools .feature-btns {
 	display: none;

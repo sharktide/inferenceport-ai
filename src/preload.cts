@@ -16,7 +16,14 @@ limitations under the License.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
+import type {
+	ChatMessage,
+	ChatAsset,
+	ModelInfo,
+	PullProgress,
+	Session,
+	Sessions,
+} from "./node-apis/types/index.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
@@ -31,7 +38,7 @@ contextBridge.exposeInMainWorld("ollama", {
 	onPullProgress: (cb: (data: PullProgress) => void): void => {
 		ipcRenderer.on(
 			"ollama:pull-progress",
-			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
+			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data),
 		);
 	},
 	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
@@ -40,34 +47,34 @@ contextBridge.exposeInMainWorld("ollama", {
 		model: string,
 		prompt: string,
 		searchEnabled: boolean,
-		imgEnabled: boolean
+		imgEnabled: boolean,
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
 			searchEnabled,
-			imgEnabled
+			imgEnabled,
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
 
 	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
 		ipcRenderer.on(
 			"ollama:new-asset",
-			(_e: Electron.IpcRendererEvent, msg: ChatAsset) => cb(msg)
+			(_e: Electron.IpcRendererEvent, msg: ChatAsset) => cb(msg),
 		);
 	},
 
 	onResponse: (cb: (token: string) => void): void => {
 		ipcRenderer.on(
 			"ollama:chat-token",
-			(_e: Electron.IpcRendererEvent, token: string) => cb(token)
+			(_e: Electron.IpcRendererEvent, token: string) => cb(token),
 		);
 	},
 	onError: (cb: (err: string) => void): void => {
 		ipcRenderer.on(
 			"ollama:chat-error",
-			(_e: Electron.IpcRendererEvent, err: string) => cb(err)
+			(_e: Electron.IpcRendererEvent, err: string) => cb(err),
 		);
 	},
 	onDone: (cb: () => void): void => {
@@ -88,8 +95,10 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.removeAllListeners("ollama:chat-done");
 	},
 
-	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
-	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models")
+	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> =>
+		ipcRenderer.invoke("ollama:get-tool-models"),
+	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> =>
+		ipcRenderer.invoke("ollama:fetch-tool-models"),
 });
 
 // ===== Utilities =====
@@ -133,7 +142,9 @@ contextBridge.exposeInMainWorld("auth", {
 	getSession: () => ipcRenderer.invoke("auth:getSession"),
 	onAuthStateChange: (callback: (session: Session) => void) => {
 		ipcRenderer.invoke("auth:onAuthStateChange");
-		ipcRenderer.on("auth:stateChanged", (_e: any, session: Session) => callback(session));
+		ipcRenderer.on("auth:stateChanged", (_e: any, session: Session) =>
+			callback(session),
+		);
 	},
 	resetPassword: (email: string) =>
 		ipcRenderer.invoke("auth:resetPassword", email),

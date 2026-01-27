@@ -1,95 +1,95 @@
 name: Build Electron App (PR)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+    pull_request:
+        types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
-  pull-requests: write
+    contents: read
+    pull-requests: write
 jobs:
-  build:
-    name: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            name: Windows x86_64 (Unisigned)
-            artifact: Electron-win64-build
-            header: build-win64
-            path: src/dist/*
-          - os: windows-11-arm
-            name: Windows ARM x64 (Unisigned)
-            artifact: Electron-winaarch64-build
-            header: build-arm
-            path: src/dist/*
-          - os: macos-latest
-            name: MacOS ARM x64 (Unisigned)
-            artifact: Electron-macOS-build
-            header: build-macos
-            path: |
-              src/dist/*.dmg
-              src/dist/*.zip
-              src/dist/*.pkg
-          - os: macos-15-intel
-            name: MacOS x86_64 (Unisigned)
-            artifact: Electron-macOS-x86-build
-            header: build-macos-x86
-            path: |
-              src/dist/*.dmg
-              src/dist/*.zip
-              src/dist/*.pkg
+    build:
+        name: ${{ matrix.name }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      name: Windows x86_64 (Unisigned)
+                      artifact: Electron-win64-build
+                      header: build-win64
+                      path: src/dist/*
+                    - os: windows-11-arm
+                      name: Windows ARM x64 (Unisigned)
+                      artifact: Electron-winaarch64-build
+                      header: build-arm
+                      path: src/dist/*
+                    - os: macos-latest
+                      name: MacOS ARM x64 (Unisigned)
+                      artifact: Electron-macOS-build
+                      header: build-macos
+                      path: |
+                          src/dist/*.dmg
+                          src/dist/*.zip
+                          src/dist/*.pkg
+                    - os: macos-15-intel
+                      name: MacOS x86_64 (Unisigned)
+                      artifact: Electron-macOS-x86-build
+                      header: build-macos-x86
+                      path: |
+                          src/dist/*.dmg
+                          src/dist/*.zip
+                          src/dist/*.pkg
 
-    runs-on: ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
 
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 24
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 24
 
-      - name: Install dependencies
-        working-directory: src
-        run: npm ci && npm install -g typescript
+            - name: Install dependencies
+              working-directory: src
+              run: npm ci && npm install -g typescript
 
-      - name: Build Electron app (unsigned)
-        working-directory: src
-        run: npm run build
+            - name: Build Electron app (unsigned)
+              working-directory: src
+              run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.path }}
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ matrix.artifact }}
+                  path: ${{ matrix.path }}
 
-      - name: Collect device info
-        id: device
-        run: |
-          echo "os_name=$(uname -s)" >> $GITHUB_ENV
-          echo "os_release=$(uname -r)" >> $GITHUB_ENV
-          echo "arch=$(uname -m)" >> $GITHUB_ENV
+            - name: Collect device info
+              id: device
+              run: |
+                  echo "os_name=$(uname -s)" >> $GITHUB_ENV
+                  echo "os_release=$(uname -r)" >> $GITHUB_ENV
+                  echo "arch=$(uname -m)" >> $GITHUB_ENV
 
-      - name: Comment success on PR
-        if: success()
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: ${{ matrix.header }}
-          message: |
-            ✅ Build succeeded.
-            Artifact: **${{ matrix.artifact }}**
-            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
-            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+            - name: Comment success on PR
+              if: success()
+              uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
+              with:
+                  header: ${{ matrix.header }}
+                  message: |
+                      ✅ Build succeeded.
+                      Artifact: **${{ matrix.artifact }}**
+                      Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
+                      You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
 
-      - name: Comment failure on PR
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: ${{ matrix.header }}
-          message: |
-            ❌ Build failed. Check logs.
-            Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
-            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+            - name: Comment failure on PR
+              if: failure()
+              uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
+              with:
+                  header: ${{ matrix.header }}
+                  message: |
+                      ❌ Build failed. Check logs.
+                      Device: ${{ env.os_name }} ${{ env.os_release }} ${{ env.arch }}
+                      You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.

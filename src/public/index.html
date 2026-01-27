@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -32,53 +32,55 @@
 					transform: translateX(-50%);
 				}
 			}
-						
+
 			.info-content .close {
-			float: right;
-			font-size: 20px;
-			cursor: pointer;
+				float: right;
+				font-size: 20px;
+				cursor: pointer;
 			}
 
 			/* Base modal styling */
 			.info-modal {
-			display: none; /* hidden by default */
-			position: fixed;
-			z-index: 999;
-			left: 0; top: 0;
-			width: 100%; height: 100%;
-			background: rgba(0,0,0,0.5);
-			opacity: 0;
-			transition: opacity 0.3s ease;
+				display: none; /* hidden by default */
+				position: fixed;
+				z-index: 999;
+				left: 0;
+				top: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.5);
+				opacity: 0;
+				transition: opacity 0.3s ease;
 			}
 
 			/* Modal content box */
 			.info-content {
-			margin: 15% auto;
-			padding: 20px;
-			border-radius: 8px;
-			width: 400px;
-			transform: scale(0.9);
-			transition: transform 0.3s ease;
-			background-color: var(--bg-light) !important;
+				margin: 15% auto;
+				padding: 20px;
+				border-radius: 8px;
+				width: 400px;
+				transform: scale(0.9);
+				transition: transform 0.3s ease;
+				background-color: var(--bg-light) !important;
 			}
 
 			/* Active state (when shown) */
 			.info-modal.show {
-			display: block;
-			opacity: 1;
+				display: block;
+				opacity: 1;
 			}
 
 			.info-modal.show .info-content {
-			transform: scale(1);
+				transform: scale(1);
 			}
 
 			/* Closing animation */
 			.info-modal.hide {
-			opacity: 0;
+				opacity: 0;
 			}
 
 			.info-modal.hide .info-content {
-			transform: scale(0.9);
+				transform: scale(0.9);
 			}
 		</style>
 	</head>
@@ -87,192 +89,400 @@
 		<main style="padding: 40px">
 			<h1>Welcome to InferencePortAI</h1>
 			<p>Your gateway to seamless AI model management and interaction.</p>
-			<div style="margin-bottom:16px" class="highlight">
-				<button class="marketplace-btn" onclick="window.location.href='renderer/chat.html'" style="height: 100px;">Chat Now</button>
+			<div style="margin-bottom: 16px" class="highlight">
+				<button
+					class="marketplace-btn"
+					onclick="window.location.href = 'renderer/chat.html'"
+					style="height: 100px"
+				>
+					Chat Now
+				</button>
 			</div>
 
 			<h3>Quick Links:</h3>
-			<div class="auth-action-buttons" style="justify-content: left;">
-				<button id="show-onboarding">
-					Show me around
-				</button>
-				<button onclick="window.open('help/index.html')">
-					Help
-				</button>
-				<button onclick="location.href='marketplace.html'">
+			<div class="auth-action-buttons" style="justify-content: left">
+				<button id="show-onboarding">Show me around</button>
+				<button onclick="window.open('help/index.html')">Help</button>
+				<button onclick="location.href = 'marketplace.html'">
 					Marketplace
 				</button>
-				<button onclick="location.href='installed.html'">Installed</button>
-				<button onclick="location.href='marketplace/ollama.html'">
+				<button onclick="location.href = 'installed.html'">
+					Installed
+				</button>
+				<button onclick="location.href = 'marketplace/ollama.html'">
 					+ Ollama Marketplace
 				</button>
-				<button onclick="location.href='marketplace/spaces.html#drop-zone'">+ Add HF Space</button>
-				<button onclick="location.href='marketplace/website.html'">+ Add Website</button>
-				<button onclick="window.utils.web_open('https://github.com/sharktide/InferencePort-AI/issues/new')">Report Bug</button>
-				<button onclick="window.utils.web_open('https://github.com/sharktide/InferencePort-AI/')">Github</button>
-				<button onclick="location.href='settings.html'">Settings</button>
-
+				<button
+					onclick="
+						location.href = 'marketplace/spaces.html#drop-zone'
+					"
+				>
+					+ Add HF Space
+				</button>
+				<button onclick="location.href = 'marketplace/website.html'">
+					+ Add Website
+				</button>
+				<button
+					onclick="
+						window.utils.web_open(
+							'https://github.com/sharktide/InferencePort-AI/issues/new',
+						)
+					"
+				>
+					Report Bug
+				</button>
+				<button
+					onclick="
+						window.utils.web_open(
+							'https://github.com/sharktide/InferencePort-AI/',
+						)
+					"
+				>
+					Github
+				</button>
+				<button onclick="location.href = 'settings.html'">
+					Settings
+				</button>
 			</div>
 
 			<div>
 				<h3>Explore Trending Ollama Models</h3>
 				<div id="card-scroll-wrapper">
-				<div class="card-grid" >
-					<div class="marketplace-card">
-						<h2>gpt-oss</h2>
-						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.</p>
-						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details</a>
+					<div class="card-grid">
+						<div class="marketplace-card">
+							<h2>gpt-oss</h2>
+							<p class="model-description">
+								OpenAI’s open-weight models designed for
+								powerful reasoning, agentic tasks, and versatile
+								developer use cases.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">20b</span>
+								<span class="model-tag">120b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/gpt-oss"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#gpt-oss">
+								<button class="marketplace-btn gloss">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#gpt-oss">
-							<button class="marketplace-btn gloss">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>deepseek-r1</h2>
-						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
-						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span> <span class="model-tag">8b</span> <span class="model-tag">14b</span> <span class="model-tag">32b</span> <span class="model-tag">70b</span> <span class="model-tag">671b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>deepseek-r1</h2>
+							<p class="model-description">
+								DeepSeek-R1 is a family of open reasoning models
+								with performance approaching that of leading
+								models, such as O3 and Gemini 2.5 Pro.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">1.5b</span>
+								<span class="model-tag">7b</span>
+								<span class="model-tag">8b</span>
+								<span class="model-tag">14b</span>
+								<span class="model-tag">32b</span>
+								<span class="model-tag">70b</span>
+								<span class="model-tag">671b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/deepseek-r1"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#deepseek-r1">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#deepseek-r1">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>llama3.1</h2>
-						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes.</p>
-						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span> <span class="model-tag">405b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>llama3.1</h2>
+							<p class="model-description">
+								Llama 3.1 is a new state-of-the-art model from
+								Meta available in 8B, 70B and 405B parameter
+								sizes.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">8b</span>
+								<span class="model-tag">70b</span>
+								<span class="model-tag">405b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/llama3.1"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#llama3.1">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#llama3.1">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>smollm2</h2>
-						<p class="model-description">SmolLM2 is a family of compact language models available in three size: 135M, 360M, and 1.7B parameters.</p>
-						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span> <span class="model-tag">1.7b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>smollm2</h2>
+							<p class="model-description">
+								SmolLM2 is a family of compact language models
+								available in three size: 135M, 360M, and 1.7B
+								parameters.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">135m</span>
+								<span class="model-tag">360m</span>
+								<span class="model-tag">1.7b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/smollm2"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#smollm2">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#smollm2">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>phi3</h2>
-						<p class="model-description">Phi-3 is a family of lightweight 3B (Mini) and 14B (Medium) state-of-the-art open models by Microsoft.</p>
-						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>phi3</h2>
+							<p class="model-description">
+								Phi-3 is a family of lightweight 3B (Mini) and
+								14B (Medium) state-of-the-art open models by
+								Microsoft.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">3.8b</span>
+								<span class="model-tag">14b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/phi3"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#phi3">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#phi3">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
 
-
-					<div class="marketplace-card">
-						<h2>gpt-oss</h2>
-						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, and versatile developer use cases.</p>
-						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>gpt-oss</h2>
+							<p class="model-description">
+								OpenAI’s open-weight models designed for
+								powerful reasoning, agentic tasks, and versatile
+								developer use cases.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">20b</span>
+								<span class="model-tag">120b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/gpt-oss"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#gpt-oss">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#gpt-oss">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>deepseek-r1</h2>
-						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
-						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span> <span class="model-tag">8b</span> <span class="model-tag">14b</span> <span class="model-tag">32b</span> <span class="model-tag">70b</span> <span class="model-tag">671b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>deepseek-r1</h2>
+							<p class="model-description">
+								DeepSeek-R1 is a family of open reasoning models
+								with performance approaching that of leading
+								models, such as O3 and Gemini 2.5 Pro.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">1.5b</span>
+								<span class="model-tag">7b</span>
+								<span class="model-tag">8b</span>
+								<span class="model-tag">14b</span>
+								<span class="model-tag">32b</span>
+								<span class="model-tag">70b</span>
+								<span class="model-tag">671b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/deepseek-r1"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#deepseek-r1">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#deepseek-r1">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>llama3.1</h2>
-						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in 8B, 70B and 405B parameter sizes.</p>
-						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span> <span class="model-tag">405b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/llama3.1#llama3.1" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>llama3.1</h2>
+							<p class="model-description">
+								Llama 3.1 is a new state-of-the-art model from
+								Meta available in 8B, 70B and 405B parameter
+								sizes.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">8b</span>
+								<span class="model-tag">70b</span>
+								<span class="model-tag">405b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/llama3.1#llama3.1"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>smollm2</h2>
-						<p class="model-description">SmolLM2 is a family of compact language models available in three size: 135M, 360M, and 1.7B parameters.</p>
-						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span> <span class="model-tag">1.7b</span></div>
-						<div class="model-meta">
-						<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details</a>
+						<div class="marketplace-card">
+							<h2>smollm2</h2>
+							<p class="model-description">
+								SmolLM2 is a family of compact language models
+								available in three size: 135M, 360M, and 1.7B
+								parameters.
+							</p>
+							<div class="model-tags">
+								<span class="model-tag">135m</span>
+								<span class="model-tag">360m</span>
+								<span class="model-tag">1.7b</span>
+							</div>
+							<div class="model-meta">
+								<a
+									href="https://ollama.com/library/smollm2"
+									target="_blank"
+									class="model-link"
+									>More details</a
+								>
+							</div>
+							<a href="./marketplace/ollama.html#smollm2">
+								<button class="marketplace-btn">
+									View in Marketplace
+								</button>
+							</a>
 						</div>
-						<a href="./marketplace/ollama.html#smollm2">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
 					</div>
 				</div>
-				</div>
-
 			</div>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
-
+			<footer>
+				Copyright (c) 2025 Rihaan Meher. Licensed under the Apache
+				License 2.0
+			</footer>
+			<footer>
+				<p>
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>. We reserve the right to change these terms and policies
+					at anytime without any further notice.
+				</p>
+			</footer>
 		</main>
-		
+
 		<!-- Simple onboarding modal for first-time users -->
 		<div id="onboarding-modal" class="modal hidden">
 			<div class="modal-content">
 				<h2>Quick Tour</h2>
 				<ul>
-					<li><strong>Explore</strong>: Browse models and add spaces or websites.</li>
-					<li><strong>My Models</strong>: See models you've installed or run locally.</li>
-					<li><strong>Chat</strong>: Start a conversation — try a simple request like "Summarize this".</li>
+					<li>
+						<strong>Explore</strong>: Browse models and add spaces
+						or websites.
+					</li>
+					<li>
+						<strong>My Models</strong>: See models you've installed
+						or run locally.
+					</li>
+					<li>
+						<strong>Chat</strong>: Start a conversation — try a
+						simple request like "Summarize this".
+					</li>
 				</ul>
-				<div style="margin-top:12px;text-align:right">
+				<div style="margin-top: 12px; text-align: right">
 					<button id="onboarding-close">Got it</button>
 				</div>
 			</div>
 		</div>
-		
+
 		<script>
-			const showBtn = document.getElementById('show-onboarding');
-			const modal = document.getElementById('onboarding-modal');
-			const closeBtn = document.getElementById('onboarding-close');
-			function showOnboarding(){ modal.classList.remove('hidden'); }
-			function hideOnboarding(){ modal.classList.add('hidden'); }
-			showBtn?.addEventListener('click', showOnboarding);
-			closeBtn?.addEventListener('click', hideOnboarding);
+			const showBtn = document.getElementById("show-onboarding");
+			const modal = document.getElementById("onboarding-modal");
+			const closeBtn = document.getElementById("onboarding-close");
+			function showOnboarding() {
+				modal.classList.remove("hidden");
+			}
+			function hideOnboarding() {
+				modal.classList.add("hidden");
+			}
+			showBtn?.addEventListener("click", showOnboarding);
+			closeBtn?.addEventListener("click", hideOnboarding);
 		</script>
 		<div id="infoModal" class="info-modal">
 			<div class="info-content">
 				<span class="close" onclick="closeInfo()">&times;</span>
 				<h3 id="infoTitle">Terms</h3>
-			<p id="infoText">By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p>
-		</div>
+				<p id="infoText">
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>. We reserve the right to change these terms and policies
+					at anytime without any further notice.
+				</p>
+			</div>
 		</div>
 		<script>
 			async function showModal() {
-				const isFirst = await window.utils.isFirstLaunch()
-				const infoModal = document.getElementById('infoModal')
+				const isFirst = await window.utils.isFirstLaunch();
+				const infoModal = document.getElementById("infoModal");
 				if (isFirst) {
-					infoModal.classList.remove('hide')
-					infoModal.classList.add('show')
+					infoModal.classList.remove("hide");
+					infoModal.classList.add("show");
 				}
 			}
 			async function closeInfo() {
-				infoModal.classList.remove('show')
-				infoModal.classList.add('hide')
+				infoModal.classList.remove("show");
+				infoModal.classList.add("hide");
 			}
-			showModal()
+			showModal();
 		</script>
 	</body>
 </html>

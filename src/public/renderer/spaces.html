@@ -1,56 +1,57 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <title>InferencePortAI</title>
+	<head>
+		<meta charset="UTF-8" />
+		<title>InferencePortAI</title>
 		<script type="module" src="../Components.js"></script>
-    <script type="module" src="../scripts/staticload/index.js"></script>
-    <link rel="stylesheet" href="../styles/styles.css" />
-    <style>
-        html, body {
-          height: 100%;
-          margin: 0;
-          padding: 0;
-        }
+		<script type="module" src="../scripts/staticload/index.js"></script>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<style>
+			html,
+			body {
+				height: 100%;
+				margin: 0;
+				padding: 0;
+			}
 
-        body {
-          display: flex;
-          flex-direction: column;
-        }
+			body {
+				display: flex;
+				flex-direction: column;
+			}
 
-        nav {
-          flex: 0 0 auto;
-          z-index: 10;
-        }
+			nav {
+				flex: 0 0 auto;
+				z-index: 10;
+			}
 
-        #iframe-container {
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
+			#iframe-container {
+				flex: 1 1 auto;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
 
-        #iframe-container iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-        }
-    </style>
-</head>
-<body>
-    <type1-navbar></type1-navbar>
+			#iframe-container iframe {
+				width: 100%;
+				height: 100%;
+				border: none;
+			}
+		</style>
+	</head>
+	<body>
+		<type1-navbar></type1-navbar>
 
-    <div class="spinner" id="spinner"></div>
+		<div class="spinner" id="spinner"></div>
 
-    <div id="iframe-container">
-      <iframe
-        id="hf-space-frame"
-        src="your-url-here"
-        frameborder="0"
-      ></iframe>
-    </div>
-    <script type="module" src="../scripts/renderer/spaces.js"></script>
-</body>
+		<div id="iframe-container">
+			<iframe
+				id="hf-space-frame"
+				src="your-url-here"
+				frameborder="0"
+			></iframe>
+		</div>
+		<script type="module" src="../scripts/renderer/spaces.js"></script>
+	</body>
 </html>
 
 <!--

@@ -2,28 +2,28 @@
 Copyright 2025 Rihaan Meher
 */
 :root {
-  --blue: #3178c6;
-  --light-blue: #e3f2fd;
-  --dark-text: #1a1a1a;
-  --gray: #f5f5f5;
-  --primary-color: #3178c6;
-  --secondary-color: #e3f2fd;
-  --text-dark: #1a1a1a;
-  --bg-light: #f9fafc;
-  --border-radius: 8px;
-  --input-bg: #ffffff;
-  --success: #3ca374;
-  --error: #e53935;
+	--blue: #3178c6;
+	--light-blue: #e3f2fd;
+	--dark-text: #1a1a1a;
+	--gray: #f5f5f5;
+	--primary-color: #3178c6;
+	--secondary-color: #e3f2fd;
+	--text-dark: #1a1a1a;
+	--bg-light: #f9fafc;
+	--border-radius: 8px;
+	--input-bg: #ffffff;
+	--success: #3ca374;
+	--error: #e53935;
 }
 
 [data-theme="dark"] {
-  --blue: #90caf9;
-  --light-blue: #353535;
-  --dark-text: #f0f0f0;
-  --gray: #353535;
-  --primary-color: #90caf9;
-  --secondary-color: #353535;
-  --text-dark: #f0f0f0;
-  --bg-light: #1f1f1f;
-  --input-bg: #313131;
+	--blue: #90caf9;
+	--light-blue: #353535;
+	--dark-text: #f0f0f0;
+	--gray: #353535;
+	--primary-color: #90caf9;
+	--secondary-color: #353535;
+	--text-dark: #f0f0f0;
+	--bg-light: #1f1f1f;
+	--input-bg: #313131;
 }

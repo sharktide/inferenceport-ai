@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -17,112 +17,130 @@
 		</nav>
 
 		<main style="padding: 40px">
-		<p>
-			This guide walks you through the essentials for getting started
-			with InferencePortAI: installing (dev), launching, pulling a
-			model, starting a chat, and troubleshooting.
-		</p>
+			<p>
+				This guide walks you through the essentials for getting started
+				with InferencePortAI: installing (dev), launching, pulling a
+				model, starting a chat, and troubleshooting.
+			</p>
 
-		<div class="section" id="quickstart">
-			<h2>Welcome — First Time Setup</h2>
-			<div class="highlight">
-				<p>
-					Welcome! It looks like this is your first time opening
-					InferencePortAI. This short walkthrough will help you get a
-					model running and start chatting.
-				</p>
-				<ul>
-					<li><strong>Open Marketplace → Ollama</strong> to browse
-					available models.</li>
-					<li><strong>Pull</strong> a model you want (requires internet).
-					A progress indicator will show download progress.</li>
-					<li>Once pulled, go to <strong>Chat</strong>, choose the model,
-					and click <strong>Run</strong> to start a conversation.</li>
-				</ul>
-				<p>
-					If you installed the packaged app from a release, necessary
-					binaries are included in the app bundle. If you shipped your
-					own Ollama runtime, ensure it's available on the system.
-				</p>
+			<div class="section" id="quickstart">
+				<h2>Welcome — First Time Setup</h2>
+				<div class="highlight">
+					<p>
+						Welcome! It looks like this is your first time opening
+						InferencePortAI. This short walkthrough will help you
+						get a model running and start chatting.
+					</p>
+					<ul>
+						<li>
+							<strong>Open Marketplace → Ollama</strong> to browse
+							available models.
+						</li>
+						<li>
+							<strong>Pull</strong> a model you want (requires
+							internet). A progress indicator will show download
+							progress.
+						</li>
+						<li>
+							Once pulled, go to <strong>Chat</strong>, choose the
+							model, and click <strong>Run</strong> to start a
+							conversation.
+						</li>
+					</ul>
+					<p>
+						If you installed the packaged app from a release,
+						necessary binaries are included in the app bundle. If
+						you shipped your own Ollama runtime, ensure it's
+						available on the system.
+					</p>
+				</div>
 			</div>
-		</div>
 
-		<div class="section" id="pull-model">
-			<h2>1. Pull a Model</h2>
-			<div class="highlight">
-				<p>
-					Open <strong>Marketplace → Ollama</strong>, pick a model and
-					click <em>Pull</em>. A progress bar will appear; when complete
-					the model is available locally.
-				</p>
-				<ul>
-					<li><strong>Tip:</strong> Models require disk space — check
-					settings for storage path.</li>
-				</ul>
+			<div class="section" id="pull-model">
+				<h2>1. Pull a Model</h2>
+				<div class="highlight">
+					<p>
+						Open <strong>Marketplace → Ollama</strong>, pick a model
+						and click <em>Pull</em>. A progress bar will appear;
+						when complete the model is available locally.
+					</p>
+					<ul>
+						<li>
+							<strong>Tip:</strong> Models require disk space —
+							check settings for storage path.
+						</li>
+					</ul>
+				</div>
 			</div>
-		</div>
 
-		<div class="section" id="chat">
-			<h2>2. Start a Chat</h2>
-			<div class="highlight">
-				<p>
-					Go to <strong>Chat</strong>, select the pulled model from the
-					list and click <em>Run</em>. Type your prompt and press
-					<strong>Enter</strong> to stream responses. Tokens appear in
-					real-time.
-				</p>
-				<ul>
-					<li>Use <strong>Reset Chat</strong> to clear history for that
-					session.</li>
-					<li>Click <strong>Stop</strong> to abort a running response.</li>
-				</ul>
+			<div class="section" id="chat">
+				<h2>2. Start a Chat</h2>
+				<div class="highlight">
+					<p>
+						Go to <strong>Chat</strong>, select the pulled model
+						from the list and click <em>Run</em>. Type your prompt
+						and press <strong>Enter</strong> to stream responses.
+						Tokens appear in real-time.
+					</p>
+					<ul>
+						<li>
+							Use <strong>Reset Chat</strong> to clear history for
+							that session.
+						</li>
+						<li>
+							Click <strong>Stop</strong> to abort a running
+							response.
+						</li>
+					</ul>
+				</div>
 			</div>
-		</div>
 
-		<div class="section" id="spaces">
-			<h2>3. Explore Spaces & Websites</h2>
-			<div class="highlight">
-				<p>
-					Use the <strong>Marketplace → Spaces</strong> tab to browse
-					community demos. Save favorites to open them quickly later.
-				</p>
-				<p>
-					Some sites cannot be embedded; the app will open them in a
-					separate window instead.
-				</p>
+			<div class="section" id="spaces">
+				<h2>3. Explore Spaces & Websites</h2>
+				<div class="highlight">
+					<p>
+						Use the <strong>Marketplace → Spaces</strong> tab to
+						browse community demos. Save favorites to open them
+						quickly later.
+					</p>
+					<p>
+						Some sites cannot be embedded; the app will open them in
+						a separate window instead.
+					</p>
+				</div>
 			</div>
-		</div>
 
-		<div class="section" id="sessions">
-			<h2>4. Sessions & Saving</h2>
-			<div class="highlight">
-				<p>
-					Chat sessions are saved locally. Use the session menu to
-					save, load, and favorite sessions. Sessions are stored in
-					your application data folder.
-				</p>
+			<div class="section" id="sessions">
+				<h2>4. Sessions & Saving</h2>
+				<div class="highlight">
+					<p>
+						Chat sessions are saved locally. Use the session menu to
+						save, load, and favorite sessions. Sessions are stored
+						in your application data folder.
+					</p>
+				</div>
 			</div>
-		</div>
 
-		<div class="section" id="faq">
-			<h2>❓ Troubleshooting</h2>
-			<div class="highlight">
-				<p>
-					<strong>Ollama not available:</strong> If the app reports
-					that Ollama is unavailable, ensure Ollama is installed or
-					that the bundled `electron-ollama` binaries are present
-					under `vendor/`.
-				</p>
-				<p>
-					<strong>Slow responses or errors:</strong> Check CPU/RAM
-					usage — large models may require significant resources.
-				</p>
-				<p>
-					<strong>Where are logs?</strong> Use the App menu → Developer
-					Tools to view console output for runtime errors.
-				</p>
+			<div class="section" id="faq">
+				<h2>❓ Troubleshooting</h2>
+				<div class="highlight">
+					<p>
+						<strong>Ollama not available:</strong> If the app
+						reports that Ollama is unavailable, ensure Ollama is
+						installed or that the bundled `electron-ollama` binaries
+						are present under `vendor/`.
+					</p>
+					<p>
+						<strong>Slow responses or errors:</strong> Check CPU/RAM
+						usage — large models may require significant resources.
+					</p>
+					<p>
+						<strong>Where are logs?</strong> Use the App menu →
+						Developer Tools to view console output for runtime
+						errors.
+					</p>
+				</div>
 			</div>
-		</div>
-	</main>
+		</main>
 	</body>
 </html>

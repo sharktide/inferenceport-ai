@@ -1,4 +1,4 @@
-import { showNotification } from "../helper/notification.js"
+import { showNotification } from "../helper/notification.js";
 interface AvailableModel {
 	name: string;
 	description?: string;
@@ -44,12 +44,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 	availableModels = await fetchAvailableModels();
 
 	const { supportsTools } = await window.ollama.getToolSupportingModels();
-	toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
+	toolSupportingModels = new Set(
+		supportsTools.map((m: string) => m.toLowerCase()),
+	);
 
 	renderInstalledModels();
 	renderAvailableModels();
 });
-
 
 async function fetchAvailableModels(): Promise<AvailableModel[]> {
 	const response = await fetch("https://ollama.com/library");
@@ -61,19 +62,27 @@ async function fetchAvailableModels(): Promise<AvailableModel[]> {
 	//@ts-ignore
 	return modelItems.map((item) => {
 		const name =
-			item.querySelector("[x-test-model-title] span")?.textContent?.trim() ??
-			"";
-		const description = item.querySelector("p.max-w-lg")?.textContent?.trim();
-		const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map((el) =>
-			el.textContent!.trim()
+			item
+				.querySelector("[x-test-model-title] span")
+				?.textContent?.trim() ?? "";
+		const description = item
+			.querySelector("p.max-w-lg")
+			?.textContent?.trim();
+		const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map(
+			(el) => el.textContent!.trim(),
 		);
 		const pulls =
 			item.querySelector("[x-test-pull-count]")?.textContent?.trim() ??
 			"Unknown";
-		const tagElements = item.querySelectorAll('span[class*="text-blue-600"]');
-		const tags = Array.from(tagElements).map((el) => el.textContent!.trim());
+		const tagElements = item.querySelectorAll(
+			'span[class*="text-blue-600"]',
+		);
+		const tags = Array.from(tagElements).map((el) =>
+			el.textContent!.trim(),
+		);
 		const updated =
-			item.querySelector("[x-test-updated]")?.textContent?.trim() ?? "Unknown";
+			item.querySelector("[x-test-updated]")?.textContent?.trim() ??
+			"Unknown";
 		const link = item.querySelector("a")?.getAttribute("href") ?? undefined;
 
 		return { name, description, sizes, pulls, tags, updated, link };
@@ -118,7 +127,7 @@ window.ollama.onPullProgress(
 		if (!container) return;
 
 		let box = container.querySelector(
-			`[data-model="${model}"]`
+			`[data-model="${model}"]`,
 		) as HTMLElement | null;
 
 		if (!box) {
@@ -145,7 +154,7 @@ window.ollama.onPullProgress(
 
 		if (pre) {
 			pre.textContent = clean.includes("\r")
-				? clean.split("\r").pop() ?? ""
+				? (clean.split("\r").pop() ?? "")
 				: clean;
 		}
 
@@ -161,50 +170,57 @@ window.ollama.onPullProgress(
 			actions.appendChild(finishBtn);
 			box.appendChild(actions);
 		}
-	}
+	},
 );
 
 function openPullModal(modelName: string, sizes: string[]): void {
-    currentModelName = modelName;
-    currentModelSizes = sizes;
+	currentModelName = modelName;
+	currentModelSizes = sizes;
 
-    const nameEl = document.getElementById("modal-model-name") as HTMLTitleElement;
-    const select = document.getElementById("modal-revision-select") as HTMLSelectElement;
-    const modal = document.getElementById("pull-modal") as HTMLDivElement;
-    const warningEl = document.getElementById("modal-performance-warning") as HTMLParagraphElement;
+	const nameEl = document.getElementById(
+		"modal-model-name",
+	) as HTMLTitleElement;
+	const select = document.getElementById(
+		"modal-revision-select",
+	) as HTMLSelectElement;
+	const modal = document.getElementById("pull-modal") as HTMLDivElement;
+	const warningEl = document.getElementById(
+		"modal-performance-warning",
+	) as HTMLParagraphElement;
 
-    if (nameEl) nameEl.textContent = `Pull ${modelName}`;
-    if (select) {
-        select.innerHTML =
-            `<option value="latest">latest</option>` +
-            sizes.map((size) => `<option value="${size}">${size}</option>`).join("");
+	if (nameEl) nameEl.textContent = `Pull ${modelName}`;
+	if (select) {
+		select.innerHTML =
+			`<option value="latest">latest</option>` +
+			sizes
+				.map((size) => `<option value="${size}">${size}</option>`)
+				.join("");
 
-        // Initial warning for first size
-        const initialSize = sizes[0];
-        if (warningEl && initialSize) {
-            window.utils.getWarning(initialSize).then((result) => {
-                warningEl.textContent = result.warning;
-                warningEl.className = "modal-warning";
-            });
-        }
+		// Initial warning for first size
+		const initialSize = sizes[0];
+		if (warningEl && initialSize) {
+			window.utils.getWarning(initialSize).then((result) => {
+				warningEl.textContent = result.warning;
+				warningEl.className = "modal-warning";
+			});
+		}
 
-        // Dynamic update on change
-        select.onchange = () => {
-            const selectedSize = select.value;
-            if (selectedSize === "latest") {
-                warningEl.textContent = "";
-                return;
-            }
-            window.utils.getWarning(selectedSize).then((result) => {
-                warningEl.textContent = result.warning;
-                warningEl.className = "modal-warning";
-            });
-        };
-    }
+		// Dynamic update on change
+		select.onchange = () => {
+			const selectedSize = select.value;
+			if (selectedSize === "latest") {
+				warningEl.textContent = "";
+				return;
+			}
+			window.utils.getWarning(selectedSize).then((result) => {
+				warningEl.textContent = result.warning;
+				warningEl.className = "modal-warning";
+			});
+		};
+	}
 
-    modal?.classList.remove("hidden");
+	modal?.classList.remove("hidden");
 }
-
 
 document
 	.getElementById("pull-modal-close")
@@ -216,7 +232,7 @@ function closePullModal(): void {
 
 document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 	const select = document.getElementById(
-		"modal-revision-select"
+		"modal-revision-select",
 	) as HTMLSelectElement;
 	const revision = select?.value ?? "latest";
 	const fullName =
@@ -228,24 +244,33 @@ document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 });
 
 function renderInstalledModels(filter: string = ""): void {
-	const spinner = document.getElementById("installed-spinner") as HTMLDivElement;
+	const spinner = document.getElementById(
+		"installed-spinner",
+	) as HTMLDivElement;
 	spinner.style.display = "flex";
 	const container = document.getElementById("installed-models");
 	if (!container) return;
-	const theme = localStorage.getItem('theme');
+	const theme = localStorage.getItem("theme");
 	container.innerHTML = "";
 	if (installedModels.length === 0) {
-		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
-		if (theme === 'light') {
-			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		const modelsNotFound = document.createElement("p");
+		modelsNotFound.innerHTML =
+			"No models installed. Scroll down to choose from over 100 different chatbots";
+		if (theme === "light") {
+			modelsNotFound.style.setProperty(
+				"color",
+				"rgb(0, 0, 0)",
+				"important",
+			);
 		}
 		container.appendChild(modelsNotFound);
-		spinner.style.display = "none"
+		spinner.style.display = "none";
 		return;
 	}
 	installedModels
-		.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+		.filter((model) =>
+			model.name.toLowerCase().includes(filter.toLowerCase()),
+		)
 		.forEach((model) => {
 			const card = document.createElement("div");
 			card.className = "marketplace-card";
@@ -259,12 +284,12 @@ function renderInstalledModels(filter: string = ""): void {
 			button?.addEventListener("click", () => deleteModel(model.name));
 			container.appendChild(card);
 		});
-	spinner.style.display = "none"
+	spinner.style.display = "none";
 }
 
 function renderAvailableModels(filter: string = ""): void {
 	const spinner = document.getElementById("spinner-av") as HTMLDivElement;
-	spinner.style.display = "flex"
+	spinner.style.display = "flex";
 	const container = document.getElementById("available-models");
 	if (!container) return;
 
@@ -274,7 +299,9 @@ function renderAvailableModels(filter: string = ""): void {
 
 	availableModels
 		.filter((model) => !installedNames.includes(model.name))
-		.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+		.filter((model) =>
+			model.name.toLowerCase().includes(filter.toLowerCase()),
+		)
 		.forEach((model) => {
 			const card = document.createElement("div");
 			card.className = "marketplace-card";
@@ -292,19 +319,18 @@ function renderAvailableModels(filter: string = ""): void {
 			const featureBadges = supportsTools
 				? TOOL_FEATURES.map(
 						(f) =>
-							`<span class="feature-badge on">${f.icon} ${f.label}</span>`
-				).join("")
+							`<span class="feature-badge on">${f.icon} ${f.label}</span>`,
+					).join("")
 				: TOOL_FEATURES.map(
 						(f) =>
-							`<span class="feature-badge off">${f.icon} ${f.label}</span>`
-				).join("");
-
+							`<span class="feature-badge off">${f.icon} ${f.label}</span>`,
+					).join("");
 
 			card.innerHTML = `
         <h2>${model.name}</h2>
         <p class="model-description">${
-					model.description ?? "No description available."
-				}</p>
+			model.description ?? "No description available."
+		}</p>
         <div class="model-tags">${tagBadges}</div>
 		<div class="model-features">
 			${featureBadges}
@@ -314,32 +340,35 @@ function renderAvailableModels(filter: string = ""): void {
           <p><strong>Pulls:</strong> ${model.pulls}</p>
           <p><strong>Updated:</strong> ${model.updated}</p>
           <a href="https://ollama.com${
-						model.link ?? ""
-					}" target="_blank" class="model-link">More details</a>
+				model.link ?? ""
+			}" target="_blank" class="model-link">More details</a>
         </div>
         <button class="marketplace-btn">Open Download Dialog</button>
       `;
 
 			const button = card.querySelector("button");
 			button?.addEventListener("click", () =>
-				openPullModal(model.name, model.sizes)
+				openPullModal(model.name, model.sizes),
 			);
 
 			container.appendChild(card);
 		});
-	spinner.style.display = "none"
+	spinner.style.display = "none";
 
 	const targetId = decodeURIComponent(location.hash.slice(1));
-    if (targetId) {
-        const targetEl = document.getElementById(targetId);
-        if (targetEl) {
-            const yOffset = -100;
-            const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            window.scrollTo({ top: y, behavior: "smooth" });
+	if (targetId) {
+		const targetEl = document.getElementById(targetId);
+		if (targetEl) {
+			const yOffset = -100;
+			const y =
+				targetEl.getBoundingClientRect().top +
+				window.pageYOffset +
+				yOffset;
+			window.scrollTo({ top: y, behavior: "smooth" });
 
-            targetEl.classList.add("highlight");
-        }
-    }
+			targetEl.classList.add("highlight");
+		}
+	}
 }
 
 document

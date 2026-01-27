@@ -4,59 +4,73 @@ Copyright 2025 Rihaan Meher
 *,
 *::before,
 *::after {
-  box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 html {
-  height: 100%;
+	height: 100%;
 }
 
 body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-light);
-  color: var(--text-dark);
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	font-family:
+		"Inter",
+		system-ui,
+		-apple-system,
+		Segoe UI,
+		Roboto,
+		Helvetica,
+		Arial,
+		sans-serif;
+	background-color: var(--bg-light);
+	color: var(--text-dark);
+	line-height: 1.5;
+	display: flex;
+	flex-direction: column;
 }
 
 a {
-  color: var(--primary-color);
-  text-decoration: none;
+	color: var(--primary-color);
+	text-decoration: none;
 }
 
 a:hover {
-  text-decoration: underline;
+	text-decoration: underline;
 }
 
 /* General media */
 img {
-  max-width: 100%;
-  display: block;
+	max-width: 100%;
+	display: block;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  margin: 0 0 0.5rem 0;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	margin: 0 0 0.5rem 0;
 }
 
 p {
-  margin: 0 0 1rem 0;
+	margin: 0 0 1rem 0;
 }
 
-ul, ol {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+ul,
+ol {
+	margin: 0;
+	padding: 0;
+	list-style: none;
 }
 
 button {
-  font: inherit;
+	font: inherit;
 }
 
 :focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
 }

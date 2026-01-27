@@ -23,7 +23,6 @@ This project is designed with privacy and local control in mind. Important secur
 - Optional network integrations are explicit — features like launching a Space or opening a URL explicitly call out to the specified website.
 - If you have any privacy and/or security concerns, please email sharktidedev@gmail.com
 
-
 ## Quick start (development)
 
 Prerequisites:
@@ -60,7 +59,7 @@ npm start
 
 Notes:
 
-- `npm run watch` will run a autocompile watcher for public facing TypeScript, but if files in the main process are ediited, you will have to close the app and re-run ``npm start``
+- `npm run watch` will run a autocompile watcher for public facing TypeScript, but if files in the main process are ediited, you will have to close the app and re-run `npm start`
 - `npm start` runs the `clean` script, compiles, launches Electron, then runs `clean` again.
 
 ## Packaging / Release
@@ -78,9 +77,9 @@ This uses `electron-builder` and the configuration in `package.json` (see `build
 - `main.ts` — Electron main process: creates BrowserWindow, sets menu, and registers IPC handlers.
 - `preload.ts` — Exposes safe, typed APIs to renderer via `contextBridge` (see `window.ollama`, `window.utils`, `window.hfspaces`).
 - `node-apis/` — Node-side IPC handlers and utilities used by the main process:
-  - `ollama.ts` — Ollama integration (list/pull/run/delete models, streaming chat tokens, progress events).
-  - `spaces.ts` — Helpers for Hugging Face Spaces and website cards.
-  - `utils.ts` — Misc utilities (open URL, markdown parse, file save, getPath helpers).
+    - `ollama.ts` — Ollama integration (list/pull/run/delete models, streaming chat tokens, progress events).
+    - `spaces.ts` — Helpers for Hugging Face Spaces and website cards.
+    - `utils.ts` — Misc utilities (open URL, markdown parse, file save, getPath helpers).
 - `public/` — Renderer static files and UI pages (index, marketplace, settings, help, assets, styles).
 - `renderer/` — Renderer pages and TypeScript scripts used by the web UI.
 - `scripts/` — build/development helper scripts (e.g., `clean.js`).
@@ -124,16 +123,16 @@ Contributions are welcome. Open an issue or pull request on the repository. Keep
 
 ## License
 
-   Copyright 2025 Rihaan Meher
+Copyright 2025 Rihaan Meher
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
        http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

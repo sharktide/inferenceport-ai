@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -8,22 +8,22 @@
 		<script type="module" src="scripts/staticload/index.js"></script>
 		<style>
 			.darkhvr {
-			background: inherit;
-			filter: brightness(95%) !important;
-			transition: filter 0.2s ease;
-			border: none;
-			padding: 8px 16px;
-			color: white;
-			cursor: pointer;
-			border-radius: 4px;
+				background: inherit;
+				filter: brightness(95%) !important;
+				transition: filter 0.2s ease;
+				border: none;
+				padding: 8px 16px;
+				color: white;
+				cursor: pointer;
+				border-radius: 4px;
 			}
 
 			.darkhvr:hover {
-			filter: brightness(85%) !important;
+				filter: brightness(85%) !important;
 			}
 
 			.white-text,
-				.white-text * {
+			.white-text * {
 				color: white !important;
 			}
 		</style>
@@ -35,7 +35,7 @@
 			<div class="modal-content">
 				<span class="close-btn" id="del-modal-close">×</span>
 				<h2 id="del-modal-name">Delete Item?</h2>
-				<button id="delete-yes">Delete</select>
+				<button id="delete-yes">Delete</button>
 				<button id="cancel-no">Cancel</button>
 			</div>
 		</div>
@@ -45,70 +45,139 @@
 
 			<br />
 
-			<detailsopen><summary style="font-size: large; color: var(--text-dark) !important;">Type: Chatbots</summary>
+			<details open>
+				<summary
+					style="font-size: large; color: var(--text-dark) !important"
+				>
+					Type: Chatbots
+				</summary>
 				<div id="ollama-container">
 					<h4 class="z">Tools</h4>
-					
-					<div class="auth-action-buttons z" style="justify-content: flex-start;">
-						<button onclick="window.location.href = 'renderer/chat.html'">
+
+					<div
+						class="auth-action-buttons z"
+						style="justify-content: flex-start"
+					>
+						<button
+							onclick="
+								window.location.href = 'renderer/chat.html'
+							"
+						>
 							Chat
 						</button>
-						<button onclick="location.href='marketplace/ollama.html'">
+						<button
+							onclick="location.href = 'marketplace/ollama.html'"
+						>
 							Marketplace
 						</button>
-						<button onclick="window.utils.web_open('https://ollama.com')">Provider Website</button>
+						<button
+							onclick="
+								window.utils.web_open('https://ollama.com')
+							"
+						>
+							Provider Website
+						</button>
 					</div>
 					<div>
-					<div class="spinner" id="spinner-ollama"></div>
-					<div class="card-grid white-text" id="installed-models"></div>
+						<div class="spinner" id="spinner-ollama"></div>
+						<div
+							class="card-grid white-text"
+							id="installed-models"
+						></div>
 					</div>
 				</div>
 			</details>
 
 			<br />
-	
-			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Type: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
+
+			<details class="white-text" open>
+				<summary
+					style="font-size: large; color: var(--text-dark) !important"
+				>
+					Type: Huggingface Spaces
+					<img
+						src="assets/img/huggingface.svg"
+						alt="Huggingface Logo"
+					/>
+				</summary>
 				<div class="spinner" id="spinner-hf"></div>
 				<div class="card-grid" id="hf-spaces"></div>
 			</details>
 
 			<br />
 
-			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Type: Website</summary>
+			<details class="white-text" open>
+				<summary
+					style="font-size: large; color: var(--text-dark) !important"
+				>
+					Type: Website
+				</summary>
 				<div class="spinner" id="spinner-website"></div>
 				<div class="card-grid" id="websites"></div>
 			</details>
 
 			<div id="notification-container"></div>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
-
+			<footer>
+				Copyright (c) 2025 Rihaan Meher. Licensed under the Apache
+				License 2.0
+			</footer>
+			<footer>
+				<p>
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>. We reserve the right to change these terms and policies
+					at anytime without any further notice.
+				</p>
+			</footer>
 		</main>
 
-			<script>
-				(async function(){
-					if (typeof window.ollama?.isAvailable !== 'function') return;
-					async function check(){
-						const ok = await window.ollama.isAvailable();
-						const banner = document.getElementById('ollama-missing');
-						const grid = document.getElementById('installed-models');
-						const spinner = document.getElementById('spinner-ollama');
-						if (!ok) {
-							if (banner) { banner.style.display = 'block'; }
-							if (grid) { grid.classList.add('disabled'); grid.style.opacity = '0.5'; }
-							if (spinner) { spinner.style.display = 'none'; }
-						} else {
-							if (banner) { banner.style.display = 'none'; }
-							if (grid) { grid.classList.remove('disabled'); grid.style.opacity = ''; }
-							if (spinner) { spinner.style.display = ''; }
+		<script>
+			(async function () {
+				if (typeof window.ollama?.isAvailable !== "function") return;
+				async function check() {
+					const ok = await window.ollama.isAvailable();
+					const banner = document.getElementById("ollama-missing");
+					const grid = document.getElementById("installed-models");
+					const spinner = document.getElementById("spinner-ollama");
+					if (!ok) {
+						if (banner) {
+							banner.style.display = "block";
+						}
+						if (grid) {
+							grid.classList.add("disabled");
+							grid.style.opacity = "0.5";
+						}
+						if (spinner) {
+							spinner.style.display = "none";
+						}
+					} else {
+						if (banner) {
+							banner.style.display = "none";
+						}
+						if (grid) {
+							grid.classList.remove("disabled");
+							grid.style.opacity = "";
+						}
+						if (spinner) {
+							spinner.style.display = "";
 						}
 					}
-					document.getElementById('ollama-retry')?.addEventListener('click', check);
-					await check();
-				})();
-			</script>
+				}
+				document
+					.getElementById("ollama-retry")
+					?.addEventListener("click", check);
+				await check();
+			})();
+		</script>
 
-			<script type="module" src="scripts/installed.js"></script>
+		<script type="module" src="scripts/installed.js"></script>
 	</body>
 </html>
 

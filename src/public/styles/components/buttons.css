@@ -3,60 +3,63 @@ Copyright 2025 Rihaan Meher
 */
 /* Base button normalization */
 button {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: var(--border-radius);
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.3s;
+	width: 100%;
+	padding: 12px;
+	border: none;
+	border-radius: var(--border-radius);
+	font-size: 16px;
+	cursor: pointer;
+	transition: background 0.3s;
 }
 
 button:hover {
-  filter: brightness(0.95);
+	filter: brightness(0.95);
 }
 
 /* Default button style (neutral) */
 button:not(.btn-primary):not(.btn-secondary) {
-  background-color: var(--gray);
-  color: var(--text-dark);
+	background-color: var(--gray);
+	color: var(--text-dark);
 }
 
 /* Primary and secondary actions (kept for consistency with existing selectors) */
 #signup {
-  background-color: var(--success);
-  color: var(--text-dark);
+	background-color: var(--success);
+	color: var(--text-dark);
 }
 
 #signup:hover {
-  background-color: #2a7854;
+	background-color: #2a7854;
 }
 
 #login {
-  background-color: var(--primary-color);
-  color: var(--text-dark);
+	background-color: var(--primary-color);
+	color: var(--text-dark);
 }
 
 #login:hover {
-  background-color: #235a92;
+	background-color: #235a92;
 }
 
 button {
-  background-color: color-mix(in srgb, currentColor 15%, transparent 85%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: inherit;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.25s ease;
+	background-color: color-mix(in srgb, currentColor 15%, transparent 85%);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	color: inherit;
+	transition:
+		transform 0.15s ease,
+		box-shadow 0.15s ease,
+		background-color 0.25s ease;
 }
 
 button:hover {
-  background-color: color-mix(in srgb, currentColor 25%, transparent 75%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+	background-color: color-mix(in srgb, currentColor 25%, transparent 75%);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
 
 button:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) inset;
+	transform: scale(0.97);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) inset;
 }

@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 import { app, ipcMain, BrowserWindow, dialog } from "electron";
-import type { IpcMainInvokeEvent } from 'electron'
+import type { IpcMainInvokeEvent } from "electron";
 import fs from "fs";
 import path from "path";
 
@@ -25,52 +25,52 @@ const siteDir: string = path.join(app.getPath("userData"), "websites");
 import type { ImportSchema } from "./types/index.types.d.ts";
 
 function getWebsites(): string[] {
-    try {
-        const files: string[] = fs.readdirSync(siteDir);
-        const jsonFiles: string[] = files.filter((file: string): boolean => {
-            const fullPath: string = path.join(siteDir, file);
-            return fs.statSync(fullPath).isFile() && file.endsWith(".import");
-        });
-        return jsonFiles;
-    } catch (err: unknown) {
-        console.error("Error reading directory", err)
-        return [];
-    }
+	try {
+		const files: string[] = fs.readdirSync(siteDir);
+		const jsonFiles: string[] = files.filter((file: string): boolean => {
+			const fullPath: string = path.join(siteDir, file);
+			return fs.statSync(fullPath).isFile() && file.endsWith(".import");
+		});
+		return jsonFiles;
+	} catch (err: unknown) {
+		console.error("Error reading directory", err);
+		return [];
+	}
 }
 
 function deleteWebsiteByURL(url: string): boolean {
-    const files = getWebsites();
+	const files = getWebsites();
 
-    for (const file of files) {
-        const fullPath = path.join(siteDir, file);
-        try {
-            const content = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
+	for (const file of files) {
+		const fullPath = path.join(siteDir, file);
+		try {
+			const content = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
 
-            if (data.type === "website" && data.url === url) {
-                fs.unlinkSync(fullPath);
-                return true;
-            }
-        } catch (err: unknown) {
-            console.warn(`Error processing ${file}:`, err);
-        }
-    }
+			if (data.type === "website" && data.url === url) {
+				fs.unlinkSync(fullPath);
+				return true;
+			}
+		} catch (err: unknown) {
+			console.warn(`Error processing ${file}:`, err);
+		}
+	}
 
-    console.warn(`No matching website fond for ${url}`);
-    return false;
+	console.warn(`No matching website fond for ${url}`);
+	return false;
 }
 
 function getWebsiteData(): string {
-    const files: string[] = getWebsites();
-    let html: string = "";
+	const files: string[] = getWebsites();
+	let html: string = "";
 
-    files.forEach((file: string): void => {
-        const fullPath: string = path.join(siteDir, file);
-        try {
-            const content: string = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
-            if (data.type === "website") {
-            html += `
+	files.forEach((file: string): void => {
+		const fullPath: string = path.join(siteDir, file);
+		try {
+			const content: string = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
+			if (data.type === "website") {
+				html += `
                 <div class="marketplace-card" siteId="${data.url}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
                     <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
                     <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">${data.url}</p>
@@ -95,63 +95,66 @@ function getWebsiteData(): string {
                     </div>
                 </div>
             `;
-            }
-        } catch (err: unknown) {
-            console.warn(`Failed to parse ${file}:`, err);
-        }
-    });
+			}
+		} catch (err: unknown) {
+			console.warn(`Failed to parse ${file}:`, err);
+		}
+	});
 
-    return html;
+	return html;
 }
 
 function getSpaces(): string[] {
-    try {
-        const files: string[] = fs.readdirSync(spaceDir);
-        const jsonFiles: string[] = files.filter((file: string): boolean => {
-            const fullPath: string = path.join(spaceDir, file);
-            return fs.statSync(fullPath).isFile() && file.endsWith(".import");
-        });
-        return jsonFiles;
-    } catch (err: unknown) {
-        console.error("Error reading directory:", err);
-        return [];
-    }
+	try {
+		const files: string[] = fs.readdirSync(spaceDir);
+		const jsonFiles: string[] = files.filter((file: string): boolean => {
+			const fullPath: string = path.join(spaceDir, file);
+			return fs.statSync(fullPath).isFile() && file.endsWith(".import");
+		});
+		return jsonFiles;
+	} catch (err: unknown) {
+		console.error("Error reading directory:", err);
+		return [];
+	}
 }
 
 function deleteSpaceByUserRepo(username: string, repo: string): boolean {
-    const files = getSpaces();
+	const files = getSpaces();
 
-    for (const file of files) {
-        const fullPath = path.join(spaceDir, file);
-        try {
-            const content = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
+	for (const file of files) {
+		const fullPath = path.join(spaceDir, file);
+		try {
+			const content = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
 
-            if (data.type === "space" && data.author === username && data.title === repo) {
-                fs.unlinkSync(fullPath);
-                return true;
-            }
-        } catch (err: unknown) {
-            console.warn(`Error processing ${file}:`, err);
-        }
-    }
+			if (
+				data.type === "space" &&
+				data.author === username &&
+				data.title === repo
+			) {
+				fs.unlinkSync(fullPath);
+				return true;
+			}
+		} catch (err: unknown) {
+			console.warn(`Error processing ${file}:`, err);
+		}
+	}
 
-    console.warn(`No matching space found for ${username}/${repo}`);
-    return false;
+	console.warn(`No matching space found for ${username}/${repo}`);
+	return false;
 }
 
-
 function getData(): string {
-    const files: string[] = getSpaces();
-    let html: string = "";
+	const files: string[] = getSpaces();
+	let html: string = "";
 
-    files.forEach((file: string): void => {
-        const fullPath: string = path.join(spaceDir, file);
-        try {
-            const content: string = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
-            if (data.type === "space") {
-            html += `
+	files.forEach((file: string): void => {
+		const fullPath: string = path.join(spaceDir, file);
+		try {
+			const content: string = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
+			if (data.type === "space") {
+				html += `
                 <div class="marketplace-card" spaceid="${data.author}/${data.title}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
                     <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
                     <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">by ${data.author}</p>
@@ -173,106 +176,146 @@ function getData(): string {
                     </div>
                 </div>
             `;
-            }
-        } catch (err: unknown) {
-            console.warn(`Failed to parse ${file}:`, err);
-        }
-    });
+			}
+		} catch (err: unknown) {
+			console.warn(`Failed to parse ${file}:`, err);
+		}
+	});
 
-    return html;
+	return html;
 }
 
 async function share(username: string, repo: string): Promise<void> {
-    const files = getSpaces();
+	const files = getSpaces();
 
-    for (const file of files) {
-        const fullPath = path.join(spaceDir, file);
-        try {
-            const content = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
+	for (const file of files) {
+		const fullPath = path.join(spaceDir, file);
+		try {
+			const content = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
 
-            if (data.type === "space" && data.author === username && data.title === repo) {
-                const win = BrowserWindow.getFocusedWindow();
-                if (!win) {
-                    console.error("No active window for dialog.");
-                    return;
-                }
+			if (
+				data.type === "space" &&
+				data.author === username &&
+				data.title === repo
+			) {
+				const win = BrowserWindow.getFocusedWindow();
+				if (!win) {
+					console.error("No active window for dialog.");
+					return;
+				}
 
-                const { canceled, filePath } = await dialog.showSaveDialog(win, {
-                    title: "Save Space File",
-                    defaultPath: `${repo}.import`,
-                    filters: [{ name: "Import Files", extensions: ["import"] }]
-                });
+				const { canceled, filePath } = await dialog.showSaveDialog(
+					win,
+					{
+						title: "Save Space File",
+						defaultPath: `${repo}.import`,
+						filters: [
+							{ name: "Import Files", extensions: ["import"] },
+						],
+					},
+				);
 
-                if (!canceled && filePath) {
-                    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-                    console.log(`Space shared to ${filePath}`);
-                }
-                return;
-            }
-        } catch (err: unknown) {
-            console.warn(`Error processing ${file}:`, err);
-        }
-    }
+				if (!canceled && filePath) {
+					fs.writeFileSync(
+						filePath,
+						JSON.stringify(data, null, 2),
+						"utf-8",
+					);
+					console.log(`Space shared to ${filePath}`);
+				}
+				return;
+			}
+		} catch (err: unknown) {
+			console.warn(`Error processing ${file}:`, err);
+		}
+	}
 
-    console.warn(`No matching space found for ${username}/${repo}`);
+	console.warn(`No matching space found for ${username}/${repo}`);
 }
 
 async function shareSite(url: string, title: string): Promise<void> {
-    const files = getWebsites();
+	const files = getWebsites();
 
-    for (const file of files) {
-        const fullPath = path.join(siteDir, file);
-        try {
-            const content = fs.readFileSync(fullPath, "utf-8");
-            const data: ImportSchema = JSON.parse(content);
+	for (const file of files) {
+		const fullPath = path.join(siteDir, file);
+		try {
+			const content = fs.readFileSync(fullPath, "utf-8");
+			const data: ImportSchema = JSON.parse(content);
 
-            if (data.type === "website" && data.url === url && data.title === title) {
-                const win = BrowserWindow.getFocusedWindow();
-                if (!win) {
-                    console.error("No active window for dialog.");
-                    return;
-                }
+			if (
+				data.type === "website" &&
+				data.url === url &&
+				data.title === title
+			) {
+				const win = BrowserWindow.getFocusedWindow();
+				if (!win) {
+					console.error("No active window for dialog.");
+					return;
+				}
 
-                const { canceled, filePath } = await dialog.showSaveDialog(win, {
-                    title: "Save Website File",
-                    defaultPath: `${title}.import`,
-                    filters: [{ name: "Import Files", extensions: ["import"] }]
-                });
+				const { canceled, filePath } = await dialog.showSaveDialog(
+					win,
+					{
+						title: "Save Website File",
+						defaultPath: `${title}.import`,
+						filters: [
+							{ name: "Import Files", extensions: ["import"] },
+						],
+					},
+				);
 
-                if (!canceled && filePath) {
-                    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
-                    console.log(`Website shared to ${filePath}`);
-                }
-                return;
-            }
-        } catch (err: unknown) {
-            console.warn(`Error processing ${file}:`, err);
-        }
-    }
+				if (!canceled && filePath) {
+					fs.writeFileSync(
+						filePath,
+						JSON.stringify(data, null, 2),
+						"utf-8",
+					);
+					console.log(`Website shared to ${filePath}`);
+				}
+				return;
+			}
+		} catch (err: unknown) {
+			console.warn(`Error processing ${file}:`, err);
+		}
+	}
 
-    console.warn(`No matching website found for ${title}`);
+	console.warn(`No matching website found for ${title}`);
 }
 
 export default function register(): void {
-    ipcMain.handle("hfspaces:get-cards", (): string => {
-        return getData();
-    });
-    ipcMain.handle("hfspaces:delete", (_event: IpcMainInvokeEvent, username: string, repo: string): boolean => {
-        return deleteSpaceByUserRepo(username, repo);
-    });
-    ipcMain.handle("hfspaces:share", async (_event: IpcMainInvokeEvent, username: string, repo: string) => {
-        await share(username, repo);
-    });
-    ipcMain.handle("hfspaces:get-website-cards", (): string => {
-        return getWebsiteData();
-    });
-    ipcMain.handle("hfspaces:delete-website", (_event: IpcMainInvokeEvent, url: string): boolean => {
-        return deleteWebsiteByURL(url);
-    });
-    ipcMain.handle("hfspaces:share-website", async (_event: IpcMainInvokeEvent, url: string, title: string) => {
-        await shareSite(url, title);
-    });
-
+	ipcMain.handle("hfspaces:get-cards", (): string => {
+		return getData();
+	});
+	ipcMain.handle(
+		"hfspaces:delete",
+		(
+			_event: IpcMainInvokeEvent,
+			username: string,
+			repo: string,
+		): boolean => {
+			return deleteSpaceByUserRepo(username, repo);
+		},
+	);
+	ipcMain.handle(
+		"hfspaces:share",
+		async (_event: IpcMainInvokeEvent, username: string, repo: string) => {
+			await share(username, repo);
+		},
+	);
+	ipcMain.handle("hfspaces:get-website-cards", (): string => {
+		return getWebsiteData();
+	});
+	ipcMain.handle(
+		"hfspaces:delete-website",
+		(_event: IpcMainInvokeEvent, url: string): boolean => {
+			return deleteWebsiteByURL(url);
+		},
+	);
+	ipcMain.handle(
+		"hfspaces:share-website",
+		async (_event: IpcMainInvokeEvent, url: string, title: string) => {
+			await shareSite(url, title);
+		},
+	);
 }
-
