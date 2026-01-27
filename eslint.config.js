@@ -14,6 +14,6 @@ export default [
       indent: ["error", "tab"],
       semi: ["error", "always"],
     },
-    ignores: ["**/vendor/**"],
+    ignores: ["**/vendor/**", "**/**/*.min.js"],
   },
 ];
