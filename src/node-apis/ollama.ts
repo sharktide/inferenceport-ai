@@ -103,10 +103,8 @@ export async function serve(): Promise<string> {
 	});
 }
 
-export async function fetchSupportedTools(): Promise<{
-	supportsTools: string[];
-}> {
-	const response = await fetch(
+export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
+    const response = await fetch(
         "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai/MISC/prod/toolSupportingModels.json"
     );
 
@@ -114,22 +112,40 @@ export async function fetchSupportedTools(): Promise<{
         throw new Error(`Failed to fetch tool-supporting models: ${response.statusText}`);
     }
 
-    const data: { supportsTools: string[] } = await response.json();
+    let data: unknown;
+    try {
+        data = await response.json();
+    } catch (err) {
+        throw new Error("Failed to parse tool-supporting models JSON");
+    }
 
-	cachedSupportsTools = data.supportsTools;
+    if (
+        !data ||
+        typeof data !== "object" ||
+        !("supportsTools" in data) ||
+        !Array.isArray((data as any).supportsTools) ||
+        !(data as any).supportsTools.every((name: any) => typeof name === "string")
+    ) {
+        throw new Error("Invalid tool-supporting models JSON shape");
+    }
 
-	await ensureDir();
-	const writeTask = fs.promises.writeFile(
-		dataFilePath,
-		JSON.stringify({ supportsTools: data.supportsTools }, null, 2),
-		"utf-8"
-	);
-	writeInProgress = writeTask;
-	await writeTask;
-	writeInProgress = null;
+    const supportsTools = (data as { supportsTools: string[] }).supportsTools;
 
-	return { supportsTools: data.supportsTools };
+    cachedSupportsTools = supportsTools;
+
+    await ensureDir();
+    const writeTask = fs.promises.writeFile(
+        dataFilePath,
+        JSON.stringify({ supportsTools }, null, 2),
+        "utf-8"
+    );
+    writeInProgress = writeTask;
+    await writeTask;
+    writeInProgress = null;
+
+    return { supportsTools };
 }
+
 
 // ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
