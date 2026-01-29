@@ -37,6 +37,7 @@ import toolSchema from "./assets/tools.json" with { type: "json" };
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { Chat } from "openai/resources";
+import { name } from "tar/types";
 const openai = new OpenAI({
 	baseURL: "http://localhost:11434/v1/",
 	apiKey: "ollama",
@@ -194,8 +195,12 @@ function createAssetId(): string {
 
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
-		if (m.role === "function") {
-			return { role: "function", name: m.name!, content: m.content };
+		if (m.role === "tool") {
+			return {
+				role: "tool",
+				tool_name: m.name,
+				content: m.content,
+			};
 		}
 		return { role: m.role, content: m.content };
 	});
@@ -390,7 +395,7 @@ export default function register(): void {
 	);
 
 	ipcMain.on(
-		"openai:chat-stream",
+		"ollama:chat-stream",
 		async (
 			event: IpcMainEvent,
 			modelName: string,
@@ -412,15 +417,25 @@ export default function register(): void {
 					...messagesForModel(chatHistory),
 				];
 
-				const stream = await openai.chat.completions.create({
-					model: modelName,
-					messages,
-					stream: true,
-					// optional: temperature, max_tokens, etc.
-				});
+				const stream = await openai.chat.completions.create(
+					{
+						model: modelName,
+						messages,
+						tools,
+						stream: true,
+					},
+					{ signal: chatAbortController.signal },
+				);
 
 				let assistantMessage = "";
-				let pendingToolCalls: any[] = [];
+				const toolCallBuffer = new Map<
+					number,
+					{
+						name?: string;
+						arguments: string;
+					}
+				>();
+
 				for await (const chunk of stream) {
 					const choice = chunk.choices?.[0];
 					if (!choice) continue; // skip if no choice available
@@ -428,20 +443,44 @@ export default function register(): void {
 					const delta = choice.delta;
 					if (!delta) continue; // skip if no delta
 
-					// Append assistant content
 					if (delta.content) {
 						assistantMessage += delta.content;
-						event.sender.send("openai:chat-token", delta.content);
+						event.sender.send("ollama:chat-token", delta.content);
 					}
 
-					// Handle function calls (if using OpenAI functions)
-					if (delta.function_call) {
-						pendingToolCalls.push(delta.function_call);
+					console.log(`Tool calls: ${delta.tool_calls}`);
+					if (delta.tool_calls) {
+						for (const call of delta.tool_calls) {
+							const entry = toolCallBuffer.get(call.index) ?? {
+								arguments: "",
+							};
+
+							if (call.function?.name) {
+								entry.name = call.function.name;
+							}
+
+							if (call.function?.arguments) {
+								entry.arguments += call.function.arguments;
+							}
+
+							toolCallBuffer.set(call.index, entry);
+						}
 					}
 
 					// Optional: stop if the model finished
-					if (choice.finish_reason) break;
+					if (choice.finish_reason === "stop") break;
 				}
+
+				const finalizedToolCalls = [...toolCallBuffer.entries()].map(
+					([index, data]) => ({
+						id: `call_${index}`,
+						type: "function",
+						function: {
+							name: data.name!,
+							arguments: data.arguments,
+						},
+					}),
+				);
 
 				// Add assistant message to history
 				if (assistantMessage.trim()) {
@@ -452,8 +491,8 @@ export default function register(): void {
 				}
 
 				// Handle tool calls if any
-				if (pendingToolCalls.length > 0) {
-					for (const toolCall of pendingToolCalls) {
+				if (finalizedToolCalls.length > 0) {
+					for (const toolCall of finalizedToolCalls) {
 						let toolResult: any = null;
 
 						const args =
@@ -476,14 +515,16 @@ export default function register(): void {
 								role: "image",
 								content: dataUrl,
 							};
-							event.sender.send("openai:new-asset", assetToSend);
+							event.sender.send("ollama:new-asset", assetToSend);
 							toolResult = "Image generated successfully.";
 						}
 
 						chatHistory.push({
 							role: "tool",
+							name: toolCall.function.name,
 							content: JSON.stringify(toolResult),
 						});
+
 						saveSessions({ chatHistory });
 					}
 
@@ -508,13 +549,9 @@ export default function register(): void {
 						if (delta?.content) {
 							assistantMessage += delta.content;
 							event.sender.send(
-								"openai:chat-token",
+								"ollama:chat-token",
 								delta.content,
 							);
-						}
-
-						if (delta?.function_call) {
-							pendingToolCalls.push(delta.function_call);
 						}
 					}
 
@@ -526,12 +563,12 @@ export default function register(): void {
 					}
 				}
 
-				event.sender.send("openai:chat-done");
+				event.sender.send("ollama:chat-done");
 			} catch (err) {
 				if ((err as Error).name === "AbortError") {
-					event.sender.send("openai:chat-aborted");
+					event.sender.send("ollama:chat-aborted");
 				} else {
-					event.sender.send("openai:chat-error", `${err}`);
+					event.sender.send("ollama:chat-error", `${err}`);
 				}
 			} finally {
 				chatAbortController = null;
