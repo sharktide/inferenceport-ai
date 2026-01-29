@@ -37,7 +37,8 @@ export type Session = SessionType;
 export type Sessions = Record<string, Session>;
 
 export type ChatHistoryEntry = {
-  role: "system" | "user" | "assistant" | "function" | "tool";
-  content: string;
-  name?: string;
+	role: "system" | "user" | "assistant" | "tool";
+	content: string;
+	tool_call_id?: string;
+	tool_calls?: ToolCall[];
 };

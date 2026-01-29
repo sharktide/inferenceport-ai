@@ -168,7 +168,6 @@ export async function fetchSupportedTools(): Promise<{
 	return { supportsTools };
 }
 
-// ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
 	const res = await fetch(
 		`https://api.duckduckgo.com/?q=${encodeURIComponent(
@@ -192,10 +191,19 @@ function messagesForModel(history: ChatHistoryEntry[]): any[] {
 		if (m.role === "tool") {
 			return {
 				role: "tool",
-				tool_name: m.name,
+				tool_call_id: (m as any).tool_call_id,
 				content: m.content,
 			};
 		}
+
+		if (m.role === "assistant" && (m as any).tool_calls) {
+			return {
+				role: "assistant",
+				content: "",
+				tool_calls: (m as any).tool_calls,
+			};
+		}
+
 		return { role: m.role, content: m.content };
 	});
 }
@@ -482,40 +490,43 @@ export default function register(): void {
 				}
 
 				if (finalizedToolCalls.length > 0) {
-					for (const toolCall of finalizedToolCalls) {
-						let toolResult: any = null;
+					chatHistory.push({
+						role: "assistant",
+						content: "",
+						tool_calls: finalizedToolCalls,
+					});
+				}
 
-						const args =
-							typeof toolCall.function.arguments === "string"
-								? JSON.parse(toolCall.function.arguments)
-								: toolCall.function.arguments;
+				if (finalizedToolCalls.length > 0) {
+					for (const toolCall of finalizedToolCalls) {
+						const args = JSON.parse(toolCall.function.arguments);
+
+						let toolResult: any;
 
 						if (toolCall.function.name === "duckduckgo_search") {
 							toolResult = await duckDuckGoSearch(args.query);
-						} else if (
-							toolCall.function.name === "generate_image"
-						) {
+						}
+
+						if (toolCall.function.name === "generate_image") {
 							const { dataUrl } = await GenerateImage(
 								args.prompt,
 								args.width,
 								args.height,
 							);
 
-							const assetToSend: ChatAsset = {
+							event.sender.send("ollama:new-asset", {
 								role: "image",
 								content: dataUrl,
-							};
-							event.sender.send("ollama:new-asset", assetToSend);
+							});
+
 							toolResult = "Image generated successfully.";
 						}
 
 						chatHistory.push({
 							role: "tool",
-							name: toolCall.function.name,
 							content: JSON.stringify(toolResult),
+							tool_call_id: toolCall.id,
 						});
-
-						saveSessions({ chatHistory });
 					}
 
 					const followUpStream = await openai.chat.completions.create(
