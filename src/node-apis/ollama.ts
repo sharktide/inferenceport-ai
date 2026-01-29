@@ -436,17 +436,16 @@ export default function register(): void {
 
 				for await (const chunk of stream) {
 					const choice = chunk.choices?.[0];
-					if (!choice) continue; // skip if no choice available
+					if (!choice) continue;
 
 					const delta = choice.delta;
-					if (!delta) continue; // skip if no delta
+					if (!delta) continue;
 
 					if (delta.content) {
 						assistantMessage += delta.content;
 						event.sender.send("ollama:chat-token", delta.content);
 					}
 
-					console.log(`Tool calls: ${delta.tool_calls}`);
 					if (delta.tool_calls) {
 						for (const call of delta.tool_calls) {
 							const entry = toolCallBuffer.get(call.index) ?? {
@@ -465,7 +464,6 @@ export default function register(): void {
 						}
 					}
 
-					// Optional: stop if the model finished
 					if (choice.finish_reason === "stop") break;
 				}
 
@@ -480,7 +478,6 @@ export default function register(): void {
 					}),
 				);
 
-				// Add assistant message to history
 				if (assistantMessage.trim()) {
 					chatHistory.push({
 						role: "assistant",
@@ -488,7 +485,6 @@ export default function register(): void {
 					});
 				}
 
-				// Handle tool calls if any
 				if (finalizedToolCalls.length > 0) {
 					for (const toolCall of finalizedToolCalls) {
 						let toolResult: any = null;
@@ -526,7 +522,6 @@ export default function register(): void {
 						saveSessions({ chatHistory });
 					}
 
-					// Follow-up call after tool execution
 					const followUpStream = await openai.chat.completions.create(
 						{
 							model: modelName,
