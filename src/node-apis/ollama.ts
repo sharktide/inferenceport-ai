@@ -527,6 +527,7 @@ export default function register(): void {
 							content: JSON.stringify(toolResult),
 							tool_call_id: toolCall.id,
 						});
+						event.sender.send("ollama:new_tool_call", finalizedToolCalls);
 					}
 
 					const followUpStream = await openai.chat.completions.create(

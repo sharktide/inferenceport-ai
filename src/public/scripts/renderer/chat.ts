@@ -1247,6 +1247,19 @@ window.ollama.onNewAsset((msg) => {
 
 	renderImageAsset(dataUrl);
 });
+ollama.on("new_tool_message", (msg) => {
+	console.log("Received new tool call:", msg);
+
+	if (!currentSessionId || !sessions[currentSessionId]) return;
+	console.log("Current session ID:", currentSessionId);
+
+	const session = sessions[currentSessionId];
+	session.history.push({
+		role: "tool",
+		tool_call_id: msg.id,
+		content: msg.content,
+	});
+});
 
 modelSelect.addEventListener("change", setToolSupport);
 
