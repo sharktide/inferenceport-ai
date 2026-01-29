@@ -78,7 +78,7 @@ jobs:
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
           
-  build-win64:
+  build-windows:
     permissions:
       contents: write
     runs-on: windows-2022
@@ -102,7 +102,7 @@ jobs:
         working-directory: src
         run: npm run publish
   
-  build-arm:
+  build-windows-arm:
     permissions:
       contents: write
     runs-on: windows-11-arm
@@ -125,3 +125,52 @@ jobs:
       - name: Build and sign Electron app
         working-directory: src
         run: npm run publish
+
+  build-linux:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci && npm install -g typescript
+
+      - name: Build and publish Electron app
+        working-directory: src
+        run: npm run publish
+
+  build-linux-arm:
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci && npm install -g typescript
+
+      - name: Build and publish Electron app
+        working-directory: src
+        run: npm run publish
+

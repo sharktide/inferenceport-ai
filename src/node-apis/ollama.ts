@@ -25,17 +25,30 @@ import type { ExecException } from "child_process";
 import { promisify } from "util";
 import os from "os";
 import net from "net";
-import type { ToolDefinition, Role, AssetRole, ChatMessage, ChatAsset, ModelInfo, PullProgress } from "./types/index.types.d.ts";
+import type {
+	ToolDefinition,
+	Role,
+	AssetRole,
+	ChatMessage,
+	ChatAsset,
+	ModelInfo,
+	PullProgress,
+} from "./types/index.types.d.ts";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
-const availableTools = (toolSchema as ToolDefinition[])
+const availableTools = toolSchema as ToolDefinition[];
 const systemPrompt =
 	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
 
 const isDev = !app.isPackaged;
 
-const ollamaBinary = process.platform === "win32" ? "ollama.exe" : "ollama";
+const ollamaBinary =
+	process.platform === "win32"
+		? "ollama.exe"
+		: process.platform === "linux"
+			? "bin/ollama"
+			: "ollama";
 
 const ollamaPath = isDev
 	? path.join("vendor", "electron-ollama", ollamaBinary)
@@ -43,10 +56,8 @@ const ollamaPath = isDev
 			process.resourcesPath,
 			"vendor",
 			"electron-ollama",
-			ollamaBinary
-	  );
-
-
+			ollamaBinary,
+		);
 
 let chatHistory: ChatMessage[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;
@@ -92,70 +103,78 @@ export async function serve(): Promise<string> {
 	}
 
 	return new Promise((resolve, reject) => {
-		exec(`"${ollamaPath}" serve`, (err: Error | null, stdout: string, stderr: string) => {
-			if (err) {
-				err.message += `: ${stderr}`;
-				reject(err);
-			} else {
-				resolve(stdout);
-			}
-		});
+		exec(
+			`"${ollamaPath}" serve`,
+			(err: Error | null, stdout: string, stderr: string) => {
+				if (err) {
+					err.message += `: ${stderr}`;
+					reject(err);
+				} else {
+					resolve(stdout);
+				}
+			},
+		);
 	});
 }
 
-export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
-    const response = await fetch(
-        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json"
-    );
+export async function fetchSupportedTools(): Promise<{
+	supportsTools: string[];
+}> {
+	const response = await fetch(
+		"https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json",
+	);
 
-    if (!response.ok) {
-        throw new Error(`Failed to fetch tool-supporting models: ${response.statusText}`);
-    }
+	if (!response.ok) {
+		throw new Error(
+			`Failed to fetch tool-supporting models: ${response.statusText}`,
+		);
+	}
 
-    let data: unknown;
-    try {
-        data = await response.json();
-    } catch {
-        throw new Error("Failed to parse tool-supporting models JSON");
-    }
+	let data: unknown;
+	try {
+		data = await response.json();
+	} catch {
+		throw new Error("Failed to parse tool-supporting models JSON");
+	}
 
-    let supportsTools: string[];
-    if (Array.isArray(data) && data.every(name => typeof name === "string")) {
-        supportsTools = data;
-    } else if (
-        data &&
-        typeof data === "object" &&
-        "supportsTools" in data &&
-        Array.isArray((data as any).supportsTools) &&
-        (data as any).supportsTools.every((name: any) => typeof name === "string")
-    ) {
-        supportsTools = (data as { supportsTools: string[] }).supportsTools;
-    } else {
-        throw new Error("Invalid tool-supporting models JSON shape");
-    }
+	let supportsTools: string[];
+	if (Array.isArray(data) && data.every((name) => typeof name === "string")) {
+		supportsTools = data;
+	} else if (
+		data &&
+		typeof data === "object" &&
+		"supportsTools" in data &&
+		Array.isArray((data as any).supportsTools) &&
+		(data as any).supportsTools.every(
+			(name: any) => typeof name === "string",
+		)
+	) {
+		supportsTools = (data as { supportsTools: string[] }).supportsTools;
+	} else {
+		throw new Error("Invalid tool-supporting models JSON shape");
+	}
 
-    cachedSupportsTools = supportsTools;
+	cachedSupportsTools = supportsTools;
 
-    await ensureDir();
-    const writeTask = fs.promises.writeFile(
-        dataFilePath,
-        JSON.stringify({ supportsTools }, null, 2),
-        "utf-8"
-    );
-    writeInProgress = writeTask;
-    await writeTask;
-    writeInProgress = null;
+	await ensureDir();
+	const writeTask = fs.promises.writeFile(
+		dataFilePath,
+		JSON.stringify({ supportsTools }, null, 2),
+		"utf-8",
+	);
+	writeInProgress = writeTask;
+	await writeTask;
+	writeInProgress = null;
 
-    return { supportsTools };
+	return { supportsTools };
 }
-
 
 // ====================== Tool Functions ======================
 async function duckDuckGoSearch(query: string) {
 	const res = await fetch(
 		`https://api.duckduckgo.com/?q=${encodeURIComponent(
-			query
-		)}&format=json&no_html=1&skip_disambig=1`
+			query,
+		)}&format=json&no_html=1&skip_disambig=1`,
 	);
 	const data = await res.json();
 
@@ -266,7 +285,9 @@ export default function register(): void {
 		void 0;
 	}
 
-	ipcMain.handle("ollama:fetch-tool-models", async () => {return await fetchSupportedTools();});
+	ipcMain.handle("ollama:fetch-tool-models", async () => {
+		return await fetchSupportedTools();
+	});
 
 	ipcMain.handle("ollama:get-tool-models", async () => {
 		if (cachedSupportsTools) {
@@ -316,7 +337,7 @@ export default function register(): void {
 								};
 							});
 						resolve(models);
-					}
+					},
 				);
 			});
 		});
@@ -330,7 +351,7 @@ export default function register(): void {
 		"ollama:run",
 		async (
 			_event: IpcMainInvokeEvent,
-			modelName: string
+			modelName: string,
 		): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
@@ -339,17 +360,17 @@ export default function register(): void {
 					(err: Error | null, stdout: string) => {
 						if (err) return reject(err);
 						resolve(stdout);
-					}
+					},
 				);
 			});
-		}
+		},
 	);
 
 	ipcMain.handle(
 		"ollama:delete",
 		async (
 			_event: IpcMainInvokeEvent,
-			modelName: string
+			modelName: string,
 		): Promise<string> => {
 			return new Promise((resolve, reject) => {
 				exec(
@@ -357,10 +378,10 @@ export default function register(): void {
 					(err: Error | null, stdout: string, stderr: string) => {
 						if (err) return reject(stderr || err.message);
 						resolve(stdout);
-					}
+					},
 				);
 			});
-		}
+		},
 	);
 
 	ipcMain.on(
@@ -370,7 +391,7 @@ export default function register(): void {
 			modelName: string,
 			userMessage: string,
 			search: boolean,
-			imageGen: boolean
+			imageGen: boolean,
 		) => {
 			chatAbortController = new AbortController();
 
@@ -402,7 +423,7 @@ export default function register(): void {
 				if (!res.body) {
 					event.sender.send(
 						"ollama:chat-error",
-						"No response stream"
+						"No response stream",
 					);
 					return;
 				}
@@ -418,7 +439,7 @@ export default function register(): void {
 					if (!res.body) {
 						event.sender.send(
 							"ollama:chat-error",
-							"No response stream"
+							"No response stream",
 						);
 						return;
 					}
@@ -426,7 +447,7 @@ export default function register(): void {
 						const errorText = await res.text();
 						event.sender.send(
 							"ollama:chat-error",
-							`Error: ${res.status} ${errorText}`
+							`Error: ${res.status} ${errorText}`,
 						);
 						return;
 					}
@@ -461,7 +482,7 @@ export default function register(): void {
 							assistantMessage += json.message.content;
 							event.sender.send(
 								"ollama:chat-token",
-								json.message.content
+								json.message.content,
 							);
 						}
 
@@ -500,7 +521,7 @@ export default function register(): void {
 							const { dataUrl } = await GenerateImage(
 								args.prompt,
 								args.width,
-								args.height
+								args.height,
 							);
 							LOG("GenerateImage", "TOOL CALL SUCCESS", {
 								hasDataUrl: !!dataUrl,
@@ -539,13 +560,13 @@ export default function register(): void {
 								tools,
 							}),
 							signal: chatAbortController.signal,
-						}
+						},
 					);
 
 					if (!followUpRes.body) {
 						event.sender.send(
 							"ollama:chat-error",
-							"No follow-up stream"
+							"No follow-up stream",
 						);
 						return;
 					}
@@ -576,7 +597,7 @@ export default function register(): void {
 								assistantMessage += json.message.content;
 								event.sender.send(
 									"ollama:chat-token",
-									json.message.content
+									json.message.content,
 								);
 							}
 
@@ -602,7 +623,7 @@ export default function register(): void {
 			} finally {
 				chatAbortController = null;
 			}
-		}
+		},
 	);
 
 	ipcMain.on("ollama:stop", (event: IpcMainEvent) => {
@@ -637,7 +658,7 @@ export default function register(): void {
 				child.on("close", () => resolve(`${modelName} pulled`));
 				child.on("error", (err: Error) => reject(err.message));
 			});
-		}
+		},
 	);
 
 	ipcMain.handle("sessions:load", () => loadSessions());
@@ -645,8 +666,8 @@ export default function register(): void {
 		"sessions:save",
 		(
 			_event: Electron.IpcMainInvokeEvent,
-			sessions: Record<string, unknown>
-		) => saveSessions(sessions)
+			sessions: Record<string, unknown>,
+		) => saveSessions(sessions),
 	);
 
 	ipcMain.handle("ollama:available", async () => {
