@@ -187,10 +187,6 @@ async function duckDuckGoSearch(query: string) {
 	};
 }
 
-function createAssetId(): string {
-	return `img_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
 		if (m.role === "tool") {
