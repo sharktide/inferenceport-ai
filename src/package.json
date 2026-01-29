@@ -37,7 +37,10 @@
     "glob": "^13.0.0"
   },
   "build": {
-    "email": "sharktidedev@gmail.com",
+    "author": {
+      "name": "Rihaan Meher",
+      "email": "sharktidedev@gmail.com"
+    },
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePort AI",
     "files": [
