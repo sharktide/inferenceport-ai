@@ -14,7 +14,8 @@
   },
   "keywords": [],
   "type": "module",
-  "author": "Rihaan Meher",
+  "author": "Rihaan Meher <sharktidedev@gmail.com>",
+  "homepage": "https://inference.js.org",
   "license": "Apache 2.0",
   "description": "AI, anywhere",
   "dependencies": {
@@ -37,10 +38,6 @@
     "glob": "^13.0.0"
   },
   "build": {
-    "author": {
-      "name": "Rihaan Meher",
-      "email": "sharktidedev@gmail.com"
-    },
     "appId": "com.sharktide.inferenceport",
     "productName": "InferencePort AI",
     "files": [
@@ -99,7 +96,9 @@
     },
     "linux": {
       "target": [ "AppImage", "deb", "tar.xz" ],
-      "artifactName": "${productName}-LinuxSetup-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-LinuxSetup-${version}-${arch}.${ext}",
+      "category": "Utility",
+      "maintainer": "Rihaan Meher <sharktidedev@gmail.com>"
     },
     "nsis": {
       "perMachine": true
