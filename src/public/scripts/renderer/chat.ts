@@ -921,7 +921,7 @@ function updateActionButton() {
 		actionBtn.classList.add("streaming");
 		actionBtn.setAttribute("aria-label", "Stop streaming");
 	} else {
-		actionBtn.textContent = "⬆️";
+		actionBtn.innerHTML = "<img src='../assets/img/up-arrow.svg' alt='send' width='40' height='40' />";
 		actionBtn.classList.remove("streaming");
 		actionBtn.setAttribute("aria-label", "Send");
 	}

@@ -34,7 +34,7 @@ export class ChatBox extends HTMLElement {
                 </div>
                 <div class="typing-actions">
                     <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
-                    <button type="submit" class="stop-btn" aria-label="Send" id="send">⬆️</button>
+                    <button type="submit" class="stop-btn" aria-label="Send" id="send"><img src="../assets/img/up-arrow.svg" alt="send" width="40" height="40" /></button>
                 </div>
             </form>
         `;
