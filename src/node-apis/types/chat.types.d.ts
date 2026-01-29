@@ -35,3 +35,9 @@ export type SessionType = {
 
 export type Session = SessionType;
 export type Sessions = Record<string, Session>;
+
+type ChatHistoryEntry = {
+  role: "system" | "user" | "assistant" | "function" | "tool";
+  content: string;
+  name?: string; // needed if role === "function"
+};
