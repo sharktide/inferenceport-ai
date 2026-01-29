@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { createWriteStream } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
 import * as os from 'os';
 import { githubFetch } from './github-fetch.js';
 import { unzipFile } from './unzip.js';
@@ -9,6 +9,8 @@ import type { ElectronOllamaConfig, OllamaServerConfig, PlatformConfig, OllamaAs
 import { ElectronOllamaServer } from './server.js';
 import { Transform, Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import { spawn } from 'child_process';
+
 export type { ElectronOllamaConfig, OllamaServerConfig, PlatformConfig, OllamaAssetMetadata, SpecificVersion, Version };
 export { ElectronOllamaServer };
 
@@ -78,7 +80,7 @@ export class ElectronOllama {
       case 'darwin':
         return 'ollama-darwin.tgz';
       case 'linux':
-        return `ollama-linux-${architecture}.tgz`;
+        return `ollama-linux-${architecture}.tar.zst`;
     }
   }
 
@@ -92,6 +94,7 @@ export class ElectronOllama {
     const { os, arch: architecture } = platformConfig;
 
     const releaseUrlPath = version === 'latest' ? `latest` : `tags/${version}`;
+    console.log(`Fetching Ollama release info from GitHub: ${releaseUrlPath}`);
     const gitHubResponse = await githubFetch(`https://api.github.com/repos/ollama/ollama/releases/${releaseUrlPath}`, this.config.githubToken);
     const releaseData = await gitHubResponse.json() as GitHubRelease;
     const assetName = this.getAssetName(platformConfig);
@@ -115,9 +118,6 @@ export class ElectronOllama {
     };
   }
 
-  /**
-   * Download Ollama for the specified version ('latest' by default) and platform
-   */
   public async download(
     version: Version = 'latest',
     platformConfig: PlatformConfig = this.currentPlatformConfig(),
@@ -130,68 +130,100 @@ export class ElectronOllama {
     const metadata = await this.getMetadata(version, platformConfig);
     const versionDir = this.getBinPath(metadata.version, platformConfig);
 
-    // 1. Create directory if it doesn't exist
     log?.(0, 'Creating directory');
     await fs.mkdir(versionDir, { recursive: true });
 
-    // 2. Download the file
     log?.(0, `Downloading ${metadata.fileName} (${metadata.sizeMB}MB)`);
+
     const response = await fetch(metadata.downloadUrl);
-
-    // Create a progress-tracking transform stream that works with Web API streams
-    let downloadedBytes = 0;
-    const totalBytes = metadata.size; // this is estimate from metadata
-    let lastLoggedPercent = 0;
-
-    const progressStream = new Transform({
-      transform(chunk, _encoding, callback) {
-        downloadedBytes += chunk.length;
-
-        // Log progress in 1% increments
-        const currentPercent = Math.floor((downloadedBytes / totalBytes) * 100);
-        if (currentPercent > lastLoggedPercent) {
-          if (currentPercent < 100) {
-            log?.(currentPercent, `Downloading ${metadata.fileName} (${(downloadedBytes / 1024 / 1024).toFixed(1)}MB / ${metadata.sizeMB}MB) ${currentPercent}%`);
-          } else {
-            log?.(100, `Extracting ${metadata.fileName} (${metadata.sizeMB}MB)`);
-          }
-          lastLoggedPercent = currentPercent;
-        }
-
-        // Pass the chunk through unchanged
-        callback(null, chunk);
-      }
-    });
-
-    // Convert Web API ReadableStream to Node.js stream using Readable.fromWeb()
     if (!response.body) {
       throw new Error('Response body is not readable');
     }
-    //@ts-ignore
+
+    // ----- progress tracking -----
+    let downloadedBytes = 0;
+    const totalBytes =
+      Number(response.headers.get('content-length')) || metadata.size;
+    let lastPercent = 0;
+
+    const progressStream = new Transform({
+      transform(chunk, _enc, cb) {
+        downloadedBytes += chunk.length;
+
+        const percent = Math.floor((downloadedBytes / totalBytes) * 100);
+        if (percent > lastPercent) {
+          if (percent < 100) {
+            log?.(
+              percent,
+              `Downloading ${metadata.fileName} (${(downloadedBytes / 1024 / 1024).toFixed(1)}MB / ${metadata.sizeMB}MB)`
+            );
+          } else {
+            log?.(100, `Extracting ${metadata.fileName}`);
+          }
+          lastPercent = percent;
+        }
+
+        cb(null, chunk);
+      }
+    });
+
+    // Web → Node stream
+    // @ts-ignore
     const nodeStream = Readable.fromWeb(response.body);
-    nodeStream.pipe(progressStream);
 
-    // 3. Extract the archive
-    if (metadata.contentType === 'application/zip') {
-      // For zip files, stream directly to file then extract
-      const filePath = path.join(versionDir, metadata.fileName);
-      const writeStream = createWriteStream(filePath);
+    const filePath = path.join(versionDir, metadata.fileName);
+    const fileName = metadata.fileName;
 
-      // Use pipeline to handle the entire stream chain with automatic promise handling
-      await pipeline(progressStream, writeStream);
+    const isZip = fileName.endsWith('.zip');
+    const isTgz = fileName.endsWith('.tgz') || fileName.endsWith('.tar.gz');
+    const isTarZst = fileName.endsWith('.tar.zst');
 
-      // Now extract the downloaded file
+    // ----- always download to disk first -----
+    await pipeline(
+      nodeStream,
+      progressStream,
+      createWriteStream(filePath)
+    );
+
+    // ----- extraction -----
+    if (isZip) {
       await unzipFile(filePath, versionDir, true);
-    } else if (['application/x-gtar', 'application/x-tar', 'application/x-gzip', 'application/tar', 'application/gzip', 'application/x-tgz'].includes(metadata.contentType)) {
-      // For tar archives, stream directly to extraction
-      await untgzStream(progressStream, versionDir);
-    } else {
-      throw new Error(`The Ollama asset type ${metadata.contentType} is not supported`);
+    }
+    else if (isTgz) {
+      await untgzStream(createReadStream(filePath), versionDir);
+    }
+    else if (isTarZst) {
+      await this.extractTarZst(filePath, versionDir);
+    }
+    else {
+      throw new Error(`Unsupported archive format: ${fileName}`);
+    }
+
+    // Linux permissions fix
+    if (platformConfig.os === 'linux') {
+      try {
+        await fs.chmod(path.join(versionDir, 'ollama'), 0o755);
+      } catch {}
     }
 
     log?.(100, `Extracted archive ${metadata.fileName}`);
+  }
 
-    // 4. Verify checksum
+  public async extractTarZst(file: string, outDir: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn('tar', [
+        '-xvf',
+        file,
+        '-C',
+        outDir
+      ]);
+
+      proc.on('error', reject);
+      proc.on('close', code => {
+        if (code === 0) resolve();
+        else reject(new Error(`tar exited with ${code}`));
+      });
+    });
   }
 
   /**

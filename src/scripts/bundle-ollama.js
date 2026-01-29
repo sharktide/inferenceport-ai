@@ -1,10 +1,21 @@
 import { resolve, join, dirname } from "path";
-import { readdir, rename, rm } from "fs/promises";
+import { readdir, rename, rm, unlink, lstat, rmdir } from "fs/promises";
 import { ElectronOllama } from "./bundler/index.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+async function rimrafLike(path) {
+  const stat = await lstat(path);
+  if (stat.isDirectory() && !stat.isSymbolicLink()) {
+    const entries = await readdir(path);
+    await Promise.all(entries.map(e => rimrafLike(join(path, e))));
+    await rmdir(path);
+  } else {
+    await unlink(path); // handles files & symlinks
+  }
+}
 
 async function moveBinariesToRoot(version, os, arch) {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
@@ -23,14 +34,32 @@ async function moveBinariesToRoot(version, os, arch) {
 	}
 }
 
+const createProgressBarLogger = () => {
+  let lastLength = 0;
+
+  return (percent, message) => {
+    const barLength = 30; // characters
+    const filledLength = Math.round((percent / 100) * barLength);
+    const emptyLength = barLength - filledLength;
+
+    const bar = `[${'='.repeat(filledLength)}${' '.repeat(emptyLength)}]`;
+    const line = `${bar} ${percent.toString().padStart(3)}% ${message}`;
+
+    process.stdout.write('\r' + line + ' '.repeat(Math.max(0, lastLength - line.length)));
+    lastLength = line.length;
+
+    if (percent === 100) process.stdout.write('\n');
+  };
+};
+
 async function removeCudaFolders() {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
-	const cudaVersions = ["lib/ollama/cuda_v12", "lib/ollama/cuda_v13"];
+	const cudaVersions = ["lib/ollama/cuda_v12", "lib/ollama/cuda_v13", "lib/ollama/mix_cuda_v13"];
 
 	for (const version of cudaVersions) {
 		const cudaPath = join(vendorRoot, version);
 		try {
-			await rm(cudaPath, { recursive: true, force: true });
+			await rimrafLike(cudaPath);
 			console.log(`Removed ${version} folder from ${vendorRoot}`);
 		} catch (err) {
 			console.warn(`Could not remove ${version}: ${err.message}`);
@@ -42,7 +71,7 @@ async function bundleOllama() {
 	const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
 	const archMap = { x64: "amd64", arm64: "arm64" };
 
-	const os = platformMap[process.platform];
+	const os = platformMap["linux"];
 	const arch = archMap[process.arch];
 
 	if (!os || !arch) {
@@ -57,7 +86,7 @@ async function bundleOllama() {
 		githubToken: process.env.GH_TOKEN,
 	});
 	const metadata = await eo.getMetadata("latest");
-	await eo.download(metadata.version, { os, arch });
+	await eo.download(metadata.version, { os, arch }, { log: createProgressBarLogger() });
 
 	await moveBinariesToRoot(metadata.version, os, arch);
 
@@ -68,6 +97,16 @@ async function bundleOllama() {
 	} else {
 		await removeCudaFolders();
 	}
+
+	try {
+		await rm(
+			`${resolve(__dirname, `../vendor/electron-ollama`)}/ollama-linux-${arch}.tar.zst`,
+			{ recursive: true, force: true }
+		);
+		console.log(
+			`Cleaned up versioned folder for ${metadata.version} after moving binaries`
+		);
+	} catch { void 0; }
 
 	console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch}`);
 }
