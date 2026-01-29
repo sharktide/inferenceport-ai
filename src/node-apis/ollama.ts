@@ -35,9 +35,7 @@ import type {
 } from "./types/index.types.d.ts";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import OpenAI from "openai";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import type { Chat } from "openai/resources";
-import { name } from "tar/types";
+
 const openai = new OpenAI({
 	baseURL: "http://localhost:11434/v1/",
 	apiKey: "ollama",
