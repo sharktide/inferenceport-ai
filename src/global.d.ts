@@ -26,7 +26,7 @@ declare global {
 			stop: () => void;
 			pullModel: (name: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
-			streamPrompt: (model: string, prompt: string) => void;
+			streamPrompt: (model: string, prompt: string, clientUrl?: string) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
 			onDone: (cb: () => void) => void;
@@ -101,7 +101,7 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
-			autoNameSession(model: string, prompt: string): Promise<string>;
+			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 
 		};
