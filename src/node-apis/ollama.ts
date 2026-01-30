@@ -28,12 +28,11 @@ import net from "net";
 import type {
 	ToolDefinition,
 	ChatHistoryEntry,
-	ChatMessage,
-	ChatAsset,
 	ModelInfo,
 	PullProgress,
 } from "./types/index.types.d.ts";
 import toolSchema from "./assets/tools.json" with { type: "json" };
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -319,6 +318,56 @@ export default function register(): void {
 			return { supportsTools: [] };
 		}
 	});
+	ipcMain.handle(
+		"ollama:auto-name-session",
+		async (
+			_event: IpcMainInvokeEvent,
+			model: string,
+			prompt: string,
+		): Promise<string> => {
+			try {
+				// Prepare messages with system + user
+				const messages: ChatCompletionMessageParam[] = [
+					{
+						role: "system",
+						content: `
+You are an assistant that generates a concise, descriptive, memorable title
+for a conversation based on its content.
+Do NOT include quotes, punctuation at the ends, or extra words.
+Keep it under 5 words.
+          `.trim(),
+					},
+					{
+						role: "user",
+						content: `Conversation prompt:\n${prompt}`,
+					},
+				];
+
+				const completion = await openai.chat.completions.create({
+					model,
+					messages,
+					max_tokens: 20,
+				});
+
+				let title =
+					completion.choices?.[0]?.message?.content?.trim() ??
+					"Untitled Session";
+
+				// Remove surrounding quotes if any
+				if (
+					(title.startsWith('"') && title.endsWith('"')) ||
+					(title.startsWith("'") && title.endsWith("'"))
+				) {
+					title = title.slice(1, -1).trim();
+				}
+
+				return title || "Untitled Session";
+			} catch (err) {
+				console.error("Auto-name session failed:", err);
+				return "Untitled Session";
+			}
+		},
+	);
 
 	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
 		return new Promise((resolve, reject) => {
@@ -545,7 +594,7 @@ export default function register(): void {
 							state: "resolved",
 						});
 					}
-				
+
 					const followUpStream = await openai.chat.completions.create(
 						{
 							model: modelName,
