@@ -775,7 +775,7 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled, "http://127.0.0.1:52450/v1");
+	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled, "http://127.0.0.1:52458/v1");
 
 	let fullResponse = "";
 	isStreaming = true;

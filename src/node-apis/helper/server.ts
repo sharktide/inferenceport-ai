@@ -67,7 +67,7 @@ function verifyToken(
 }
 
 export function startProxyServer(
-	port: number = 52450,
+	port: number = 52458,
 	allowedEmails: string[] = [],
 ) {
 	server = http.createServer((req, res) => {

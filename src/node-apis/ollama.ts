@@ -58,10 +58,10 @@ const ollamaPath = isDev
 let chatHistory: ChatHistoryEntry[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;
 
-function is52450(url: string): boolean {
+function is52458(url: string): boolean {
 	try {
 		const u = new URL(url);
-		return u.port === "52450";
+		return u.port === "52458";
 	} catch {
 		return false;
 	}
@@ -105,7 +105,7 @@ async function createOpenAIClient(
 		});
 	}
 
-	if (is52450(baseURL)) {
+	if (is52458(baseURL)) {
 		const token = await issueProxyToken();
 
 		return new OpenAI({
@@ -355,7 +355,7 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
-	ipcMain.handle("ollama:start-proxy-server", async (_event: IpcMainInvokeEvent, port: number = 52450, emails: string[]) => {
+	ipcMain.handle("ollama:start-proxy-server", async (_event: IpcMainInvokeEvent, port: number = 52458, emails: string[]) => {
 		startProxyServer(port, emails);
 		return `Server starting on port ${port}...`;
 	})
