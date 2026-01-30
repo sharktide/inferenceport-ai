@@ -852,7 +852,6 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	// Determine client URL based on host selection
 	let clientUrl: string | undefined = undefined;
 	const hostChoice = (hostSelect && hostSelect.value) || localStorage.getItem('host_select') || 'local';
 	if (hostChoice && hostChoice.startsWith('remote:')) {

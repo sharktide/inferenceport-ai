@@ -150,21 +150,18 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
         const id = setTimeout(() => controller.abort(), timeout);
         const res = await fetch(`http://127.0.0.1:${port}/v1`, { method: 'GET', signal: controller.signal });
         clearTimeout(id);
-        // If we get any response, consider it running
         return !!res;
     } catch (e) {
         return false;
     }
 }
 
-// If the local proxy is already running on the saved port, update UI to show running
 (async () => {
     const portNum = Number(savedPort || 52458);
     try {
         const running = await isLocalProxyRunning(portNum, 800);
         if (running) setHostingUIRunning(true, portNum);
     } catch (e) {
-        // ignore probe errors
     }
 })();
 
@@ -192,5 +189,4 @@ hostStopBtn?.addEventListener('click', async () => {
     }
 });
 
-// Basic UI: assume stopped initially
 setHostingUIRunning(false);
