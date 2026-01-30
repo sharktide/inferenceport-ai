@@ -35,11 +35,8 @@ import { startProxyServer, stopProxyServer } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
+import { getSession } from "./auth.js"
 
-const openai = new OpenAI({
-	baseURL: "http://localhost:11434/v1/",
-	apiKey: "ollama",
-});
 const execFileAsync = promisify(execFile);
 const availableTools = toolSchema as ToolDefinition[];
 const systemPrompt =
@@ -60,6 +57,68 @@ const ollamaPath = isDev
 
 let chatHistory: ChatHistoryEntry[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;
+
+function is52450(url: string): boolean {
+	try {
+		const u = new URL(url);
+		return u.port === "52450";
+	} catch {
+		return false;
+	}
+}
+
+async function issueProxyToken(): Promise<string> {
+	console.log("Issuing Proxy Token")
+	const session = await getSession();
+	const jwt = session.access_token;
+
+	const res = await fetch(
+		"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/issue-token",
+		{
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${jwt}`,
+				"Content-Type": "application/json",
+			},
+		},
+	);
+
+	if (!res.ok) {
+		throw new Error(`Token issue failed: ${res.statusText}`);
+	}
+
+	const { token } = await res.json();
+	if (!token) throw new Error("No token returned");
+
+	return token;
+}
+
+async function createOpenAIClient(
+	baseURL?: string,
+): Promise<OpenAI> {
+	console.log("Creating openai client")
+	console.log(baseURL)
+	if (!baseURL) {
+		return new OpenAI({
+			baseURL: "http://localhost:11434/v1/",
+			apiKey: "ollama",
+		});
+	}
+
+	if (is52450(baseURL)) {
+		const token = await issueProxyToken();
+
+		return new OpenAI({
+			baseURL,
+			apiKey: token,
+		});
+	}
+
+	return new OpenAI({
+		baseURL,
+		apiKey: "ollama",
+	});
+}
 
 const dataDir: string = path.join(app.getPath("userData"), "chat-sessions");
 const sessionFile: string = path.join(dataDir, "sessions.json");
@@ -332,9 +391,10 @@ export default function register(): void {
 			_event: IpcMainInvokeEvent,
 			model: string,
 			prompt: string,
+			clientUrl?: string,
 		): Promise<string> => {
 			try {
-				// Prepare messages with system + user
+				const openai = await createOpenAIClient(clientUrl)
 				const messages: ChatCompletionMessageParam[] = [
 					{
 						role: "system",
@@ -461,6 +521,7 @@ Keep it under 5 words.
 			userMessage: string,
 			search: boolean,
 			imageGen: boolean,
+			clientUrl?: string,
 		) => {
 			chatAbortController = new AbortController();
 
@@ -469,6 +530,8 @@ Keep it under 5 words.
 			if (imageGen) tools.push(availableTools[1]);
 
 			chatHistory.push({ role: "user", content: userMessage });
+
+			const openai = await createOpenAIClient(clientUrl);
 
 			try {
 				const messages = [

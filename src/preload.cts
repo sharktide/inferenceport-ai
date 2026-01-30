@@ -42,14 +42,16 @@ contextBridge.exposeInMainWorld("ollama", {
 		model: string,
 		prompt: string,
 		searchEnabled: boolean,
-		imgEnabled: boolean
+		imgEnabled: boolean,
+		clientUrl?: string
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
 			searchEnabled,
-			imgEnabled
+			imgEnabled,
+			clientUrl
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
 
@@ -92,8 +94,8 @@ contextBridge.exposeInMainWorld("ollama", {
 
 	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
 	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models"),
-	autoNameSession: async (model: string, prompt: string): Promise<string> => {
-		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt);
+	autoNameSession: async (model: string, prompt: string, clientUrl?: string): Promise<string> => {
+		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt, clientUrl);
 	},
 	startServer: (port: number, emails: string[]) =>
 		ipcRenderer.invoke("ollama:start-proxy-server", port, emails),

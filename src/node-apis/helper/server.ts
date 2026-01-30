@@ -74,22 +74,25 @@ export function startProxyServer(
 	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
 		console.log(`[Connection] Request from IP: ${ip}, Path: ${req.url}`);
-
 		const expiry = verifiedIPs.get(ip);
+        console.log("Expire", expiry)
 		if (!expiry || Date.now() > expiry) {
 			const authHeader = req.headers["authorization"];
+            console.log(authHeader)
 			if (!authHeader || !authHeader.startsWith("Bearer ")) {
 				res.writeHead(401, { "Content-Type": "application/json" });
+                console.log("Missing Authorization header")
 				return res.end(
 					JSON.stringify({ error: "Missing Authorization header" }),
 				);
 			}
 
 			const token = authHeader.split(" ")[1];
-
+            console.log(token)
 			verifyToken(token, allowedEmails, (status, result) => {
 				if (status !== 200 || !result || !result.found) {
 					res.writeHead(401, { "Content-Type": "application/json" });
+                    console.log("Token verifcation failed")
 					return res.end(
 						JSON.stringify({ error: "Token verification failed" }),
 					);
