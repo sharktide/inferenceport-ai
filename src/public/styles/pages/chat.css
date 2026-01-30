@@ -293,7 +293,7 @@
 	background: var(--gray);
 }
 
-#model-select {
+select {
 	padding: 10px;
 	font-size: 16px;
 	border: 1px solid #444;
