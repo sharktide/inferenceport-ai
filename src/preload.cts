@@ -95,6 +95,9 @@ contextBridge.exposeInMainWorld("ollama", {
 	autoNameSession: async (model: string, prompt: string): Promise<string> => {
 		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt);
 	},
+	startServer: (port: number, emails: string[]) =>
+		ipcRenderer.invoke("ollama:start-proxy-server", port, emails),
+	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),
 });
 
 // ===== Utilities =====

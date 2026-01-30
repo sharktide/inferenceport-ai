@@ -31,6 +31,7 @@ import type {
 	ModelInfo,
 	PullProgress,
 } from "./types/index.types.d.ts";
+import { startProxyServer, stopProxyServer } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
@@ -295,7 +296,14 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
-
+	ipcMain.handle("ollama:start-proxy-server", async (_event: IpcMainInvokeEvent, port: number = 52450, emails: string[]) => {
+		startProxyServer(port, emails);
+		return `Server starting on port ${port}...`;
+	})
+	ipcMain.handle("ollama:stop-proxy-server", async () => {
+		stopProxyServer();
+		return "Stopping server..."
+	})
 	ipcMain.handle("ollama:fetch-tool-models", async () => {
 		return await fetchSupportedTools();
 	});
