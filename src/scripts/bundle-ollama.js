@@ -22,7 +22,25 @@ async function moveBinariesToRoot(version, os, arch) {
 		console.error(`Error moving binaries: ${err.message}`);
 	}
 }
+const createProgressBarLogger = () => {
+	let lastLength = 0;
 
+	return (percent, message) => {
+		const barLength = 30; // characters
+		const filledLength = Math.round((percent / 100) * barLength);
+		const emptyLength = barLength - filledLength;
+
+		const bar = `[${"=".repeat(filledLength)}${" ".repeat(emptyLength)}]`;
+		const line = `${bar} ${percent.toString().padStart(3)}% ${message}`;
+
+		process.stdout.write(
+			"\r" + line + " ".repeat(Math.max(0, lastLength - line.length)),
+		);
+		lastLength = line.length;
+
+		if (percent === 100) process.stdout.write("\n");
+	};
+};
 async function removeCudaFolders() {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
 	const cudaVersions = ["lib/ollama/cuda_v12", "lib/ollama/cuda_v13"];
@@ -47,7 +65,7 @@ async function bundleOllama() {
 
 	if (!os || !arch) {
 		console.error(
-			`Unsupported platform: ${process.platform} ${process.arch}`
+			`Unsupported platform: ${process.platform} ${process.arch}`,
 		);
 		process.exit(1);
 	}
@@ -57,13 +75,17 @@ async function bundleOllama() {
 		githubToken: process.env.GH_TOKEN,
 	});
 	const metadata = await eo.getMetadata("latest");
-	await eo.download(metadata.version, { os, arch });
+	await eo.download(
+		metadata.version,
+		{ os, arch },
+		{ log: createProgressBarLogger() },
+	);
 
 	await moveBinariesToRoot(metadata.version, os, arch);
 
 	if (process.env.GPU_ONLY === "true") {
 		console.log(
-			"GPU_ONLY build detected — keeping CUDA binaries, zip-only packaging"
+			"GPU_ONLY build detected — keeping CUDA binaries, zip-only packaging",
 		);
 	} else {
 		await removeCudaFolders();

@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld("ollama", {
 			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		);
 	},
+	onToolCall: (cb: (calls: any[]) => void) =>
+		ipcRenderer.on("ollama:new_tool_call", (_: Electron.IpcRendererEvent, calls: any[]) => cb(calls)),
 	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
 
 	streamPrompt: (
@@ -89,7 +91,10 @@ contextBridge.exposeInMainWorld("ollama", {
 	},
 
 	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
-	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models")
+	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models"),
+	autoNameSession: async (model: string, prompt: string): Promise<string> => {
+		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt);
+	},
 });
 
 // ===== Utilities =====

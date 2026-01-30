@@ -101,6 +101,9 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
+			autoNameSession(model: string, prompt: string): Promise<string>;
+			onToolCall: (cb: (calls: any[]) => void) => void;
+
 		};
 
 		sync: {

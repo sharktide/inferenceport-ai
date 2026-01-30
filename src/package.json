@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.93.1",
     "fix-path": "^5.0.0",
     "markdown-it": "^14.1.0",
+    "openai": "^6.17.0",
     "sanitize-html": "^2.17.0",
     "systeminformation": "^5.30.6"
   },
@@ -33,8 +34,8 @@
     "@typescript/native-preview": "^7.0.0-dev.20260126.1",
     "electron": "^40.0.0",
     "electron-builder": "^26.6.0",
-    "typescript": "^5.9.3",
-    "glob": "^13.0.0"
+    "glob": "^13.0.0",
+    "typescript": "^5.9.3"
   },
   "build": {
     "appId": "com.sharktide.inferenceport",
