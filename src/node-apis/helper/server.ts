@@ -100,7 +100,7 @@ export function startProxyServer(
 		});
 	});
 
-	server.listen(port, () => {
+	server.listen(port, "0.0.0.0", () => {
 		console.log(`Proxy server running on http://localhost:${port}`);
 	});
 
