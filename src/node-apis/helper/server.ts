@@ -71,7 +71,7 @@ export function startProxyServer(
 	port: number = 52450,
 	allowedEmails: string[] = [],
 ) {
-	const server = http.createServer((req, res) => {
+	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
 		console.log(`[Connection] Request from IP: ${ip}, Path: ${req.url}`);
 
@@ -114,7 +114,7 @@ export function startProxyServer(
 	return {
 		server,
 		destroy: () => {
-			server.close(() => {
+			server!.close(() => {
 				console.log("Proxy server stopped");
 			});
 		},
