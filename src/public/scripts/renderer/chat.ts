@@ -823,6 +823,7 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
+		renderChat();
 		botBubble.textContent += `\n⚠️ Error: ${err}`;
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
@@ -838,6 +839,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onDone(() => {
 		session.history.push({ role: "assistant", content: fullResponse });
+		renderChat();
 		const status = document.createElement("div");
 		status.textContent = "✅ Done";
 		status.style.marginTop = "8px";
@@ -858,6 +860,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onAbort(() => {
 		session.history.push({ role: "assistant", content: fullResponse });
+		renderChat();
 		const status = document.createElement("div");
 		status.textContent = "⚠︎ Interrupted";
 		status.style.marginTop = "8px";
@@ -1163,6 +1166,21 @@ function renderChat() {
 			return;
 		}
 
+		/* ---------------- TOOL ---------------- */
+		if (msg.role === "tool") {
+			const toolBubble = document.createElement("div");
+			toolBubble.className = "chat-bubble tool-bubble";
+
+			const header = document.createElement("div");
+			header.className = "tool-header";
+			header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
+
+			toolBubble.appendChild(header);
+			chatBox.appendChild(toolBubble);
+			return;
+		}
+
+
 		console.warn("Unknown message role:", msg.role, msg);
 	});
 
@@ -1247,19 +1265,26 @@ window.ollama.onNewAsset((msg) => {
 
 	renderImageAsset(dataUrl);
 });
-ollama.on("new_tool_message", (msg) => {
-	console.log("Received new tool call:", msg);
 
+window.ollama.onToolCall((call) => {
 	if (!currentSessionId || !sessions[currentSessionId]) return;
-	console.log("Current session ID:", currentSessionId);
 
 	const session = sessions[currentSessionId];
-	session.history.push({
-		role: "tool",
-		tool_call_id: msg.id,
-		content: msg.content,
-	});
+
+	if (call.state === "pending") {
+		session.history.push({
+			role: "tool",
+			tool_call_id: call.id,
+			name: call.name,
+			content: "⏳ Running…",
+		});
+	}
+
+	if (call.state === "resolved") {
+		void 0
+	}
 });
+
 
 modelSelect.addEventListener("change", setToolSupport);
 

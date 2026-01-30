@@ -498,9 +498,18 @@ export default function register(): void {
 				}
 
 				if (finalizedToolCalls.length > 0) {
+					// Notify renderer immediately: tool(s) invoked
+					for (const toolCall of finalizedToolCalls) {
+						event.sender.send("ollama:new_tool_call", {
+							id: toolCall.id,
+							name: toolCall.function.name,
+							arguments: toolCall.function.arguments,
+							state: "pending",
+						});
+					}
+
 					for (const toolCall of finalizedToolCalls) {
 						const args = JSON.parse(toolCall.function.arguments);
-
 						let toolResult: any;
 
 						if (toolCall.function.name === "duckduckgo_search") {
@@ -527,9 +536,16 @@ export default function register(): void {
 							content: JSON.stringify(toolResult),
 							tool_call_id: toolCall.id,
 						});
-						event.sender.send("ollama:new_tool_call", finalizedToolCalls);
-					}
 
+						// Notify renderer: tool resolved
+						event.sender.send("ollama:new_tool_call", {
+							id: toolCall.id,
+							name: toolCall.function.name,
+							result: toolResult,
+							state: "resolved",
+						});
+					}
+				
 					const followUpStream = await openai.chat.completions.create(
 						{
 							model: modelName,
