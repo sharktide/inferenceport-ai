@@ -124,3 +124,73 @@ window.addEventListener("DOMContentLoaded", async () => {
     msg.textContent = 'Sign in to use account controls.';
     details.appendChild(msg);
 });
+
+// Hosting (proxy) controls
+const hostPortInput = document.getElementById('host-port') as HTMLInputElement | null;
+const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement | null;
+const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement | null;
+const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement | null;
+const hostStatus = document.getElementById('host-status') as HTMLParagraphElement | null;
+
+function setHostingUIRunning(running: boolean, port?: number) {
+    if (hostStartBtn) hostStartBtn.disabled = running;
+    if (hostStopBtn) hostStopBtn.disabled = !running;
+    if (hostStatus) hostStatus.textContent = running ? `Server running on port ${port}` : 'Server stopped';
+}
+
+// Initialize from localStorage
+const savedPort = localStorage.getItem('host_port') || '52458';
+const savedEmails = localStorage.getItem('host_emails') || '';
+if (hostPortInput) hostPortInput.value = savedPort;
+if (hostEmailsInput) hostEmailsInput.value = savedEmails;
+
+async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolean> {
+    try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        const res = await fetch(`http://127.0.0.1:${port}/v1`, { method: 'GET', signal: controller.signal });
+        clearTimeout(id);
+        // If we get any response, consider it running
+        return !!res;
+    } catch (e) {
+        return false;
+    }
+}
+
+// If the local proxy is already running on the saved port, update UI to show running
+(async () => {
+    const portNum = Number(savedPort || 52458);
+    try {
+        const running = await isLocalProxyRunning(portNum, 800);
+        if (running) setHostingUIRunning(true, portNum);
+    } catch (e) {
+        // ignore probe errors
+    }
+})();
+
+hostStartBtn?.addEventListener('click', async () => {
+    const port = Number(hostPortInput?.value || 52458);
+    const emails = (hostEmailsInput?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (hostStatus) hostStatus.textContent = 'Starting...';
+    try {
+        await window.ollama.startServer(port, emails);
+        localStorage.setItem('host_port', String(port));
+        localStorage.setItem('host_emails', hostEmailsInput?.value || '');
+        setHostingUIRunning(true, port);
+    } catch (e: any) {
+        if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
+    }
+});
+
+hostStopBtn?.addEventListener('click', async () => {
+    if (hostStatus) hostStatus.textContent = 'Stopping...';
+    try {
+        await window.ollama.stopServer();
+        setHostingUIRunning(false);
+    } catch (e: any) {
+        if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
+    }
+});
+
+// Basic UI: assume stopped initially
+setHostingUIRunning(false);

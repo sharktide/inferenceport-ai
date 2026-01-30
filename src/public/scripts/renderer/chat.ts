@@ -33,6 +33,11 @@ const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const modelSelect = document.getElementById(
 	"model-select",
 ) as HTMLSelectElement;
+const hostSelect = document.getElementById("host-select") as HTMLSelectElement | null;
+const remoteHostDialog = document.getElementById("remote-host-dialog") as HTMLDivElement | null;
+const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement | null;
+const remoteHostConfirm = document.getElementById("remote-host-confirm") as HTMLButtonElement | null;
+const remoteHostCancel = document.getElementById("remote-host-cancel") as HTMLButtonElement | null;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
 	"new-session-btn",
@@ -144,6 +149,78 @@ async function hideSessionProgress(): void {
 
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
+
+document.addEventListener("DOMContentLoaded", () => {
+	const saved = localStorage.getItem('host_select') || 'local';
+	const remotes: string[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
+
+	if (hostSelect) {
+		// Remove any stale remote options
+		Array.from(hostSelect.options).forEach((opt) => {
+			if (opt.value && opt.value.startsWith('remote:')) opt.remove();
+		});
+
+		// Insert saved remote hosts before the 'add_remote' option
+		const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+		remotes.forEach((url) => {
+			const opt = document.createElement('option');
+			opt.value = `remote:${url}`;
+			opt.textContent = `Remote: ${url}`;
+			if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+			else hostSelect.appendChild(opt);
+		});
+
+		hostSelect.value = saved;
+
+		hostSelect.addEventListener('change', () => {
+			const v = hostSelect.value;
+			if (v === 'add_remote') {
+				remoteHostDialog?.classList.remove('hidden');
+				if (remoteHostInput) remoteHostInput.value = '';
+				remoteHostInput?.focus();
+				return;
+			}
+			localStorage.setItem('host_select', v);
+		});
+	}
+
+	// Modal handlers
+	remoteHostCancel?.addEventListener('click', () => {
+		remoteHostDialog?.classList.add('hidden');
+		// restore previous selection
+		if (hostSelect) hostSelect.value = localStorage.getItem('host_select') || 'local';
+	});
+
+	remoteHostConfirm?.addEventListener('click', () => {
+		const raw = (remoteHostInput?.value || '').trim();
+		if (!raw) return;
+		let url = raw;
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+			// if no explicit port, default to 52458
+			url = url.replace(/\/+$/, '') + ':52458';
+		}
+		// strip trailing slash
+		url = url.replace(/\/+$/, '');
+
+		// add to stored remotes
+		const remotesStored: string[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
+		if (!remotesStored.includes(url)) {
+			remotesStored.push(url);
+			localStorage.setItem('remote_hosts', JSON.stringify(remotesStored));
+			const opt = document.createElement('option');
+			opt.value = `remote:${url}`;
+			opt.textContent = `Remote: ${url}`;
+			const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
+			if (addRemoteOpt && hostSelect) hostSelect.insertBefore(opt, addRemoteOpt);
+		}
+
+		const sel = `remote:${url}`;
+		if (hostSelect) hostSelect.value = sel;
+		localStorage.setItem('host_select', sel);
+		remoteHostDialog?.classList.add('hidden');
+	});
+});
 
 async function loadOptions() {
 	showSessionProgress();
@@ -775,7 +852,15 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled, "http://127.0.0.1:52458/v1");
+	// Determine client URL based on host selection
+	let clientUrl: string | undefined = undefined;
+	const hostChoice = (hostSelect && hostSelect.value) || localStorage.getItem('host_select') || 'local';
+	if (hostChoice && hostChoice.startsWith('remote:')) {
+		const remoteBase = hostChoice.slice('remote:'.length);
+		clientUrl = remoteBase.endsWith('/v1') ? remoteBase : remoteBase.replace(/\/+$/, '') + '/v1';
+	}
+	localStorage.setItem('host_select', hostChoice);
+	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled, clientUrl);
 
 	let fullResponse = "";
 	isStreaming = true;

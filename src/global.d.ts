@@ -38,6 +38,8 @@ declare global {
 			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			startServer: (port: number, allowedEmails: string[]) => Promise<void>;
+			stopServer: () => Promise<void>;
 		};
 
 		utils: {
