@@ -126,7 +126,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 
 // Hosting (proxy) controls
-const hostPortInput = document.getElementById('host-port') as HTMLInputElement | null;
 const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement | null;
 const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement | null;
 const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement | null;
@@ -141,7 +140,6 @@ function setHostingUIRunning(running: boolean, port?: number) {
 // Initialize from localStorage
 const savedPort = localStorage.getItem('host_port') || '52458';
 const savedEmails = localStorage.getItem('host_emails') || '';
-if (hostPortInput) hostPortInput.value = savedPort;
 if (hostEmailsInput) hostEmailsInput.value = savedEmails;
 
 async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolean> {
@@ -166,12 +164,11 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 })();
 
 hostStartBtn?.addEventListener('click', async () => {
-    const port = Number(hostPortInput?.value || 52458);
+    const port = 52458;
     const emails = (hostEmailsInput?.value || '').split(',').map(s => s.trim()).filter(Boolean);
     if (hostStatus) hostStatus.textContent = 'Starting...';
     try {
         await window.ollama.startServer(port, emails);
-        localStorage.setItem('host_port', String(port));
         localStorage.setItem('host_emails', hostEmailsInput?.value || '');
         setHostingUIRunning(true, port);
     } catch (e: any) {
