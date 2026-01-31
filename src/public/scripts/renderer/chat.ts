@@ -302,6 +302,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		if (hostSelect) hostSelect.value = sel;
 		localStorage.setItem("host_select", sel);
 		remoteHostDialog?.classList.add("hidden");
+		reloadModelsForHost(sel);
 	});
 });
 
