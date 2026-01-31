@@ -87,7 +87,9 @@ function addEmail(value: string) {
 	if (!email || emails.includes(email)) return;
 	emails.push(email);
 	renderChips();
+	markRestartRequired();
 }
+
 
 emailInput.addEventListener("keydown", (e) => {
 	if ((e.key === "Backspace" || e.key === "Delete") && emailInput.value === "") {
@@ -194,11 +196,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     details.appendChild(msg);
 });
 
-// Hosting (proxy) controls
 const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement | null;
 const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement | null;
 const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement | null;
 const hostStatus = document.getElementById('host-status') as HTMLParagraphElement | null;
+const RESTART_REQUIRED_KEY = "host_restart_required";
 
 function setHostingUIRunning(running: boolean, port?: number) {
     if (hostStartBtn) hostStartBtn.disabled = running;
@@ -206,9 +208,23 @@ function setHostingUIRunning(running: boolean, port?: number) {
     if (hostStatus) hostStatus.textContent = running ? `Server running on port ${port}` : 'Server stopped';
 }
 
-// Initialize from localStorage
 const savedEmails = localStorage.getItem('host_emails') || '';
 if (hostEmailsInput) hostEmailsInput.value = savedEmails;
+
+function markRestartRequired() {
+	if (!hostStartBtn?.disabled) return;
+
+	localStorage.setItem(RESTART_REQUIRED_KEY, "true");
+
+	if (hostStatus) {
+		hostStatus.textContent = "Restart server to apply email changes.";
+		hostStatus.style.color = "#d38200ff";
+	}
+}
+function clearRestartRequired() {
+	localStorage.removeItem(RESTART_REQUIRED_KEY);
+	if (hostStatus) hostStatus.style.color = "";
+}
 
 async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolean> {
     try {
@@ -236,6 +252,7 @@ hostStartBtn?.addEventListener('click', async () => {
     const emailsToUse = emails.filter(isValidEmail);
     if (hostStatus) hostStatus.textContent = 'Starting...';
     try {
+        clearRestartRequired();
         await window.ollama.startServer(port, emailsToUse);
         localStorage.setItem('host_emails', hostEmailsInput?.value || '');
         setHostingUIRunning(true, port);
@@ -248,6 +265,7 @@ hostStopBtn?.addEventListener('click', async () => {
     if (hostStatus) hostStatus.textContent = 'Stopping...';
     try {
         await window.ollama.stopServer();
+        clearRestartRequired();
         setHostingUIRunning(false);
     } catch (e: any) {
         if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
