@@ -1,13 +1,22 @@
 import http, { IncomingMessage, ServerResponse } from "http";
 import https from "https";
 import { URL } from "url";
-
+import crypto from "crypto";
 const VERIFY_URL =
 	"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify_token_with_email";
 const OLLAMA_URL = "http://localhost:11434";
 
 let server: http.Server | null;
 
+function maskToken(token: string, visibleChars = 6): string {
+	if (!token) return "";
+	if (token.length <= visibleChars) return "*".repeat(token.length);
+	return token.slice(0, visibleChars) + "*".repeat(token.length - visibleChars);
+}
+function hashIP(ip: string) {
+	if (ip==="unknown") return "unknown";
+    return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 8);
+}
 function forwardRequest(req: IncomingMessage, res: ServerResponse) {
     let path = req.url ?? "/";
 
@@ -80,7 +89,7 @@ export function startProxyServer(
 ) {
 	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
-		console.log(`[Connection] Request from IP: ${ip}, Path: ${req.url}`);
+		console.log(`[Connection] Received request from device: ${hashIP(ip)}, Path: ${req.url}`);
 
 		const authHeader = req.headers["authorization"];
 		if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -92,7 +101,14 @@ export function startProxyServer(
 		}
 
 		const token = authHeader.split(" ")[1];
-		console.log("Verifying token:", token);
+		if (!token) {
+			res.writeHead(401, { "Content-Type": "application/json" });
+			console.log("Token verification failed");
+			return res.end(
+				JSON.stringify({ error: "Token verification failed" }),
+			);
+		}
+		console.log("Verifying token:", maskToken(token));
 
 		verifyToken(token, allowedEmails, (status, result) => {
 			if (status !== 200 || !result || !result.found) {
@@ -103,7 +119,7 @@ export function startProxyServer(
 				);
 			}
 
-			console.log(`[Auth] Verified token for ${result.email}`);
+			console.log(`[Auth] Verified token for ${hashIP(result.email)}`);
 			forwardRequest(req, res);
 		});
 	});
