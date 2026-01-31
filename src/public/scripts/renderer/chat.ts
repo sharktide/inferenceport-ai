@@ -938,27 +938,46 @@ form.addEventListener("submit", async (e) => {
 	updateTextareaState();
 
 	console.log("[form.submit] Submit event triggered");
-	const models = await window.ollama.listModels();
-	if (models.length === 0) {
-		const defaultModel = "llama3.2:3b";
-		showNotification({
-			message: `No models found. Downloading default model: ${defaultModel}`,
-			type: "info",
-		});
-		await pullModel(defaultModel);
-		let attempts = 0;
-		while (attempts < 10) {
-			const models = await window.ollama.listModels();
-			if (models.some((m) => m.name === defaultModel)) break;
-			await new Promise((r) => setTimeout(r, 1000));
-			attempts++;
-		}
-
-		await loadOptions();
-
-		modelSelect.value = defaultModel;
+	let clientUrl: string | undefined = undefined;
+	const hostChoice =
+		(hostSelect && hostSelect.value) ||
+		localStorage.getItem("host_select") ||
+		"local";
+	if (hostChoice && hostChoice.startsWith("remote:")) {
+		clientUrl = hostChoice.slice("remote:".length);
 	}
+	if (!clientUrl) {
+		const models = await window.ollama.listModels();
+		if (models.length === 0) {
+			const defaultModel = "llama3.2:3b";
+			showNotification({
+				message: `No models found. Downloading default model: ${defaultModel}`,
+				type: "info",
+			});
+			await pullModel(defaultModel);
+			let attempts = 0;
+			while (attempts < 10) {
+				const models = await window.ollama.listModels();
+				if (models.some((m) => m.name === defaultModel)) break;
+				await new Promise((r) => setTimeout(r, 1000));
+				attempts++;
+			}
 
+			await loadOptions();
+
+			modelSelect.value = defaultModel;
+		}
+	}
+	if (clientUrl) {
+		const remoteModels = await window.ollama.listModels(clientUrl);
+		if (remoteModels.length === 0) {
+			showNotification({
+				message: "No models available on the selected remote host.",
+				type: "warning",
+			});
+			return;
+		}
+	}
 	if (isStreaming) {
 		window.ollama.stop?.();
 		return;
@@ -976,7 +995,7 @@ form.addEventListener("submit", async (e) => {
 		console.log(
 			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
-		autoNameSession(model, prompt, currentSessionId).catch((err) => {
+		autoNameSession(model, prompt, currentSessionId, clientUrl).catch((err) => {
 			console.error("[form.submit] autoNameSession error:", err);
 		});
 	}
@@ -996,14 +1015,7 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	let clientUrl: string | undefined = undefined;
-	const hostChoice =
-		(hostSelect && hostSelect.value) ||
-		localStorage.getItem("host_select") ||
-		"local";
-	if (hostChoice && hostChoice.startsWith("remote:")) {
-		clientUrl = hostChoice.slice("remote:".length);
-	}
+
 	localStorage.setItem("host_select", hostChoice);
 	window.ollama.streamPrompt(
 		model,
