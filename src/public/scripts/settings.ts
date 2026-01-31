@@ -138,7 +138,6 @@ function setHostingUIRunning(running: boolean, port?: number) {
 }
 
 // Initialize from localStorage
-const savedPort = localStorage.getItem('host_port') || '52458';
 const savedEmails = localStorage.getItem('host_emails') || '';
 if (hostEmailsInput) hostEmailsInput.value = savedEmails;
 
@@ -155,7 +154,7 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 }
 
 (async () => {
-    const portNum = Number(savedPort || 52458);
+    const portNum = 52458;
     try {
         const running = await isLocalProxyRunning(portNum, 800);
         if (running) setHostingUIRunning(true, portNum);
