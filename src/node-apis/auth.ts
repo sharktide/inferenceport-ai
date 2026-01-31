@@ -35,7 +35,7 @@ supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | nul
 export async function getSession(): Promise<Session> {
 	return supabase.auth.getSession().then(({ data, error }) => {
 		if (error) throw error;
-		if (!data.session) throw "No session";
+		if (!data.session) throw new Error("No session");
 		return data.session;
 	});
 }
