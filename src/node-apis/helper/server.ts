@@ -85,6 +85,13 @@ export function startProxyServer(
 	port: number = 52458,
 	allowedEmails: string[] = [],
 ) {
+	if (server) {
+		console.warn("Proxy server already running");
+		return {
+			server,
+			destroy: stopProxyServer,
+		};
+	}
 	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
 		console.log(`[Connection] Received request from device: ${hashIP(ip)}, Path: ${req.url}`);
