@@ -231,22 +231,37 @@ function updateHostSelectOptions() {
 		else hostSelect.appendChild(opt);
 	});
 }
+function updateHostSelectState() {
+	const v = hostSelect.value;
 
+	if (v === "add_remote") {
+		remoteHostDialog?.classList.remove("hidden");
+		remoteHostInput!.value = "";
+		remoteHostAlias!.value = "";
+		remoteHostInput?.focus();
+		return;
+	}
+
+	if (v === "manage_hosts") {
+		openManageHostsDialog();
+		return;
+	}
+
+	localStorage.setItem("host_select", v);
+	reloadModelsForHost(v);
+}
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
 document.addEventListener("DOMContentLoaded", () => {
-	const saved = localStorage.getItem("host_select") || "local";
 	const remotes: { url: string; alias?: string }[] = JSON.parse(
 		localStorage.getItem("remote_hosts") || "[]",
 	);
 
 	if (hostSelect) {
-		// Remove stale remote options
 		Array.from(hostSelect.options).forEach((opt) => {
 			if (opt.value && opt.value.startsWith("remote:")) opt.remove();
 		});
 
-		// Insert saved remote hosts before 'add_remote'
 		const addRemoteOpt = hostSelect.querySelector(
 			'option[value="add_remote"]',
 		);
@@ -258,27 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			else hostSelect.appendChild(opt);
 		});
 
-		hostSelect.value = saved;
-
-		hostSelect.addEventListener("change", () => {
-			const v = hostSelect.value;
-
-			if (v === "add_remote") {
-				remoteHostDialog?.classList.remove("hidden");
-				remoteHostInput!.value = "";
-				remoteHostAlias!.value = "";
-				remoteHostInput?.focus();
-				return;
-			}
-
-			if (v === "manage_hosts") {
-				openManageHostsDialog();
-				return;
-			}
-
-			localStorage.setItem("host_select", v);
-			reloadModelsForHost(v);
-		});
+		hostSelect.addEventListener("change", updateHostSelectState);
 	}
 
 	remoteHostCancel?.addEventListener("click", () => {
