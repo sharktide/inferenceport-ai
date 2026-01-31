@@ -692,7 +692,11 @@ Keep it under 5 words.
 						});
 					}
 
-					const followUpStream = await openai.chat.completions.create(
+					let followUpOpenAI: OpenAI = openai;
+
+					followUpOpenAI = await createOpenAIClient(clientUrl);
+
+					const followUpStream = await followUpOpenAI.chat.completions.create(
 						{
 							model: modelName,
 							messages: [
