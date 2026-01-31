@@ -258,20 +258,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	);
 
 	if (hostSelect) {
-		Array.from(hostSelect.options).forEach((opt) => {
-			if (opt.value && opt.value.startsWith("remote:")) opt.remove();
-		});
-
-		const addRemoteOpt = hostSelect.querySelector(
-			'option[value="add_remote"]',
-		);
-		remotes.forEach(({ url, alias }) => {
-			const opt = document.createElement("option");
-			opt.value = `remote:${url}`;
-			opt.textContent = alias ? alias : `Remote: ${url}`;
-			if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
-			else hostSelect.appendChild(opt);
-		});
+		updateHostSelectOptions();
 
 		hostSelect.addEventListener("change", updateHostSelectState);
 	}
