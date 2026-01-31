@@ -29,7 +29,7 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 
     const options = {
         method: req.method,
-        headers: req.headers,
+        headers: sanitizeHeaders(req.headers),
     };
 
     const proxyReq = http.request(targetUrl, options, (proxyRes) => {
@@ -79,6 +79,34 @@ function verifyToken(
 	req.on("error", () => callback(500, null));
 	req.write(body);
 	req.end();
+}
+
+function sanitizeHeaders(
+	headers: IncomingMessage["headers"],
+): http.OutgoingHttpHeaders {
+	const forbidden = new Set([
+		"host",
+		"authorization",
+		"connection",
+		"content-length",
+		"transfer-encoding",
+		"upgrade",
+		"proxy-authorization",
+		"proxy-authenticate",
+		"te",
+		"trailers",
+	]);
+
+	const clean: http.OutgoingHttpHeaders = {};
+
+	for (const [key, value] of Object.entries(headers)) {
+		if (!key) continue;
+		const lower = key.toLowerCase();
+		if (forbidden.has(lower)) continue;
+		clean[key] = value;
+	}
+
+	return clean;
 }
 
 export function startProxyServer(
