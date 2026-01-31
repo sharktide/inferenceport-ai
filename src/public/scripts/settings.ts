@@ -5,8 +5,6 @@ const status = document.getElementById('status') as HTMLParagraphElement;
 const syncCheckbox = document.getElementById('sync-chats') as HTMLInputElement | null;
 const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDetailsElement | null;
 
-// Initialize sync checkbox from localStorage (default: off)
-// Only enable if user is logged in
 (async () => {
     try {
         const { session } = await window.auth.getSession?.() ?? { session: null };
@@ -16,10 +14,8 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
             if (!isLoggedIn) {
                 syncCheckbox.disabled = true;
                 syncCheckbox.checked = false;
-                // Turn off sync if it was previously enabled
                 localStorage.setItem('sync_enabled', 'false');
 
-                // Show helpful message
                 if (syncSection) {
                     const msg = document.createElement('p');
                     msg.className = 'muted';
@@ -42,6 +38,79 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
         console.warn('Could not initialize sync setting', e);
     }
 })();
+
+const chipContainer = document.getElementById("email-chips")!;
+const emailInput = document.getElementById("email-input") as HTMLInputElement;
+const EMAIL_STORAGE_KEY = "host_emails_v2";
+
+let emails: string[] = [];
+
+function isValidEmail(email: string) {
+	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+try {
+	const stored = JSON.parse(localStorage.getItem(EMAIL_STORAGE_KEY) || "[]");
+	if (Array.isArray(stored)) {
+		emails = stored;
+		renderChips();
+	}
+} catch {
+	void 0;
+}
+
+function renderChips() {
+	chipContainer.innerHTML = "";
+
+	for (const email of emails) {
+		const chip = document.createElement("div");
+		chip.className = "chip" + (isValidEmail(email) ? "" : " invalid");
+		chip.textContent = email;
+
+		const remove = document.createElement("button");
+		remove.textContent = "×";
+		remove.onclick = () => {
+			emails = emails.filter(e => e !== email);
+			renderChips();
+		};
+
+		chip.appendChild(remove);
+		chipContainer.appendChild(chip);
+	}
+
+	localStorage.setItem(EMAIL_STORAGE_KEY, JSON.stringify(emails));
+}
+
+
+function addEmail(value: string) {
+	const email = value.trim();
+	if (!email || emails.includes(email)) return;
+	emails.push(email);
+	renderChips();
+}
+
+emailInput.addEventListener("keydown", (e) => {
+	if ((e.key === "Backspace" || e.key === "Delete") && emailInput.value === "") {
+		if (emails.length > 0) {
+			emails.pop();
+			renderChips();
+			e.preventDefault();
+		}
+		return;
+	}
+
+	if (e.key === "Enter" || e.key === ",") {
+		e.preventDefault();
+		addEmail(emailInput.value);
+		emailInput.value = "";
+	}
+});
+
+
+emailInput.addEventListener("blur", () => {
+	addEmail(emailInput.value);
+	emailInput.value = "";
+});
 
 saveButton.addEventListener('click', async () => {
     const username = usernameInput.value.trim();
@@ -164,10 +233,10 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 
 hostStartBtn?.addEventListener('click', async () => {
     const port = 52458;
-    const emails = (hostEmailsInput?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+    const emailsToUse = emails.filter(isValidEmail);
     if (hostStatus) hostStatus.textContent = 'Starting...';
     try {
-        await window.ollama.startServer(port, emails);
+        await window.ollama.startServer(port, emailsToUse);
         localStorage.setItem('host_emails', hostEmailsInput?.value || '');
         setHostingUIRunning(true, port);
     } catch (e: any) {

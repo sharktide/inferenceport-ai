@@ -23,6 +23,55 @@
 				background-color: var(--input-bg);
 				color: var(--input-text);
 			}
+			.email-chip-input {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 6px;
+				padding: 8px 10px;
+				border: 1px solid #7abff8;
+				border-radius: 14px;
+				background: var(--input-bg);
+				max-width: 520px;
+				cursor: text;
+			}
+
+			.email-chip-input input {
+				border: none;
+				outline: none;
+				flex: 1;
+				min-width: 160px;
+				background: transparent;
+				color: var(--input-text);
+				font-size: 14px;
+				padding: 4px;
+			}
+
+			.chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 4px 10px;
+				border-radius: 999px;
+				background: #3a82f7;
+				color: white;
+				font-size: 13px;
+			}
+
+			.chip button {
+				border: none;
+				background: transparent;
+				color: white;
+				cursor: pointer;
+				font-size: 14px;
+				line-height: 1;
+				padding: 0;
+			}
+
+			.chip.invalid {
+				background: #d9534f;
+			}
+
 		</style>
 		<script type="module" src="scripts/staticload/index.js"></script>
 	</head>
@@ -113,13 +162,16 @@
 								<span class="field-hint">(comma-separated)</span>
 							</label>
 
-							<div class="email-input-wrapper">
-								<textarea
-									id="host-emails"
-									rows="3"
-									placeholder="alice@example.com, bob@example.com"
-								></textarea>
+							<div class="email-chip-input" id="email-chip-input">
+								<div class="chips" id="email-chips"></div>
+								<input
+									type="email"
+									id="email-input"
+									placeholder="Add email and press Enter"
+									autocomplete="off"
+								/>
 							</div>
+
 
 							<div class="modal-actions" style="padding:0">
 								<button id="host-start" style="max-width:200px">Start Hosting</button>
