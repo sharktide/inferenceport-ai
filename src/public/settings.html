@@ -11,6 +11,16 @@
 				opacity: 0.5;
 				cursor: not-allowed;
 			}
+			.email-input-wrapper textarea {
+				width: 100%;
+				box-sizing: border-box;
+				font-family: inherit;
+				font-size: 14px;
+				padding: 8px;
+				border: 1px solid #7abff8;
+				border-radius: 14px;
+				resize: vertical;
+			}
 		</style>
 		<script type="module" src="scripts/staticload/index.js"></script>
 	</head>
@@ -90,6 +100,31 @@
 						</p>
 						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
 						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
+					</details>
+
+					<details open><summary>Host (Proxy)</summary>
+						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the comma-separated list of allowed emails, then click <strong>Start Hosting</strong>.</p>
+						<div style="display:flex;flex-direction:column;gap:8px;max-width:520px;">
+							<label>Port: 52458</label>
+							<label for="host-emails" class="field-label">
+								Allowed emails
+								<span class="field-hint">(comma-separated)</span>
+							</label>
+
+							<div class="email-input-wrapper">
+								<textarea
+									id="host-emails"
+									rows="3"
+									placeholder="alice@example.com, bob@example.com"
+								></textarea>
+							</div>
+
+							<div class="modal-actions" style="padding:0">
+								<button id="host-start" style="max-width:200px">Start Hosting</button>
+								<button id="host-stop" disabled style="max-width:200px">Stop Hosting</button>
+							</div>
+							<p id="host-status" class="muted"></p>
+						</div>
 					</details>
 			</div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>

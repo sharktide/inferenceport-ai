@@ -32,7 +32,13 @@ supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | nul
 	}
 });
 
-
+export async function getSession(): Promise<Session> {
+	return supabase.auth.getSession().then(({ data, error }) => {
+		if (error) throw error;
+		if (!data.session) throw "No session";
+		return data.session;
+	});
+}
 
 export default function register() {
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {

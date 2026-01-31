@@ -293,7 +293,7 @@
 	background: var(--gray);
 }
 
-#model-select {
+select {
 	padding: 10px;
 	font-size: 16px;
 	border: 1px solid #444;
@@ -308,6 +308,26 @@
 	background-repeat: no-repeat;
 	background-position: right 10px center;
 	background-size: 12px;
+}
+#remote-host-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#remote-host-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.remove-host {
+  background: none;
+  border: none;
+  color: #d9534f;
+  cursor: pointer;
 }
 
 .active-session {

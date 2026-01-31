@@ -26,7 +26,13 @@ declare global {
 			stop: () => void;
 			pullModel: (name: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
-			streamPrompt: (model: string, prompt: string) => void;
+			streamPrompt: (
+				model: string,
+				prompt: string,
+				searchEnabled: boolean,
+				imgEnabled: boolean,
+				clientUrl?: string,
+			) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
 			onDone: (cb: () => void) => void;
@@ -38,6 +44,8 @@ declare global {
 			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			startServer: (port: number, allowedEmails: string[]) => Promise<void>;
+			stopServer: () => Promise<void>;
 		};
 
 		utils: {
@@ -101,7 +109,7 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
-			autoNameSession(model: string, prompt: string): Promise<string>;
+			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 
 		};
