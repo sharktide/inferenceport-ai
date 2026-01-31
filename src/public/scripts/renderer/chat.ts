@@ -33,11 +33,21 @@ const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const modelSelect = document.getElementById(
 	"model-select",
 ) as HTMLSelectElement;
-const hostSelect = document.getElementById("host-select") as HTMLSelectElement | null;
-const remoteHostDialog = document.getElementById("remote-host-dialog") as HTMLDivElement | null;
-const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement | null;
-const remoteHostConfirm = document.getElementById("remote-host-confirm") as HTMLButtonElement | null;
-const remoteHostCancel = document.getElementById("remote-host-cancel") as HTMLButtonElement | null;
+const hostSelect = document.getElementById(
+	"host-select",
+) as HTMLSelectElement | null;
+const remoteHostDialog = document.getElementById(
+	"remote-host-dialog",
+) as HTMLDivElement | null;
+const remoteHostInput = document.getElementById(
+	"remote-host-input",
+) as HTMLInputElement | null;
+const remoteHostConfirm = document.getElementById(
+	"remote-host-confirm",
+) as HTMLButtonElement | null;
+const remoteHostCancel = document.getElementById(
+	"remote-host-cancel",
+) as HTMLButtonElement | null;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
 	"new-session-btn",
@@ -46,7 +56,9 @@ const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
-const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement | null;
+const remoteHostAlias = document.getElementById(
+	"remote-host-alias",
+) as HTMLInputElement | null;
 const modalTitle = document.getElementById(
 	"file-preview-title",
 ) as HTMLTitleElement;
@@ -73,8 +85,8 @@ let currentSessionId = null;
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
 interface RemoteHost {
-    url: string;
-    alias: string;
+	url: string;
+	alias: string;
 }
 
 function stripAnsi(str: string): string {
@@ -152,33 +164,35 @@ async function hideSessionProgress(): void {
 	}, 300);
 }
 function openManageHostsDialog() {
-	const dialog = document.getElementById('manage-hosts-dialog')!;
-	const list = document.getElementById('remote-host-list')!;
-	list.innerHTML = '';
+	const dialog = document.getElementById("manage-hosts-dialog")!;
+	const list = document.getElementById("remote-host-list")!;
+	list.innerHTML = "";
 
-	const remotes: RemoteHost[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
 
 	remotes.forEach((host, index) => {
-		const li = document.createElement('li');
-		li.className = 'host-item';
+		const li = document.createElement("li");
+		li.className = "host-item";
 
 		// Host name
-		const nameSpan = document.createElement('span');
-		nameSpan.className = 'host-name';
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "host-name";
 		nameSpan.textContent = host.alias || host.url;
 		nameSpan.title = host.url;
-		nameSpan.style.fontWeight = 'bold';
+		nameSpan.style.fontWeight = "bold";
 
 		// Remove button
-		const removeBtn = document.createElement('button');
-		removeBtn.className = 'remove-host';
-		removeBtn.textContent = 'Remove';
+		const removeBtn = document.createElement("button");
+		removeBtn.className = "remove-host";
+		removeBtn.textContent = "Remove";
 
-		removeBtn.style.maxWidth = '100px';
-		removeBtn.addEventListener('click', () => {
+		removeBtn.style.maxWidth = "100px";
+		removeBtn.addEventListener("click", () => {
 			if (confirm(`Remove host ${host.alias || host.url}?`)) {
 				remotes.splice(index, 1);
-				localStorage.setItem('remote_hosts', JSON.stringify(remotes));
+				localStorage.setItem("remote_hosts", JSON.stringify(remotes));
 				updateHostSelectOptions();
 				openManageHostsDialog();
 			}
@@ -189,11 +203,11 @@ function openManageHostsDialog() {
 		list.appendChild(li);
 	});
 
-	dialog.classList.remove('hidden');
+	dialog.classList.remove("hidden");
 
-	document.getElementById('manage-hosts-close')!.onclick = () => {
-		dialog.classList.add('hidden');
-		hostSelect.value = localStorage.getItem('host_select') || 'local';
+	document.getElementById("manage-hosts-close")!.onclick = () => {
+		dialog.classList.add("hidden");
+		hostSelect.value = localStorage.getItem("host_select") || "local";
 	};
 }
 
@@ -201,14 +215,16 @@ function updateHostSelectOptions() {
 	if (!hostSelect) return;
 
 	Array.from(hostSelect.options).forEach((opt) => {
-		if (opt.value.startsWith('remote:')) opt.remove();
+		if (opt.value.startsWith("remote:")) opt.remove();
 	});
 
-	const remotes: RemoteHost[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
 	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
 
 	remotes.forEach((host) => {
-		const opt = document.createElement('option');
+		const opt = document.createElement("option");
 		opt.value = `remote:${host.url}`;
 		opt.textContent = host.alias || `Remote: ${host.url}`;
 		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
@@ -219,19 +235,23 @@ function updateHostSelectOptions() {
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
 document.addEventListener("DOMContentLoaded", () => {
-	const saved = localStorage.getItem('host_select') || 'local';
-	const remotes: { url: string; alias?: string }[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
+	const saved = localStorage.getItem("host_select") || "local";
+	const remotes: { url: string; alias?: string }[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
 
 	if (hostSelect) {
 		// Remove stale remote options
 		Array.from(hostSelect.options).forEach((opt) => {
-			if (opt.value && opt.value.startsWith('remote:')) opt.remove();
+			if (opt.value && opt.value.startsWith("remote:")) opt.remove();
 		});
 
 		// Insert saved remote hosts before 'add_remote'
-		const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+		const addRemoteOpt = hostSelect.querySelector(
+			'option[value="add_remote"]',
+		);
 		remotes.forEach(({ url, alias }) => {
-			const opt = document.createElement('option');
+			const opt = document.createElement("option");
 			opt.value = `remote:${url}`;
 			opt.textContent = alias ? alias : `Remote: ${url}`;
 			if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
@@ -240,64 +260,69 @@ document.addEventListener("DOMContentLoaded", () => {
 
 		hostSelect.value = saved;
 
-		hostSelect.addEventListener('change', () => {
+		hostSelect.addEventListener("change", () => {
 			const v = hostSelect.value;
 
-			if (v === 'add_remote') {
-				remoteHostDialog?.classList.remove('hidden');
-				remoteHostInput!.value = '';
-				remoteHostAlias!.value = '';
+			if (v === "add_remote") {
+				remoteHostDialog?.classList.remove("hidden");
+				remoteHostInput!.value = "";
+				remoteHostAlias!.value = "";
 				remoteHostInput?.focus();
 				return;
 			}
 
-			if (v === 'manage_hosts') {
+			if (v === "manage_hosts") {
 				openManageHostsDialog();
 				return;
 			}
 
-			localStorage.setItem('host_select', v);
+			localStorage.setItem("host_select", v);
 		});
 	}
 
 	// Modal handlers
-	remoteHostCancel?.addEventListener('click', () => {
-		remoteHostDialog?.classList.add('hidden');
-		if (hostSelect) hostSelect.value = localStorage.getItem('host_select') || 'local';
+	remoteHostCancel?.addEventListener("click", () => {
+		remoteHostDialog?.classList.add("hidden");
+		if (hostSelect)
+			hostSelect.value = localStorage.getItem("host_select") || "local";
 	});
 
-	remoteHostConfirm?.addEventListener('click', () => {
-		let url = (remoteHostInput?.value || '').trim();
-		const alias = (remoteHostAlias?.value || '').trim().substring(0, 20);
+	remoteHostConfirm?.addEventListener("click", () => {
+		let url = (remoteHostInput?.value || "").trim();
+		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
 
 		if (!url) return;
 
 		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
 		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
-			url = url.replace(/\/+$/, '') + ':52458';
+			url = url.replace(/\/+$/, "") + ":52458";
 		}
-		url = url.replace(/\/+$/, '');
+		url = url.replace(/\/+$/, "");
 
 		// Add to stored remotes
-		const remotesStored: { url: string; alias?: string }[] = JSON.parse(localStorage.getItem('remote_hosts') || '[]');
-		if (!remotesStored.some(r => r.url === url)) {
+		const remotesStored: { url: string; alias?: string }[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		if (!remotesStored.some((r) => r.url === url)) {
 			remotesStored.push({ url, alias });
-			localStorage.setItem('remote_hosts', JSON.stringify(remotesStored));
+			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
 
-			const opt = document.createElement('option');
+			const opt = document.createElement("option");
 			opt.value = `remote:${url}`;
 			opt.textContent = alias ? alias : `Remote: ${url}`;
-			const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
-			if (addRemoteOpt && hostSelect) hostSelect.insertBefore(opt, addRemoteOpt);
+			const addRemoteOpt = hostSelect?.querySelector(
+				'option[value="add_remote"]',
+			);
+			if (addRemoteOpt && hostSelect)
+				hostSelect.insertBefore(opt, addRemoteOpt);
 		}
 
 		const sel = `remote:${url}`;
 		if (hostSelect) hostSelect.value = sel;
-		localStorage.setItem('host_select', sel);
-		remoteHostDialog?.classList.add('hidden');
+		localStorage.setItem("host_select", sel);
+		remoteHostDialog?.classList.add("hidden");
 	});
 });
-
 
 async function loadOptions() {
 	showSessionProgress();
@@ -930,13 +955,24 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.removeAllListeners?.();
 	let clientUrl: string | undefined = undefined;
-	const hostChoice = (hostSelect && hostSelect.value) || localStorage.getItem('host_select') || 'local';
-	if (hostChoice && hostChoice.startsWith('remote:')) {
-		const remoteBase = hostChoice.slice('remote:'.length);
-		clientUrl = remoteBase.endsWith('/v1') ? remoteBase : remoteBase.replace(/\/+$/, '') + '/v1';
+	const hostChoice =
+		(hostSelect && hostSelect.value) ||
+		localStorage.getItem("host_select") ||
+		"local";
+	if (hostChoice && hostChoice.startsWith("remote:")) {
+		const remoteBase = hostChoice.slice("remote:".length);
+		clientUrl = remoteBase.endsWith("/v1")
+			? remoteBase
+			: remoteBase.replace(/\/+$/, "") + "/v1";
 	}
-	localStorage.setItem('host_select', hostChoice);
-	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled, clientUrl);
+	localStorage.setItem("host_select", hostChoice);
+	window.ollama.streamPrompt(
+		model,
+		fullPrompt,
+		searchEnabled,
+		imgEnabled,
+		clientUrl,
+	);
 
 	let fullResponse = "";
 	isStreaming = true;
@@ -953,8 +989,33 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
-		renderChat();
-		botBubble.textContent += `\n⚠️ Error: ${err}`;
+		if (
+			err.toString().toLowerCase().includes("token verification failed")
+		) {
+			botBubble.textContent += `\nInferencePort AI Transport Security has rejected the request. Reason: You are not authorized to use this remote host.`;
+
+			showNotification({
+				message:
+					"InferencePort AI Transport Security has rejected your request. Reason: You are not authorized to use this remote host.",
+				type: "error",
+			});
+		} else if (err.toString().toLowerCase().includes("connection error")) {
+			botBubble.textContent += `\nInferencePort AI could not connect to the host. Please check the host URL and your network connection.}`;
+
+			showNotification({
+				message:
+					"InferencePort AI could not connect to the remote host. Please check the host URL and your network connection.",
+				type: "error",
+			});
+		} else {
+			botBubble.textContent += `\n⚠️ Error: ${err}`;
+
+			showNotification({
+				message: `Error during streaming: ${err}`,
+				type: "error",
+			});
+		}
+
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
