@@ -277,10 +277,10 @@ document.addEventListener("DOMContentLoaded", () => {
 			}
 
 			localStorage.setItem("host_select", v);
+			reloadModelsForHost(v);
 		});
 	}
 
-	// Modal handlers
 	remoteHostCancel?.addEventListener("click", () => {
 		remoteHostDialog?.classList.add("hidden");
 		if (hostSelect)
@@ -299,7 +299,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 		url = url.replace(/\/+$/, "");
 
-		// Add to stored remotes
 		const remotesStored: { url: string; alias?: string }[] = JSON.parse(
 			localStorage.getItem("remote_hosts") || "[]",
 		);
@@ -464,6 +463,69 @@ async function loadOptions() {
 
 function generateSessionId() {
 	return crypto.randomUUID();
+}
+
+async function reloadModelsForHost(hostValue: string) {
+	modelSelect.innerHTML = `<option disabled>Loading models…</option>`;
+
+	const clientUrl =
+		hostValue.startsWith("remote:")
+			? hostValue.replace("remote:", "")
+			: undefined;
+
+	try {
+		const models = await window.ollama.listModels(clientUrl);
+
+		modelSelect.innerHTML = "";
+
+		for (const model of models) {
+			const opt = document.createElement("option");
+			opt.value = model.name;
+			opt.textContent = model.name;
+			modelSelect.appendChild(opt);
+		}
+
+		modelSelect.insertAdjacentHTML(
+			"beforeend",
+			`<option value="add-more-models">➕ Add more models...</option>
+			 <option value="manage-models">✏️ Manage models...</option>`,
+		);
+
+		// reset selection if stale
+		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
+			modelSelect.selectedIndex = 0;
+		}
+	} catch (err: any) {
+		console.error("Model reload failed:", err);
+
+		modelSelect.innerHTML = "";
+
+		if (err?.code === "UNAUTHORIZED") {
+			modelSelect.innerHTML =
+				`<option disabled>🔒 Unauthorized</option>`;
+
+			showNotification({
+				message:
+					"You are not authorized to list models on this remote host.",
+				type: "error",
+				actions: [
+					{
+						label: "Manage Hosts",
+						onClick: () => openManageHostsDialog(),
+					},
+				],
+			});
+		} else {
+			modelSelect.innerHTML =
+				`<option disabled>Error loading models</option>`;
+
+			showNotification({
+				message:
+					"Failed to fetch models from the selected host.",
+				type: "error",
+			});
+		}
+	}
 }
 
 function showContextMenu(x, y, sessionId, sessionName) {
@@ -958,9 +1020,6 @@ form.addEventListener("submit", async (e) => {
 		"local";
 	if (hostChoice && hostChoice.startsWith("remote:")) {
 		const remoteBase = hostChoice.slice("remote:".length);
-		clientUrl = remoteBase.endsWith("/v1")
-			? remoteBase
-			: remoteBase.replace(/\/+$/, "") + "/v1";
 	}
 	localStorage.setItem("host_select", hostChoice);
 	window.ollama.streamPrompt(

@@ -20,7 +20,7 @@ import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
-	listModels: (): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list"),
+	listModels: (clientUrl?: string): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list", clientUrl),
 	runModel: (name: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:run", name),
 	deleteModel: (name: string): Promise<string> =>

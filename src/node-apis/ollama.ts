@@ -441,41 +441,62 @@ Keep it under 5 words.
 			}
 		},
 	);
-
-	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
-		return new Promise((resolve, reject) => {
-			const isMac = os.platform() === "darwin";
-
-			const resolveCommand = (cb: (cmd: string) => void) => {
-				return cb(`"${ollamaPath}" list`);
-			};
-			//nosemgrep: javascript.lang.security.detect-child-process
-			resolveCommand((resolvedCmd) => {
-				//nosemgrep: javascript.lang.security.detect-child-process
-				exec(
-					resolvedCmd,
-					{},
-					(error: ExecException | null, stdout: string) => {
-						if (error) return reject(error);
-
-						const lines = stdout.trim().split("\n").slice(1);
-						const models = lines
-							.filter((line) => line.trim())
-							.map((line) => {
-								const parts = line.trim().split(/\s{2,}/);
-								return {
-									name: parts[0] ?? "Unknown",
-									id: parts[1] ?? "Unknown",
-									size: parts[2] ?? "Unknown",
-									modified: parts[3] ?? "Unknown",
-								};
-							});
-						resolve(models);
+	ipcMain.handle(
+		"ollama:list",
+		async (
+			_event: IpcMainInvokeEvent,
+			clientUrl?: string,
+		): Promise<ModelInfo[]> => {
+			if (clientUrl) {
+				const base = clientUrl.replace(/\/$/, "");
+				const res = await fetch(`${base}/api/tags`, {
+					headers: {
+						Authorization: `Bearer ${await issueProxyToken()}`,
 					},
-				);
+				});
+
+				if (res.status === 401 || res.status === 403) {
+					const err: any = new Error("unauthorized");
+					err.code = "UNAUTHORIZED";
+					throw err;
+				}
+
+				if (!res.ok) {
+					const err: any = new Error(res.statusText);
+					err.code = "REMOTE_LIST_FAILED";
+					throw err;
+				}
+
+				const data = await res.json();
+				return (data.models || []).map((m: any) => ({
+					name: m.name,
+					id: m.digest ?? "remote",
+					size: m.size ?? "Unknown",
+					modified: m.modified_at ?? "Unknown",
+				}));
+			}
+
+			// --- local path unchanged ---
+			return new Promise((resolve, reject) => {
+				exec(`"${ollamaPath}" list`, (error, stdout) => {
+					if (error) return reject(error);
+
+					const lines = stdout.trim().split("\n").slice(1);
+					resolve(
+						lines.map((line) => {
+							const parts = line.trim().split(/\s{2,}/);
+							return {
+								name: parts[0] ?? "Unknown",
+								id: parts[1] ?? "Unknown",
+								size: parts[2] ?? "Unknown",
+								modified: parts[3] ?? "Unknown",
+							};
+						}),
+					);
+				});
 			});
-		});
-	});
+		},
+	);
 
 	ipcMain.handle("ollama:reset", () => {
 		chatHistory = [];
