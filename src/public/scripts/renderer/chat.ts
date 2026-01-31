@@ -846,19 +846,18 @@ async function autoNameSession(
 	model: string, // still passed for logging/context
 	prompt: string,
 	sessionId: string,
+	clientUrl?: string,
 ): Promise<string> {
 	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
 
 	let title: string;
 	try {
-		// call main process IPC instead of fetch
-		title = await window.ollama.autoNameSession(model, prompt);
+		title = await window.ollama.autoNameSession(model, prompt, clientUrl);
 	} catch (err) {
 		console.error("[autoNameSession] IPC error:", err);
 		title = new Date().toLocaleString();
 	}
 
-	// Fallback cleaning if the model wrapped it in quotes
 	if (
 		(title.startsWith('"') && title.endsWith('"')) ||
 		(title.startsWith("'") && title.endsWith("'"))
@@ -868,11 +867,9 @@ async function autoNameSession(
 
 	console.log("[autoNameSession] Received title:", title);
 
-	// Save session locally
 	sessions[sessionId].name = title;
 	window.ollama.save(sessions);
 
-	// Optional sync
 	window.auth.getSession().then(async (auth) => {
 		if (isSyncEnabled() && auth?.session?.user) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
