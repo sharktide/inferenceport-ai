@@ -9,25 +9,33 @@ const OLLAMA_URL = "http://localhost:11434";
 let server: http.Server | null;
 
 function forwardRequest(req: IncomingMessage, res: ServerResponse) {
-	const targetUrl = new URL(req.url ?? "/", OLLAMA_URL);
+    let path = req.url ?? "/";
 
-	const options = {
-		method: req.method,
-		headers: req.headers,
-	};
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ error: "Absolute URLs not allowed" }));
+    }
 
-	const proxyReq = http.request(targetUrl, options, (proxyRes) => {
-		res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
-		proxyRes.pipe(res, { end: true });
-	});
+    const targetUrl = new URL(path, OLLAMA_URL);
 
-	req.pipe(proxyReq, { end: true });
+    const options = {
+        method: req.method,
+        headers: req.headers,
+    };
 
-	proxyReq.on("error", (err) => {
-		res.writeHead(500, { "Content-Type": "application/json" });
-		res.end(JSON.stringify({ error: "Proxy error", details: err.message }));
-	});
+    const proxyReq = http.request(targetUrl, options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+    });
+
+    req.pipe(proxyReq, { end: true });
+
+    proxyReq.on("error", (err) => {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Proxy error", details: err.message }));
+    });
 }
+
 
 function verifyToken(
 	token: string | undefined | null,
