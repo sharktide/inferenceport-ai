@@ -105,9 +105,9 @@ async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 
 	if (is52458(baseURL)) {
 		const token = await issueProxyToken();
-
+		baseURL = baseURL.replace(/\/$/, "");
 		return new OpenAI({
-			baseURL,
+			baseURL: `${baseURL}/v1`,
 			apiKey: token,
 		});
 	}
