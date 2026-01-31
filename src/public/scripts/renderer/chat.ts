@@ -1014,7 +1014,7 @@ form.addEventListener("submit", async (e) => {
 		localStorage.getItem("host_select") ||
 		"local";
 	if (hostChoice && hostChoice.startsWith("remote:")) {
-		const remoteBase = hostChoice.slice("remote:".length);
+		clientUrl = hostChoice.slice("remote:".length);
 	}
 	localStorage.setItem("host_select", hostChoice);
 	window.ollama.streamPrompt(
