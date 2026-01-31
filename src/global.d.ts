@@ -26,7 +26,13 @@ declare global {
 			stop: () => void;
 			pullModel: (name: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
-			streamPrompt: (model: string, prompt: string, clientUrl?: string) => void;
+			streamPrompt: (
+				model: string,
+				prompt: string,
+				searchEnabled: boolean,
+				imgEnabled: boolean,
+				clientUrl?: string,
+			) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
 			onDone: (cb: () => void) => void;
