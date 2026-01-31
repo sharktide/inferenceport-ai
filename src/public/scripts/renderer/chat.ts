@@ -1051,7 +1051,7 @@ form.addEventListener("submit", async (e) => {
 				type: "error",
 			});
 		} else if (err.toString().toLowerCase().includes("connection error")) {
-			botBubble.textContent += `\nInferencePort AI could not connect to the host. Please check the host URL and your network connection.}`;
+			botBubble.textContent += `\nInferencePort AI could not connect to the host. Please check the host URL and your network connection.`;
 
 			showNotification({
 				message:
