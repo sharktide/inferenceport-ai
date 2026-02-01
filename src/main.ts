@@ -22,17 +22,19 @@ import ollamaHandlers, {
 	fetchSupportedTools,
 } from "./node-apis/ollama.js";
 import utilsHandlers from "./node-apis/utils.js";
-import authHandlers from "./node-apis/auth.js";
+import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import spaces from "./node-apis/spaces.js";
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
-
+import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 fixPath();
+// Use the shared supabase client exported from node-apis/auth.ts
+const supabase = supabaseClient;
 
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
@@ -50,6 +52,35 @@ function fireAndForget<T>(promise: Promise<T>, label: string) {
 			console.warn(`[fireAndForget] [${label}] rejected:`, stackLine);
 		});
 }
+
+async function handleAuthCallback(url: string): Promise<boolean> {
+	try {
+		const parsed = new URL(url);
+		if (!parsed.pathname.includes("/auth/callback")) return false;
+
+		// Check hash first, fallback to query
+		const hashParams = new URLSearchParams(parsed.hash.slice(1));
+		const queryParams = parsed.searchParams;
+
+		const access_token =
+			hashParams.get("access_token") || queryParams.get("access_token");
+		const refresh_token =
+			hashParams.get("refresh_token") || queryParams.get("refresh_token");
+
+		if (!access_token || !refresh_token) {
+			console.error("OAuth callback missing tokens");
+			return true; // handled but failed
+		}
+
+		await supabase.auth.setSession({ access_token, refresh_token });
+		console.info("Supabase session set successfully");
+		return true;
+	} catch (err) {
+		console.error("Failed to handle auth callback:", err);
+		return true; // prevent further deep link handling
+	}
+}
+
 
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
@@ -222,28 +253,26 @@ if (deeplinkArg) {
 	pendingDeepLink = deeplinkArg;
 }
 
-app.on("second-instance", (_event: any, argv: string[]) => {
-	const urlArg = argv.find((a) => a && a.startsWith("inferenceport-ai://"));
-	if (urlArg) {
-		if (mainWindow) {
-			if (mainWindow.isMinimized()) mainWindow.restore();
-			mainWindow.focus();
-			openFromDeepLink(urlArg);
-		}
-	}
-});
+app.on("second-instance", async (_event, argv) => {
+	const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
+	if (!urlArg) return;
 
-app.on("open-url", (event, url) => {
-	event.preventDefault();
-	pendingDeepLink = url;
-
+	if (await handleAuthCallback(urlArg)) return;
 	if (mainWindow) {
-		openFromDeepLink(url);
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.focus();
+		openFromDeepLink(urlArg);
 	}
 });
 
 
-app.whenReady().then(() => {
+app.on("open-url", async (event, url) => {
+	event.preventDefault();
+	if (await handleAuthCallback(url)) return;
+	if (mainWindow) openFromDeepLink(url);
+});
+
+app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
 
 	try {
@@ -268,7 +297,10 @@ app.whenReady().then(() => {
 	createWindow();
 
 	if (pendingDeepLink) {
-		openFromDeepLink(pendingDeepLink);
+		const handled = await handleAuthCallback(pendingDeepLink);
+		if (!handled) {
+			openFromDeepLink(pendingDeepLink);
+		}
 		pendingDeepLink = null;
 	}
 

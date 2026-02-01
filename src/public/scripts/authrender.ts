@@ -36,6 +36,14 @@ loginButton.addEventListener('click', async () => {
     }
 });
 
+const githubButton = document.getElementById(
+	"github-login"
+) as HTMLButtonElement;
+
+githubButton?.addEventListener("click", async () => {
+	updateStatus("Opening GitHub sign-in…");
+	await window.auth.signInWithGitHub();
+});
 
 signupButton.addEventListener('click', async () => {
     if ((window as any).mode === 0) {

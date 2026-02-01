@@ -77,6 +77,7 @@ declare global {
 				user?: any;
 				error?: string;
 			}>;
+			signInWithGitHub: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string
