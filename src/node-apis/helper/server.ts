@@ -111,7 +111,7 @@ function sanitizeHeaders(
 
 export function startProxyServer(
 	port: number = 52458,
-	allowedEmails: string[] = [],
+	allowedUsers: { email: string; role: string }[] = [],
 ) {
 	if (server) {
 		console.warn("Proxy server already running");
@@ -143,8 +143,8 @@ export function startProxyServer(
 		}
 		console.log("Verifying token:", maskToken(token));
 
-		verifyToken(token, allowedEmails, (status, result) => {
-			if (status !== 200 || !result || !result.found) {
+		verifyToken(token, allowedUsers.map(u => u.email), (status, result) => {
+			if (status !== 200 || !result || !result.found || !result.email) {
 				res.writeHead(401, { "Content-Type": "application/json" });
 				console.log("Token verification failed");
 				return res.end(
@@ -152,7 +152,30 @@ export function startProxyServer(
 				);
 			}
 
+			const matched = (allowedUsers || []).find(u => u.email === result.email);
+			if (!matched) {
+				res.writeHead(403, { "Content-Type": "application/json" });
+				console.log("Authenticated but not in allowed users list", maskToken(result.email || ""));
+				return res.end(JSON.stringify({ error: "Access denied" }));
+			}
+
 			console.log(`[Auth] Verified token for ${hashIP(result.email)}`);
+
+			// Role-based checks: admin => full access. member => read-only for model operations.
+			const role = (matched.role || "member").toLowerCase();
+			if (role !== "admin") {
+				const method = (req.method || "GET").toUpperCase();
+				const path = req.url || "";
+
+				const sensitivePattern = /pull|rm|remove|delete|create|models|run|pull-model|tags|tasks/i;
+
+				if (method !== "GET" && sensitivePattern.test(path)) {
+					res.writeHead(403, { "Content-Type": "application/json" });
+					console.log(`Access denied to ${method} ${path} for role ${role}`);
+					return res.end(JSON.stringify({ error: "Insufficient permissions" }));
+				}
+			}
+
 			forwardRequest(req, res);
 		});
 	});

@@ -42,6 +42,7 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
 const chipContainer = document.getElementById("email-chips")!;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
 const EMAIL_STORAGE_KEY = "host_emails_v2";
+const HOST_USERS_KEY = "host_users_v1";
 
 let emails: string[] = [];
 
@@ -50,13 +51,22 @@ function isValidEmail(email: string) {
 }
 
 try {
-	const stored = JSON.parse(localStorage.getItem(EMAIL_STORAGE_KEY) || "[]");
-	if (Array.isArray(stored)) {
-		emails = stored;
-		renderChips();
-	}
+    const usersRaw = localStorage.getItem(HOST_USERS_KEY);
+    if (usersRaw) {
+        const users = JSON.parse(usersRaw) as { email: string; role: string }[];
+        if (Array.isArray(users)) {
+            emails = users.map(u => u.email);
+            renderChips();
+        }
+    } else {
+        const stored = JSON.parse(localStorage.getItem(EMAIL_STORAGE_KEY) || "[]");
+        if (Array.isArray(stored)) {
+            emails = stored;
+            renderChips();
+        }
+    }
 } catch {
-	void 0;
+    void 0;
 }
 
 function renderChips() {
@@ -250,15 +260,115 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 hostStartBtn?.addEventListener('click', async () => {
     const port = 52458;
     const emailsToUse = emails.filter(isValidEmail);
-    if (hostStatus) hostStatus.textContent = 'Starting...';
-    try {
-        clearRestartRequired();
-        await window.ollama.startServer(port, emailsToUse);
-        localStorage.setItem('host_emails', hostEmailsInput?.value || '');
-        setHostingUIRunning(true, port);
-    } catch (e: any) {
-        if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
+    if (emailsToUse.length === 0) {
+        if (hostStatus) hostStatus.textContent = 'No valid emails configured.';
+        return;
     }
+
+    // Open configuration dialog to assign roles before starting server
+    const existingUsersRaw = localStorage.getItem(HOST_USERS_KEY);
+    let existingUsers: { email: string; role: string }[] = [];
+    try { existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : []; } catch { existingUsers = []; }
+
+    const users: { email: string; role: string }[] = emailsToUse.map(e => {
+        const found = existingUsers.find(u => u.email === e);
+        return { email: e, role: (found && found.role) || 'member' };
+    });
+
+    // Build modal
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.left = '0';
+    modal.style.top = '0';
+    modal.style.right = '0';
+    modal.style.bottom = '0';
+    modal.style.background = 'rgba(0,0,0,0.4)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.id = 'host-config-modal';
+
+    const dialog = document.createElement('div');
+    dialog.style.background = 'var(--gray)';
+    dialog.style.padding = '16px';
+    dialog.style.borderRadius = '8px';
+    dialog.style.width = '600px';
+    dialog.style.maxHeight = '80vh';
+    dialog.style.overflow = 'auto';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Configure Hosted Users & Roles';
+    dialog.appendChild(title);
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    const header = document.createElement('tr');
+    header.innerHTML = '<th style="text-align:left">Email</th><th style="text-align:left">Role</th>';
+    table.appendChild(header);
+
+    users.forEach((u, idx) => {
+        const row = document.createElement('tr');
+        const emailTd = document.createElement('td');
+        emailTd.textContent = u.email;
+        emailTd.style.padding = '8px';
+
+        const roleTd = document.createElement('td');
+        roleTd.style.padding = '8px';
+        const select = document.createElement('select');
+        ['member','admin'].forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r;
+            opt.textContent = r.charAt(0).toUpperCase() + r.slice(1);
+            if (r === u.role) opt.selected = true;
+            select.appendChild(opt);
+        });
+        roleTd.appendChild(select);
+
+        row.appendChild(emailTd);
+        row.appendChild(roleTd);
+        table.appendChild(row);
+
+        // attach selector back to user object on change
+        select.addEventListener('change', () => {
+            users[idx]!.role = select.value;
+        });
+    });
+
+    dialog.appendChild(table);
+
+    const actions = document.createElement('div');
+    actions.style.marginTop = '12px';
+    actions.style.textAlign = 'right';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.marginRight = '8px';
+    cancelBtn.onclick = () => modal.remove();
+    cancelBtn.style.marginBottom = "10px";
+
+    const startBtn = document.createElement('button');
+    startBtn.textContent = 'Start Server';
+    startBtn.onclick = async () => {
+        modal.remove();
+        if (hostStatus) hostStatus.textContent = 'Starting...';
+        try {
+            clearRestartRequired();
+            await window.ollama.startServer(port, users);
+            localStorage.setItem(HOST_USERS_KEY, JSON.stringify(users));
+            localStorage.setItem('host_emails', hostEmailsInput?.value || '');
+            setHostingUIRunning(true, port);
+        } catch (e: any) {
+            if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
+        }
+    };
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(startBtn);
+    dialog.appendChild(actions);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+    // end modal
 });
 
 hostStopBtn?.addEventListener('click', async () => {
