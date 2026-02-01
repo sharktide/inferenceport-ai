@@ -39,10 +39,18 @@ loginButton.addEventListener('click', async () => {
 const githubButton = document.getElementById(
 	"github-login"
 ) as HTMLButtonElement;
+const googleButton = document.getElementById(
+	"google-login"
+) as HTMLButtonElement;
 
 githubButton?.addEventListener("click", async () => {
 	updateStatus("Opening GitHub sign-in…");
 	await window.auth.signInWithGitHub();
+});
+
+googleButton?.addEventListener("click", async () => {
+    updateStatus("Opening Google sign-in…");
+    await window.auth.signInWithGoogle();
 });
 
 function showSignInSuccessModal() {

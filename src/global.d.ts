@@ -78,6 +78,7 @@ declare global {
 				error?: string;
 			}>;
 			signInWithGitHub: () => Promise<void>;
+			signInWithGoogle: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string

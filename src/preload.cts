@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld("hfspaces", {
 
 contextBridge.exposeInMainWorld("auth", {
 	signInWithGitHub: () => ipcRenderer.invoke("auth:signInWithGitHub"),
+	signInWithGoogle: () => ipcRenderer.invoke("auth:signInWithGoogle"),
 	signInWithEmail: (email: string, password: string) =>
 		ipcRenderer.invoke("auth:signInWithEmail", email, password),
 	signUpWithEmail: (email: string, password: string) =>
