@@ -149,6 +149,20 @@ contextBridge.exposeInMainWorld("auth", {
 	deleteAccount: () => ipcRenderer.invoke("auth:delete-account"),
 	setUsername: (userId: string, username: string) =>
 		ipcRenderer.invoke("auth:setUsername", userId, username),
+
+	createOrganization: (payload: { name: string; slug: string }) =>
+		ipcRenderer.invoke("org:createOrganization", payload),
+	getOrganizations: () => ipcRenderer.invoke("org:getOrganizations"),
+	getMembers: (organizationId: string) => ipcRenderer.invoke("org:getMembers", organizationId),
+	inviteMember: (payload: { organizationId: string; email: string }) =>
+		ipcRenderer.invoke("org:inviteMember", payload),
+	acceptInvite: (token: string) => ipcRenderer.invoke("org:acceptInvite", { token }),
+	setMemberRole: (payload: { organizationId: string; userId: string; role: string }) =>
+		ipcRenderer.invoke("org:setMemberRole", payload),
+	removeMember: (payload: { organizationId: string; userId: string }) =>
+		ipcRenderer.invoke("org:removeMember", payload),
+	deleteOrganization: (payload: { organizationId: string }) =>
+		ipcRenderer.invoke("org:deleteOrganization", payload),
 });
 
 // ===== Sync =====

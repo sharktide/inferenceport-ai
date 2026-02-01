@@ -375,6 +375,207 @@ export default function register() {
 
 		return { success: true };
 	});
+
+	ipcMain.handle("org:createOrganization", async (_event, { name, slug }) => {
+		if (!name || !slug) return { error: "Missing name or slug" };
+
+		const { data: sessionData, error: sessionError } =
+			await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+
+		const userId = sessionData.session.user.id;
+
+		const authed = createClient(supabaseUrl, supabaseKey, {
+			global: { headers: { Authorization: `Bearer ${sessionData.session.access_token}` } },
+		});
+
+		const { data: existingSlug } = await authed
+			.from("organizations")
+			.select("id")
+			.eq("slug", slug)
+			.maybeSingle();
+		if (existingSlug) return { error: "Slug already in use" };
+
+		const { data, error } = await authed
+			.from("organizations")
+			.insert([{ name, slug, owner: userId }])
+			.select()
+			.single();
+
+		if (error) return { error: error.message };
+
+		await authed.from("organization_members").insert([{ organization_id: data.id, user_id: userId, role: "owner" }]);
+
+		return { organization: data };
+	});
+
+	ipcMain.handle("org:getOrganizations", async () => {
+		const { data: sessionData, error: sessionError } =
+			await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+
+		const userId = sessionData.session.user.id;
+
+		const { data: orgs, error } = await supabase
+			.from("organizations")
+			.select("id,name,slug,owner,created_at")
+			.or(`owner.eq.${userId},id.in.(select organization_id from organization_members where user_id.eq.${userId})`);
+
+		if (error) {
+			const { data: members } = await supabase
+				.from("organization_members")
+				.select("organization_id")
+				.eq("user_id", userId);
+			const ids = (members || []).map((m: any) => m.organization_id);
+			const { data: altOrgs, error: altErr } = await supabase
+				.from("organizations")
+				.select("id,name,slug,owner,created_at")
+				.in("id", ids);
+			if (altErr) return { error: altErr.message };
+			return { organizations: altOrgs };
+		}
+
+		return { organizations: orgs };
+	});
+
+	ipcMain.handle("org:getMembers", async (_event, organizationId: string) => {
+		if (!organizationId) return { error: "Missing organizationId" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+
+		const { data, error } = await supabase
+			.from("organization_members")
+			.select(`user_id,role,created_at,profiles(username)`)
+			.eq("organization_id", organizationId);
+		if (error) return { error: error.message };
+		return { members: data };
+	});
+
+	ipcMain.handle("org:inviteMember", async (_event, { organizationId, email }) => {
+		if (!organizationId || !email) return { error: "Missing organizationId or email" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+		const userId = sessionData.session.user.id;
+
+		const authed = createClient(supabaseUrl, supabaseKey, {
+			global: { headers: { Authorization: `Bearer ${sessionData.session.access_token}` } },
+		});
+
+		const { data: member } = await authed
+			.from("organization_members")
+			.select("role")
+			.eq("organization_id", organizationId)
+			.eq("user_id", userId)
+			.maybeSingle();
+		if (!member) return { error: "Not a member of organization" };
+
+		const token = crypto.randomUUID();
+		const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+		const { data, error } = await authed
+			.from("organization_invitations")
+			.insert([{ organization_id: organizationId, email, token, invited_by: userId, expires_at: expiresAt }])
+			.select()
+			.single();
+
+		if (error) return { error: error.message };
+
+		// TODO: send email with token link using external service
+
+		return { invitation: data };
+	});
+
+	ipcMain.handle("org:acceptInvite", async (_event, { token }) => {
+		if (!token) return { error: "Missing token" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+		const userId = sessionData.session.user.id;
+		const email = sessionData.session.user.email;
+
+		const { data: invite, error } = await supabase
+			.from("organization_invitations")
+			.select("id,organization_id,email,expires_at,accepted")
+			.eq("token", token)
+			.maybeSingle();
+		if (error) return { error: error.message };
+		if (!invite) return { error: "Invite not found" };
+		if (invite.accepted) return { error: "Invite already accepted" };
+		if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: "Invite expired" };
+		if (invite.email.toLowerCase() !== (email || "").toLowerCase()) return { error: "Invite email does not match your account" };
+
+		const { error: insErr } = await supabase.from("organization_members").insert([{ organization_id: invite.organization_id, user_id: userId, role: "member" }]);
+		if (insErr) return { error: insErr.message };
+
+		await supabase.from("organization_invitations").update({ accepted: true }).eq("id", invite.id);
+
+		return { success: true };
+	});
+
+	ipcMain.handle("org:setMemberRole", async (_event, { organizationId, userId: targetUserId, role }) => {
+		if (!organizationId || !targetUserId || !role) return { error: "Missing params" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+		const callerId = sessionData.session.user.id;
+
+		const { data: caller } = await supabase
+			.from("organization_members")
+			.select("role")
+			.eq("organization_id", organizationId)
+			.eq("user_id", callerId)
+			.maybeSingle();
+		if (!caller || (caller.role !== "owner" && caller.role !== "admin")) return { error: "Not authorized" };
+
+		const { error } = await supabase
+			.from("organization_members")
+			.update({ role })
+			.eq("organization_id", organizationId)
+			.eq("user_id", targetUserId);
+		if (error) return { error: error.message };
+		return { success: true };
+	});
+
+	ipcMain.handle("org:removeMember", async (_event, { organizationId, userId: targetUserId }) => {
+		if (!organizationId || !targetUserId) return { error: "Missing params" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+		const callerId = sessionData.session.user.id;
+
+		const { data: caller } = await supabase
+			.from("organization_members")
+			.select("role")
+			.eq("organization_id", organizationId)
+			.eq("user_id", callerId)
+			.maybeSingle();
+		if (!caller || (caller.role !== "owner" && caller.role !== "admin")) return { error: "Not authorized" };
+
+		const { error } = await supabase
+			.from("organization_members")
+			.delete()
+			.eq("organization_id", organizationId)
+			.eq("user_id", targetUserId);
+		if (error) return { error: error.message };
+		return { success: true };
+	});
+
+	ipcMain.handle("org:deleteOrganization", async (_event, { organizationId }) => {
+		if (!organizationId) return { error: "Missing organizationId" };
+		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
+		const callerId = sessionData.session.user.id;
+
+		const { data: org, error: orgErr } = await supabase
+			.from("organizations")
+			.select("id,owner")
+			.eq("id", organizationId)
+			.maybeSingle();
+		if (orgErr) return { error: orgErr.message };
+		if (!org) return { error: "Organization not found" };
+		if (org.owner !== callerId) return { error: "Only owner can delete organization" };
+
+		const { error } = await supabase.from("organizations").delete().eq("id", organizationId);
+		if (error) return { error: error.message };
+		return { success: true };
+	});
 }
 
 restoreSession();

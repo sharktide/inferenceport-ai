@@ -106,6 +106,15 @@ declare global {
 			autoNameSession(model: string, prompt: string): Promise<string>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 
+			createOrganization: (payload: { name: string; slug: string }) => Promise<{ organization?: Organization; error?: string }>;
+			getOrganizations: () => Promise<{ organizations?: Organization[]; error?: string }>;
+			getMembers: (organizationId: string) => Promise<{ members?: Array<OrganizationMember & { profiles?: { username?: string } }>; error?: string }>;
+			inviteMember: (payload: { organizationId: string; email: string }) => Promise<{ invitation?: OrganizationInvitation; error?: string }>;
+			acceptInvite: (token: string) => Promise<{ success?: boolean; error?: string }>;
+			setMemberRole: (payload: { organizationId: string; userId: string; role: string }) => Promise<{ success?: boolean; error?: string }>;
+			removeMember: (payload: { organizationId: string; userId: string }) => Promise<{ success?: boolean; error?: string }>;
+			deleteOrganization: (payload: { organizationId: string }) => Promise<{ success?: boolean; error?: string }>;
+
 		};
 
 		sync: {
@@ -121,6 +130,33 @@ declare global {
 		id: string;
 		size: string;
 		modified: string;
+	};
+
+	type Organization = {
+		id: string;
+		name: string;
+		slug: string;
+		owner: string;
+		created_at: string;
+		updated_at?: string;
+	};
+
+	type OrganizationMember = {
+		organization_id: string;
+		user_id: string;
+		role: string;
+		created_at: string;
+	};
+
+	type OrganizationInvitation = {
+		id: string;
+		organization_id: string;
+		email: string;
+		token: string;
+		invited_by?: string;
+		accepted: boolean;
+		created_at: string;
+		expires_at?: string;
 	};
 
 	type PullProgress = {
