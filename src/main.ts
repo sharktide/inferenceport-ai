@@ -28,7 +28,6 @@ import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import fs from "fs";
-import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -276,8 +275,15 @@ app.on("second-instance", async (_event, argv) => {
 
 app.on("open-url", async (event, url) => {
 	event.preventDefault();
+
 	if (await handleAuthCallback(url)) return;
-	if (mainWindow) openFromDeepLink(url);
+
+	if (!mainWindow) {
+		pendingDeepLink = url;
+		return;
+	}
+
+	openFromDeepLink(url);
 });
 
 app.whenReady().then(async () => {
@@ -314,10 +320,6 @@ app.whenReady().then(async () => {
 
 	fireAndForget(serve(), "serve");
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
-});
-
-app.on("window-all-closed", () => {
-	app.quit();
 });
 
 app.on("window-all-closed", () => {
