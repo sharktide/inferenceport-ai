@@ -13,6 +13,11 @@ function maskToken(token: string, visibleChars = 6): string {
 	if (token.length <= visibleChars) return "*".repeat(token.length);
 	return token.slice(0, visibleChars) + "*".repeat(token.length - visibleChars);
 }
+
+function sanitizeForLog(value: string): string {
+	// Remove CR and LF characters to prevent log forging via line breaks.
+	return value.replace(/[\r\n]/g, "");
+}
 function hashIP(ip: string) {
 	if (ip==="unknown") return "unknown";
     return crypto.createHash("sha256").update(ip).digest("hex").slice(0, 8);
@@ -166,12 +171,13 @@ export function startProxyServer(
 			if (role !== "admin") {
 				const method = (req.method || "GET").toUpperCase();
 				const path = req.url || "";
+				const safePath = sanitizeForLog(path);
 
 				const sensitivePattern = /pull|rm|remove|delete|create|models|run|pull-model|tags|tasks/i;
 
 				if (method !== "GET" && sensitivePattern.test(path)) {
 					res.writeHead(403, { "Content-Type": "application/json" });
-					console.log(`Access denied to ${method} ${path} for role ${role}`);
+					console.log(`Access denied to ${method} ${safePath} for role ${role}`);
 					return res.end(JSON.stringify({ error: "Insufficient permissions" }));
 				}
 			}
