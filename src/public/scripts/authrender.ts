@@ -36,6 +36,41 @@ loginButton.addEventListener('click', async () => {
     }
 });
 
+const githubButton = document.getElementById(
+	"github-login"
+) as HTMLButtonElement;
+const googleButton = document.getElementById(
+	"google-login"
+) as HTMLButtonElement;
+
+githubButton?.addEventListener("click", async () => {
+	updateStatus("Opening GitHub sign-in…");
+	await window.auth.signInWithGitHub();
+});
+
+googleButton?.addEventListener("click", async () => {
+    updateStatus("Opening Google sign-in…");
+    await window.auth.signInWithGoogle();
+});
+
+function showSignInSuccessModal() {
+    const modal = document.getElementById("signin-success-modal")!;
+    const returnBtn = document.getElementById("return-home-btn")!;
+    modal.style.display = "flex";
+
+    returnBtn.onclick = () => {
+        modal.style.display = "none";
+        window.location.href = "index.html";
+    };
+}
+
+window.auth.onAuthStateChange((session) => {
+    if (session?.user) {
+        if (window.location.pathname.includes("auth")) {
+            showSignInSuccessModal();
+        }
+    }
+});
 
 signupButton.addEventListener('click', async () => {
     if ((window as any).mode === 0) {
