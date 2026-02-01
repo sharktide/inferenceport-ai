@@ -33,7 +33,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 fixPath();
-// Use the shared supabase client exported from node-apis/auth.ts
 const supabase = supabaseClient;
 
 let mainWindow: any = null;
@@ -58,7 +57,6 @@ async function handleAuthCallback(url: string): Promise<boolean> {
 		const parsed = new URL(url);
 		if (!parsed.pathname.includes("/auth/callback")) return false;
 
-		// Check hash first, fallback to query
 		const hashParams = new URLSearchParams(parsed.hash.slice(1));
 		const queryParams = parsed.searchParams;
 
@@ -69,7 +67,7 @@ async function handleAuthCallback(url: string): Promise<boolean> {
 
 		if (!access_token || !refresh_token) {
 			console.error("OAuth callback missing tokens");
-			return true; // handled but failed
+			return true;
 		}
 
 		await supabase.auth.setSession({ access_token, refresh_token });
@@ -254,16 +252,26 @@ if (deeplinkArg) {
 }
 
 app.on("second-instance", async (_event, argv) => {
-	const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
-	if (!urlArg) return;
+    const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
+    if (!urlArg) return;
 
-	if (await handleAuthCallback(urlArg)) return;
-	if (mainWindow) {
-		if (mainWindow.isMinimized()) mainWindow.restore();
-		mainWindow.focus();
-		openFromDeepLink(urlArg);
-	}
+    if (await handleAuthCallback(urlArg)) {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+        return;
+    }
+
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+        openFromDeepLink(urlArg);
+    }
 });
+
 
 
 app.on("open-url", async (event, url) => {
