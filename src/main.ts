@@ -27,6 +27,7 @@ import spaces from "./node-apis/spaces.js";
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -34,6 +35,7 @@ const __dirname = dirname(__filename);
 fixPath();
 
 let mainWindow: any = null;
+let pendingDeepLink: string | null = null;
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
@@ -182,75 +184,27 @@ function openFromDeepLink(url: string) {
 		const parsed = new URL(url);
 		const pathname = parsed.pathname || "/";
 		const host = parsed.hostname || "";
-		if (pathname === "/" || pathname === "") {
-			mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
-			return;
-		}
-		const cleaned = pathname.replace(/^\//, "");
-		if (cleaned.startsWith("marketplace")) {
-			const parts = cleaned.split("/");
-			if (parts.length >= 2 && parts[1]) {
-				const page = parts[1];
-				if (page === "ollama") {
-					mainWindow.loadFile(
-						path.join(
-							__dirname,
-							"public",
-							"marketplace",
-							"ollama.html",
-						),
-					);
-					return;
-				}
-				if (page === "spaces") {
-					mainWindow.loadFile(
-						path.join(
-							__dirname,
-							"public",
-							"marketplace",
-							"spaces.html",
-						),
-					);
-					return;
-				}
-			}
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "marketplace.html"),
-			);
-			return;
-		}
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+		const relative = pathname.replace(/^\/+/, "");
 
-		if (cleaned === "installed") {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "installed.html"),
-			);
+		const publicDir = path.join(__dirname, "public");
+		const target = path.join(publicDir, `${relative}.html`);
+
+		const resolved = path.resolve(target);
+		if (!resolved.startsWith(publicDir)) {
+			console.warn("Blocked invalid deep link path:", pathname);
 			return;
 		}
-
-		if (
-			cleaned === "settings" ||
-			cleaned === "profile" ||
-			cleaned === "account"
-		) {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "settings.html"),
-			);
+		if (!fs.existsSync(resolved)) {
+			mainWindow.loadFile(path.join(publicDir, "index.html"));
 			return;
 		}
-
-		if (cleaned === "auth" || cleaned === "login" || cleaned === "signin") {
-			mainWindow.loadFile(path.join(__dirname, "public", "auth.html"));
-			return;
-		}
-
-		if (cleaned === "reset-pswrd") {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "reset-pswrd.html"),
-			);
-			return;
-		}
-
-		mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
+		mainWindow.loadFile(resolved, {
+			query: Object.fromEntries(parsed.searchParams.entries()),
+			hash: parsed.hash.replace(/^#/, ""),
+		});
 	} catch (e) {
 		console.warn("Failed to open deep link", e);
 	}
@@ -259,6 +213,13 @@ function openFromDeepLink(url: string) {
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
+}
+const deeplinkArg = process.argv.find(arg =>
+	arg.startsWith("inferenceport-ai://"),
+);
+
+if (deeplinkArg) {
+	pendingDeepLink = deeplinkArg;
 }
 
 app.on("second-instance", (_event: any, argv: string[]) => {
@@ -272,10 +233,15 @@ app.on("second-instance", (_event: any, argv: string[]) => {
 	}
 });
 
-app.on("open-url", (event: any, url: string) => {
+app.on("open-url", (event, url) => {
 	event.preventDefault();
-	if (mainWindow) openFromDeepLink(url);
+	pendingDeepLink = url;
+
+	if (mainWindow) {
+		openFromDeepLink(url);
+	}
 });
+
 
 app.whenReady().then(() => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
@@ -300,6 +266,11 @@ app.whenReady().then(() => {
 	authHandlers();
 	spaces();
 	createWindow();
+
+	if (pendingDeepLink) {
+		openFromDeepLink(pendingDeepLink);
+		pendingDeepLink = null;
+	}
 
 	fireAndForget(serve(), "serve");
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
