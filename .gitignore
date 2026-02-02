@@ -925,6 +925,10 @@ node-apis\getApiKey.d.d.ts
 node-apis\getApiKey.d.d.ts.map
 node-apis\getApiKey.d.js
 node-apis\getApiKey.d.js.map
+node-apis\helper\server.d.d.ts
+node-apis\helper\server.d.d.ts.map
+node-apis\helper\server.d.js
+node-apis\helper\server.d.js.map
 node-apis\ollama.d.d.ts
 node-apis\ollama.d.d.ts.map
 node-apis\ollama.d.js

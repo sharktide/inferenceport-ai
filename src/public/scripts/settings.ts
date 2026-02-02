@@ -66,35 +66,76 @@ saveButton.addEventListener('click', async () => {
 });
 
 (document.getElementById("deleteforreal") as HTMLButtonElement).addEventListener('click', async function() {
-    const passwordInput = document.getElementById("password") as HTMLInputElement;
-    const password = passwordInput.value;
     const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
-
     deleteStatus.textContent = "Deleting account...";
+
     try {
-        const { success, error } = await window.auth.verifyPassword(password);
-        if (!success) {
-            deleteStatus.textContent = `Error: ${error || 'Verification failed'}`;
+        const { session } = await window.auth.getSession();
+        if (!session?.user) {
+            deleteStatus.textContent = "Not logged in.";
             return;
         }
+
+        if (session.user.app_metadata?.provider === "email") {
+            const passwordInput = document.getElementById("password") as HTMLInputElement;
+            const password = passwordInput.value;
+            const { success, error } = await window.auth.verifyPassword(password);
+            if (!success) {
+                deleteStatus.textContent = `Error: ${error || 'Verification failed'}`;
+                return;
+            }
+        }
+
         const result = await window.auth.deleteAccount();
         if (!result.success) {
             deleteStatus.textContent = `Error: ${result.error || 'Deletion failed'}`;
             return;
         }
-        deleteStatus.textContent = "Account deleted successfully.";
-    } catch (e: Error | any | unknown) {
-        deleteStatus.textContent = `Error: ${e.message || e}`;
-        return;
-    }
 
-    setTimeout(() => {
-        window.auth.signOut().finally(() => {
-            window.location.href = "index.html";
-        });
-    }, 1000);
+        deleteStatus.textContent = "Account deleted successfully.";
+        setTimeout(() => {
+            window.auth.signOut().finally(() => {
+                window.location.href = "index.html";
+            });
+        }, 1000);
+    } catch (e: any) {
+        deleteStatus.textContent = `Error: ${e.message || e}`;
+    }
 });
 
+(document.getElementById("del-ps") as HTMLButtonElement).addEventListener('click', showDelModal)
+async function showDelModal(): Promise<void> {
+    const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
+    (document.getElementById('delete-dialog') as HTMLDivElement).style.display = 'none';
+    try {
+        const { session } = await window.auth.getSession();
+        if (!session?.user) {
+            deleteStatus.textContent = "Not logged in.";
+            return;
+        }
+
+        if (session.user.app_metadata?.provider === "email") {
+            (document.getElementById('delete-password-dialog') as HTMLDivElement).style.display = 'flex'
+            return
+        } else {
+            const result = await window.auth.deleteAccount();
+            if (!result.success) {
+                deleteStatus.textContent = `Error: ${result.error || 'Deletion failed'}`;
+                return;
+            }
+
+            deleteStatus.textContent = "Account deleted successfully.";
+            setTimeout(() => {
+                window.auth.signOut().finally(() => {
+                    window.location.href = "index.html";
+                });
+            }, 1000);
+        }
+    } catch (e: any) {
+        deleteStatus.textContent = `Error: ${e.message || e}`;
+        return
+    }
+}
 window.addEventListener("DOMContentLoaded", async () => {
     const { session } = await window.auth.getSession();
     if (session) return;
