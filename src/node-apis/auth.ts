@@ -343,6 +343,7 @@ export default function register() {
 				name: "pw_verified",
 			});
 		if (!cookies || !cookies[0]) {
+			cookies = cookies || [];
 			console.warn("Cookie is null");
 			cookies[0] = { name: "pw_verified", sameSite: "lax", value: "null" }
 		}
