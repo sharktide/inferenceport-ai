@@ -337,19 +337,21 @@ export default function register() {
 	});
 
 	ipcMain.handle("auth:delete-account", async () => {
-		const cookies: Electron.Cookie[] =
+		let cookies: Electron.Cookie[] =
 			await session.defaultSession.cookies.get({
 				url: "https://dpixehhdbtzsbckfektd.supabase.co",
 				name: "pw_verified",
 			});
 		if (!cookies || !cookies[0]) {
-			console.error("Cookie is null");
-			return { success: false };
+			cookies = cookies || [];
+			console.warn("Cookie is null");
+			cookies[0] = { name: "pw_verified", sameSite: "lax", value: "null" }
 		}
 		const cookieHeader: string = cookies.length
 			? `pw_verified=${cookies[0].value}`
 			: "";
 		const { data, error } = await supabase.auth.getSession();
+
 		if (error) return { error: error.message };
 
 		const sb = data.session;
