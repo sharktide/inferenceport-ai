@@ -337,7 +337,7 @@ export default function register() {
 	});
 
 	ipcMain.handle("auth:delete-account", async () => {
-		const cookies: Electron.Cookie[] =
+		let cookies: Electron.Cookie[] =
 			await session.defaultSession.cookies.get({
 				url: "https://dpixehhdbtzsbckfektd.supabase.co",
 				name: "pw_verified",
