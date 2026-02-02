@@ -164,4 +164,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     msg.style.color = '#d38200ff';
     msg.textContent = 'Sign in to use account controls.';
     details.appendChild(msg);
+    const manage = document.getElementById('manage-orgs') as HTMLButtonElement | null;
+    if (manage) {
+        manage.addEventListener('click', () => { window.location.href = 'organizations.html'; });
+    }
 });

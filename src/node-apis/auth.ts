@@ -445,12 +445,26 @@ export default function register() {
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
 
-		const { data, error } = await supabase
-			.from("organization_members")
-			.select(`user_id,role,created_at,profiles(username)`)
-			.eq("organization_id", organizationId);
-		if (error) return { error: error.message };
-		return { members: data };
+			const { data: members, error: membersErr } = await supabase
+				.from("organization_members")
+				.select("user_id,role,created_at")
+				.eq("organization_id", organizationId);
+			if (membersErr) return { error: membersErr.message };
+
+			const userIds = (members || []).map((m: any) => m.user_id).filter(Boolean);
+			let profilesMap: Record<string, any> = {};
+			if (userIds.length > 0) {
+				const { data: profiles, error: profilesErr } = await supabase
+					.from("profiles")
+					.select("id,username")
+					.in("id", userIds);
+				if (!profilesErr && profiles) {
+					profilesMap = Object.fromEntries((profiles as any[]).map((p: any) => [p.id, p]));
+				}
+			}
+
+			const out = (members || []).map((m: any) => ({ ...m, profiles: profilesMap[m.user_id] || null }));
+			return { members: out };
 	});
 
 	ipcMain.handle("org:inviteMember", async (_event, { organizationId, email }) => {
@@ -488,18 +502,22 @@ export default function register() {
 	});
 
 	ipcMain.handle("org:acceptInvite", async (_event, { token }) => {
-		if (!token) return { error: "Missing token" };
+			if (!token) return { error: "Missing token" };
+			// normalize token: trim and remove common prefixes
+			token = String(token || "").trim().replace(/^Code:\s*/i, "");
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
 		const userId = sessionData.session.user.id;
 		const email = sessionData.session.user.email;
 
-		const { data: invite, error } = await supabase
+		const { data, error } = await supabase
 			.from("organization_invitations")
 			.select("id,organization_id,email,expires_at,accepted")
 			.eq("token", token)
 			.maybeSingle();
 		if (error) return { error: error.message };
+		console.log(data)
+		const invite = data;
 		if (!invite) return { error: "Invite not found" };
 		if (invite.accepted) return { error: "Invite already accepted" };
 		if (invite.expires_at && new Date(invite.expires_at) < new Date()) return { error: "Invite expired" };

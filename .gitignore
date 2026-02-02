@@ -1220,6 +1220,14 @@ public\scripts\chat.d.ts
 public\scripts\chat.d.ts.map
 public\scripts\chat.js
 public\scripts\chat.js.map
+public\scripts\ee.d.d.ts
+public\scripts\ee.d.d.ts.map
+public\scripts\ee.d.js
+public\scripts\ee.d.js.map
+public\scripts\ee.d.ts
+public\scripts\ee.d.ts.map
+public\scripts\ee.js
+public\scripts\ee.js.map
 public\scripts\helper\checkers\auth-checker.d.d.ts
 public\scripts\helper\checkers\auth-checker.d.d.ts.map
 public\scripts\helper\checkers\auth-checker.d.js
