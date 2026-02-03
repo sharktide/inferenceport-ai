@@ -1265,7 +1265,6 @@ async function setTitle() {
 }
 
 function renderChat() {
-	// Always re-resolve chatBox to avoid stale DOM references
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) {
 		console.warn("renderChat aborted: chatBox not found");

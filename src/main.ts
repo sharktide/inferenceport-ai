@@ -22,18 +22,20 @@ import ollamaHandlers, {
 	fetchSupportedTools,
 } from "./node-apis/ollama.js";
 import utilsHandlers from "./node-apis/utils.js";
-import authHandlers from "./node-apis/auth.js";
+import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import spaces from "./node-apis/spaces.js";
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-
+import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 fixPath();
+const supabase = supabaseClient;
 
 let mainWindow: any = null;
+let pendingDeepLink: string | null = null;
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
@@ -48,6 +50,34 @@ function fireAndForget<T>(promise: Promise<T>, label: string) {
 			console.warn(`[fireAndForget] [${label}] rejected:`, stackLine);
 		});
 }
+
+async function handleAuthCallback(url: string): Promise<boolean> {
+	try {
+		const parsed = new URL(url);
+		if (!parsed.pathname.includes("/auth/callback")) return false;
+
+		const hashParams = new URLSearchParams(parsed.hash.slice(1));
+		const queryParams = parsed.searchParams;
+
+		const access_token =
+			hashParams.get("access_token") || queryParams.get("access_token");
+		const refresh_token =
+			hashParams.get("refresh_token") || queryParams.get("refresh_token");
+
+		if (!access_token || !refresh_token) {
+			console.error("OAuth callback missing tokens");
+			return true;
+		}
+
+		await supabase.auth.setSession({ access_token, refresh_token });
+		console.info("Supabase session set successfully");
+		return true;
+	} catch (err) {
+		console.error("Failed to handle auth callback:", err);
+		return true; // prevent further deep link handling
+	}
+}
+
 
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
@@ -182,75 +212,27 @@ function openFromDeepLink(url: string) {
 		const parsed = new URL(url);
 		const pathname = parsed.pathname || "/";
 		const host = parsed.hostname || "";
-		if (pathname === "/" || pathname === "") {
-			mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
-			return;
-		}
-		const cleaned = pathname.replace(/^\//, "");
-		if (cleaned.startsWith("marketplace")) {
-			const parts = cleaned.split("/");
-			if (parts.length >= 2 && parts[1]) {
-				const page = parts[1];
-				if (page === "ollama") {
-					mainWindow.loadFile(
-						path.join(
-							__dirname,
-							"public",
-							"marketplace",
-							"ollama.html",
-						),
-					);
-					return;
-				}
-				if (page === "spaces") {
-					mainWindow.loadFile(
-						path.join(
-							__dirname,
-							"public",
-							"marketplace",
-							"spaces.html",
-						),
-					);
-					return;
-				}
-			}
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "marketplace.html"),
-			);
-			return;
-		}
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+		const relative = pathname.replace(/^\/+/, "");
 
-		if (cleaned === "installed") {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "installed.html"),
-			);
+		const publicDir = path.join(__dirname, "public");
+		const target = path.join(publicDir, `${relative}.html`);
+
+		const resolved = path.resolve(target);
+		if (!resolved.startsWith(publicDir)) {
+			console.warn("Blocked invalid deep link path:", pathname);
 			return;
 		}
-
-		if (
-			cleaned === "settings" ||
-			cleaned === "profile" ||
-			cleaned === "account"
-		) {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "settings.html"),
-			);
+		if (!fs.existsSync(resolved)) {
+			mainWindow.loadFile(path.join(publicDir, "index.html"));
 			return;
 		}
-
-		if (cleaned === "auth" || cleaned === "login" || cleaned === "signin") {
-			mainWindow.loadFile(path.join(__dirname, "public", "auth.html"));
-			return;
-		}
-
-		if (cleaned === "reset-pswrd") {
-			mainWindow.loadFile(
-				path.join(__dirname, "public", "reset-pswrd.html"),
-			);
-			return;
-		}
-
-		mainWindow.loadFile(path.join(__dirname, "public", "index.html"));
+		mainWindow.loadFile(resolved, {
+			query: Object.fromEntries(parsed.searchParams.entries()),
+			hash: parsed.hash.replace(/^#/, ""),
+		});
 	} catch (e) {
 		console.warn("Failed to open deep link", e);
 	}
@@ -260,24 +242,51 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
 }
+const deeplinkArg = process.argv.find(arg =>
+	arg.startsWith("inferenceport-ai://"),
+);
 
-app.on("second-instance", (_event: any, argv: string[]) => {
-	const urlArg = argv.find((a) => a && a.startsWith("inferenceport-ai://"));
-	if (urlArg) {
-		if (mainWindow) {
-			if (mainWindow.isMinimized()) mainWindow.restore();
-			mainWindow.focus();
-			openFromDeepLink(urlArg);
-		}
-	}
+if (deeplinkArg) {
+	pendingDeepLink = deeplinkArg;
+}
+
+app.on("second-instance", async (_event, argv) => {
+    const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
+    if (!urlArg) return;
+
+    if (await handleAuthCallback(urlArg)) {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+        return;
+    }
+
+    if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+        openFromDeepLink(urlArg);
+    }
 });
 
-app.on("open-url", (event: any, url: string) => {
+
+
+app.on("open-url", async (event, url) => {
 	event.preventDefault();
-	if (mainWindow) openFromDeepLink(url);
+
+	if (await handleAuthCallback(url)) return;
+
+	if (!mainWindow) {
+		pendingDeepLink = url;
+		return;
+	}
+
+	openFromDeepLink(url);
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
 
 	try {
@@ -301,12 +310,16 @@ app.whenReady().then(() => {
 	spaces();
 	createWindow();
 
+	if (pendingDeepLink) {
+		const handled = await handleAuthCallback(pendingDeepLink);
+		if (!handled) {
+			openFromDeepLink(pendingDeepLink);
+		}
+		pendingDeepLink = null;
+	}
+
 	fireAndForget(serve(), "serve");
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
-});
-
-app.on("window-all-closed", () => {
-	app.quit();
 });
 
 app.on("window-all-closed", () => {

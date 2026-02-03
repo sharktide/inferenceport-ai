@@ -4,15 +4,16 @@ import { app, ipcMain, BrowserWindow, session } from "electron";
 
 import fs from "fs";
 import path from "path";
+import { shell } from "electron";
 
 import type { Message, SessionType } from "./types/index.types.d.ts";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
 const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
-const sessionFile = path.join(app.getPath("userData"), "supabase-session.json");
+export const sessionFile = path.join(app.getPath("userData"), "supabase-session.json");
 const profilesFile = path.join(app.getPath("userData"), "profiles.json");
 
 async function restoreSession() {
@@ -41,6 +42,23 @@ export async function getSession(): Promise<Session> {
 }
 
 export default function register() {
+	ipcMain.handle("auth:signInWithGitHub", async () => {
+		const authUrl =
+			`${supabaseUrl}/auth/v1/authorize` +
+			`?provider=github` +
+			`&redirect_to=https://inference.js.org/authcallback.html`;
+
+		await shell.openExternal(authUrl);
+		return { success: true };
+	});
+	ipcMain.handle("auth:signInWithGoogle", async () => {
+		const authUrl =
+			`${supabaseUrl}/auth/v1/authorize` +
+			`?provider=google` +
+			`&redirect_to=https://inference.js.org/authcallback.html`;
+		await shell.openExternal(authUrl);
+		return { success: true };
+	});
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,
@@ -104,7 +122,7 @@ export default function register() {
 			const { data: existing, error: checkError } = await authedClient
 				.from("profiles")
 				.select("id")
-				.eq("username", username)
+				.eq("username", username)f
 				.maybeSingle();
 
 			if (checkError) return { error: checkError.message };
@@ -326,19 +344,21 @@ export default function register() {
 	});
 
 	ipcMain.handle("auth:delete-account", async () => {
-		const cookies: Electron.Cookie[] =
+		let cookies: Electron.Cookie[] =
 			await session.defaultSession.cookies.get({
 				url: "https://dpixehhdbtzsbckfektd.supabase.co",
 				name: "pw_verified",
 			});
 		if (!cookies || !cookies[0]) {
-			console.error("Cookie is null");
-			return { success: false };
+			cookies = cookies || [];
+			console.warn("Cookie is null");
+			cookies[0] = { name: "pw_verified", sameSite: "lax", value: "null" }
 		}
 		const cookieHeader: string = cookies.length
 			? `pw_verified=${cookies[0].value}`
 			: "";
 		const { data, error } = await supabase.auth.getSession();
+
 		if (error) return { error: error.message };
 
 		const sb = data.session;
