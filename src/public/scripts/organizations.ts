@@ -1,8 +1,10 @@
-const closeBtn = document.getElementById("close-org-settings") as HTMLButtonElement;
+const closeBtn = document.getElementById(
+	"close-org-settings",
+) as HTMLButtonElement;
 const modal = document.getElementById("org-settings-modal") as HTMLDivElement;
 
 closeBtn.onclick = () => {
-  modal.classList.add("hidden");
+	modal.classList.add("hidden");
 };
 
 type Org = {
@@ -58,23 +60,33 @@ function escapeHtml(str: unknown): string {
 	);
 }
 
+async function getMyRole(orgId: string): Promise<Member["role"]> {
+  const { session, error } = await window.auth.getSession();
+  if (!session || error) throw new Error("Not authenticated");
+
+  const res = await window.auth.getMembers(orgId);
+  if (res?.error) throw new Error(res.error);
+
+  const me = res.members?.find(
+    (m) => m.user_id === session.user.id,
+  );
+  //@ts-ignore
+  return me?.role ?? "member";
+}
+
 async function loadOrgs(): Promise<void> {
 	const out = await window.auth.getOrganizations();
 	const list = document.getElementById("org-list")!;
-	const userOrgList = document.getElementById("user-org-list")!;
 	list.innerHTML = "";
-	userOrgList.innerHTML = "";
 
 	if (!out || out.error) {
 		list.textContent = out?.error ?? "Failed to load organizations";
-		userOrgList.textContent = out?.error ?? "Failed to load organizations";
 		return;
 	}
 
 	const orgs = out.organizations ?? [];
 	if (orgs.length === 0) {
 		list.textContent = "You are not a member of any organizations.";
-		userOrgList.textContent = "You are not a member of any organizations.";
 		return;
 	}
 
@@ -88,17 +100,13 @@ async function loadOrgs(): Promise<void> {
     `;
 		list.appendChild(card);
 
-		const listItem = document.createElement("li");
-		listItem.innerHTML = `
-      <span>${escapeHtml(org.name)} (${escapeHtml(org.slug)})</span>
-      <button class="settings-btn" data-orgid="${org.id}">Settings</button>
-    `;
-		userOrgList.appendChild(listItem);
-
-		const settingsBtn = listItem.querySelector(
+		const settingsBtn = card.querySelector(
 			".settings-btn",
 		) as HTMLButtonElement;
-		settingsBtn.onclick = () => openOrgSettings(org.id);
+		console.log(settingsBtn)
+    settingsBtn.addEventListener("click", () => {
+       openOrgSettings(org.id);
+    });
 
 		await renderMembers(org.id);
 		await renderMembersInOrgList(org.id);
@@ -106,59 +114,80 @@ async function loadOrgs(): Promise<void> {
 }
 
 async function openOrgSettings(orgId: string): Promise<void> {
-	const modal = document.getElementById(
-		"org-settings-modal",
-	) as HTMLDivElement;
-	const refreshBtn = document.getElementById(
-		"refresh-members-btn",
-	) as HTMLButtonElement;
-	const deleteBtn = document.getElementById(
-		"delete-org-btn",
-	) as HTMLButtonElement;
-	const inviteBtn = document.getElementById(
-		"invite-user-btn",
-	) as HTMLButtonElement;
-	const membersList = document.getElementById(
-		"org-members-list",
-	) as HTMLDivElement;
+  console.log("Opening settings for org:", orgId);
+  const modal = document.getElementById(
+    "org-settings-modal",
+  ) as HTMLDivElement;
 
-	modal.classList.remove("hidden");
+  const role = await getMyRole(orgId);
 
-	refreshBtn.onclick = async () => {
-		await renderMembers(orgId);
-	};
+  if (role === "member") {
+    alert("Access not permitted");
+    return;
+  }
 
-	deleteBtn.onclick = async () => {
-		if (
-			!confirm(
-				"Are you sure you want to delete this organization? This action cannot be undone.",
-			)
-		)
-			return;
-		const res = await window.auth.deleteOrganization({
-			organizationId: orgId,
-		});
-		if (res?.error) {
-			alert(res.error);
-			return;
-		}
-		modal.classList.add("hidden");
-		await loadOrgs();
-	};
+  modal.classList.remove("hidden");
 
-	inviteBtn.onclick = () => {
-		const inviteModal = document.getElementById(
-			"invite-modal",
-		) as HTMLDivElement;
-		inviteModal.classList.remove("hidden");
-		inviteModal.dataset.orgid = orgId;
-	};
+  const refreshBtn = document.getElementById(
+    "refresh-members-btn",
+  ) as HTMLButtonElement;
+  const deleteBtn = document.getElementById(
+    "delete-org-btn",
+  ) as HTMLButtonElement;
+  const inviteBtn = document.getElementById(
+    "invite-user-btn",
+  ) as HTMLButtonElement;
 
-	await renderMembers(orgId);
+  // UI permissions
+  deleteBtn.style.display = role === "owner" ? "inline-block" : "none";
+  //@ts-ignore
+  inviteBtn.style.display = role !== "member" ? "inline-block" : "none";
+
+  refreshBtn.onclick = async () => {
+    await renderMembers(orgId);
+  };
+
+  deleteBtn.onclick = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this organization? This action cannot be undone.",
+      )
+    )
+      return;
+
+    const res = await window.auth.deleteOrganization({
+      organizationId: orgId,
+    });
+
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+
+    modal.classList.add("hidden");
+    await loadOrgs();
+  };
+
+  inviteBtn.onclick = () => {
+    const inviteModal = document.getElementById(
+      "invite-modal",
+    ) as HTMLDivElement;
+    inviteModal.classList.remove("hidden");
+    inviteModal.dataset.orgid = orgId;
+  };
+
+  await renderMembers(orgId);
 }
+
 
 async function renderMembers(orgId: string): Promise<void> {
 	const target = document.getElementById("org-members-list");
+	const { session, error } = await window.auth.getSession();
+	if (!session || error) {
+		throw new Error("Failed to get current user session.");
+	}
+	const currentUserId = await session.user.id;
+	let currentUserRole: Member["role"] | null = null;
 
 	if (!target) {
 		console.error(`Element with ID org-members-list not found.`);
@@ -179,9 +208,18 @@ async function renderMembers(orgId: string): Promise<void> {
 	for (const m of members) {
 		const username = m.profiles?.username ?? m.user_id;
 		const item = document.createElement("div");
+		if (m.user_id === currentUserId) {
+			//@ts-ignore
+			currentUserRole = m.role;
+		}
+
+		const isSelf = m.user_id === currentUserId;
+		const isOwner = currentUserRole === "owner";
+		const isAdmin = currentUserRole === "admin";
+
 		item.innerHTML = `
       <span>${escapeHtml(username)} — ${escapeHtml(m.role)}</span>
-      <select id="role-${orgId}-${m.user_id}">
+      <select id="role-${orgId}-${m.user_id}" ${currentUserRole === "member" ? "disabled" : ""}>
         <option value="member" ${m.role === "member" ? "selected" : ""}>member</option>
         <option value="admin" ${m.role === "admin" ? "selected" : ""}>admin</option>
         <option value="owner" ${m.role === "owner" ? "selected" : ""}>owner</option>
@@ -202,15 +240,37 @@ async function renderMembers(orgId: string): Promise<void> {
 
 			if (newRole === oldRole) return;
 
-			// Optional guardrail for owner
-			if (newRole === "owner") {
+			if (isSelf && m.role === "owner" && newRole !== "owner") {
+				alert("You must transfer ownership to another member first.");
+				select.value = "owner";
+				return;
+			}
+
+			if (newRole === "owner" && isOwner && !isSelf) {
 				const ok = confirm(
-					"Are you sure you want to transfer ownership?",
+					"This will transfer ownership to this user and make you an admin. Continue?",
 				);
 				if (!ok) {
 					select.value = oldRole;
 					return;
 				}
+
+				// Step 1: Promote new owner
+				await window.auth.setMemberRole({
+					organizationId: orgId,
+					userId: m.user_id,
+					role: "owner",
+				});
+
+				// Step 2: Demote self to admin
+				await window.auth.setMemberRole({
+					organizationId: orgId,
+					userId: currentUserId!,
+					role: "admin",
+				});
+
+				await renderMembers(orgId);
+				return;
 			}
 
 			select.disabled = true;
