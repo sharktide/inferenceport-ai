@@ -47,23 +47,6 @@ function modelSupportsTools(modelName: string): boolean {
 	return toolSupportingModels.has(modelName.toLowerCase());
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-	const installedContainer = document.getElementById("installed-models");
-	const availableContainer = document.getElementById("available-models");
-	if (!installedContainer || !availableContainer) return;
-
-	const clientUrl = getClientUrl();
-	installedModels = await window.ollama.listModels(clientUrl);
-	availableModels = await fetchAvailableModels();
-
-	const { supportsTools } = await window.ollama.getToolSupportingModels();
-	toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
-
-	renderInstalledModels();
-	renderAvailableModels();
-});
-
-
 async function fetchAvailableModels(): Promise<AvailableModel[]> {
 	const response = await fetch("https://ollama.com/library");
 	const html = await response.text();
@@ -459,8 +442,11 @@ function removeHostMarketplace(index: number) {
 	openManageHostsDialog();
 }
 
-// Initialize host selection
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+	/* =========================
+	   Host initialization FIRST
+	   ========================= */
+
 	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
 	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
 	const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
@@ -470,16 +456,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	const savedHost = localStorage.getItem("host_select") || "local";
 	currentHost = savedHost;
-	if (hostSelect) hostSelect.value = savedHost;
 
 	if (hostSelect) {
 		updateHostSelectOptions();
+		hostSelect.value = savedHost;
 		hostSelect.addEventListener("change", updateHostSelectState);
 	}
 
 	remoteHostCancel?.addEventListener("click", () => {
 		remoteHostDialog?.classList.add("hidden");
-		if (hostSelect) hostSelect.value = localStorage.getItem("host_select") || "local";
+		if (hostSelect) {
+			hostSelect.value = localStorage.getItem("host_select") || "local";
+		}
 	});
 
 	remoteHostConfirm?.addEventListener("click", () => {
@@ -495,8 +483,9 @@ document.addEventListener("DOMContentLoaded", () => {
 		url = url.replace(/\/+$/, "");
 
 		const remotesStored: RemoteHost[] = JSON.parse(
-			localStorage.getItem("remote_hosts") || "[]",
+			localStorage.getItem("remote_hosts") || "[]"
 		);
+
 		if (!remotesStored.some((r) => r.url === url)) {
 			remotesStored.push({ url, alias });
 			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
@@ -504,19 +493,39 @@ document.addEventListener("DOMContentLoaded", () => {
 			const opt = document.createElement("option");
 			opt.value = `remote:${url}`;
 			opt.textContent = alias ? alias : `Remote: ${url}`;
-			const addRemoteOpt = hostSelect?.querySelector(
-				'option[value="add_remote"]',
-			);
-			if (addRemoteOpt && hostSelect)
+
+			const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
+			if (addRemoteOpt && hostSelect) {
 				hostSelect.insertBefore(opt, addRemoteOpt);
+			}
 		}
 
 		const sel = `remote:${url}`;
-		if (hostSelect) hostSelect.value = sel;
 		currentHost = sel;
 		localStorage.setItem("host_select", sel);
+		if (hostSelect) hostSelect.value = sel;
+
 		remoteHostDialog?.classList.add("hidden");
 	});
+
+	/* =========================
+	   Data loading AFTER host
+	   ========================= */
+
+	const installedContainer = document.getElementById("installed-models");
+	const availableContainer = document.getElementById("available-models");
+	if (!installedContainer || !availableContainer) return;
+
+	const clientUrl = getClientUrl();
+
+	installedModels = await window.ollama.listModels(clientUrl);
+	availableModels = await fetchAvailableModels();
+
+	const { supportsTools } = await window.ollama.getToolSupportingModels();
+	toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
+
+	renderInstalledModels();
+	renderAvailableModels();
 });
 
 (window as any).removeHostMarketplace = removeHostMarketplace;
