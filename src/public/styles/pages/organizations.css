@@ -10,7 +10,7 @@
 }
 
 .org-card {
-  background: var(--bg-light, #fff);
+  background: var(--bg-light);
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: var(--border-radius, 8px);
   padding: 20px;
@@ -40,7 +40,7 @@
   padding: 12px;
   border: none;
   border-radius: 6px 6px 0 0;
-  background: var(--gray, #eee);
+  background: var(--gray);
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s;
@@ -48,11 +48,10 @@
 
 .tab-btn.active {
   background: var(--primary-color, #3b82f6);
-  color: #fff;
 }
 
 .tab-btn:hover {
-  background: var(--secondary-color, #ddd);
+  background: var(--secondary-color);
 }
 
 /* Tab panels */
@@ -60,7 +59,7 @@
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 0 6px 6px 6px;
   padding: 20px;
-  background: var(--bg-light, #fff);
+  background: var(--bg-light);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
@@ -95,7 +94,6 @@
   margin-top: 10px;
   padding: 8px 12px;
   background: var(--primary-color, #3b82f6);
-  color: #fff;
   border: none;
   border-radius: var(--border-radius, 6px);
   cursor: pointer;
@@ -111,7 +109,7 @@
   padding: 20px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius, 8px);
-  background: var(--bg-light, #fff);
+  background: var(--bg-light);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
@@ -140,7 +138,7 @@
   padding: 10px;
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius, 8px);
-  background: var(--bg-light, #f9f9f9);
+  background: var(--bg-light);
   max-height: 150px;
   overflow-y: auto;
 }
@@ -206,3 +204,58 @@ button.danger:hover {
   background: #fecaca;
 }
 
+#org-members-list > div {
+  display: grid;
+  grid-template-columns: 1fr 160px 100px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-light);
+}
+
+#org-members-list > div > div {
+  display: contents;
+}
+
+#org-members-list span,
+#org-members-list select,
+#org-members-list a {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-right: 1px solid rgba(0, 0, 0, 0.12);
+  text-align: left;
+  align-self: center;
+  font-size: 14px;
+}
+
+#org-members-list a {
+  border-right: none;
+}
+
+#org-members-list > div > :nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+#org-members-list select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.2);
+  text-align: left;
+}
+
+#org-members-list .delete-link {
+  color: #dc2626;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+#org-members-list .delete-link:hover {
+  text-decoration: underline;
+}
+
+#org-members-list span:hover,
+#org-members-list a:hover {
+  background: rgba(0, 0, 0, 0.03);
+}

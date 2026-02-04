@@ -61,17 +61,15 @@ function escapeHtml(str: unknown): string {
 }
 
 async function getMyRole(orgId: string): Promise<Member["role"]> {
-  const { session, error } = await window.auth.getSession();
-  if (!session || error) throw new Error("Not authenticated");
+	const { session, error } = await window.auth.getSession();
+	if (!session || error) throw new Error("Not authenticated");
 
-  const res = await window.auth.getMembers(orgId);
-  if (res?.error) throw new Error(res.error);
+	const res = await window.auth.getMembers(orgId);
+	if (res?.error) throw new Error(res.error);
 
-  const me = res.members?.find(
-    (m) => m.user_id === session.user.id,
-  );
-  //@ts-ignore
-  return me?.role ?? "member";
+	const me = res.members?.find((m) => m.user_id === session.user.id);
+	//@ts-ignore
+	return me?.role ?? "member";
 }
 
 async function loadOrgs(): Promise<void> {
@@ -91,94 +89,102 @@ async function loadOrgs(): Promise<void> {
 	}
 
 	for (const org of orgs) {
+		const role = await getMyRole(org.id);
+
 		const card = document.createElement("div");
 		card.className = "org-card";
+
+		const settingsButtonHtml =
+			role !== "member"
+				? `<button class="settings-btn">Settings</button>`
+				: "";
+
 		card.innerHTML = `
-      <h2>${escapeHtml(org.name)} <small class="muted">(${escapeHtml(org.slug)})</small></h2>
-      <button class="settings-btn">Settings</button>
-      <div id="org-${org.id}-members" class="members-list"></div>
-    `;
+    <h2>${escapeHtml(org.name)} <small class="muted">(${escapeHtml(org.slug)})</small></h2>
+    ${settingsButtonHtml}
+    <div id="org-${org.id}-members" class="members-list"></div>
+  `;
+
 		list.appendChild(card);
 
 		const settingsBtn = card.querySelector(
 			".settings-btn",
 		) as HTMLButtonElement;
-		console.log(settingsBtn)
-    settingsBtn.addEventListener("click", () => {
-       openOrgSettings(org.id);
-    });
+		if (settingsBtn) {
+			settingsBtn.addEventListener("click", () => {
+				openOrgSettings(org.id);
+			});
+		}
 
-		await renderMembers(org.id);
-		await renderMembersInOrgList(org.id);
+		await renderMembersInOrgList(org.id, role);
 	}
 }
 
 async function openOrgSettings(orgId: string): Promise<void> {
-  console.log("Opening settings for org:", orgId);
-  const modal = document.getElementById(
-    "org-settings-modal",
-  ) as HTMLDivElement;
+	console.log("Opening settings for org:", orgId);
+	const modal = document.getElementById(
+		"org-settings-modal",
+	) as HTMLDivElement;
 
-  const role = await getMyRole(orgId);
+	const role = await getMyRole(orgId);
 
-  if (role === "member") {
-    alert("Access not permitted");
-    return;
-  }
+	if (role === "member") {
+		alert("Access not permitted");
+		return;
+	}
 
-  modal.classList.remove("hidden");
+	modal.classList.remove("hidden");
 
-  const refreshBtn = document.getElementById(
-    "refresh-members-btn",
-  ) as HTMLButtonElement;
-  const deleteBtn = document.getElementById(
-    "delete-org-btn",
-  ) as HTMLButtonElement;
-  const inviteBtn = document.getElementById(
-    "invite-user-btn",
-  ) as HTMLButtonElement;
+	const refreshBtn = document.getElementById(
+		"refresh-members-btn",
+	) as HTMLButtonElement;
+	const deleteBtn = document.getElementById(
+		"delete-org-btn",
+	) as HTMLButtonElement;
+	const inviteBtn = document.getElementById(
+		"invite-user-btn",
+	) as HTMLButtonElement;
 
-  // UI permissions
-  deleteBtn.style.display = role === "owner" ? "inline-block" : "none";
-  //@ts-ignore
-  inviteBtn.style.display = role !== "member" ? "inline-block" : "none";
+	// UI permissions
+	deleteBtn.style.display = role === "owner" ? "inline-block" : "none";
+	//@ts-ignore
+	inviteBtn.style.display = role !== "member" ? "inline-block" : "none";
 
-  refreshBtn.onclick = async () => {
-    await renderMembers(orgId);
-  };
+	refreshBtn.onclick = async () => {
+		await renderMembers(orgId);
+	};
 
-  deleteBtn.onclick = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this organization? This action cannot be undone.",
-      )
-    )
-      return;
+	deleteBtn.onclick = async () => {
+		if (
+			!confirm(
+				"Are you sure you want to delete this organization? This action cannot be undone.",
+			)
+		)
+			return;
 
-    const res = await window.auth.deleteOrganization({
-      organizationId: orgId,
-    });
+		const res = await window.auth.deleteOrganization({
+			organizationId: orgId,
+		});
 
-    if (res?.error) {
-      alert(res.error);
-      return;
-    }
+		if (res?.error) {
+			alert(res.error);
+			return;
+		}
 
-    modal.classList.add("hidden");
-    await loadOrgs();
-  };
+		modal.classList.add("hidden");
+		await loadOrgs();
+	};
 
-  inviteBtn.onclick = () => {
-    const inviteModal = document.getElementById(
-      "invite-modal",
-    ) as HTMLDivElement;
-    inviteModal.classList.remove("hidden");
-    inviteModal.dataset.orgid = orgId;
-  };
+	inviteBtn.onclick = () => {
+		const inviteModal = document.getElementById(
+			"invite-modal",
+		) as HTMLDivElement;
+		inviteModal.classList.remove("hidden");
+		inviteModal.dataset.orgid = orgId;
+	};
 
-  await renderMembers(orgId);
+	await renderMembers(orgId);
 }
-
 
 async function renderMembers(orgId: string): Promise<void> {
 	const target = document.getElementById("org-members-list");
@@ -310,35 +316,36 @@ async function renderMembers(orgId: string): Promise<void> {
 	target.appendChild(list);
 }
 
-async function renderMembersInOrgList(orgId: string): Promise<void> {
-	const target = document.getElementById(`org-${orgId}-members`);
+async function renderMembersInOrgList(orgId: string, role: Member["role"]) {
+  const target = document.getElementById(`org-${orgId}-members`);
+  if (!target) return;
 
-	if (!target) {
-		console.error(`Element with ID org-${orgId}-members not found.`);
-		return;
-	}
+  // Members cannot see others
+  if (role === "member") {
+    target.innerHTML = "<p>Members cannot view other members.</p>";
+    return;
+  }
 
-	target.textContent = "Loading members...";
+  target.textContent = "Loading members...";
+  const res = await window.auth.getMembers(orgId);
+  if (res?.error) {
+    target.textContent = `Error: ${res.error}`;
+    return;
+  }
 
-	const res = await window.auth.getMembers(orgId);
-	if (res?.error) {
-		target.textContent = `Error: ${res.error}`;
-		return;
-	}
+  const members = res.members ?? [];
+  const list = document.createElement("ul");
+  for (const m of members) {
+    const username = m.profiles?.username ?? m.user_id;
+    const item = document.createElement("li");
+    item.textContent = `${escapeHtml(username)} — ${escapeHtml(m.role)}`;
+    list.appendChild(item);
+  }
 
-	const members = res.members ?? [];
-	const list = document.createElement("ul");
-
-	for (const m of members) {
-		const username = m.profiles?.username ?? m.user_id;
-		const item = document.createElement("li");
-		item.textContent = `${escapeHtml(username)} — ${escapeHtml(m.role)}`;
-		list.appendChild(item);
-	}
-
-	target.innerHTML = "";
-	target.appendChild(list);
+  target.innerHTML = "";
+  target.appendChild(list);
 }
+
 
 window.addEventListener("DOMContentLoaded", async () => {
 	(document.getElementById("create-org-btn")! as HTMLButtonElement).onclick =
@@ -363,7 +370,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 		document.getElementById("accept-invite-btn")! as HTMLButtonElement
 	).onclick = async () => {
 		const token = (
-			document.getElementById("invite-code")! as HTMLInputElement
+			document.getElementById("invite-code-input")! as HTMLInputElement
 		).value.trim();
 		const out = document.getElementById("accept-result")!;
 		if (!token) {
