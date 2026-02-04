@@ -526,7 +526,34 @@ Keep it under 5 words.
 		async (
 			_event: IpcMainInvokeEvent,
 			modelName: string,
+			clientUrl?: string,
 		): Promise<string> => {
+			if (clientUrl) {
+				const base = clientUrl.replace(/\/$/, "");
+				const res = await fetch(`${base}/api/delete`, {
+					method: "DELETE",
+					headers: {
+						Authorization: `Bearer ${await issueProxyToken()}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ name: modelName }),
+				});
+
+				if (res.status === 401 || res.status === 403) {
+					const err: any = new Error("unauthorized");
+					err.code = "UNAUTHORIZED";
+					throw err;
+				}
+
+				if (!res.ok) {
+					const err: any = new Error(res.statusText);
+					err.code = "REMOTE_DELETE_FAILED";
+					throw err;
+				}
+
+				return `${modelName} deleted from remote`;
+			}
+
 			return new Promise((resolve, reject) => {
 				exec(
 					`"${ollamaPath}" rm ${modelName}`,
@@ -756,8 +783,74 @@ Keep it under 5 words.
 
 	ipcMain.handle(
 		"ollama:pull",
-		(_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
-			return new Promise((resolve, reject) => {
+		(_event: IpcMainInvokeEvent, modelName: string, clientUrl?: string): Promise<string> => {
+			return new Promise(async (resolve, reject) => {
+				if (clientUrl) {
+					try {
+						const base = clientUrl.replace(/\/$/, "");
+						const res = await fetch(`${base}/api/pull`, {
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${await issueProxyToken()}`,
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({ name: modelName }),
+						});
+
+						if (res.status === 401 || res.status === 403) {
+							const err: any = new Error("unauthorized");
+							err.code = "UNAUTHORIZED";
+							reject(err);
+							return;
+						}
+
+						if (!res.ok) {
+							const err: any = new Error(res.statusText);
+							err.code = "REMOTE_PULL_FAILED";
+							reject(err);
+							return;
+						}
+
+						// Handle streaming response for pull progress
+						if (res.body) {
+							const reader = res.body.getReader();
+							const decoder = new TextDecoder();
+							const win = BrowserWindow.getAllWindows()[0];
+
+							try {
+								while (true) {
+									const { done, value } = await reader.read();
+									if (done) break;
+
+									const chunk = decoder.decode(value, { stream: true });
+									const lines = chunk.split("\n");
+
+									for (const line of lines) {
+										if (line.trim()) {
+											const payload: PullProgress = {
+												model: modelName,
+												output: line,
+											};
+											if (win) {
+												win.webContents.send("ollama:pull-progress", payload);
+											}
+										}
+									}
+								}
+							} catch (e) {
+								reject(e);
+								return;
+							}
+						}
+
+						resolve(`${modelName} pulled from remote`);
+					} catch (err) {
+						reject(err);
+					}
+					return;
+				}
+
+				// --- local path unchanged ---
 				const child = spawn(ollamaPath, ["pull", modelName]);
 
 				const sendProgress = (data: Buffer) => {

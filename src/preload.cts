@@ -23,11 +23,11 @@ contextBridge.exposeInMainWorld("ollama", {
 	listModels: (clientUrl?: string): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list", clientUrl),
 	runModel: (name: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:run", name),
-	deleteModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:delete", name),
+	deleteModel: (name: string, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:delete", name, clientUrl),
 	resetChat: (): Promise<void> => ipcRenderer.invoke("ollama:reset"),
-	pullModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:pull", name),
+	pullModel: (name: string, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:pull", name, clientUrl),
 	onPullProgress: (cb: (data: PullProgress) => void): void => {
 		ipcRenderer.on(
 			"ollama:pull-progress",
