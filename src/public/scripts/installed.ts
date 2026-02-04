@@ -85,7 +85,7 @@ function updateHostSelectState() {
 
 	currentHost = v;
 	localStorage.setItem("host_select", v);
-	location.reload();
+	renderOllama();
 }
 
 async function renderOllama() {
@@ -97,6 +97,7 @@ async function renderOllama() {
     }
 
     spinner!.style.display = "flex";
+    container.innerHTML = "";
 
     try {
         const clientUrl = getClientUrl();

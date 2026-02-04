@@ -30,24 +30,92 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
         return res.end(JSON.stringify({ error: "Absolute URLs not allowed" }));
     }
 
-    const targetUrl = new URL(path, OLLAMA_URL);
+	const targetUrl = new URL(path, OLLAMA_URL);
 
-    const options = {
-        method: req.method,
-        headers: sanitizeHeaders(req.headers),
-    };
+	// Collect request body for logging and forwarding
+	const reqChunks: Buffer[] = [];
+	req.on("data", (chunk: Buffer) => reqChunks.push(chunk));
 
-    const proxyReq = http.request(targetUrl, options, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
-        proxyRes.pipe(res, { end: true });
-    });
+	req.on("end", () => {
+		const bodyBuf = Buffer.concat(reqChunks);
+		const bodyStr = bodyBuf.length ? bodyBuf.toString() : "";
 
-    req.pipe(proxyReq, { end: true });
+		// Log request details (mask sensitive auth token)
+		const logHeaders = maskAuthInHeaders(req.headers);
+		console.log(`[Proxy] Forwarding request -> ${req.method} ${targetUrl.href}`);
+		console.log(`[Proxy] From: ${req.socket.remoteAddress} Headers: ${JSON.stringify(logHeaders)}`);
+		if (bodyStr) console.log(`[Proxy] Request body (truncated): ${truncateString(bodyStr, 2000)}`);
 
-    proxyReq.on("error", (err) => {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Proxy error", details: err.message }));
-    });
+		const cleanHeaders = sanitizeHeaders(req.headers);
+
+		// Set content-length if we have a body and header was removed
+		if (bodyBuf.length && !(cleanHeaders as any)["content-length"]) {
+			(cleanHeaders as any)["content-length"] = Buffer.byteLength(bodyBuf);
+		}
+
+		const options = {
+			method: req.method,
+			headers: cleanHeaders,
+		};
+
+		const proxyReq = http.request(targetUrl, options, (proxyRes) => {
+			// Collect response for logging while streaming back to client
+			const resChunks: Buffer[] = [];
+
+			res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
+
+			proxyRes.on("data", (chunk: Buffer) => {
+				resChunks.push(chunk);
+				res.write(chunk);
+			});
+
+			proxyRes.on("end", () => {
+				res.end();
+				const resBody = Buffer.concat(resChunks).toString();
+				console.log(`[Proxy] Response <- ${proxyRes.statusCode} Headers: ${JSON.stringify(proxyRes.headers)}`);
+				if (resBody) console.log(`[Proxy] Response body (truncated): ${truncateString(resBody, 2000)}`);
+			});
+
+			proxyRes.on("error", (err) => {
+				console.error("[Proxy] Response error:", err);
+			});
+		});
+
+		proxyReq.on("error", (err) => {
+			console.error("[Proxy] Request error:", err);
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "Proxy error", details: err.message }));
+		});
+
+		// Write body (if present) and end
+		if (bodyBuf.length && req.method && req.method.toUpperCase() !== "GET" && req.method.toUpperCase() !== "HEAD") {
+			proxyReq.write(bodyBuf);
+		}
+		proxyReq.end();
+	});
+}
+
+function maskAuthInHeaders(headers: IncomingMessage["headers"]) {
+	const out: Record<string, any> = {};
+	for (const [k, v] of Object.entries(headers)) {
+		if (!k) continue;
+		if (k.toLowerCase() === "authorization") {
+			try {
+				const val = Array.isArray(v) ? v[0] : (v as string | undefined);
+				out[k] = val ? `Bearer ${maskToken(val.split(" ").pop() || "")}` : val;
+			} catch {
+				out[k] = v;
+			}
+		} else {
+			out[k] = v;
+		}
+	}
+	return out;
+}
+
+function truncateString(s: string, max = 2000) {
+	if (s.length <= max) return s;
+	return s.slice(0, max) + `... (truncated ${s.length - max} bytes)`;
 }
 
 
@@ -168,6 +236,7 @@ export function startProxyServer(
 
 			// Role-based checks: admin => full access. member => read-only for model operations.
 			const role = (matched.role || "member").toLowerCase();
+			console.log(`[Role] User role: ${role}`);
 			if (role !== "admin") {
 				const method = (req.method || "GET").toUpperCase();
 				const path = req.url || "";
@@ -181,6 +250,9 @@ export function startProxyServer(
 					return res.end(JSON.stringify({ error: "Insufficient permissions" }));
 				}
 			}
+
+			console.log("Request headers: ", JSON.stringify(req.headers));
+			//console.log("Request body: ", JSON.stringify(req.));
 
 			forwardRequest(req, res);
 		});

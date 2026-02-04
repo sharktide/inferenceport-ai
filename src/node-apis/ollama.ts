@@ -530,13 +530,15 @@ Keep it under 5 words.
 		): Promise<string> => {
 			if (clientUrl) {
 				const base = clientUrl.replace(/\/$/, "");
+				console.log(base);
+				console.log(JSON.stringify({ model: modelName }));
 				const res = await fetch(`${base}/api/delete`, {
 					method: "DELETE",
 					headers: {
 						Authorization: `Bearer ${await issueProxyToken()}`,
 						"Content-Type": "application/json",
 					},
-					body: JSON.stringify({ name: modelName }),
+					body: JSON.stringify({ model: modelName }),
 				});
 
 				if (res.status === 401 || res.status === 403) {

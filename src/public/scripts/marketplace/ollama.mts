@@ -441,7 +441,13 @@ function updateHostSelectState() {
 
 	currentHost = v;
 	localStorage.setItem("host_select", v);
-	location.reload();
+	
+	// Re-fetch and re-render models without page reload
+	(async () => {
+		const clientUrl = getClientUrl();
+		installedModels = await window.ollama.listModels(clientUrl);
+		renderInstalledModels();
+	})();
 }
 
 function removeHostMarketplace(index: number) {
