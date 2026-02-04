@@ -37,7 +37,7 @@
 						<h2>Delete Account</h2>
 						<p>Are you SURE you want to delete your account? This action is irreversible!</p>
 						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
+							<button onclick="document.getElementById('delete-dialog').classList.add('hidden')">Cancel</button>
 							<button id ="del-ps" style="max-width: 200px; color: red !important">Delete</button>
 						</div>
 					</div>
@@ -46,9 +46,9 @@
 					<div class="modal-content">
 						<h2>Delete Account</h2>
 						<p>Please enter your password to permanently delete your account.</p>
-						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
+						<input type="password" id="password" placeholder="Enter password" style="max-width: 275px;">
 						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-password-dialog').style.display = 'none'">Cancel</button>
+							<button onclick="document.getElementById('delete-password-dialog').classList.add('hidden')">Cancel</button>
 							<button style="max-width: 200px; color: red !important" id="deleteforreal">Delete</button>
 						</div>
 						<p id="delete-password-status"></p>
@@ -64,11 +64,11 @@
 				<details open id="account-settings"><Summary>Account</Summary>
 					<p> </p>
 					<div>
-						<button onclick="document.getElementById('rename-dialog').style.display = 'flex'" class="theme-toggle">Change Username</button>
+						<button onclick="document.getElementById('rename-dialog').classList.remove('hidden')" class="theme-toggle">Change Username</button>
 					</div>
 					<p> </p>
 					<div>
-						<button onclick="document.getElementById('delete-dialog').style.display = 'flex'" class="theme-toggle red" style="color: red !important">Delete Account</button>
+						<button onclick="document.getElementById('delete-dialog').classList.remove('hidden')" class="theme-toggle red" style="color: red !important">Delete Account</button>
 					</div>
 				</details>
 

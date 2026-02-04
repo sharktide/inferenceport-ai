@@ -1,3 +1,10 @@
+const closeBtn = document.getElementById("close-org-settings") as HTMLButtonElement;
+const modal = document.getElementById("org-settings-modal") as HTMLDivElement;
+
+closeBtn.onclick = () => {
+  modal.classList.add("hidden");
+};
+
 type Org = {
 	id: string;
 	name: string;
@@ -88,7 +95,9 @@ async function loadOrgs(): Promise<void> {
     `;
 		userOrgList.appendChild(listItem);
 
-		const settingsBtn = listItem.querySelector(".settings-btn") as HTMLButtonElement;
+		const settingsBtn = listItem.querySelector(
+			".settings-btn",
+		) as HTMLButtonElement;
 		settingsBtn.onclick = () => openOrgSettings(org.id);
 
 		await renderMembers(org.id);
@@ -97,11 +106,21 @@ async function loadOrgs(): Promise<void> {
 }
 
 async function openOrgSettings(orgId: string): Promise<void> {
-	const modal = document.getElementById("org-settings-modal") as HTMLDivElement;
-	const refreshBtn = document.getElementById("refresh-members-btn") as HTMLButtonElement;
-	const deleteBtn = document.getElementById("delete-org-btn") as HTMLButtonElement;
-	const inviteBtn = document.getElementById("invite-user-btn") as HTMLButtonElement;
-	const membersList = document.getElementById("org-members-list") as HTMLDivElement;
+	const modal = document.getElementById(
+		"org-settings-modal",
+	) as HTMLDivElement;
+	const refreshBtn = document.getElementById(
+		"refresh-members-btn",
+	) as HTMLButtonElement;
+	const deleteBtn = document.getElementById(
+		"delete-org-btn",
+	) as HTMLButtonElement;
+	const inviteBtn = document.getElementById(
+		"invite-user-btn",
+	) as HTMLButtonElement;
+	const membersList = document.getElementById(
+		"org-members-list",
+	) as HTMLDivElement;
 
 	modal.classList.remove("hidden");
 
@@ -110,8 +129,15 @@ async function openOrgSettings(orgId: string): Promise<void> {
 	};
 
 	deleteBtn.onclick = async () => {
-		if (!confirm("Are you sure you want to delete this organization? This action cannot be undone.")) return;
-		const res = await window.auth.deleteOrganization({ organizationId: orgId });
+		if (
+			!confirm(
+				"Are you sure you want to delete this organization? This action cannot be undone.",
+			)
+		)
+			return;
+		const res = await window.auth.deleteOrganization({
+			organizationId: orgId,
+		});
 		if (res?.error) {
 			alert(res.error);
 			return;
@@ -121,7 +147,9 @@ async function openOrgSettings(orgId: string): Promise<void> {
 	};
 
 	inviteBtn.onclick = () => {
-		const inviteModal = document.getElementById("invite-modal") as HTMLDivElement;
+		const inviteModal = document.getElementById(
+			"invite-modal",
+		) as HTMLDivElement;
 		inviteModal.classList.remove("hidden");
 		inviteModal.dataset.orgid = orgId;
 	};
@@ -158,28 +186,49 @@ async function renderMembers(orgId: string): Promise<void> {
         <option value="admin" ${m.role === "admin" ? "selected" : ""}>admin</option>
         <option value="owner" ${m.role === "owner" ? "selected" : ""}>owner</option>
       </select>
-      <button id="setrole-${orgId}-${m.user_id}">Set Role</button>
       <a class="delete-link" id="rem-${orgId}-${m.user_id}">Remove</a>
     `;
 		list.appendChild(item);
 
-		(
-			item.querySelector(
-				`#setrole-${orgId}-${m.user_id}`,
-			)! as HTMLButtonElement
-		).onclick = async () => {
-			const sel = (
-				document.getElementById(
-					`role-${orgId}-${m.user_id}`,
-				)! as HTMLSelectElement
-			).value as Member["role"];
+		const select = item.querySelector(
+			`#role-${orgId}-${m.user_id}`,
+		) as HTMLSelectElement;
+
+		select.value = m.role;
+
+		select.onchange = async () => {
+			const newRole = select.value as Member["role"];
+			const oldRole = select.dataset.original as Member["role"];
+
+			if (newRole === oldRole) return;
+
+			// Optional guardrail for owner
+			if (newRole === "owner") {
+				const ok = confirm(
+					"Are you sure you want to transfer ownership?",
+				);
+				if (!ok) {
+					select.value = oldRole;
+					return;
+				}
+			}
+
+			select.disabled = true;
+
 			const r = await window.auth.setMemberRole({
 				organizationId: orgId,
 				userId: m.user_id,
-				role: sel,
+				role: newRole,
 			});
-			if (r?.error) return alert(r.error);
-			await renderMembers(orgId);
+
+			if (r?.error) {
+				alert(r.error);
+				select.value = oldRole;
+			} else {
+				select.dataset.original = newRole;
+			}
+
+			select.disabled = false;
 		};
 
 		(

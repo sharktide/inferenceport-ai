@@ -1,86 +1,110 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Organizations — InferencePort</title>
-  <link rel="stylesheet" href="styles/styles.css" />
-  <script type="module" src="Components.js"></script>
-  <script type="module" src="scripts/staticload/index.js"></script>
-</head>
-<body>
-  <root-navbar></root-navbar>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Organizations — InferencePort</title>
+		<link rel="stylesheet" href="styles/styles.css" />
+		<script type="module" src="Components.js"></script>
+		<script type="module" src="scripts/staticload/index.js"></script>
+    <style>
+      button {
+        width: auto;
+        flex: 0 0 auto;
+      }
+    </style>
+	</head>
+	<body>
+		<root-navbar></root-navbar>
 
-  <div class="modal hidden" id="invite-modal">
-	<div class="modal-content">
-		<h3>Invite User</h3>
-		<input id="invite-email" placeholder="Enter user email" />
-		<div class="modal-actions">
-			<button id="cancel-invite">Cancel</button>
-			<button id="invite-btn">Invite</button>
+		<div class="modal hidden" id="invite-modal">
+			<div class="modal-content">
+				<h3>Invite User</h3>
+				<input id="invite-email" placeholder="Enter user email" />
+				<div class="modal-actions">
+					<button id="cancel-invite">Cancel</button>
+					<button id="invite-btn">Invite</button>
+				</div>
+				<p id="invite-code"></p>
+			</div>
 		</div>
-		<p id="invite-code"></p>
-	</div>
-  </div>
 
-  <!-- Organization Settings Modal -->
-  <div class="modal hidden" id="org-settings-modal">
-    <div class="modal-content">
-      <h3>Organization Settings</h3>
-      <div id="org-settings-buttons">
-        <button id="refresh-members-btn">Refresh Members</button>
-        <button id="delete-org-btn">Delete Organization</button>
-        <button id="invite-user-btn">Invite User</button>
-      </div>
-      <div id="org-members-list" class="members-list"></div>
-      <button id="close-org-settings">Close</button>
-    </div>
-  </div>
+		<!-- Organization Settings Modal -->
+		<div class="modal hidden" id="org-settings-modal">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3>Organization Settings</h3>
+					<span
+						class="modal-close"
+						id="close-org-settings"
+						aria-label="Close"
+					>
+						&times;
+        </span>
+				</div>
 
-  <main class="org-container">
-    <h1>Organizations</h1>
+				<div class="org-actions">
+					<button id="refresh-members-btn">Refresh Members</button>
+					<button id="invite-user-btn">Invite User</button>
+					<button id="delete-org-btn" class="danger">
+						Delete Organization
+					</button>
+				</div>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="create-org">Create Organization</button>
-      <button class="tab-btn" data-tab="accept-invite">Join Organization</button>
-      <button class="tab-btn" data-tab="my-orgs">My Organizations</button>
-    </div>
+				<div id="org-members-list" class="members-list"></div>
+			</div>
+		</div>
 
-    <!-- Tab Panels -->
-    <div class="tab-content">
-      <!-- Create Organization -->
-      <section id="create-org" class="tab-panel active">
-        <h2>Create Organization</h2>
-        <input id="org-name" placeholder="Organization name" />
-        <input id="org-slug" placeholder="slug (unique)" />
-        <button id="create-org-btn">Create</button>
-        <div id="create-result" class="muted"></div>
-      </section>
+		<main class="org-container">
+			<h1>Organizations</h1>
 
-      <!-- Join Organization -->
-      <section id="accept-invite" class="tab-panel">
-        <h2>Join with Code</h2>
-        <input id="invite-code" placeholder="Invite code" />
-        <button id="accept-invite-btn">Join</button>
-        <div id="accept-result" class="muted"></div>
-      </section>
+			<div class="tabs">
+				<button class="tab-btn active" data-tab="create-org">
+					Create Organization
+				</button>
+				<button class="tab-btn" data-tab="accept-invite">
+					Join Organization
+				</button>
+				<button class="tab-btn" data-tab="my-orgs">
+					My Organizations
+				</button>
+			</div>
 
-      <!-- My Organizations -->
-      <section id="my-orgs" class="tab-panel">
-        <h2>Your Organizations</h2>
-        <div id="org-list">Loading...</div>
-      </section>
-    </div>
+			<!-- Tab Panels -->
+			<div class="tab-content">
+				<!-- Create Organization -->
+				<section id="create-org" class="tab-panel active">
+					<h2>Create Organization</h2>
+					<input id="org-name" placeholder="Organization name" />
+					<input id="org-slug" placeholder="slug (unique)" />
+					<button id="create-org-btn">Create</button>
+					<div id="create-result" class="muted"></div>
+				</section>
 
-    <!-- Organizations List -->
-    <section class="org-list-container">
-      <h2>Organizations You Are Part Of</h2>
-      <ul id="user-org-list">
-        <!-- Organizations will be dynamically loaded here -->
-      </ul>
-    </section>
-  </main>
+				<!-- Join Organization -->
+				<section id="accept-invite" class="tab-panel">
+					<h2>Join with Code</h2>
+					<input id="invite-code" placeholder="Invite code" />
+					<button id="accept-invite-btn">Join</button>
+					<div id="accept-result" class="muted"></div>
+				</section>
 
-  <script type="module" src="scripts/organizations.js"></script>
-</body>
+				<!-- My Organizations -->
+				<section id="my-orgs" class="tab-panel">
+					<h2>Your Organizations</h2>
+					<div id="org-list">Loading...</div>
+				</section>
+			</div>
+
+			<!-- Organizations List -->
+			<section class="org-list-container">
+				<h2>Organizations You Are Part Of</h2>
+				<ul id="user-org-list">
+					<!-- Organizations will be dynamically loaded here -->
+				</ul>
+			</section>
+		</main>
+
+		<script type="module" src="scripts/organizations.js"></script>
+	</body>
 </html>
