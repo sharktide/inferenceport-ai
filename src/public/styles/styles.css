@@ -35,6 +35,6 @@ limitations under the License.
 @import "./pages/marketplace.css";
 @import "./pages/chat.css";
 @import "./pages/settings.css";
-
+@import "./pages/organizations.css";
 /** Utilities last */
 @import "./components/utility.css";
