@@ -122,7 +122,7 @@ export default function register() {
 			const { data: existing, error: checkError } = await authedClient
 				.from("profiles")
 				.select("id")
-				.eq("username", username)f
+				.eq("username", username)
 				.maybeSingle();
 
 			if (checkError) return { error: checkError.message };
