@@ -30,6 +30,8 @@ import type {
 	ChatHistoryEntry,
 	ModelInfo,
 	PullProgress,
+	PullChunk,
+	PullSection,
 } from "./types/index.types.d.ts";
 import { startProxyServer, stopProxyServer } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
@@ -116,6 +118,54 @@ async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 		baseURL,
 		apiKey: "ollama",
 	});
+}
+function renderBar(completed = 0, total = 0, width = 20): string {
+	if (!total) return "[                  ]";
+	const ratio = Math.min(completed / total, 1);
+	const filled = Math.round(ratio * width);
+	return `[${"█".repeat(filled)}${" ".repeat(width - filled)}]`;
+}
+
+function formatBytes(bytes?: number): string {
+	if (typeof bytes !== "number" || Number.isNaN(bytes)) {
+		return "0B";
+	}
+
+	const units = ["B", "KB", "MB", "GB", "TB"];
+	let i = 0;
+	let n = bytes;
+
+	while (n >= 1024 && i < units.length - 1) {
+		n /= 1024;
+		i++;
+	}
+
+	return `${n.toFixed(1)}${units[i]}`;
+}
+
+function renderProgress(sections: Map<string, PullSection>): string {
+	const lines: string[] = [];
+
+	for (const section of sections.values()) {
+		const total = section.total;
+		const completed = section.completed ?? 0;
+
+		if (!total) {
+			lines.push(section.label);
+			continue;
+		}
+
+		const bar = renderBar(completed, total);
+		const pct = Math.floor((completed / total) * 100);
+
+		lines.push(
+			`${section.label} ${bar} ${pct}% (${formatBytes(
+				completed,
+			)} / ${formatBytes(total)})`,
+		);
+	}
+
+	return lines.join("\n");
 }
 
 const dataDir: string = path.join(app.getPath("userData"), "chat-sessions");
@@ -725,17 +775,18 @@ Keep it under 5 words.
 
 					followUpOpenAI = await createOpenAIClient(clientUrl);
 
-					const followUpStream = await followUpOpenAI.chat.completions.create(
-						{
-							model: modelName,
-							messages: [
-								{ role: "system", content: systemPrompt },
-								...messagesForModel(chatHistory),
-							],
-							stream: true,
-						},
-						{ signal: abortController.signal },
-					);
+					const followUpStream =
+						await followUpOpenAI.chat.completions.create(
+							{
+								model: modelName,
+								messages: [
+									{ role: "system", content: systemPrompt },
+									...messagesForModel(chatHistory),
+								],
+								stream: true,
+							},
+							{ signal: abortController.signal },
+						);
 
 					assistantMessage = "";
 
@@ -785,7 +836,14 @@ Keep it under 5 words.
 
 	ipcMain.handle(
 		"ollama:pull",
-		(_event: IpcMainInvokeEvent, modelName: string, clientUrl?: string): Promise<string> => {
+		(
+			_event: IpcMainInvokeEvent,
+			modelName: string,
+			clientUrl?: string,
+		): Promise<string> => {
+			const sections = new Map<string, PullSection>();
+			console.log(clientUrl)
+
 			return new Promise(async (resolve, reject) => {
 				if (clientUrl) {
 					try {
@@ -813,7 +871,6 @@ Keep it under 5 words.
 							return;
 						}
 
-						// Handle streaming response for pull progress
 						if (res.body) {
 							const reader = res.body.getReader();
 							const decoder = new TextDecoder();
@@ -824,18 +881,59 @@ Keep it under 5 words.
 									const { done, value } = await reader.read();
 									if (done) break;
 
-									const chunk = decoder.decode(value, { stream: true });
+									const chunk = decoder.decode(value, {
+										stream: true,
+									});
 									const lines = chunk.split("\n");
 
 									for (const line of lines) {
-										if (line.trim()) {
-											const payload: PullProgress = {
-												model: modelName,
-												output: line,
-											};
-											if (win) {
-												win.webContents.send("ollama:pull-progress", payload);
+										if (!line.trim()) continue;
+
+										let parsed: PullChunk;
+										try {
+											parsed = JSON.parse(line);
+										} catch {
+											continue;
+										}
+
+										if (parsed.status && !parsed.digest) {
+											sections.set(parsed.status, {
+												label: parsed.status,
+											});
+										}
+
+										if (parsed.digest) {
+											const key = parsed.digest.slice(
+												0,
+												12,
+											);
+
+											const section =
+												sections.get(key) ??
+												sections.set(key, {
+													label: `pulling ${key}`,
+													completed: 0,
+												}).get(key)!;
+
+											if (section && parsed.total !== undefined) {
+												section.total = parsed.total;
 											}
+											if (section && parsed.completed !== undefined) {
+												section.completed =
+													parsed.completed;
+											}
+										}
+
+										const payload: PullProgress = {
+											model: modelName,
+											output: renderProgress(sections),
+										};
+
+										if (win) {
+											win.webContents.send(
+												"ollama:pull-progress",
+												payload,
+											);
 										}
 									}
 								}
