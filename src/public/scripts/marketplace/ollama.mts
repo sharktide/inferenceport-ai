@@ -15,12 +15,24 @@ interface InstalledModel {
 	modified: string;
 }
 
+interface RemoteHost {
+	url: string;
+	alias: string;
+}
+
 let installedModels: InstalledModel[] = [];
 let availableModels: AvailableModel[] = [];
 
 let currentModelName = "";
 let currentModelSizes: string[] = [];
 let toolSupportingModels: Set<string> = new Set();
+let currentHost: string = "local";
+
+function getClientUrl(): string | undefined {
+	return currentHost.startsWith("remote:")
+		? currentHost.replace("remote:", "")
+		: undefined;
+}
 
 const TOOL_FEATURES = [
 	{ key: "web", label: "Web search", icon: "🌐" },
@@ -40,7 +52,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 	const availableContainer = document.getElementById("available-models");
 	if (!installedContainer || !availableContainer) return;
 
-	installedModels = await window.ollama.listModels();
+	const clientUrl = getClientUrl();
+	installedModels = await window.ollama.listModels(clientUrl);
 	availableModels = await fetchAvailableModels();
 
 	const { supportsTools } = await window.ollama.getToolSupportingModels();
@@ -82,7 +95,8 @@ async function fetchAvailableModels(): Promise<AvailableModel[]> {
 
 async function pullModel(name: string): Promise<void> {
 	try {
-		await window.ollama.pullModel(name);
+		const clientUrl = getClientUrl();
+		await window.ollama.pullModel(name, clientUrl);
 		showNotification({
 			message: `Model pulled: ${name}`,
 			type: "success",
@@ -98,7 +112,8 @@ async function pullModel(name: string): Promise<void> {
 
 async function deleteModel(name: string): Promise<void> {
 	try {
-		await window.ollama.deleteModel(name);
+		const clientUrl = getClientUrl();
+		await window.ollama.deleteModel(name, clientUrl);
 		showNotification({
 			message: `Model deleted: ${name}`,
 			type: "success",
@@ -355,3 +370,147 @@ document
 		const target = e.target as HTMLInputElement;
 		renderAvailableModels(target.value);
 	});
+
+function openManageHostsDialog() {
+	const dialog = document.getElementById("manage-hosts-dialog")!;
+	const list = document.getElementById("remote-host-list")!;
+	list.innerHTML = "";
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	remotes.forEach((host, index) => {
+		const item = document.createElement("li");
+		item.innerHTML = `
+			<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd;">
+				<div>
+					<strong>${host.alias || "Unnamed"}</strong><br>
+					<small>${host.url}</small>
+				</div>
+				<button onclick="window.removeHostMarketplace(${index})" style="background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+			</div>
+		`;
+		list.appendChild(item);
+	});
+
+	dialog.classList.remove("hidden");
+
+	document.getElementById("manage-hosts-close")!.onclick = () => {
+		dialog.classList.add("hidden");
+	};
+}
+
+function updateHostSelectOptions() {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	if (!hostSelect) return;
+
+	Array.from(hostSelect.options).forEach((opt) => {
+		if (opt.value.startsWith("remote:")) opt.remove();
+	});
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+
+	remotes.forEach((host) => {
+		const opt = document.createElement("option");
+		opt.value = `remote:${host.url}`;
+		opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
+		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+	});
+}
+
+function updateHostSelectState() {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const v = hostSelect.value;
+
+	if (v === "add_remote") {
+		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+		remoteHostDialog?.classList.remove("hidden");
+		remoteHostInput?.focus();
+		return;
+	}
+
+	if (v === "manage_hosts") {
+		openManageHostsDialog();
+		return;
+	}
+
+	currentHost = v;
+	localStorage.setItem("host_select", v);
+	location.reload();
+}
+
+function removeHostMarketplace(index: number) {
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	remotes.splice(index, 1);
+	localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+	openManageHostsDialog();
+}
+
+// Initialize host selection
+document.addEventListener("DOMContentLoaded", () => {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+	const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+	const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
+	const remoteHostCancel = document.getElementById("remote-host-cancel")!;
+	const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
+
+	const savedHost = localStorage.getItem("host_select") || "local";
+	currentHost = savedHost;
+	if (hostSelect) hostSelect.value = savedHost;
+
+	if (hostSelect) {
+		updateHostSelectOptions();
+		hostSelect.addEventListener("change", updateHostSelectState);
+	}
+
+	remoteHostCancel?.addEventListener("click", () => {
+		remoteHostDialog?.classList.add("hidden");
+		if (hostSelect) hostSelect.value = localStorage.getItem("host_select") || "local";
+	});
+
+	remoteHostConfirm?.addEventListener("click", () => {
+		let url = (remoteHostInput?.value || "").trim();
+		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+
+		if (!url) return;
+
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+			url = url.replace(/\/+$/, "") + ":52458";
+		}
+		url = url.replace(/\/+$/, "");
+
+		const remotesStored: RemoteHost[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		if (!remotesStored.some((r) => r.url === url)) {
+			remotesStored.push({ url, alias });
+			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+
+			const opt = document.createElement("option");
+			opt.value = `remote:${url}`;
+			opt.textContent = alias ? alias : `Remote: ${url}`;
+			const addRemoteOpt = hostSelect?.querySelector(
+				'option[value="add_remote"]',
+			);
+			if (addRemoteOpt && hostSelect)
+				hostSelect.insertBefore(opt, addRemoteOpt);
+		}
+
+		const sel = `remote:${url}`;
+		if (hostSelect) hostSelect.value = sel;
+		currentHost = sel;
+		localStorage.setItem("host_select", sel);
+		remoteHostDialog?.classList.add("hidden");
+	});
+});
+
+(window as any).removeHostMarketplace = removeHostMarketplace;

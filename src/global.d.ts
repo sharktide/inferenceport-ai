@@ -19,12 +19,12 @@ export {};
 declare global {
 	interface Window {
 		ollama: {
-			listModels: () => Promise<ModelInfo[]>;
+			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
-			deleteModel: (name: string) => Promise<string>;
+			deleteModel: (name: string, clientUrl?: string) => Promise<string>;
 			resetChat: () => Promise<void>;
 			stop: () => void;
-			pullModel: (name: string) => Promise<string>;
+			pullModel: (name: string, clientUrl?: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
 			streamPrompt: (
 				model: string,
