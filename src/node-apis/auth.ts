@@ -502,9 +502,10 @@ export default function register() {
 	});
 
 	ipcMain.handle("org:acceptInvite", async (_event, { token }) => {
-			if (!token) return { error: "Missing token" };
-			// normalize token: trim and remove common prefixes
-			token = String(token || "").trim().replace(/^Code:\s*/i, "");
+		if (!token) return { error: "Missing token" };
+		console.log("Received invite token:", token);
+		token = String(token || "").trim().replace(/^Code:\s*/i, "").toLocaleLowerCase();
+		console.log("Accepting invite with token:", token);
 		const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 		if (sessionError || !sessionData.session) return { error: "Not authenticated" };
 		const userId = sessionData.session.user.id;
