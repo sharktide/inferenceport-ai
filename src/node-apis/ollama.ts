@@ -143,6 +143,34 @@ function formatBytes(bytes?: number): string {
 	else return `${n.toFixed(0)} ${units[i]}`;
 }
 
+function timeAgo(dateString: string | Date | undefined): string {
+	if (!dateString) return "Unknown";
+
+	const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+	if (isNaN(date.getTime())) return "Unknown";
+
+	const now = new Date();
+	const diff = now.getTime() - date.getTime();
+	const seconds = Math.floor(diff / 1000);
+
+	const intervals = [
+		{ label: "year", seconds: 31536000 },
+		{ label: "month", seconds: 2592000 },
+		{ label: "week", seconds: 604800 },
+		{ label: "day", seconds: 86400 },
+		{ label: "hour", seconds: 3600 },
+		{ label: "minute", seconds: 60 },
+		{ label: "second", seconds: 1 },
+	];
+
+	for (const { label, seconds: sec } of intervals) {
+		const count = Math.floor(seconds / sec);
+		if (count > 0) return `${count} ${label}${count > 1 ? "s" : ""} ago`;
+	}
+
+	return "just now";
+}
+
 function renderProgress(sections: Map<string, PullSection>): string {
 	const lines: string[] = [];
 
@@ -527,7 +555,7 @@ Keep it under 5 words.
 					name: m.name,
 					id: m.digest ?? "remote",
 					size: formatBytes(m.size ?? 0) ?? "Unknown",
-					modified: m.modified_at ?? "Unknown",
+					modified: timeAgo(m.modified_at) ?? "Unknown",
 				}));
 			}
 
