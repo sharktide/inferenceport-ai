@@ -179,6 +179,19 @@
 							</div>
 							<p id="host-status" class="muted"></p>
 						</div>
+
+						<!-- Server Logs Panel -->
+						<div id="server-logs-panel" style="margin-top:12px;display:none;max-width:720px;">
+							<label>Server Logs</label>
+							<div style="display:flex;gap:8px;margin:8px 0;">
+								<button id="logs-refresh">Refresh Logs</button>
+								<button id="logs-start">Start Streaming</button>
+								<button id="logs-stop" disabled>Stop Streaming</button>
+								<button id="logs-clear">Clear</button>
+							</div>
+							<pre id="logs-output" style="background:var(--input-bg);color:var(--input-text);padding:12px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #7abff8;"></pre>
+							<p id="logs-hint" class="muted" style="margin-top:6px;">Logs are shown when the proxy server is running on your machine.</p>
+						</div>
 					</details>
 			</div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>

@@ -259,6 +259,76 @@ function setHostingUIRunning(running: boolean, port?: number) {
     if (hostStatus) hostStatus.textContent = running ? `Server running on port ${port}` : 'Server stopped';
 }
 
+// Server logs UI wiring
+const serverLogsPanel = document.getElementById('server-logs-panel') as HTMLDivElement | null;
+const logsRefreshBtn = document.getElementById('logs-refresh') as HTMLButtonElement | null;
+const logsStartBtn = document.getElementById('logs-start') as HTMLButtonElement | null;
+const logsStopBtn = document.getElementById('logs-stop') as HTMLButtonElement | null;
+const logsClearBtn = document.getElementById('logs-clear') as HTMLButtonElement | null;
+const logsOutput = document.getElementById('logs-output') as HTMLPreElement | null;
+
+let isLogStreaming = false;
+
+function setServerLogUIRunning(running: boolean, port?: number) {
+    if (!serverLogsPanel) return;
+    serverLogsPanel.style.display = running ? 'block' : 'none';
+    if (!running) {
+        // reset streaming state
+        isLogStreaming = false;
+        if (logsStartBtn) logsStartBtn.disabled = false;
+        if (logsStopBtn) logsStopBtn.disabled = true;
+    }
+}
+
+function appendLogs(chunk: string) {
+    if (!logsOutput) return;
+    logsOutput.textContent += chunk;
+    logsOutput.scrollTop = logsOutput.scrollHeight;
+}
+
+logsRefreshBtn?.addEventListener('click', async () => {
+    if (!logsOutput) return;
+    logsOutput.textContent = 'Loading...';
+    try {
+        const data = await window.ollama.getServerLogs();
+        logsOutput.textContent = data || '';
+        logsOutput.scrollTop = logsOutput.scrollHeight;
+    } catch (e: any) {
+        logsOutput.textContent = `Error: ${e?.message || e}`;
+    }
+});
+
+logsStartBtn?.addEventListener('click', async () => {
+    if (isLogStreaming) return;
+    try {
+        await window.ollama.startLogStreaming();
+        isLogStreaming = true;
+        if (logsStartBtn) logsStartBtn.disabled = true;
+        if (logsStopBtn) logsStopBtn.disabled = false;
+        // register append handler
+        window.ollama.onLogAppend((chunk: string) => {
+            appendLogs(chunk);
+        });
+    } catch (e: any) {
+        appendLogs(`Error starting streaming: ${e?.message || e}`);
+    }
+});
+
+logsStopBtn?.addEventListener('click', async () => {
+    if (!isLogStreaming) return;
+    try {
+        await window.ollama.stopLogStreaming();
+    } catch {}
+    isLogStreaming = false;
+    if (logsStartBtn) logsStartBtn.disabled = false;
+    if (logsStopBtn) logsStopBtn.disabled = true;
+});
+
+logsClearBtn?.addEventListener('click', () => {
+    if (!logsOutput) return;
+    logsOutput.textContent = '';
+});
+
 const savedEmails = localStorage.getItem('host_emails') || '';
 if (hostEmailsInput) hostEmailsInput.value = savedEmails;
 
@@ -293,7 +363,15 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
     const portNum = 52458;
     try {
         const running = await isLocalProxyRunning(portNum, 800);
-        if (running) setHostingUIRunning(true, portNum);
+        if (running) {
+            setHostingUIRunning(true, portNum);
+            setServerLogUIRunning(true, portNum);
+            // initial fetch of logs
+            try {
+                const data = await window.ollama.getServerLogs();
+                if (logsOutput) logsOutput.textContent = data || '';
+            } catch {}
+        }
     } catch (e) {
     }
 })();
