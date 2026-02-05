@@ -1,3 +1,5 @@
+import { showNotification } from "./helper/notification.js";
+
 const usernameInput = document.getElementById('username') as HTMLInputElement;
 const saveButton = document.getElementById('save') as HTMLButtonElement;
 const status = document.getElementById('status') as HTMLParagraphElement;
@@ -305,7 +307,6 @@ logsStartBtn?.addEventListener('click', async () => {
         isLogStreaming = true;
         if (logsStartBtn) logsStartBtn.disabled = true;
         if (logsStopBtn) logsStopBtn.disabled = false;
-        // register append handler
         window.ollama.onLogAppend((chunk: string) => {
             appendLogs(chunk);
         });
@@ -366,7 +367,6 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
         if (running) {
             setHostingUIRunning(true, portNum);
             setServerLogUIRunning(true, portNum);
-            // initial fetch of logs
             try {
                 const data = await window.ollama.getServerLogs();
                 if (logsOutput) logsOutput.textContent = data || '';
@@ -377,6 +377,13 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 })();
 
 hostStartBtn?.addEventListener('click', async () => {
+	const models = await window.ollama.listModels(undefined);
+	if (models.length === 0) {
+        if (hostStatus) hostStatus.textContent = 'No models available. Please download a model before starting the server.';
+        showNotification({message: "Could not start the server", type: "error"});
+        return;
+    }
+
     const port = 52458;
     const emailsToUse = emails.filter(isValidEmail);
     if (emailsToUse.length === 0) {
@@ -384,7 +391,6 @@ hostStartBtn?.addEventListener('click', async () => {
         return;
     }
 
-    // Open configuration dialog to assign roles before starting server
     const existingUsersRaw = localStorage.getItem(HOST_USERS_KEY);
     let existingUsers: { email: string; role: string }[] = [];
     try { existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : []; } catch { existingUsers = []; }
@@ -394,7 +400,6 @@ hostStartBtn?.addEventListener('click', async () => {
         return { email: e, role: (found && found.role) || 'member' };
     });
 
-    // Build modal
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
     modal.style.left = '0';
@@ -448,7 +453,6 @@ hostStartBtn?.addEventListener('click', async () => {
         row.appendChild(roleTd);
         table.appendChild(row);
 
-        // attach selector back to user object on change
         select.addEventListener('change', () => {
             users[idx]!.role = select.value;
         });
