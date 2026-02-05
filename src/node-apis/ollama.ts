@@ -31,7 +31,7 @@ import type {
 	PullChunk,
 	PullSection,
 } from "./types/index.types.d.ts";
-import { startProxyServer, stopProxyServer, startLogStreaming, stopLogStreaming, getServerLogs } from "./helper/server.js";
+import { startProxyServer, stopProxyServer, getServerLogs } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
@@ -997,15 +997,6 @@ Keep it under 5 words.
 		} catch (err) {
 			return false;
 		}
-	});
-
-	
-	ipcMain.handle("ollama:start-log-streaming", (event: Electron.IpcMainInvokeEvent) => {
-		startLogStreaming(event);
-	});
-
-	ipcMain.handle("ollama:stop-log-streaming", () => {
-		stopLogStreaming();
 	});
 }
 

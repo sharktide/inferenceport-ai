@@ -101,8 +101,6 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.invoke("ollama:start-proxy-server", port, users),
 	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),
 	getServerLogs: (): Promise<string> => ipcRenderer.invoke("ollama:get-server-logs"),
-	startLogStreaming: () => ipcRenderer.invoke("ollama:start-log-streaming"),
-	stopLogStreaming: () => ipcRenderer.invoke("ollama:stop-log-streaming"),
 	onLogAppend: (callback: (chunk: string) => void) => ipcRenderer.on("ollama:logs-append", (_: Electron.IpcRendererEvent, chunk: string) => callback(chunk)),
 });
 

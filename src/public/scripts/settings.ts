@@ -249,25 +249,30 @@ window.addEventListener("DOMContentLoaded", async () => {
     details.appendChild(msg);
 });
 
-const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement | null;
-const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement | null;
-const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement | null;
-const hostStatus = document.getElementById('host-status') as HTMLParagraphElement | null;
+const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement;
+const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement;
+const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement;
+const hostStatus = document.getElementById('host-status') as HTMLParagraphElement;
 const RESTART_REQUIRED_KEY = "host_restart_required";
 
-function setHostingUIRunning(running: boolean, port?: number) {
+async function setHostingUIRunning(running: boolean, port?: number) {
     if (hostStartBtn) hostStartBtn.disabled = running;
     if (hostStopBtn) hostStopBtn.disabled = !running;
     if (hostStatus) hostStatus.textContent = running ? `Server running on port ${port}` : 'Server stopped';
+    if (running) {
+        serverLogsPanel.style.display = 'block';
+        logsOutput.textContent = await window.ollama.getServerLogs();
+    } else {
+        serverLogsPanel.style.display = 'none';
+    }
 }
 
-// Server logs UI wiring
-const serverLogsPanel = document.getElementById('server-logs-panel') as HTMLDivElement | null;
-const logsRefreshBtn = document.getElementById('logs-refresh') as HTMLButtonElement | null;
-const logsStartBtn = document.getElementById('logs-start') as HTMLButtonElement | null;
-const logsStopBtn = document.getElementById('logs-stop') as HTMLButtonElement | null;
-const logsClearBtn = document.getElementById('logs-clear') as HTMLButtonElement | null;
-const logsOutput = document.getElementById('logs-output') as HTMLPreElement | null;
+const serverLogsPanel = document.getElementById('server-logs-panel') as HTMLDivElement;
+const logsRefreshBtn = document.getElementById('logs-refresh') as HTMLButtonElement;
+const logsStartBtn = document.getElementById('logs-start') as HTMLButtonElement;
+const logsStopBtn = document.getElementById('logs-stop') as HTMLButtonElement;
+const logsClearBtn = document.getElementById('logs-clear') as HTMLButtonElement;
+const logsOutput = document.getElementById('logs-output') as HTMLPreElement;
 
 let isLogStreaming = false;
 
@@ -275,7 +280,6 @@ function setServerLogUIRunning(running: boolean, port?: number) {
     if (!serverLogsPanel) return;
     serverLogsPanel.style.display = running ? 'block' : 'none';
     if (!running) {
-        // reset streaming state
         isLogStreaming = false;
         if (logsStartBtn) logsStartBtn.disabled = false;
         if (logsStopBtn) logsStopBtn.disabled = true;
@@ -300,36 +304,6 @@ logsRefreshBtn?.addEventListener('click', async () => {
     }
 });
 
-logsStartBtn?.addEventListener('click', async () => {
-    if (isLogStreaming) return;
-    try {
-        await window.ollama.startLogStreaming();
-        isLogStreaming = true;
-        if (logsStartBtn) logsStartBtn.disabled = true;
-        if (logsStopBtn) logsStopBtn.disabled = false;
-        window.ollama.onLogAppend((chunk: string) => {
-            appendLogs(chunk);
-        });
-    } catch (e: any) {
-        appendLogs(`Error starting streaming: ${e?.message || e}`);
-    }
-});
-
-logsStopBtn?.addEventListener('click', async () => {
-    if (!isLogStreaming) return;
-    try {
-        await window.ollama.stopLogStreaming();
-    } catch {}
-    isLogStreaming = false;
-    if (logsStartBtn) logsStartBtn.disabled = false;
-    if (logsStopBtn) logsStopBtn.disabled = true;
-});
-
-logsClearBtn?.addEventListener('click', () => {
-    if (!logsOutput) return;
-    logsOutput.textContent = '';
-});
-
 const savedEmails = localStorage.getItem('host_emails') || '';
 if (hostEmailsInput) hostEmailsInput.value = savedEmails;
 
@@ -352,7 +326,7 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
     try {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
-        const res = await fetch(`http://127.0.0.1:${port}/v1`, { method: 'GET', signal: controller.signal });
+        const res = await fetch(`http://127.0.0.1:${port}/__health`, { method: 'GET', signal: controller.signal });
         clearTimeout(id);
         return !!res;
     } catch (e) {
@@ -491,7 +465,6 @@ hostStartBtn?.addEventListener('click', async () => {
     dialog.appendChild(actions);
     modal.appendChild(dialog);
     document.body.appendChild(modal);
-    // end modal
 });
 
 hostStopBtn?.addEventListener('click', async () => {

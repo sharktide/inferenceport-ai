@@ -46,8 +46,6 @@ declare global {
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
 			stopServer: () => Promise<void>;
-			startLogStreaming: () => Promise<void>;
-			stopLogStreaming: () => Promise<void>;
 			onLogAppend: (callback: (chunk: string) => void) => void;
 			getServerLogs: () => Promise<string>;
 		};

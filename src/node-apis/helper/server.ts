@@ -6,20 +6,28 @@ import fs from "fs";
 import path from "path";
 import { app } from "electron";
 
-const logDir: string = path.join(app.getPath("userData"), "logs");
+const logDir = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
-let logWatcher: fs.FSWatcher | null = null;
-let lastSize = 0;
 
 fs.mkdirSync(logDir, { recursive: true });
+
+// Ensure secure permissions on first creation
+try {
+	if (!fs.existsSync(logFile)) {
+		fs.closeSync(fs.openSync(logFile, "a", 0o600));
+	}
+} catch {}
 
 const VERIFY_URL =
 	"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify_token_with_email";
 const OLLAMA_URL = "http://localhost:11434";
 
 let server: http.Server | null = null;
-
 let logStream: fs.WriteStream | null = null;
+
+/* ---------------- Logging ---------------- */
+
+const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 
 function sanitizeForLog(value: string): string {
 	return value
@@ -28,17 +36,32 @@ function sanitizeForLog(value: string): string {
 		.trim();
 }
 
+function rotateLogIfNeeded() {
+	try {
+		const stat = fs.statSync(logFile);
+		if (stat.size >= MAX_LOG_SIZE) {
+			const rotated = logFile.replace(
+				".log",
+				`-${Date.now()}.log`,
+			);
+			logStream?.close();
+			logStream = null;
+			fs.renameSync(logFile, rotated);
+		}
+	} catch {}
+}
+
 function initLogger() {
 	if (logStream) return;
 	try {
 		logStream = fs.createWriteStream(logFile, { flags: "a" });
-	} catch {
-		void 0;
-	}
+	} catch {}
 }
 
 function logLine(level: "INFO" | "WARN" | "ERROR", message: string) {
+	rotateLogIfNeeded();
 	initLogger();
+
 	const line =
 		`[${new Date().toISOString()}] [${level}] ` +
 		sanitizeForLog(message) +
@@ -48,10 +71,32 @@ function logLine(level: "INFO" | "WARN" | "ERROR", message: string) {
 	else if (level === "WARN") console.warn(line.trim());
 	else console.log(line.trim());
 
-	if (logStream) {
-		logStream.write(line);
-	}
+	logStream?.write(line);
 }
+
+/* ---------------- Rate limiting ---------------- */
+
+const HEALTH_RATE_LIMIT = { windowMs: 60_000, max: 30 };
+const healthHits = new Map<string, { count: number; resetAt: number }>();
+
+function checkHealthRateLimit(ip: string): boolean {
+	const now = Date.now();
+	const entry = healthHits.get(ip);
+
+	if (!entry || now > entry.resetAt) {
+		healthHits.set(ip, {
+			count: 1,
+			resetAt: now + HEALTH_RATE_LIMIT.windowMs,
+		});
+		return true;
+	}
+
+	if (entry.count >= HEALTH_RATE_LIMIT.max) return false;
+	entry.count++;
+	return true;
+}
+
+/* ---------------- Utils ---------------- */
 
 function maskToken(token?: string, visibleChars = 6): string {
 	if (!token) return "undefined";
@@ -82,12 +127,15 @@ function sanitizeHeaders(
 
 	const clean: http.OutgoingHttpHeaders = {};
 	for (const [key, value] of Object.entries(headers)) {
-		if (!key) continue;
-		if (forbidden.has(key.toLowerCase())) continue;
+		if (!key || forbidden.has(key.toLowerCase())) continue;
 		clean[key] = value;
 	}
 	return clean;
 }
+
+/* ---------------- Proxy ---------------- */
+
+const MAX_BODY_SIZE = 20 * 1024 * 1024; // 20MB
 
 function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 	const pathValue = req.url ?? "/";
@@ -98,16 +146,27 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 	}
 
 	const targetUrl = new URL(pathValue, OLLAMA_URL);
+	const safeUrl = targetUrl.origin + targetUrl.pathname;
+
+	let totalSize = 0;
 	const reqChunks: Buffer[] = [];
 
-	req.on("data", (chunk: Buffer) => reqChunks.push(chunk));
+	req.on("data", (chunk: Buffer) => {
+		totalSize += chunk.length;
+		if (totalSize > MAX_BODY_SIZE) {
+			logLine("WARN", "Request body too large");
+			req.destroy();
+			return;
+		}
+		reqChunks.push(chunk);
+	});
 
 	req.on("end", () => {
 		const bodyBuf = Buffer.concat(reqChunks);
 
 		logLine(
 			"INFO",
-			`[Proxy] Forwarding -> ${sanitizeForLog(req.method || "UNKNOWN")} ${sanitizeForLog(targetUrl.href)}`,
+			`[Proxy] Forwarding -> ${sanitizeForLog(req.method || "UNKNOWN")} ${sanitizeForLog(safeUrl)}`,
 		);
 
 		const cleanHeaders = sanitizeHeaders(req.headers);
@@ -119,32 +178,13 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 			targetUrl,
 			{ method: req.method, headers: cleanHeaders },
 			(proxyRes) => {
-				const resChunks: Buffer[] = [];
 				res.writeHead(proxyRes.statusCode ?? 500, proxyRes.headers);
-
-				proxyRes.on("data", (chunk: Buffer) => {
-					resChunks.push(chunk);
-					res.write(chunk);
-				});
-
-				proxyRes.on("end", () => {
-					res.end();
-					const resBody = Buffer.concat(resChunks).toString();
-
-					logLine(
-						"INFO",
-						`[Proxy] Response <- ${proxyRes.statusCode}`,
-					);
-				});
-
-				proxyRes.on("error", (err) => {
-					logLine("ERROR", `[Proxy] Response error: ${err?.message || "unknown"}`);
-				});
+				proxyRes.pipe(res);
 			},
 		);
 
 		proxyReq.on("error", (err) => {
-			logLine("ERROR", `[Proxy] Request error: ${err?.message || "unknown"}`);
+			logLine("ERROR", `[Proxy] Request error: ${err.message}`);
 			res.writeHead(500, { "Content-Type": "application/json" });
 			res.end(JSON.stringify({ error: "Proxy error" }));
 		});
@@ -160,6 +200,8 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 		proxyReq.end();
 	});
 }
+
+/* ---------------- Auth ---------------- */
 
 function verifyToken(
 	token: string | undefined | null,
@@ -192,6 +234,8 @@ function verifyToken(
 	req.end();
 }
 
+/* ---------------- Server ---------------- */
+
 export function startProxyServer(
 	port = 52458,
 	allowedUsers: { email: string; role: string }[] = [],
@@ -205,6 +249,16 @@ export function startProxyServer(
 	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
 
+		// Health endpoint (no logging spam)
+		if (req.method === "GET" && req.url === "/__health") {
+			if (!checkHealthRateLimit(ip)) {
+				res.writeHead(429);
+				return res.end();
+			}
+			res.writeHead(204);
+			return res.end();
+		}
+
 		logLine(
 			"INFO",
 			`[Connection] From=${hashIP(ip)} Path=${sanitizeForLog(req.url || "/")}`,
@@ -212,7 +266,6 @@ export function startProxyServer(
 
 		const authHeader = req.headers["authorization"];
 		if (!authHeader?.startsWith("Bearer ")) {
-			logLine("WARN", "Missing Authorization header");
 			res.writeHead(401, { "Content-Type": "application/json" });
 			return res.end(JSON.stringify({ error: "Missing Authorization header" }));
 		}
@@ -222,40 +275,19 @@ export function startProxyServer(
 
 		verifyToken(token, allowedUsers.map(u => u.email), (status, result) => {
 			if (status !== 200 || !result?.found || !result.email) {
-				logLine("WARN", "Token verification failed");
 				res.writeHead(401, { "Content-Type": "application/json" });
 				return res.end(JSON.stringify({ error: "Token verification failed" }));
 			}
 
 			const matched = allowedUsers.find(u => u.email === result.email);
 			if (!matched) {
-				logLine(
-					"WARN",
-					`Authenticated but not allowed: ${sanitizeForLog(maskToken(result.email))}`,
-				);
 				res.writeHead(403, { "Content-Type": "application/json" });
 				return res.end(JSON.stringify({ error: "Access denied" }));
 			}
 
-			logLine(
-				"INFO",
-				`[Auth] Verified user ${hashIP(sanitizeForLog(result.email))}`,
-			);
-
-			const role = (matched.role || "member").toLowerCase();
-			logLine("INFO", `[Role] ${sanitizeForLog(role)}`);
-
-			if (role !== "admin") {
+			if ((matched.role || "member").toLowerCase() !== "admin") {
 				const method = (req.method || "GET").toUpperCase();
-				const pathValue = req.url || "";
-				const sensitivePattern =
-					/pull|rm|remove|delete|create|models|run|pull-model|tags|tasks/i;
-
-				if (method !== "GET" && sensitivePattern.test(pathValue)) {
-					logLine(
-						"WARN",
-						`Access denied ${method} ${sanitizeForLog(pathValue)} role=${role}`,
-					);
+				if (method !== "GET" && /pull|rm|delete|create|models|run/i.test(req.url || "")) {
 					res.writeHead(403, { "Content-Type": "application/json" });
 					return res.end(JSON.stringify({ error: "Insufficient permissions" }));
 				}
@@ -269,54 +301,19 @@ export function startProxyServer(
 		logLine("INFO", `Proxy server running on http://localhost:${port}`);
 	});
 
-	return {
-		server,
-		destroy: stopProxyServer,
-	};
+	return { server, destroy: stopProxyServer };
 }
 
 export function stopProxyServer() {
-	if (server) {
-		server.close(() => {
-			logLine("INFO", "Proxy server stopped");
-			server = null;
-		});
-	}
-}
-
-export function startLogStreaming(event: Electron.IpcMainInvokeEvent) {
-	if (logWatcher) return;
-	try {
-		lastSize = fs.statSync(logFile).size;
-	} catch {
-		lastSize = 0;
-	}
-
-	logWatcher = fs.watch(logFile, async () => {
-		try {
-			const stat = await fs.promises.stat(logFile);
-			if (stat.size < lastSize) lastSize = 0;
-
-			const stream = fs.createReadStream(logFile, { start: lastSize, end: stat.size });
-			let chunk = "";
-			stream.on("data", (d) => (chunk += d.toString()));
-			stream.on("end", () => {
-				lastSize = stat.size;
-				if (chunk) event.sender.send("ollama:logs-append", chunk);
-			});
-		} catch {}
+	server?.close(() => {
+		logLine("INFO", "Proxy server stopped");
+		server = null;
 	});
-}
-
-export function stopLogStreaming() {
-	logWatcher?.close();
-	logWatcher = null;
 }
 
 export async function getServerLogs(): Promise<string> {
 	try {
-		const data = await fs.promises.readFile(logFile, "utf-8");
-		return data;
+		return await fs.promises.readFile(logFile, "utf-8");
 	} catch {
 		return "";
 	}
