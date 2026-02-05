@@ -23,7 +23,7 @@
     "markdown-it": "^14.1.0",
     "openai": "^6.17.0",
     "sanitize-html": "^2.17.0",
-    "systeminformation": "^5.30.6"
+    "systeminformation": "^5.30.7"
   },
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
