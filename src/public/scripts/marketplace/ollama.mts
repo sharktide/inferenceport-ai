@@ -225,120 +225,128 @@ document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 	closePullModal();
 });
 
-function renderInstalledModels(filter: string = ""): void {
+function renderInstalledModels(filter: string = "", fail?: boolean): void {
 	const spinner = document.getElementById("installed-spinner") as HTMLDivElement;
-	spinner.style.display = "flex";
 	const container = document.getElementById("installed-models");
-	if (!container) return;
-	const theme = localStorage.getItem('theme');
-	container.innerHTML = "";
-	if (installedModels.length === 0) {
-		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
-		if (theme === 'light') {
-			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+	if (!spinner || !container) return;
+
+	spinner.style.display = "flex";
+
+	try {
+		if (fail) throw new Error("Could not load models from the selected host.");
+		container.innerHTML = "";
+		const theme = localStorage.getItem("theme");
+
+		if (installedModels.length === 0) {
+			const modelsNotFound = document.createElement("p");
+			modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
+			if (theme === 'light') {
+				modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+			}
+			container.appendChild(modelsNotFound);
+			return;
 		}
-		container.appendChild(modelsNotFound);
-		spinner.style.display = "none"
-		return;
-	}
-	installedModels
-		.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
-		.forEach((model) => {
-			const card = document.createElement("div");
-			card.className = "marketplace-card";
-			card.innerHTML = `
-				<h2>${model.name}</h2>
-				<p><strong>Size:</strong> ${model.size}</p>
-				<p><strong>Modified:</strong> ${model.modified}</p>
-				<button>Delete</button>
-			`;
-			const button = card.querySelector("button");
-			button?.addEventListener("click", () => deleteModel(model.name));
-			container.appendChild(card);
+
+		installedModels
+			.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+			.forEach((model) => {
+				const card = document.createElement("div");
+				card.className = "marketplace-card";
+				card.innerHTML = `
+					<h2>${model.name}</h2>
+					<p><strong>Size:</strong> ${model.size}</p>
+					<p><strong>Modified:</strong> ${model.modified}</p>
+					<button>Delete</button>
+				`;
+				const button = card.querySelector("button");
+				button?.addEventListener("click", () => deleteModel(model.name));
+				container.appendChild(card);
+			});
+	} catch (err: any) {
+		container.innerHTML = `<p style="color:red"><strong>Error loading installed models:</strong> ${err?.message ?? err}</p>`;
+		showNotification({
+			message: `Error rendering installed models: ${err?.message ?? err}`,
+			type: "error",
 		});
-	spinner.style.display = "none"
+	} finally {
+		spinner.style.display = "none";
+	}
 }
 
 function renderAvailableModels(filter: string = ""): void {
 	const spinner = document.getElementById("spinner-av") as HTMLDivElement;
-	spinner.style.display = "flex"
 	const container = document.getElementById("available-models");
-	if (!container) return;
+	if (!spinner || !container) return;
 
-	container.innerHTML = "";
+	spinner.style.display = "flex";
 
-	const installedNames = installedModels.map((m) => m.name);
+	try {
+		container.innerHTML = "";
 
-	availableModels
-		.filter((model) => !installedNames.includes(model.name))
-		.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
-		.forEach((model) => {
-			const card = document.createElement("div");
-			card.className = "marketplace-card";
-			card.id = encodeURIComponent(model.name);
+		const installedNames = installedModels.map((m) => m.name);
 
-			const sizeOptions = model.sizes
-				.map((size) => `<option value="${size}">${size}</option>`)
-				.join("");
-			const tagBadges = model.tags
-				.map((tag) => `<span class="model-tag">${tag}</span>`)
-				.join(" ");
+		availableModels
+			.filter((model) => !installedNames.includes(model.name))
+			.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+			.forEach((model) => {
+				const card = document.createElement("div");
+				card.className = "marketplace-card";
+				card.id = encodeURIComponent(model.name);
 
-			const supportsTools = modelSupportsTools(model.name);
+				const sizeOptions = model.sizes
+					.map((size) => `<option value="${size}">${size}</option>`)
+					.join("");
+				const tagBadges = model.tags
+					.map((tag) => `<span class="model-tag">${tag}</span>`)
+					.join(" ");
 
-			const featureBadges = supportsTools
-				? TOOL_FEATURES.map(
-						(f) =>
-							`<span class="feature-badge on">${f.icon} ${f.label}</span>`
-				).join("")
-				: TOOL_FEATURES.map(
-						(f) =>
-							`<span class="feature-badge off">${f.icon} ${f.label}</span>`
-				).join("");
+				const supportsTools = modelSupportsTools(model.name);
 
+				const featureBadges = supportsTools
+					? TOOL_FEATURES.map((f) => `<span class="feature-badge on">${f.icon} ${f.label}</span>`).join("")
+					: TOOL_FEATURES.map((f) => `<span class="feature-badge off">${f.icon} ${f.label}</span>`).join("");
 
-			card.innerHTML = `
-        <h2>${model.name}</h2>
-        <p class="model-description">${
-					model.description ?? "No description available."
-				}</p>
-        <div class="model-tags">${tagBadges}</div>
-		<div class="model-features">
-			${featureBadges}
-		</div>
+				card.innerHTML = `
+					<h2>${model.name}</h2>
+					<p class="model-description">${model.description ?? "No description available."}</p>
+					<div class="model-tags">${tagBadges}</div>
+					<div class="model-features">${featureBadges}</div>
+					<div class="model-meta">
+						<p><strong>Pulls:</strong> ${model.pulls}</p>
+						<p><strong>Updated:</strong> ${model.updated}</p>
+						<a href="https://ollama.com${model.link ?? ""}" target="_blank" class="model-link">More details</a>
+					</div>
+					<button class="marketplace-btn">Open Download Dialog</button>
+				`;
 
-        <div class="model-meta">
-          <p><strong>Pulls:</strong> ${model.pulls}</p>
-          <p><strong>Updated:</strong> ${model.updated}</p>
-          <a href="https://ollama.com${
-						model.link ?? ""
-					}" target="_blank" class="model-link">More details</a>
-        </div>
-        <button class="marketplace-btn">Open Download Dialog</button>
-      `;
+				const button = card.querySelector("button");
+				button?.addEventListener("click", () => openPullModal(model.name, model.sizes));
 
-			const button = card.querySelector("button");
-			button?.addEventListener("click", () =>
-				openPullModal(model.name, model.sizes)
-			);
+				container.appendChild(card);
+			});
 
-			container.appendChild(card);
+		const targetId = decodeURIComponent(location.hash.slice(1));
+		if (targetId) {
+			const targetEl = document.getElementById(targetId);
+			if (targetEl) {
+				const yOffset = -100;
+				const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+				window.scrollTo({ top: y, behavior: "smooth" });
+
+				targetEl.classList.add("highlight");
+			}
+		}
+	} catch (err: any) {
+		container.innerHTML = `<p style="color:red"><strong>Error loading available models:</strong> ${err?.message ?? err}</p>`;
+		showNotification({
+			message: `Error rendering available models: ${err?.message ?? err}`,
+			type: "error",
 		});
-	spinner.style.display = "none"
-
-	const targetId = decodeURIComponent(location.hash.slice(1));
-    if (targetId) {
-        const targetEl = document.getElementById(targetId);
-        if (targetEl) {
-            const yOffset = -100;
-            const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            window.scrollTo({ top: y, behavior: "smooth" });
-
-            targetEl.classList.add("highlight");
-        }
-    }
+	} finally {
+		spinner.style.display = "none";
+	}
 }
+
 
 document
 	.getElementById("search-installed")
@@ -452,11 +460,15 @@ function updateHostSelectState() {
 	currentHost = v;
 	localStorage.setItem("host_select", v);
 	
-	// Re-fetch and re-render models without page reload
 	(async () => {
 		const clientUrl = getClientUrl();
-		installedModels = await window.ollama.listModels(clientUrl);
-		renderInstalledModels();
+		try {
+			installedModels = await window.ollama.listModels(clientUrl);
+			renderInstalledModels();
+		} catch (err: any) {
+			installedModels = [];
+			renderInstalledModels("", true);
+		}
 	})();
 }
 
@@ -470,89 +482,94 @@ function removeHostMarketplace(index: number) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-	/* =========================
-	   Host initialization FIRST
-	   ========================= */
+	try {
+		const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+		const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
+		const remoteHostCancel = document.getElementById("remote-host-cancel")!;
+		const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
 
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
-	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-	const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
-	const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
-	const remoteHostCancel = document.getElementById("remote-host-cancel")!;
-	const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
+		const savedHost = localStorage.getItem("host_select") || "local";
+		currentHost = savedHost;
 
-	const savedHost = localStorage.getItem("host_select") || "local";
-	currentHost = savedHost;
-
-	if (hostSelect) {
-		updateHostSelectOptions();
-		hostSelect.value = savedHost;
-		hostSelect.addEventListener("change", updateHostSelectState);
-	}
-
-	remoteHostCancel?.addEventListener("click", () => {
-		remoteHostDialog?.classList.add("hidden");
 		if (hostSelect) {
-			hostSelect.value = localStorage.getItem("host_select") || "local";
+			updateHostSelectOptions();
+			hostSelect.value = savedHost;
+			hostSelect.addEventListener("change", updateHostSelectState);
 		}
-	});
 
-	remoteHostConfirm?.addEventListener("click", () => {
-		let url = (remoteHostInput?.value || "").trim();
-		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
-
-		if (!url) return;
-
-		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
-			url = url.replace(/\/+$/, "") + ":52458";
-		}
-		url = url.replace(/\/+$/, "");
-
-		const remotesStored: RemoteHost[] = JSON.parse(
-			localStorage.getItem("remote_hosts") || "[]"
-		);
-
-		if (!remotesStored.some((r) => r.url === url)) {
-			remotesStored.push({ url, alias });
-			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
-
-			const opt = document.createElement("option");
-			opt.value = `remote:${url}`;
-			opt.textContent = alias ? alias : `Remote: ${url}`;
-
-			const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
-			if (addRemoteOpt && hostSelect) {
-				hostSelect.insertBefore(opt, addRemoteOpt);
+		remoteHostCancel?.addEventListener("click", () => {
+			remoteHostDialog?.classList.add("hidden");
+			if (hostSelect) {
+				hostSelect.value = localStorage.getItem("host_select") || "local";
 			}
+		});
+
+		remoteHostConfirm?.addEventListener("click", () => {
+			let url = (remoteHostInput?.value || "").trim();
+			const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+
+			if (!url) return;
+
+			if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+			if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+				url = url.replace(/\/+$/, "") + ":52458";
+			}
+			url = url.replace(/\/+$/, "");
+
+			const remotesStored: RemoteHost[] = JSON.parse(
+				localStorage.getItem("remote_hosts") || "[]"
+			);
+
+			if (!remotesStored.some((r) => r.url === url)) {
+				remotesStored.push({ url, alias });
+				localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+
+				const opt = document.createElement("option");
+				opt.value = `remote:${url}`;
+				opt.textContent = alias ? alias : `Remote: ${url}`;
+
+				const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
+				if (addRemoteOpt && hostSelect) {
+					hostSelect.insertBefore(opt, addRemoteOpt);
+				}
+			}
+
+			const sel = `remote:${url}`;
+			currentHost = sel;
+			localStorage.setItem("host_select", sel);
+			if (hostSelect) hostSelect.value = sel;
+
+			remoteHostDialog?.classList.add("hidden");
+		});
+
+		const installedContainer = document.getElementById("installed-models");
+		const availableContainer = document.getElementById("available-models");
+		if (!installedContainer || !availableContainer) return;
+
+		const clientUrl = getClientUrl();
+
+		availableModels = await fetchAvailableModels();
+
+		const { supportsTools } = await window.ollama.getToolSupportingModels();
+		toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
+		try {
+			installedModels = await window.ollama.listModels(clientUrl);
+			renderInstalledModels();
+		} catch (err: any) {
+			installedModels = [];
+			renderInstalledModels("", true);
 		}
+		renderAvailableModels();
 
-		const sel = `remote:${url}`;
-		currentHost = sel;
-		localStorage.setItem("host_select", sel);
-		if (hostSelect) hostSelect.value = sel;
-
-		remoteHostDialog?.classList.add("hidden");
-	});
-
-	/* =========================
-	   Data loading AFTER host
-	   ========================= */
-
-	const installedContainer = document.getElementById("installed-models");
-	const availableContainer = document.getElementById("available-models");
-	if (!installedContainer || !availableContainer) return;
-
-	const clientUrl = getClientUrl();
-
-	installedModels = await window.ollama.listModels(clientUrl);
-	availableModels = await fetchAvailableModels();
-
-	const { supportsTools } = await window.ollama.getToolSupportingModels();
-	toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
-
-	renderInstalledModels();
-	renderAvailableModels();
+	} catch (err: any) {
+		showNotification({
+			message: `Initialization error: ${err?.message ?? err}`,
+			type: "error",
+		});
+	}
 });
+
 
 (window as any).removeHostMarketplace = removeHostMarketplace;
