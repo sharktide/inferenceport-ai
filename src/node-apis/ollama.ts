@@ -139,8 +139,8 @@ function formatBytes(bytes?: number): string {
 		n /= 1024;
 		i++;
 	}
-
-	return `${n.toFixed(1)}${units[i]}`;
+	if (units[i] === "GB") return `${n.toFixed(1)} ${units[i]}`;
+	else return `${n.toFixed(0)} ${units[i]}`;
 }
 
 function renderProgress(sections: Map<string, PullSection>): string {
@@ -526,7 +526,7 @@ Keep it under 5 words.
 				return (data.models || []).map((m: any) => ({
 					name: m.name,
 					id: m.digest ?? "remote",
-					size: m.size ?? "Unknown",
+					size: formatBytes(m.size ?? 0) ?? "Unknown",
 					modified: m.modified_at ?? "Unknown",
 				}));
 			}
