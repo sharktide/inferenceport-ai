@@ -100,6 +100,7 @@ contextBridge.exposeInMainWorld("ollama", {
 	startServer: (port: number, users: { email: string; role: string }[]) =>
 		ipcRenderer.invoke("ollama:start-proxy-server", port, users),
 	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),
+	getServerLogs: (): Promise<string> => ipcRenderer.invoke("ollama:get-server-logs"),
 });
 
 // ===== Utilities =====

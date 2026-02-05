@@ -21,9 +21,7 @@ import fs from "fs";
 import path from "path";
 import { exec, spawn } from "child_process";
 import { execFile } from "child_process";
-import type { ExecException } from "child_process";
 import { promisify } from "util";
-import os from "os";
 import net from "net";
 import type {
 	ToolDefinition,
@@ -39,6 +37,8 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import OpenAI from "openai";
 import { getSession } from "./auth.js";
 
+const logDir: string = path.join(app.getPath("userData"), "logs");
+const logFile = path.join(logDir, "InferencePort-Server.log");
 const execFileAsync = promisify(execFile);
 const availableTools = toolSchema as ToolDefinition[];
 const systemPrompt =
@@ -403,6 +403,11 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
+
+	ipcMain.handle("ollama:get-server-logs", (): Promise<string> => {
+		return fs.promises.readFile(logFile, "utf-8");
+	});
+
 	ipcMain.handle(
 		"ollama:start-proxy-server",
 		async (
