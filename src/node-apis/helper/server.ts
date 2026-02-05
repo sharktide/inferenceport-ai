@@ -8,6 +8,9 @@ import { app } from "electron";
 
 const logDir: string = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
+let logWatcher: fs.FSWatcher | null = null;
+let lastSize = 0;
+
 fs.mkdirSync(logDir, { recursive: true });
 
 const VERIFY_URL =
@@ -278,5 +281,43 @@ export function stopProxyServer() {
 			logLine("INFO", "Proxy server stopped");
 			server = null;
 		});
+	}
+}
+
+export function startLogStreaming(event: Electron.IpcMainInvokeEvent) {
+	if (logWatcher) return;
+	try {
+		lastSize = fs.statSync(logFile).size;
+	} catch {
+		lastSize = 0;
+	}
+
+	logWatcher = fs.watch(logFile, async () => {
+		try {
+			const stat = await fs.promises.stat(logFile);
+			if (stat.size < lastSize) lastSize = 0;
+
+			const stream = fs.createReadStream(logFile, { start: lastSize, end: stat.size });
+			let chunk = "";
+			stream.on("data", (d) => (chunk += d.toString()));
+			stream.on("end", () => {
+				lastSize = stat.size;
+				if (chunk) event.sender.send("ollama:logs-append", chunk);
+			});
+		} catch {}
+	});
+}
+
+export function stopLogStreaming() {
+	logWatcher?.close();
+	logWatcher = null;
+}
+
+export async function getServerLogs(): Promise<string> {
+	try {
+		const data = await fs.promises.readFile(logFile, "utf-8");
+		return data;
+	} catch {
+		return "";
 	}
 }

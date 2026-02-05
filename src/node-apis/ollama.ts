@@ -31,7 +31,7 @@ import type {
 	PullChunk,
 	PullSection,
 } from "./types/index.types.d.ts";
-import { startProxyServer, stopProxyServer } from "./helper/server.js";
+import { startProxyServer, stopProxyServer, startLogStreaming, stopLogStreaming, getServerLogs } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
@@ -404,8 +404,8 @@ export default function register(): void {
 		void 0;
 	}
 
-	ipcMain.handle("ollama:get-server-logs", (): Promise<string> => {
-		return fs.promises.readFile(logFile, "utf-8");
+	ipcMain.handle("ollama:get-server-logs", async (): Promise<string> => {
+		return await getServerLogs();
 	});
 
 	ipcMain.handle(
@@ -997,6 +997,15 @@ Keep it under 5 words.
 		} catch (err) {
 			return false;
 		}
+	});
+
+	
+	ipcMain.handle("ollama:start-log-streaming", (event: Electron.IpcMainInvokeEvent) => {
+		startLogStreaming(event);
+	});
+
+	ipcMain.handle("ollama:stop-log-streaming", () => {
+		stopLogStreaming();
 	});
 }
 
