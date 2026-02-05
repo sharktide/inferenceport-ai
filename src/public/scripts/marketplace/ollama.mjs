@@ -1,0 +1,411 @@
+import { showNotification } from "../helper/notification.js";
+let installedModels = [];
+let availableModels = [];
+let currentModelName = "";
+let currentModelSizes = [];
+let toolSupportingModels = new Set();
+let currentHost = "local";
+function getClientUrl() {
+    return currentHost.startsWith("remote:")
+        ? currentHost.replace("remote:", "")
+        : undefined;
+}
+const TOOL_FEATURES = [
+    { key: "web", label: "Web search", icon: "🌐" },
+    { key: "image", label: "Image generation", icon: "🖼️" },
+];
+function stripAnsi(str) {
+    return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+}
+function modelSupportsTools(modelName) {
+    return toolSupportingModels.has(modelName.toLowerCase());
+}
+async function fetchAvailableModels() {
+    const response = await fetch("https://ollama.com/library");
+    const html = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const modelItems = Array.from(doc.querySelectorAll("li[x-test-model]"));
+    //@ts-ignore
+    return modelItems.map((item) => {
+        const name = item.querySelector("[x-test-model-title] span")?.textContent?.trim() ??
+            "";
+        const description = item.querySelector("p.max-w-lg")?.textContent?.trim();
+        const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map((el) => el.textContent.trim());
+        const pulls = item.querySelector("[x-test-pull-count]")?.textContent?.trim() ??
+            "Unknown";
+        const tagElements = item.querySelectorAll('span[class*="text-blue-600"]');
+        const tags = Array.from(tagElements).map((el) => el.textContent.trim());
+        const updated = item.querySelector("[x-test-updated]")?.textContent?.trim() ?? "Unknown";
+        const link = item.querySelector("a")?.getAttribute("href") ?? undefined;
+        return { name, description, sizes, pulls, tags, updated, link };
+    });
+}
+async function pullModel(name) {
+    try {
+        const clientUrl = getClientUrl();
+        await window.ollama.pullModel(name, clientUrl);
+        showNotification({
+            message: `Model pulled: ${name}`,
+            type: "success",
+            actions: [{ label: "Finish", onClick: () => location.reload() }],
+        });
+    }
+    catch (err) {
+        showNotification({
+            message: `Error pulling model: ${err.message}`,
+            type: "error",
+        });
+    }
+}
+async function deleteModel(name) {
+    try {
+        const clientUrl = getClientUrl();
+        await window.ollama.deleteModel(name, clientUrl);
+        showNotification({
+            message: `Model deleted: ${name}`,
+            type: "success",
+            actions: [{ label: "OK", onClick: () => location.reload() }],
+        });
+    }
+    catch (err) {
+        showNotification({
+            message: `Error deleting model: ${err.message}`,
+            type: "error",
+        });
+    }
+}
+window.ollama.onPullProgress(({ model, output }) => {
+    const container = document.getElementById("notification-container");
+    if (!container)
+        return;
+    let box = container.querySelector(`[data-model="${model}"]`);
+    if (!box) {
+        box = document.createElement("div");
+        box.className = "notification info";
+        box.dataset.model = model;
+        const close = document.createElement("button");
+        close.className = "close-btn";
+        close.textContent = "×";
+        close.onclick = () => box?.remove();
+        const msg = document.createElement("div");
+        msg.className = "message";
+        msg.innerHTML = `<strong>Pulling ${model}</strong><pre></pre>`;
+        box.appendChild(close);
+        box.appendChild(msg);
+        container.appendChild(box);
+    }
+    const pre = box.querySelector("pre");
+    const clean = stripAnsi(output);
+    if (pre) {
+        pre.textContent = clean.includes("\r")
+            ? clean.split("\r").pop() ?? ""
+            : clean;
+    }
+    if (/successfully pulled/i.test(clean)) {
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const finishBtn = document.createElement("button");
+        finishBtn.textContent = "Finish";
+        finishBtn.onclick = () => {
+            box?.remove();
+            location.reload();
+        };
+        actions.appendChild(finishBtn);
+        box.appendChild(actions);
+    }
+});
+function openPullModal(modelName, sizes) {
+    currentModelName = modelName;
+    currentModelSizes = sizes;
+    const nameEl = document.getElementById("modal-model-name");
+    const select = document.getElementById("modal-revision-select");
+    const modal = document.getElementById("pull-modal");
+    const warningEl = document.getElementById("modal-performance-warning");
+    if (nameEl)
+        nameEl.textContent = `Pull ${modelName}`;
+    if (select) {
+        select.innerHTML =
+            `<option value="latest">latest</option>` +
+                sizes.map((size) => `<option value="${size}">${size}</option>`).join("");
+        // Initial warning for first size
+        const initialSize = sizes[0];
+        if (warningEl && initialSize) {
+            window.utils.getWarning(initialSize).then((result) => {
+                warningEl.textContent = result.warning;
+                warningEl.className = "modal-warning";
+            });
+        }
+        // Dynamic update on change
+        select.onchange = () => {
+            const selectedSize = select.value;
+            if (selectedSize === "latest") {
+                warningEl.textContent = "";
+                return;
+            }
+            window.utils.getWarning(selectedSize).then((result) => {
+                warningEl.textContent = result.warning;
+                warningEl.className = "modal-warning";
+            });
+        };
+    }
+    modal?.classList.remove("hidden");
+}
+document
+    .getElementById("pull-modal-close")
+    ?.addEventListener("click", closePullModal);
+function closePullModal() {
+    document.getElementById("pull-modal")?.classList.add("hidden");
+}
+document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
+    const select = document.getElementById("modal-revision-select");
+    const revision = select?.value ?? "latest";
+    const fullName = revision === "latest"
+        ? currentModelName
+        : `${currentModelName}:${revision}`;
+    pullModel(fullName);
+    closePullModal();
+});
+function renderInstalledModels(filter = "") {
+    const spinner = document.getElementById("installed-spinner");
+    spinner.style.display = "flex";
+    const container = document.getElementById("installed-models");
+    if (!container)
+        return;
+    const theme = localStorage.getItem('theme');
+    container.innerHTML = "";
+    if (installedModels.length === 0) {
+        const modelsNotFound = document.createElement("p");
+        modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
+        if (theme === 'light') {
+            modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+        }
+        container.appendChild(modelsNotFound);
+        spinner.style.display = "none";
+        return;
+    }
+    installedModels
+        .filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+        .forEach((model) => {
+        const card = document.createElement("div");
+        card.className = "marketplace-card";
+        card.innerHTML = `
+				<h2>${model.name}</h2>
+				<p><strong>Size:</strong> ${model.size}</p>
+				<p><strong>Modified:</strong> ${model.modified}</p>
+				<button>Delete</button>
+			`;
+        const button = card.querySelector("button");
+        button?.addEventListener("click", () => deleteModel(model.name));
+        container.appendChild(card);
+    });
+    spinner.style.display = "none";
+}
+function renderAvailableModels(filter = "") {
+    const spinner = document.getElementById("spinner-av");
+    spinner.style.display = "flex";
+    const container = document.getElementById("available-models");
+    if (!container)
+        return;
+    container.innerHTML = "";
+    const installedNames = installedModels.map((m) => m.name);
+    availableModels
+        .filter((model) => !installedNames.includes(model.name))
+        .filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+        .forEach((model) => {
+        const card = document.createElement("div");
+        card.className = "marketplace-card";
+        card.id = encodeURIComponent(model.name);
+        const sizeOptions = model.sizes
+            .map((size) => `<option value="${size}">${size}</option>`)
+            .join("");
+        const tagBadges = model.tags
+            .map((tag) => `<span class="model-tag">${tag}</span>`)
+            .join(" ");
+        const supportsTools = modelSupportsTools(model.name);
+        const featureBadges = supportsTools
+            ? TOOL_FEATURES.map((f) => `<span class="feature-badge on">${f.icon} ${f.label}</span>`).join("")
+            : TOOL_FEATURES.map((f) => `<span class="feature-badge off">${f.icon} ${f.label}</span>`).join("");
+        card.innerHTML = `
+        <h2>${model.name}</h2>
+        <p class="model-description">${model.description ?? "No description available."}</p>
+        <div class="model-tags">${tagBadges}</div>
+		<div class="model-features">
+			${featureBadges}
+		</div>
+
+        <div class="model-meta">
+          <p><strong>Pulls:</strong> ${model.pulls}</p>
+          <p><strong>Updated:</strong> ${model.updated}</p>
+          <a href="https://ollama.com${model.link ?? ""}" target="_blank" class="model-link">More details</a>
+        </div>
+        <button class="marketplace-btn">Open Download Dialog</button>
+      `;
+        const button = card.querySelector("button");
+        button?.addEventListener("click", () => openPullModal(model.name, model.sizes));
+        container.appendChild(card);
+    });
+    spinner.style.display = "none";
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    if (targetId) {
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+            const yOffset = -100;
+            const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            window.scrollTo({ top: y, behavior: "smooth" });
+            targetEl.classList.add("highlight");
+        }
+    }
+}
+document
+    .getElementById("search-installed")
+    ?.addEventListener("input", (e) => {
+    const target = e.target;
+    renderInstalledModels(target.value);
+});
+document
+    .getElementById("search-available")
+    ?.addEventListener("input", (e) => {
+    const target = e.target;
+    renderAvailableModels(target.value);
+});
+function openManageHostsDialog() {
+    const dialog = document.getElementById("manage-hosts-dialog");
+    const list = document.getElementById("remote-host-list");
+    list.innerHTML = "";
+    const remotes = JSON.parse(localStorage.getItem("remote_hosts") || "[]");
+    remotes.forEach((host, index) => {
+        const item = document.createElement("li");
+        item.innerHTML = `
+			<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd;">
+				<div>
+					<strong>${host.alias || "Unnamed"}</strong><br>
+					<small>${host.url}</small>
+				</div>
+				<button onclick="window.removeHostMarketplace(${index})" style="background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+			</div>
+		`;
+        list.appendChild(item);
+    });
+    dialog.classList.remove("hidden");
+    document.getElementById("manage-hosts-close").onclick = () => {
+        dialog.classList.add("hidden");
+    };
+}
+function updateHostSelectOptions() {
+    const hostSelect = document.getElementById("host-select");
+    if (!hostSelect)
+        return;
+    Array.from(hostSelect.options).forEach((opt) => {
+        if (opt.value.startsWith("remote:"))
+            opt.remove();
+    });
+    const remotes = JSON.parse(localStorage.getItem("remote_hosts") || "[]");
+    const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+    remotes.forEach((host) => {
+        const opt = document.createElement("option");
+        opt.value = `remote:${host.url}`;
+        opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
+        if (addRemoteOpt)
+            hostSelect.insertBefore(opt, addRemoteOpt);
+    });
+}
+function updateHostSelectState() {
+    const hostSelect = document.getElementById("host-select");
+    const v = hostSelect.value;
+    if (v === "add_remote") {
+        const remoteHostDialog = document.getElementById("remote-host-dialog");
+        const remoteHostInput = document.getElementById("remote-host-input");
+        remoteHostDialog?.classList.remove("hidden");
+        remoteHostInput?.focus();
+        return;
+    }
+    if (v === "manage_hosts") {
+        openManageHostsDialog();
+        return;
+    }
+    currentHost = v;
+    localStorage.setItem("host_select", v);
+    // Re-fetch and re-render models without page reload
+    (async () => {
+        const clientUrl = getClientUrl();
+        installedModels = await window.ollama.listModels(clientUrl);
+        renderInstalledModels();
+    })();
+}
+function removeHostMarketplace(index) {
+    const remotes = JSON.parse(localStorage.getItem("remote_hosts") || "[]");
+    remotes.splice(index, 1);
+    localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+    openManageHostsDialog();
+}
+document.addEventListener("DOMContentLoaded", async () => {
+    /* =========================
+       Host initialization FIRST
+       ========================= */
+    const hostSelect = document.getElementById("host-select");
+    const remoteHostDialog = document.getElementById("remote-host-dialog");
+    const remoteHostInput = document.getElementById("remote-host-input");
+    const remoteHostAlias = document.getElementById("remote-host-alias");
+    const remoteHostCancel = document.getElementById("remote-host-cancel");
+    const remoteHostConfirm = document.getElementById("remote-host-confirm");
+    const savedHost = localStorage.getItem("host_select") || "local";
+    currentHost = savedHost;
+    if (hostSelect) {
+        updateHostSelectOptions();
+        hostSelect.value = savedHost;
+        hostSelect.addEventListener("change", updateHostSelectState);
+    }
+    remoteHostCancel?.addEventListener("click", () => {
+        remoteHostDialog?.classList.add("hidden");
+        if (hostSelect) {
+            hostSelect.value = localStorage.getItem("host_select") || "local";
+        }
+    });
+    remoteHostConfirm?.addEventListener("click", () => {
+        let url = (remoteHostInput?.value || "").trim();
+        const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+        if (!url)
+            return;
+        if (!/^https?:\/\//i.test(url))
+            url = `http://${url}`;
+        if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+            url = url.replace(/\/+$/, "") + ":52458";
+        }
+        url = url.replace(/\/+$/, "");
+        const remotesStored = JSON.parse(localStorage.getItem("remote_hosts") || "[]");
+        if (!remotesStored.some((r) => r.url === url)) {
+            remotesStored.push({ url, alias });
+            localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+            const opt = document.createElement("option");
+            opt.value = `remote:${url}`;
+            opt.textContent = alias ? alias : `Remote: ${url}`;
+            const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
+            if (addRemoteOpt && hostSelect) {
+                hostSelect.insertBefore(opt, addRemoteOpt);
+            }
+        }
+        const sel = `remote:${url}`;
+        currentHost = sel;
+        localStorage.setItem("host_select", sel);
+        if (hostSelect)
+            hostSelect.value = sel;
+        remoteHostDialog?.classList.add("hidden");
+    });
+    /* =========================
+       Data loading AFTER host
+       ========================= */
+    const installedContainer = document.getElementById("installed-models");
+    const availableContainer = document.getElementById("available-models");
+    if (!installedContainer || !availableContainer)
+        return;
+    const clientUrl = getClientUrl();
+    installedModels = await window.ollama.listModels(clientUrl);
+    availableModels = await fetchAvailableModels();
+    const { supportsTools } = await window.ollama.getToolSupportingModels();
+    toolSupportingModels = new Set(supportsTools.map((m) => m.toLowerCase()));
+    renderInstalledModels();
+    renderAvailableModels();
+});
+window.removeHostMarketplace = removeHostMarketplace;
+//# sourceMappingURL=ollama.mjs.map

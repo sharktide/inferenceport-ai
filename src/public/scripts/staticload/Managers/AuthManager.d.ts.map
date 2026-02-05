@@ -1,0 +1,1 @@
+{"version":3,"file":"AuthManager.d.ts","sourceRoot":"","sources":["AuthManager.ts"],"names":[],"mappings":"AAgBA,cAAM,WAAW;IACb,OAAO,CAAC,MAAM,CAAC,QAAQ,CAA4B;;IAgB5C,WAAW,CAAC,QAAQ,GAAE,OAAe,GAAG,MAAM;IAiB9C,eAAe,CAAC,QAAQ,GAAE,OAAe,GAAG,MAAM;YAiB3C,mBAAmB;WAsDnB,WAAW,IAAI,WAAW;CAM3C;AAED,eAAe,WAAW,CAAC"}

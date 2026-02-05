@@ -389,12 +389,6 @@ function showDelModal(username: string, repo: string, type: string) {
 	modal?.classList.remove("hidden");
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-	renderOllama();
-	renderSpaces();
-	renderWebsites();
-});
-
 function runModel(name: string): void {
 	window.location.href = `./renderer/chat.html?model=${encodeURIComponent(name)}`;
 }
@@ -478,6 +472,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		localStorage.setItem("host_select", sel);
 		remoteHostDialog?.classList.add("hidden");
 	});
+	
+	renderOllama();
+	renderSpaces();
+	renderWebsites();
 });
 
 (window as any).showDelModal = showDelModal;
