@@ -365,15 +365,42 @@ function openManageHostsDialog() {
 
 	remotes.forEach((host, index) => {
 		const item = document.createElement("li");
-		item.innerHTML = `
-			<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd;">
-				<div>
-					<strong>${host.alias || "Unnamed"}</strong><br>
-					<small>${host.url}</small>
-				</div>
-				<button onclick="window.removeHostMarketplace(${index})" style="background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
-			</div>
-		`;
+
+		const rowDiv = document.createElement("div");
+		rowDiv.style.display = "flex";
+		rowDiv.style.justifyContent = "space-between";
+		rowDiv.style.alignItems = "center";
+		rowDiv.style.padding = "8px 0";
+		rowDiv.style.borderBottom = "1px solid #ddd";
+
+		const textDiv = document.createElement("div");
+
+		const strongEl = document.createElement("strong");
+		strongEl.textContent = host.alias || "Unnamed";
+		textDiv.appendChild(strongEl);
+
+		textDiv.appendChild(document.createElement("br"));
+
+		const smallEl = document.createElement("small");
+		smallEl.textContent = host.url;
+		textDiv.appendChild(smallEl);
+
+		const removeButton = document.createElement("button");
+		removeButton.textContent = "Remove";
+		removeButton.style.background = "#ff6b6b";
+		removeButton.style.color = "white";
+		removeButton.style.border = "none";
+		removeButton.style.padding = "4px 12px";
+		removeButton.style.borderRadius = "4px";
+		removeButton.style.cursor = "pointer";
+		removeButton.addEventListener("click", () => {
+			(window as any).removeHostMarketplace(index);
+		});
+
+		rowDiv.appendChild(textDiv);
+		rowDiv.appendChild(removeButton);
+
+		item.appendChild(rowDiv);
 		list.appendChild(item);
 	});
 
