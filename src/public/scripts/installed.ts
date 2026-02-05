@@ -443,7 +443,6 @@ function removeHost(index: number) {
 	openManageHostsDialog();
 }
 
-// Initialize host selection
 document.addEventListener("DOMContentLoaded", () => {
 	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
 	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
@@ -452,9 +451,9 @@ document.addEventListener("DOMContentLoaded", () => {
 	const remoteHostCancel = document.getElementById("remote-host-cancel")!;
 	const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
 
-	const savedHost = localStorage.getItem("host_select") || "local";
-	currentHost = savedHost;
-	if (hostSelect) hostSelect.value = savedHost;
+	currentHost = "local";
+	localStorage.setItem("host_select", currentHost);
+	if (hostSelect) hostSelect.value = currentHost;
 
 	if (hostSelect) {
 		updateHostSelectOptions();
