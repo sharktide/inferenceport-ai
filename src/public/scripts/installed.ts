@@ -26,15 +26,44 @@ function openManageHostsDialog() {
 
 	remotes.forEach((host, index) => {
 		const item = document.createElement("li");
-		item.innerHTML = `
-			<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #ddd;">
-				<div>
-					<strong>${host.alias || "Unnamed"}</strong><br>
-					<small>${host.url}</small>
-				</div>
-				<button onclick="window.removeHost(${index})" style="background: #ff6b6b; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
-			</div>
-		`;
+
+		const container = document.createElement("div");
+		container.style.display = "flex";
+		container.style.justifyContent = "space-between";
+		container.style.alignItems = "center";
+		container.style.padding = "8px 0";
+		container.style.borderBottom = "1px solid #ddd";
+
+		const infoContainer = document.createElement("div");
+
+		const strong = document.createElement("strong");
+		strong.textContent = host.alias || "Unnamed";
+
+		const br = document.createElement("br");
+
+		const small = document.createElement("small");
+		small.textContent = host.url;
+
+		infoContainer.appendChild(strong);
+		infoContainer.appendChild(br);
+		infoContainer.appendChild(small);
+
+		const button = document.createElement("button");
+		button.textContent = "Remove";
+		button.style.background = "#ff6b6b";
+		button.style.color = "white";
+		button.style.border = "none";
+		button.style.padding = "4px 12px";
+		button.style.borderRadius = "4px";
+		button.style.cursor = "pointer";
+		button.addEventListener("click", () => {
+			(window as any).removeHost(index);
+		});
+
+		container.appendChild(infoContainer);
+		container.appendChild(button);
+
+		item.appendChild(container);
 		list.appendChild(item);
 	});
 
