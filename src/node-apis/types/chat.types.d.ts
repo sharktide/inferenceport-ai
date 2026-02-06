@@ -42,3 +42,16 @@ export type ChatHistoryEntry = {
 	tool_call_id?: string;
 	tool_calls?: ToolCall[];
 };
+
+export type PullChunk = {
+	status?: string;
+	digest?: string;
+	total?: number;
+	completed?: number;
+};
+
+export type PullSection = {
+	label: string;
+	total?: number;
+	completed?: number;
+};

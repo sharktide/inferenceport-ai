@@ -21,24 +21,24 @@ import fs from "fs";
 import path from "path";
 import { exec, spawn } from "child_process";
 import { execFile } from "child_process";
-import type { ExecException } from "child_process";
 import { promisify } from "util";
-import os from "os";
 import net from "net";
 import type {
 	ToolDefinition,
 	ChatHistoryEntry,
 	ModelInfo,
 	PullProgress,
+	PullChunk,
+	PullSection,
 } from "./types/index.types.d.ts";
+import { startProxyServer, stopProxyServer, getServerLogs } from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
+import { getSession } from "./auth.js";
 
-const openai = new OpenAI({
-	baseURL: "http://localhost:11434/v1/",
-	apiKey: "ollama",
-});
+const logDir: string = path.join(app.getPath("userData"), "logs");
+const logFile = path.join(logDir, "InferencePort-Server.log");
 const execFileAsync = promisify(execFile);
 const availableTools = toolSchema as ToolDefinition[];
 const systemPrompt =
@@ -59,6 +59,142 @@ const ollamaPath = isDev
 
 let chatHistory: ChatHistoryEntry[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;
+
+function is52458(url: string): boolean {
+	try {
+		const u = new URL(url);
+		return u.port === "52458";
+	} catch {
+		return false;
+	}
+}
+
+async function issueProxyToken(): Promise<string> {
+	console.log("Issuing Proxy Token");
+	const session = await getSession();
+	const jwt = session.access_token;
+
+	const res = await fetch(
+		"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/issue-token",
+		{
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${jwt}`,
+				"Content-Type": "application/json",
+			},
+		},
+	);
+
+	if (!res.ok) {
+		throw new Error(`Token issue failed: ${res.statusText}`);
+	}
+
+	const { token } = await res.json();
+	if (!token) throw new Error("No token returned");
+
+	return token;
+}
+
+async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
+	console.log("Creating openai client");
+	console.log(baseURL);
+	if (!baseURL) {
+		return new OpenAI({
+			baseURL: "http://localhost:11434/v1/",
+			apiKey: "ollama",
+		});
+	}
+
+	if (is52458(baseURL)) {
+		const token = await issueProxyToken();
+		baseURL = baseURL.replace(/\/$/, "");
+		return new OpenAI({
+			baseURL: `${baseURL}/v1`,
+			apiKey: token,
+		});
+	}
+
+	return new OpenAI({
+		baseURL,
+		apiKey: "ollama",
+	});
+}
+function renderBar(completed = 0, total = 0, width = 20): string {
+	if (!total) return "[                  ]";
+	const ratio = Math.min(completed / total, 1);
+	const filled = Math.round(ratio * width);
+	return `[${"█".repeat(filled)}${" ".repeat(width - filled)}]`;
+}
+
+function formatBytes(bytes?: number): string {
+	if (typeof bytes !== "number" || Number.isNaN(bytes)) {
+		return "0B";
+	}
+
+	const units = ["B", "KB", "MB", "GB", "TB"];
+	let i = 0;
+	let n = bytes;
+
+	while (n >= 1024 && i < units.length - 1) {
+		n /= 1024;
+		i++;
+	}
+	if (units[i] === "GB") return `${n.toFixed(1)} ${units[i]}`;
+	else return `${n.toFixed(0)} ${units[i]}`;
+}
+
+function timeAgo(dateString: string | Date | undefined): string {
+	if (!dateString) return "Unknown";
+
+	const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+	if (isNaN(date.getTime())) return "Unknown";
+
+	const now = new Date();
+	const diff = now.getTime() - date.getTime();
+	const seconds = Math.floor(diff / 1000);
+
+	const intervals = [
+		{ label: "year", seconds: 31536000 },
+		{ label: "month", seconds: 2592000 },
+		{ label: "week", seconds: 604800 },
+		{ label: "day", seconds: 86400 },
+		{ label: "hour", seconds: 3600 },
+		{ label: "minute", seconds: 60 },
+		{ label: "second", seconds: 1 },
+	];
+
+	for (const { label, seconds: sec } of intervals) {
+		const count = Math.floor(seconds / sec);
+		if (count > 0) return `${count} ${label}${count > 1 ? "s" : ""} ago`;
+	}
+
+	return "just now";
+}
+
+function renderProgress(sections: Map<string, PullSection>): string {
+	const lines: string[] = [];
+
+	for (const section of sections.values()) {
+		const total = section.total;
+		const completed = section.completed ?? 0;
+
+		if (!total) {
+			lines.push(section.label);
+			continue;
+		}
+
+		const bar = renderBar(completed, total);
+		const pct = Math.floor((completed / total) * 100);
+
+		lines.push(
+			`${section.label} ${bar} ${pct}% (${formatBytes(
+				completed,
+			)} / ${formatBytes(total)})`,
+		);
+	}
+
+	return lines.join("\n");
+}
 
 const dataDir: string = path.join(app.getPath("userData"), "chat-sessions");
 const sessionFile: string = path.join(dataDir, "sessions.json");
@@ -296,6 +432,25 @@ export default function register(): void {
 		void 0;
 	}
 
+	ipcMain.handle("ollama:get-server-logs", async (): Promise<string> => {
+		return await getServerLogs();
+	});
+
+	ipcMain.handle(
+		"ollama:start-proxy-server",
+		async (
+			_event: IpcMainInvokeEvent,
+			port: number = 52458,
+			users: { email: string; role: string }[] = [],
+		) => {
+			startProxyServer(port, users);
+			return `Server starting on port ${port}...`;
+		},
+	);
+	ipcMain.handle("ollama:stop-proxy-server", async () => {
+		stopProxyServer();
+		return "Stopping server...";
+	});
 	ipcMain.handle("ollama:fetch-tool-models", async () => {
 		return await fetchSupportedTools();
 	});
@@ -324,9 +479,10 @@ export default function register(): void {
 			_event: IpcMainInvokeEvent,
 			model: string,
 			prompt: string,
+			clientUrl?: string,
 		): Promise<string> => {
 			try {
-				// Prepare messages with system + user
+				const openai = await createOpenAIClient(clientUrl);
 				const messages: ChatCompletionMessageParam[] = [
 					{
 						role: "system",
@@ -368,41 +524,62 @@ Keep it under 5 words.
 			}
 		},
 	);
-
-	ipcMain.handle("ollama:list", async (): Promise<ModelInfo[]> => {
-		return new Promise((resolve, reject) => {
-			const isMac = os.platform() === "darwin";
-
-			const resolveCommand = (cb: (cmd: string) => void) => {
-				return cb(`"${ollamaPath}" list`);
-			};
-			//nosemgrep: javascript.lang.security.detect-child-process
-			resolveCommand((resolvedCmd) => {
-				//nosemgrep: javascript.lang.security.detect-child-process
-				exec(
-					resolvedCmd,
-					{},
-					(error: ExecException | null, stdout: string) => {
-						if (error) return reject(error);
-
-						const lines = stdout.trim().split("\n").slice(1);
-						const models = lines
-							.filter((line) => line.trim())
-							.map((line) => {
-								const parts = line.trim().split(/\s{2,}/);
-								return {
-									name: parts[0] ?? "Unknown",
-									id: parts[1] ?? "Unknown",
-									size: parts[2] ?? "Unknown",
-									modified: parts[3] ?? "Unknown",
-								};
-							});
-						resolve(models);
+	ipcMain.handle(
+		"ollama:list",
+		async (
+			_event: IpcMainInvokeEvent,
+			clientUrl?: string,
+		): Promise<ModelInfo[]> => {
+			if (clientUrl) {
+				const base = clientUrl.replace(/\/$/, "");
+				const res = await fetch(`${base}/api/tags`, {
+					headers: {
+						Authorization: `Bearer ${await issueProxyToken()}`,
 					},
-				);
+				});
+
+				if (res.status === 401 || res.status === 403) {
+					const err: any = new Error("unauthorized");
+					err.code = "UNAUTHORIZED";
+					throw err;
+				}
+
+				if (!res.ok) {
+					const err: any = new Error(res.statusText);
+					err.code = "REMOTE_LIST_FAILED";
+					throw err;
+				}
+
+				const data = await res.json();
+				return (data.models || []).map((m: any) => ({
+					name: m.name,
+					id: m.digest ?? "remote",
+					size: formatBytes(m.size ?? 0) ?? "Unknown",
+					modified: timeAgo(m.modified_at) ?? "Unknown",
+				}));
+			}
+
+			// --- local path unchanged ---
+			return new Promise((resolve, reject) => {
+				exec(`"${ollamaPath}" list`, (error, stdout) => {
+					if (error) return reject(error);
+
+					const lines = stdout.trim().split("\n").slice(1);
+					resolve(
+						lines.map((line) => {
+							const parts = line.trim().split(/\s{2,}/);
+							return {
+								name: parts[0] ?? "Unknown",
+								id: parts[1] ?? "Unknown",
+								size: parts[2] ?? "Unknown",
+								modified: parts[3] ?? "Unknown",
+							};
+						}),
+					);
+				});
 			});
-		});
-	});
+		},
+	);
 
 	ipcMain.handle("ollama:reset", () => {
 		chatHistory = [];
@@ -432,7 +609,36 @@ Keep it under 5 words.
 		async (
 			_event: IpcMainInvokeEvent,
 			modelName: string,
+			clientUrl?: string,
 		): Promise<string> => {
+			if (clientUrl) {
+				const base = clientUrl.replace(/\/$/, "");
+				console.log(base);
+				console.log(JSON.stringify({ model: modelName }));
+				const res = await fetch(`${base}/api/delete`, {
+					method: "DELETE",
+					headers: {
+						Authorization: `Bearer ${await issueProxyToken()}`,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ model: modelName }),
+				});
+
+				if (res.status === 401 || res.status === 403) {
+					const err: any = new Error("unauthorized");
+					err.code = "UNAUTHORIZED";
+					throw err;
+				}
+
+				if (!res.ok) {
+					const err: any = new Error(res.statusText);
+					err.code = "REMOTE_DELETE_FAILED";
+					throw err;
+				}
+
+				return `${modelName} deleted from remote`;
+			}
+
 			return new Promise((resolve, reject) => {
 				exec(
 					`"${ollamaPath}" rm ${modelName}`,
@@ -453,14 +659,27 @@ Keep it under 5 words.
 			userMessage: string,
 			search: boolean,
 			imageGen: boolean,
+			clientUrl?: string,
 		) => {
-			chatAbortController = new AbortController();
+			const abortController = new AbortController();
+			chatAbortController = abortController;
+
+			let aborted = false;
+
+			const abortIfNeeded = () => {
+				if (abortController.signal.aborted) {
+					aborted = true;
+					throw new DOMException("Chat aborted", "AbortError");
+				}
+			};
 
 			let tools: any[] = [];
 			if (search) tools.push(availableTools[0]);
 			if (imageGen) tools.push(availableTools[1]);
 
 			chatHistory.push({ role: "user", content: userMessage });
+
+			const openai = await createOpenAIClient(clientUrl);
 
 			try {
 				const messages = [
@@ -475,23 +694,20 @@ Keep it under 5 words.
 						tools,
 						stream: true,
 					},
-					{ signal: chatAbortController.signal },
+					{ signal: abortController.signal },
 				);
 
 				let assistantMessage = "";
 				const toolCallBuffer = new Map<
 					number,
-					{
-						name?: string;
-						arguments: string;
-					}
+					{ name?: string; arguments: string }
 				>();
 
 				for await (const chunk of stream) {
-					const choice = chunk.choices?.[0];
-					if (!choice) continue;
+					abortIfNeeded();
 
-					const delta = choice.delta;
+					const choice = chunk.choices?.[0];
+					const delta = choice?.delta;
 					if (!delta) continue;
 
 					if (delta.content) {
@@ -505,20 +721,17 @@ Keep it under 5 words.
 								arguments: "",
 							};
 
-							if (call.function?.name) {
+							if (call.function?.name)
 								entry.name = call.function.name;
-							}
-
-							if (call.function?.arguments) {
+							if (call.function?.arguments)
 								entry.arguments += call.function.arguments;
-							}
 
 							toolCallBuffer.set(call.index, entry);
 						}
 					}
-
-					if (choice.finish_reason === "stop") break;
 				}
+
+				abortIfNeeded();
 
 				const finalizedToolCalls = [...toolCallBuffer.entries()].map(
 					([index, data]) => ({
@@ -538,26 +751,23 @@ Keep it under 5 words.
 					});
 				}
 
-				if (finalizedToolCalls.length > 0) {
+				if (finalizedToolCalls.length) {
 					chatHistory.push({
 						role: "assistant",
 						content: "",
 						tool_calls: finalizedToolCalls,
 					});
-				}
 
-				if (finalizedToolCalls.length > 0) {
-					// Notify renderer immediately: tool(s) invoked
 					for (const toolCall of finalizedToolCalls) {
+						abortIfNeeded();
+
 						event.sender.send("ollama:new_tool_call", {
 							id: toolCall.id,
 							name: toolCall.function.name,
 							arguments: toolCall.function.arguments,
 							state: "pending",
 						});
-					}
 
-					for (const toolCall of finalizedToolCalls) {
 						const args = JSON.parse(toolCall.function.arguments);
 						let toolResult: any;
 
@@ -586,7 +796,6 @@ Keep it under 5 words.
 							tool_call_id: toolCall.id,
 						});
 
-						// Notify renderer: tool resolved
 						event.sender.send("ollama:new_tool_call", {
 							id: toolCall.id,
 							name: toolCall.function.name,
@@ -595,23 +804,29 @@ Keep it under 5 words.
 						});
 					}
 
-					const followUpStream = await openai.chat.completions.create(
-						{
-							model: modelName,
-							messages: [
-								{ role: "system", content: systemPrompt },
-								...messagesForModel(chatHistory),
-							],
-							stream: true,
-						},
-					);
+					let followUpOpenAI: OpenAI = openai;
+
+					followUpOpenAI = await createOpenAIClient(clientUrl);
+
+					const followUpStream =
+						await followUpOpenAI.chat.completions.create(
+							{
+								model: modelName,
+								messages: [
+									{ role: "system", content: systemPrompt },
+									...messagesForModel(chatHistory),
+								],
+								stream: true,
+							},
+							{ signal: abortController.signal },
+						);
 
 					assistantMessage = "";
-					for await (const chunk of followUpStream) {
-						const choice = chunk.choices?.[0];
-						if (!choice) continue;
 
-						const delta = choice.delta;
+					for await (const chunk of followUpStream) {
+						abortIfNeeded();
+
+						const delta = chunk.choices?.[0]?.delta;
 						if (delta?.content) {
 							assistantMessage += delta.content;
 							event.sender.send(
@@ -631,13 +846,15 @@ Keep it under 5 words.
 
 				event.sender.send("ollama:chat-done");
 			} catch (err) {
-				if ((err as Error).name === "AbortError") {
+				if (err instanceof DOMException && err.name === "AbortError") {
 					event.sender.send("ollama:chat-aborted");
 				} else {
-					event.sender.send("ollama:chat-error", `${err}`);
+					event.sender.send("ollama:chat-error", String(err));
 				}
 			} finally {
-				chatAbortController = null;
+				if (chatAbortController === abortController) {
+					chatAbortController = null;
+				}
 			}
 		},
 	);
@@ -652,8 +869,121 @@ Keep it under 5 words.
 
 	ipcMain.handle(
 		"ollama:pull",
-		(_event: IpcMainInvokeEvent, modelName: string): Promise<string> => {
-			return new Promise((resolve, reject) => {
+		(
+			_event: IpcMainInvokeEvent,
+			modelName: string,
+			clientUrl?: string,
+		): Promise<string> => {
+			const sections = new Map<string, PullSection>();
+			console.log(clientUrl)
+
+			return new Promise(async (resolve, reject) => {
+				if (clientUrl) {
+					try {
+						const base = clientUrl.replace(/\/$/, "");
+						const res = await fetch(`${base}/api/pull`, {
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${await issueProxyToken()}`,
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({ name: modelName }),
+						});
+
+						if (res.status === 401 || res.status === 403) {
+							const err: any = new Error("unauthorized");
+							err.code = "UNAUTHORIZED";
+							reject(err);
+							return;
+						}
+
+						if (!res.ok) {
+							const err: any = new Error(res.statusText);
+							err.code = "REMOTE_PULL_FAILED";
+							reject(err);
+							return;
+						}
+
+						if (res.body) {
+							const reader = res.body.getReader();
+							const decoder = new TextDecoder();
+							const win = BrowserWindow.getAllWindows()[0];
+
+							try {
+								while (true) {
+									const { done, value } = await reader.read();
+									if (done) break;
+
+									const chunk = decoder.decode(value, {
+										stream: true,
+									});
+									const lines = chunk.split("\n");
+
+									for (const line of lines) {
+										if (!line.trim()) continue;
+
+										let parsed: PullChunk;
+										try {
+											parsed = JSON.parse(line);
+										} catch {
+											continue;
+										}
+
+										if (parsed.status && !parsed.digest) {
+											sections.set(parsed.status, {
+												label: parsed.status,
+											});
+										}
+
+										if (parsed.digest) {
+											const key = parsed.digest.slice(
+												0,
+												12,
+											);
+
+											const section =
+												sections.get(key) ??
+												sections.set(key, {
+													label: `pulling ${key}`,
+													completed: 0,
+												}).get(key)!;
+
+											if (section && parsed.total !== undefined) {
+												section.total = parsed.total;
+											}
+											if (section && parsed.completed !== undefined) {
+												section.completed =
+													parsed.completed;
+											}
+										}
+
+										const payload: PullProgress = {
+											model: modelName,
+											output: renderProgress(sections),
+										};
+
+										if (win) {
+											win.webContents.send(
+												"ollama:pull-progress",
+												payload,
+											);
+										}
+									}
+								}
+							} catch (e) {
+								reject(e);
+								return;
+							}
+						}
+
+						resolve(`${modelName} pulled from remote`);
+					} catch (err) {
+						reject(err);
+					}
+					return;
+				}
+
+				// --- local path unchanged ---
 				const child = spawn(ollamaPath, ["pull", modelName]);
 
 				const sendProgress = (data: Buffer) => {

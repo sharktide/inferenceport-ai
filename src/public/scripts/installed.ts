@@ -1,6 +1,122 @@
 import { showNotification } from "./helper/notification.js"
 import { getReadableColor, getEmoji } from "./helper/random.js";
 const theme = localStorage.getItem("theme");
+
+interface RemoteHost {
+	url: string;
+	alias: string;
+}
+
+let currentHost: string = "local";
+
+function getClientUrl(): string | undefined {
+	return currentHost.startsWith("remote:")
+		? currentHost.replace("remote:", "")
+		: undefined;
+}
+
+function openManageHostsDialog() {
+	const dialog = document.getElementById("manage-hosts-dialog")!;
+	const list = document.getElementById("remote-host-list")!;
+	list.innerHTML = "";
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	remotes.forEach((host, index) => {
+		const item = document.createElement("li");
+
+		const container = document.createElement("div");
+		container.style.display = "flex";
+		container.style.justifyContent = "space-between";
+		container.style.alignItems = "center";
+		container.style.padding = "8px 0";
+		container.style.borderBottom = "1px solid #ddd";
+
+		const infoContainer = document.createElement("div");
+
+		const strong = document.createElement("strong");
+		strong.textContent = host.alias || "Unnamed";
+
+		const br = document.createElement("br");
+
+		const small = document.createElement("small");
+		small.textContent = host.url;
+
+		infoContainer.appendChild(strong);
+		infoContainer.appendChild(br);
+		infoContainer.appendChild(small);
+
+		const button = document.createElement("button");
+		button.textContent = "Remove";
+		button.style.background = "#ff6b6b";
+		button.style.color = "white";
+		button.style.border = "none";
+		button.style.padding = "4px 12px";
+		button.style.borderRadius = "4px";
+		button.style.cursor = "pointer";
+		button.addEventListener("click", () => {
+			(window as any).removeHost(index);
+		});
+
+		container.appendChild(infoContainer);
+		container.appendChild(button);
+
+		item.appendChild(container);
+		list.appendChild(item);
+	});
+
+	dialog.classList.remove("hidden");
+
+	document.getElementById("manage-hosts-close")!.onclick = () => {
+		dialog.classList.add("hidden");
+	};
+}
+
+function updateHostSelectOptions() {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	if (!hostSelect) return;
+
+	Array.from(hostSelect.options).forEach((opt) => {
+		if (opt.value.startsWith("remote:")) opt.remove();
+	});
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+
+	remotes.forEach((host) => {
+		const opt = document.createElement("option");
+		opt.value = `remote:${host.url}`;
+		opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
+		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+	});
+}
+
+function updateHostSelectState() {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const v = hostSelect.value;
+
+	if (v === "add_remote") {
+		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+		remoteHostDialog?.classList.remove("hidden");
+		remoteHostInput?.focus();
+		return;
+	}
+
+	if (v === "manage_hosts") {
+		openManageHostsDialog();
+		return;
+	}
+
+	currentHost = v;
+	localStorage.setItem("host_select", v);
+	renderOllama();
+}
+
 async function renderOllama() {
     const spinner = document.getElementById("spinner-ollama");
     const container = document.getElementById("installed-models");
@@ -10,9 +126,11 @@ async function renderOllama() {
     }
 
     spinner!.style.display = "flex";
+    container.innerHTML = "";
 
     try {
-        const models = await window.ollama.listModels();
+        const clientUrl = getClientUrl();
+        const models = await window.ollama.listModels(clientUrl);
 		if (models.length === 0) {
 			const modelsNotFound = document.createElement("p")
             modelsNotFound.innerHTML = "No models installed. Visit the <a href='marketplace/ollama.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 100 different chatbots";
@@ -184,7 +302,8 @@ function showDelModal(username: string, repo: string, type: string) {
 	function handleDeleteClick() {
 		if (type === "ollama") {
 			try {
-				window.ollama.deleteModel(username);
+				const clientUrl = getClientUrl();
+				window.ollama.deleteModel(username, clientUrl);
                 const card = document.querySelector(`.marketplace-card[modelid="${username}"]`) as HTMLElement;
                 if (card) {
                     card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
@@ -299,12 +418,6 @@ function showDelModal(username: string, repo: string, type: string) {
 	modal?.classList.remove("hidden");
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-	renderOllama();
-	renderSpaces();
-	renderWebsites();
-});
-
 function runModel(name: string): void {
 	window.location.href = `./renderer/chat.html?model=${encodeURIComponent(name)}`;
 }
@@ -321,9 +434,81 @@ function shareWebsite(url: string, title: string) {
     window.hfspaces.share_website(url, title);
 }
 
+function removeHost(index: number) {
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	remotes.splice(index, 1);
+	localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+	openManageHostsDialog();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+	const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+	const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
+	const remoteHostCancel = document.getElementById("remote-host-cancel")!;
+	const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
+
+	currentHost = "local";
+	localStorage.setItem("host_select", currentHost);
+	if (hostSelect) hostSelect.value = currentHost;
+
+	if (hostSelect) {
+		updateHostSelectOptions();
+		hostSelect.addEventListener("change", updateHostSelectState);
+	}
+
+	remoteHostCancel?.addEventListener("click", () => {
+		remoteHostDialog?.classList.add("hidden");
+		if (hostSelect) hostSelect.value = localStorage.getItem("host_select") || "local";
+	});
+
+	remoteHostConfirm?.addEventListener("click", () => {
+		let url = (remoteHostInput?.value || "").trim();
+		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+
+		if (!url) return;
+
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+			url = url.replace(/\/+$/, "") + ":52458";
+		}
+		url = url.replace(/\/+$/, "");
+
+		const remotesStored: RemoteHost[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		if (!remotesStored.some((r) => r.url === url)) {
+			remotesStored.push({ url, alias });
+			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+
+			const opt = document.createElement("option");
+			opt.value = `remote:${url}`;
+			opt.textContent = alias ? alias : `Remote: ${url}`;
+			const addRemoteOpt = hostSelect?.querySelector(
+				'option[value="add_remote"]',
+			);
+			if (addRemoteOpt && hostSelect)
+				hostSelect.insertBefore(opt, addRemoteOpt);
+		}
+
+		const sel = `remote:${url}`;
+		if (hostSelect) hostSelect.value = sel;
+		currentHost = sel;
+		localStorage.setItem("host_select", sel);
+		remoteHostDialog?.classList.add("hidden");
+	});
+	
+	renderOllama();
+	renderSpaces();
+	renderWebsites();
+});
 
 (window as any).showDelModal = showDelModal;
 (window as any).toggleMenu = toggleMenu;
 (window as any).shareSpace = shareSpace;
 (window as any).shareWebsite = shareWebsite;
+(window as any).removeHost = removeHost;
 

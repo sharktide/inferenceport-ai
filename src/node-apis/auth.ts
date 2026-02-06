@@ -33,6 +33,14 @@ supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | nul
 	}
 });
 
+export async function getSession(): Promise<Session> {
+	return supabase.auth.getSession().then(({ data, error }) => {
+		if (error) throw error;
+		if (!data.session) throw new Error("No session");
+		return data.session;
+	});
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -48,7 +56,6 @@ export default function register() {
 			`${supabaseUrl}/auth/v1/authorize` +
 			`?provider=google` +
 			`&redirect_to=https://inference.js.org/authcallback.html`;
-
 		await shell.openExternal(authUrl);
 		return { success: true };
 	});

@@ -33,6 +33,21 @@ const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const modelSelect = document.getElementById(
 	"model-select",
 ) as HTMLSelectElement;
+const hostSelect = document.getElementById(
+	"host-select",
+) as HTMLSelectElement | null;
+const remoteHostDialog = document.getElementById(
+	"remote-host-dialog",
+) as HTMLDivElement | null;
+const remoteHostInput = document.getElementById(
+	"remote-host-input",
+) as HTMLInputElement | null;
+const remoteHostConfirm = document.getElementById(
+	"remote-host-confirm",
+) as HTMLButtonElement | null;
+const remoteHostCancel = document.getElementById(
+	"remote-host-cancel",
+) as HTMLButtonElement | null;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
 	"new-session-btn",
@@ -41,6 +56,9 @@ const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
+const remoteHostAlias = document.getElementById(
+	"remote-host-alias",
+) as HTMLInputElement | null;
 const modalTitle = document.getElementById(
 	"file-preview-title",
 ) as HTMLTitleElement;
@@ -66,6 +84,10 @@ let sessions = {};
 let currentSessionId = null;
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
+interface RemoteHost {
+	url: string;
+	alias: string;
+}
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
@@ -141,9 +163,148 @@ async function hideSessionProgress(): void {
 		loaderVisible = false;
 	}, 300);
 }
+function openManageHostsDialog() {
+	const dialog = document.getElementById("manage-hosts-dialog")!;
+	const list = document.getElementById("remote-host-list")!;
+	list.innerHTML = "";
 
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	remotes.forEach((host, index) => {
+		const li = document.createElement("li");
+		li.className = "host-item";
+
+		// Host name
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "host-name";
+		nameSpan.textContent = host.alias || host.url;
+		nameSpan.title = host.url;
+		nameSpan.style.fontWeight = "bold";
+
+		// Remove button
+		const removeBtn = document.createElement("button");
+		removeBtn.className = "remove-host";
+		removeBtn.textContent = "Remove";
+
+		removeBtn.style.maxWidth = "100px";
+		removeBtn.addEventListener("click", () => {
+			if (confirm(`Remove host ${host.alias || host.url}?`)) {
+				remotes.splice(index, 1);
+				localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+				updateHostSelectOptions();
+				openManageHostsDialog();
+			}
+		});
+
+		li.appendChild(nameSpan);
+		li.appendChild(removeBtn);
+		list.appendChild(li);
+	});
+
+	dialog.classList.remove("hidden");
+
+	document.getElementById("manage-hosts-close")!.onclick = () => {
+		dialog.classList.add("hidden");
+		hostSelect.value = localStorage.getItem("host_select") || "local";
+	};
+}
+
+function updateHostSelectOptions() {
+	if (!hostSelect) return;
+
+	Array.from(hostSelect.options).forEach((opt) => {
+		if (opt.value.startsWith("remote:")) opt.remove();
+	});
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+
+	remotes.forEach((host) => {
+		const opt = document.createElement("option");
+		opt.value = `remote:${host.url}`;
+		opt.textContent = host.alias || `Remote: ${host.url}`;
+		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+		else hostSelect.appendChild(opt);
+	});
+}
+function updateHostSelectState() {
+	const v = hostSelect.value;
+
+	if (v === "add_remote") {
+		remoteHostDialog?.classList.remove("hidden");
+		remoteHostInput!.value = "";
+		remoteHostAlias!.value = "";
+		remoteHostInput?.focus();
+		return;
+	}
+
+	if (v === "manage_hosts") {
+		openManageHostsDialog();
+		return;
+	}
+
+	localStorage.setItem("host_select", v);
+	reloadModelsForHost(v);
+}
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
+document.addEventListener("DOMContentLoaded", () => {
+	const remotes: { url: string; alias?: string }[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	if (hostSelect) {
+		updateHostSelectOptions();
+
+		hostSelect.addEventListener("change", updateHostSelectState);
+	}
+
+	remoteHostCancel?.addEventListener("click", () => {
+		remoteHostDialog?.classList.add("hidden");
+		if (hostSelect)
+			hostSelect.value = localStorage.getItem("host_select") || "local";
+	});
+
+	remoteHostConfirm?.addEventListener("click", () => {
+		let url = (remoteHostInput?.value || "").trim();
+		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+
+		if (!url) return;
+
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+			url = url.replace(/\/+$/, "") + ":52458";
+		}
+		url = url.replace(/\/+$/, "");
+
+		const remotesStored: { url: string; alias?: string }[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		if (!remotesStored.some((r) => r.url === url)) {
+			remotesStored.push({ url, alias });
+			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+
+			const opt = document.createElement("option");
+			opt.value = `remote:${url}`;
+			opt.textContent = alias ? alias : `Remote: ${url}`;
+			const addRemoteOpt = hostSelect?.querySelector(
+				'option[value="add_remote"]',
+			);
+			if (addRemoteOpt && hostSelect)
+				hostSelect.insertBefore(opt, addRemoteOpt);
+		}
+
+		const sel = `remote:${url}`;
+		if (hostSelect) hostSelect.value = sel;
+		localStorage.setItem("host_select", sel);
+		remoteHostDialog?.classList.add("hidden");
+		reloadModelsForHost(sel);
+	});
+});
 
 async function loadOptions() {
 	showSessionProgress();
@@ -285,6 +446,69 @@ async function loadOptions() {
 
 function generateSessionId() {
 	return crypto.randomUUID();
+}
+
+async function reloadModelsForHost(hostValue: string) {
+	modelSelect.innerHTML = `<option disabled>Loading models…</option>`;
+
+	const clientUrl =
+		hostValue.startsWith("remote:")
+			? hostValue.replace("remote:", "")
+			: undefined;
+
+	try {
+		const models = await window.ollama.listModels(clientUrl);
+
+		modelSelect.innerHTML = "";
+
+		for (const model of models) {
+			const opt = document.createElement("option");
+			opt.value = model.name;
+			opt.textContent = model.name;
+			modelSelect.appendChild(opt);
+		}
+
+		modelSelect.insertAdjacentHTML(
+			"beforeend",
+			`<option value="add-more-models">➕ Add more models...</option>
+			 <option value="manage-models">✏️ Manage models...</option>`,
+		);
+
+		// reset selection if stale
+		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
+			modelSelect.selectedIndex = 0;
+		}
+	} catch (err: any) {
+		console.error("Model reload failed:", err);
+
+		modelSelect.innerHTML = "";
+
+		if (err?.code === "UNAUTHORIZED") {
+			modelSelect.innerHTML =
+				`<option disabled>🔒 Unauthorized</option>`;
+
+			showNotification({
+				message:
+					"You are not authorized to list models on this remote host.",
+				type: "error",
+				actions: [
+					{
+						label: "Manage Hosts",
+						onClick: () => openManageHostsDialog(),
+					},
+				],
+			});
+		} else {
+			modelSelect.innerHTML =
+				`<option disabled>Error loading models</option>`;
+
+			showNotification({
+				message:
+					"Failed to fetch models from the selected host.",
+				type: "error",
+			});
+		}
+	}
 }
 
 function showContextMenu(x, y, sessionId, sessionName) {
@@ -667,19 +891,18 @@ async function autoNameSession(
 	model: string, // still passed for logging/context
 	prompt: string,
 	sessionId: string,
+	clientUrl?: string,
 ): Promise<string> {
 	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
 
 	let title: string;
 	try {
-		// call main process IPC instead of fetch
-		title = await window.ollama.autoNameSession(model, prompt);
+		title = await window.ollama.autoNameSession(model, prompt, clientUrl);
 	} catch (err) {
 		console.error("[autoNameSession] IPC error:", err);
 		title = new Date().toLocaleString();
 	}
 
-	// Fallback cleaning if the model wrapped it in quotes
 	if (
 		(title.startsWith('"') && title.endsWith('"')) ||
 		(title.startsWith("'") && title.endsWith("'"))
@@ -689,11 +912,9 @@ async function autoNameSession(
 
 	console.log("[autoNameSession] Received title:", title);
 
-	// Save session locally
 	sessions[sessionId].name = title;
 	window.ollama.save(sessions);
 
-	// Optional sync
 	window.auth.getSession().then(async (auth) => {
 		if (isSyncEnabled() && auth?.session?.user) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
@@ -717,27 +938,46 @@ form.addEventListener("submit", async (e) => {
 	updateTextareaState();
 
 	console.log("[form.submit] Submit event triggered");
-	const models = await window.ollama.listModels();
-	if (models.length === 0) {
-		const defaultModel = "llama3.2:3b";
-		showNotification({
-			message: `No models found. Downloading default model: ${defaultModel}`,
-			type: "info",
-		});
-		await pullModel(defaultModel);
-		let attempts = 0;
-		while (attempts < 10) {
-			const models = await window.ollama.listModels();
-			if (models.some((m) => m.name === defaultModel)) break;
-			await new Promise((r) => setTimeout(r, 1000));
-			attempts++;
-		}
-
-		await loadOptions();
-
-		modelSelect.value = defaultModel;
+	let clientUrl: string | undefined = undefined;
+	const hostChoice =
+		(hostSelect && hostSelect.value) ||
+		localStorage.getItem("host_select") ||
+		"local";
+	if (hostChoice && hostChoice.startsWith("remote:")) {
+		clientUrl = hostChoice.slice("remote:".length);
 	}
+	if (!clientUrl) {
+		const models = await window.ollama.listModels();
+		if (models.length === 0) {
+			const defaultModel = "llama3.2:3b";
+			showNotification({
+				message: `No models found. Downloading default model: ${defaultModel}`,
+				type: "info",
+			});
+			await pullModel(defaultModel);
+			let attempts = 0;
+			while (attempts < 10) {
+				const models = await window.ollama.listModels();
+				if (models.some((m) => m.name === defaultModel)) break;
+				await new Promise((r) => setTimeout(r, 1000));
+				attempts++;
+			}
 
+			await loadOptions();
+
+			modelSelect.value = defaultModel;
+		}
+	}
+	if (clientUrl) {
+		const remoteModels = await window.ollama.listModels(clientUrl);
+		if (remoteModels.length === 0) {
+			showNotification({
+				message: "No models available on the selected remote host.",
+				type: "warning",
+			});
+			return;
+		}
+	}
 	if (isStreaming) {
 		window.ollama.stop?.();
 		return;
@@ -755,7 +995,7 @@ form.addEventListener("submit", async (e) => {
 		console.log(
 			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
-		autoNameSession(model, prompt, currentSessionId).catch((err) => {
+		autoNameSession(model, prompt, currentSessionId, clientUrl).catch((err) => {
 			console.error("[form.submit] autoNameSession error:", err);
 		});
 	}
@@ -775,7 +1015,15 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled);
+
+	localStorage.setItem("host_select", hostChoice);
+	window.ollama.streamPrompt(
+		model,
+		fullPrompt,
+		searchEnabled,
+		imgEnabled,
+		clientUrl,
+	);
 
 	let fullResponse = "";
 	isStreaming = true;
@@ -792,8 +1040,33 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
-		renderChat();
-		botBubble.textContent += `\n⚠️ Error: ${err}`;
+		if (
+			err.toString().toLowerCase().includes("token verification failed")
+		) {
+			botBubble.textContent += `\nInferencePort AI Transport Security has rejected the request. Reason: You are not authorized to use this remote host.`;
+
+			showNotification({
+				message:
+					"InferencePort AI Transport Security has rejected your request. Reason: You are not authorized to use this remote host.",
+				type: "error",
+			});
+		} else if (err.toString().toLowerCase().includes("connection error")) {
+			botBubble.textContent += `\nInferencePort AI could not connect to the host. Please check the host URL and your network connection.`;
+
+			showNotification({
+				message:
+					"InferencePort AI could not connect to the remote host. Please check the host URL and your network connection.",
+				type: "error",
+			});
+		} else {
+			botBubble.textContent += `\n⚠️ Error: ${err}`;
+
+			showNotification({
+				message: `Error during streaming: ${err}`,
+				type: "error",
+			});
+		}
+
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
