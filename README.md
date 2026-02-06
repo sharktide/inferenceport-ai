@@ -14,6 +14,19 @@ InferencePortAI provides a simple, privacy-focused interface for running local m
 - Browse and open Hugging Face Spaces and website cards.
 - Simple marketplace UI for discovering models and Spaces.
 
+## Now introducing: InferencePort 2
+InferencePort 2 is packed with new features, each going to be released incrementally. Here's what we have in store:
+
+1. InferencePort Server Hosting - Host your own server and allow authenticated users to connect to it ✅ Released in v2.0.0
+2. Styling and navigation enhancements
+3. In-Chat Code Execution via Custom Tools
+4. Model Response Editing, Regeneration, and Deletion
+5. Model Download Cancellation
+6. Enterprise Organization Management
+7. WebUI for chatting in the browser
+8. Toggle between local models and AI execution on our servers
+... and more!
+
 ## Quick start (user)
 
 Requirements:
