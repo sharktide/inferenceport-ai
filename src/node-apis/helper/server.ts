@@ -359,7 +359,7 @@ export function startProxyServer(
 					return;
 				}
 
-				if (!checkHealthRateLimit(ip)) {
+				if (checkHealthRateLimit(ip)) {
 					forwardRequest(req, res);
 				} else {
 					res.writeHead(429);
