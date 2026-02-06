@@ -193,7 +193,7 @@ function openPullModal(modelName: string, sizes: string[]): void {
                 warningEl.textContent = "";
                 return;
             }
-            window.utils.getWarning(selectedSize).then((result) => {
+            window.utils.getWarning(selectedSize, getClientUrl()).then((result) => {
                 warningEl.textContent = result.warning;
                 warningEl.className = "modal-warning";
             });
