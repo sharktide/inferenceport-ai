@@ -1,6 +1,4 @@
-# InferencePortAI
-
-![InferencePortAI logo](/src/build/icon.png)
+![InferencePortAI logo](/src/build/banner.png)
 
 The best place for enterprise local model management
 
