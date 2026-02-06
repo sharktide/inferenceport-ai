@@ -1,4 +1,8 @@
 ![InferencePortAI logo](/src/build/banner.png)
+![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fsharktide%2Finferenceport-ai%40main%2Fsrc%2Fpackage.json&query=%24.version&label=Latest%20Version) [![Build](https://github.com/sharktide/inferenceport-ai/actions/workflows/build.yml/badge.svg)](https://github.com/sharktide/inferenceport-ai/actions/workflows/build.yml) ![Website](https://img.shields.io/website?url=https%3A%2F%2Finferencs.js.org) ![GitHub last commit](https://img.shields.io/github/last-commit/sharktide/inferenceport-ai) ![GitHub License](https://img.shields.io/github/license/sharktide/inferenceport-ai)
+
+
+
 
 The best place for enterprise local model management
 
