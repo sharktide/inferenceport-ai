@@ -941,6 +941,14 @@ node-apis\helper\server.d.ts
 node-apis\helper\server.d.ts.map
 node-apis\helper\server.js
 node-apis\helper\server.js.map
+node-apis\helper\sysinfo.d.d.ts
+node-apis\helper\sysinfo.d.d.ts.map
+node-apis\helper\sysinfo.d.js
+node-apis\helper\sysinfo.d.js.map
+node-apis\helper\sysinfo.d.ts
+node-apis\helper\sysinfo.d.ts.map
+node-apis\helper\sysinfo.js
+node-apis\helper\sysinfo.js.map
 node-apis\ollama.d.d.ts
 node-apis\ollama.d.d.ts.map
 node-apis\ollama.d.js

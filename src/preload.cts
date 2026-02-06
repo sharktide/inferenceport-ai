@@ -114,8 +114,8 @@ contextBridge.exposeInMainWorld("utils", {
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
-	getWarning: (modelSize: string) =>
-		ipcRenderer.invoke("utils:get-hardware-performance-warning", modelSize),
+	getWarning: (modelSize: string, clientUrl?: string) =>
+		ipcRenderer.invoke("utils:get-hardware-performance-warning", modelSize, clientUrl),
 	isFirstLaunch: (): Promise<boolean> =>
 		ipcRenderer.invoke("utils:is-first-launch"),
 	resetFirstLaunch: (): Promise<void> =>

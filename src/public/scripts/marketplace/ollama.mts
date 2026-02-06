@@ -180,7 +180,7 @@ function openPullModal(modelName: string, sizes: string[]): void {
         // Initial warning for first size
         const initialSize = sizes[0];
         if (warningEl && initialSize) {
-            window.utils.getWarning(initialSize).then((result) => {
+            window.utils.getWarning(initialSize, getClientUrl()).then((result) => {
                 warningEl.textContent = result.warning;
                 warningEl.className = "modal-warning";
             });

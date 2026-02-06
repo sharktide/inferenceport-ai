@@ -5,6 +5,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
+import { getHardwareRating } from "./sysinfo.js";
 
 const logDir = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
@@ -12,11 +13,10 @@ const logFile = path.join(logDir, "InferencePort-Server.log");
 fs.mkdirSync(logDir, { recursive: true });
 
 try {
-  	fs.openSync(logFile, "wx", 0o600);
+	fs.openSync(logFile, "wx", 0o600);
 } catch (err: any) {
-  	if (err.code !== "EEXIST") throw err;
+	if (err.code !== "EEXIST") throw err;
 }
-
 
 const VERIFY_URL =
 	"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify_token_with_email";
@@ -25,9 +25,7 @@ const OLLAMA_URL = "http://localhost:11434";
 let server: http.Server | null = null;
 let logStream: fs.WriteStream | null = null;
 
-/* ---------------- Logging ---------------- */
-
-const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_LOG_SIZE = 10 * 1024 * 1024;
 
 function sanitizeForLog(value: string): string {
 	return value
@@ -40,10 +38,7 @@ function rotateLogIfNeeded() {
 	try {
 		const stat = fs.statSync(logFile);
 		if (stat.size >= MAX_LOG_SIZE) {
-			const rotated = logFile.replace(
-				".log",
-				`-${Date.now()}.log`,
-			);
+			const rotated = logFile.replace(".log", `-${Date.now()}.log`);
 			logStream?.end();
 			logStream = null;
 			fs.renameSync(logFile, rotated);
@@ -74,8 +69,6 @@ function logLine(level: "INFO" | "WARN" | "ERROR", message: string) {
 	logStream?.write(line);
 }
 
-/* ---------------- Rate limiting ---------------- */
-
 const HEALTH_RATE_LIMIT = { windowMs: 60_000, max: 30 };
 const healthHits = new Map<string, { count: number; resetAt: number }>();
 
@@ -96,12 +89,12 @@ function checkHealthRateLimit(ip: string): boolean {
 	return true;
 }
 
-/* ---------------- Utils ---------------- */
-
 function maskToken(token?: string, visibleChars = 6): string {
 	if (!token) return "undefined";
 	if (token.length <= visibleChars) return "*".repeat(token.length);
-	return token.slice(0, visibleChars) + "*".repeat(token.length - visibleChars);
+	return (
+		token.slice(0, visibleChars) + "*".repeat(token.length - visibleChars)
+	);
 }
 
 function hashIP(ip: string) {
@@ -133,9 +126,7 @@ function sanitizeHeaders(
 	return clean;
 }
 
-/* ---------------- Proxy ---------------- */
-
-const MAX_BODY_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_BODY_SIZE = 20 * 1024 * 1024;
 
 function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 	const pathValue = req.url ?? "/";
@@ -201,8 +192,6 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 	});
 }
 
-/* ---------------- Auth ---------------- */
-
 function verifyToken(
 	token: string | undefined | null,
 	emails: string[],
@@ -234,8 +223,6 @@ function verifyToken(
 	req.end();
 }
 
-/* ---------------- Server ---------------- */
-
 export function startProxyServer(
 	port = 52458,
 	allowedUsers: { email: string; role: string }[] = [],
@@ -254,7 +241,6 @@ export function startProxyServer(
 	server = http.createServer((req, res) => {
 		const ip = req.socket.remoteAddress ?? "unknown";
 
-		// Health endpoint (no logging spam)
 		if (req.method === "GET" && req.url === "/__health") {
 			if (!checkHealthRateLimit(ip)) {
 				res.writeHead(429);
@@ -272,34 +258,115 @@ export function startProxyServer(
 		const authHeader = req.headers["authorization"];
 		if (!authHeader?.startsWith("Bearer ")) {
 			res.writeHead(401, { "Content-Type": "application/json" });
-			return res.end(JSON.stringify({ error: "Missing Authorization header" }));
+			return res.end(
+				JSON.stringify({ error: "Missing Authorization header" }),
+			);
 		}
 
 		const token = authHeader.split(" ")[1];
 		logLine("INFO", `Verifying token: ${maskToken(token)}`);
 
-		verifyToken(token, allowedUsers.map(u => u.email), (status, result) => {
-			if (status !== 200 || !result?.found || !result.email) {
-				res.writeHead(401, { "Content-Type": "application/json" });
-				return res.end(JSON.stringify({ error: "Token verification failed" }));
-			}
-
-			const matched = allowedUsers.find(u => u.email === result.email);
-			if (!matched) {
-				res.writeHead(403, { "Content-Type": "application/json" });
-				return res.end(JSON.stringify({ error: "Access denied" }));
-			}
-
-			if ((matched.role || "member").toLowerCase() !== "admin") {
-				const method = (req.method || "GET").toUpperCase();
-				if (method !== "GET" && /pull|rm|delete|create|models|run/i.test(req.url || "")) {
-					res.writeHead(403, { "Content-Type": "application/json" });
-					return res.end(JSON.stringify({ error: "Insufficient permissions" }));
+		verifyToken(
+			token,
+			allowedUsers.map((u) => u.email),
+			(status, result) => {
+				if (status !== 200 || !result?.found || !result.email) {
+					res.writeHead(401, { "Content-Type": "application/json" });
+					return res.end(
+						JSON.stringify({ error: "Token verification failed" }),
+					);
 				}
-			}
 
-			forwardRequest(req, res);
-		});
+				const matched = allowedUsers.find(
+					(u) => u.email === result.email,
+				);
+				if (!matched) {
+					res.writeHead(403, { "Content-Type": "application/json" });
+					return res.end(JSON.stringify({ error: "Access denied" }));
+				}
+
+				if ((matched.role || "member").toLowerCase() !== "admin") {
+					const method = (req.method || "GET").toUpperCase();
+					if (
+						method !== "GET" &&
+						/pull|rm|delete|create|models|run/i.test(req.url || "")
+					) {
+						res.writeHead(403, {
+							"Content-Type": "application/json",
+						});
+						return res.end(
+							JSON.stringify({
+								error: "Insufficient permissions",
+							}),
+						);
+					}
+				}
+				if (req.method === "POST" && req.url === "/sysinfo") {
+					if (!checkHealthRateLimit(ip)) {
+						res.writeHead(429);
+						return res.end();
+					}
+
+					let body = "";
+					req.on("data", (chunk) => {
+						body += chunk;
+						if (body.length > MAX_BODY_SIZE) {
+							logLine("WARN", "Sysinfo body too large");
+							req.destroy();
+						}
+					});
+
+					req.on("end", async () => {
+						try {
+							const parsed = JSON.parse(body || "{}");
+							const modelSizeRaw = parsed.modelSizeRaw;
+
+							if (!modelSizeRaw) {
+								res.writeHead(400, {
+									"Content-Type": "application/json",
+								});
+								return res.end(
+									JSON.stringify({
+										error: "Missing modelSizeRaw",
+									}),
+								);
+							}
+
+							const rating =
+								await getHardwareRating(modelSizeRaw);
+
+							if (rating) {
+								res.writeHead(200, {
+									"Content-Type": "application/json",
+								});
+								return res.end(JSON.stringify({ rating }));
+							} else {
+								throw new Error(
+									"Failed to get hardware rating",
+								);
+							}
+						} catch (err: any) {
+							logLine("ERROR", `Sysinfo error: ${err.message}`);
+							res.writeHead(520, {
+								"Content-Type": "application/json",
+							});
+							return res.end(
+								JSON.stringify({ error: "Sysinfo failure" }),
+							);
+						}
+					});
+
+					return;
+				}
+
+				if (!checkHealthRateLimit(ip)) {
+					forwardRequest(req, res);
+				} else {
+					res.writeHead(429);
+					return res.end();
+				}
+			},
+		);
 	});
 
 	server.listen(port, "0.0.0.0", () => {
