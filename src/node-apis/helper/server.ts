@@ -11,12 +11,12 @@ const logFile = path.join(logDir, "InferencePort-Server.log");
 
 fs.mkdirSync(logDir, { recursive: true });
 
-// Ensure secure permissions on first creation
 try {
-	if (!fs.existsSync(logFile)) {
-		fs.closeSync(fs.openSync(logFile, "a", 0o600));
-	}
-} catch {}
+  	fs.openSync(logFile, "wx", 0o600);
+} catch (err: any) {
+  	if (err.code !== "EEXIST") throw err;
+}
+
 
 const VERIFY_URL =
 	"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/verify_token_with_email";
@@ -44,7 +44,7 @@ function rotateLogIfNeeded() {
 				".log",
 				`-${Date.now()}.log`,
 			);
-			logStream?.close();
+			logStream?.end();
 			logStream = null;
 			fs.renameSync(logFile, rotated);
 		}
@@ -240,7 +240,12 @@ export function startProxyServer(
 	port = 52458,
 	allowedUsers: { email: string; role: string }[] = [],
 ) {
-	fs.writeFileSync(logFile, "");
+	if (logStream) {
+		logStream.end();
+		logStream = null;
+	}
+	fs.truncateSync(logFile, 0);
+
 	if (server) {
 		logLine("WARN", "Proxy server already running");
 		return { server, destroy: stopProxyServer };
