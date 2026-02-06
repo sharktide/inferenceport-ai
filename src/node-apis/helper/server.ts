@@ -339,7 +339,7 @@ export function startProxyServer(
 								res.writeHead(200, {
 									"Content-Type": "application/json",
 								});
-								return res.end(JSON.stringify({ rating }));
+								return res.end(JSON.stringify(rating));
 							} else {
 								throw new Error(
 									"Failed to get hardware rating",
