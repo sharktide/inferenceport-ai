@@ -83,7 +83,7 @@ const mdit = MDIT({
 
 mdit.use(detailsBlock);
 
-const FIRST_RUN_FILE = "first-run.json";
+const FIRST_RUN_FILE = "first-run-2.0.0.json";
 
 function getFirstRunPath() {
 	return path.join(app.getPath("userData"), FIRST_RUN_FILE);
