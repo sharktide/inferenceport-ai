@@ -61,7 +61,9 @@ export default {
 	},
 
 	linux: {
-		target: ["AppImage", "deb", "tar.xz"],
+		target: isGpuOnly
+			? ["AppImage", "tar.xz"]
+			: ["AppImage", "deb", "tar.xz"],
 		artifactName: isGpuOnly
 			? "${productName}_CUDA-LinuxSetup-${version}-${arch}.${ext}"
 			: "${productName}-LinuxSetup-${version}-${arch}.${ext}",
