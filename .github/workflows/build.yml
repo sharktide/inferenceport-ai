@@ -12,6 +12,10 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
@@ -78,7 +82,8 @@ jobs:
               src/dist/*.AppImage
               src/dist/*.deb
               src/dist/*.tar.xz
-            gpu: true          
+            gpu: true
+            store: true
 
     runs-on: ${{ matrix.os }}
 
@@ -100,6 +105,7 @@ jobs:
         run: npm run build
         env:
           GPU_ONLY: ${{ matrix.gpu == true }}
+          STORE_ONLY: ${{ matrix.store == true }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
