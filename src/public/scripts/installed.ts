@@ -229,7 +229,10 @@ async function renderOllama() {
             container.appendChild(card);
         });
     } catch (err: any) {
-        container.innerHTML = `<p>Error loading models: ${err.message}</p>`;
+		const errorParagraph = document.createElement("p");
+		const message = (err && typeof err.message === "string") ? err.message : String(err);
+        errorParagraph.textContent = `Error loading models: ${message}`;
+		container.appendChild(errorParagraph);
     } finally {
         spinner!.style.display = "none";
     }
