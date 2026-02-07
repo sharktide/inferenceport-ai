@@ -1,10 +1,21 @@
 import { resolve, join, dirname } from "path";
-import { readdir, rename, rm } from "fs/promises";
+import { readdir, rename, rm, unlink, lstat, rmdir } from "fs/promises";
 import { ElectronOllama } from "./bundler/index.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+async function rimrafLike(path) {
+	const stat = await lstat(path);
+	if (stat.isDirectory() && !stat.isSymbolicLink()) {
+		const entries = await readdir(path);
+		await Promise.all(entries.map((e) => rimrafLike(join(path, e))));
+		await rmdir(path);
+	} else {
+		await unlink(path); // handles files & symlinks
+	}
+}
 
 async function moveBinariesToRoot(version, os, arch) {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
@@ -43,12 +54,16 @@ const createProgressBarLogger = () => {
 };
 async function removeCudaFolders() {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
-	const cudaVersions = ["lib/ollama/cuda_v12", "lib/ollama/cuda_v13"];
+	const cudaVersions = [
+		"lib/ollama/cuda_v12",
+		"lib/ollama/cuda_v13",
+		"lib/ollama/mlx_cuda_v13",
+	];
 
 	for (const version of cudaVersions) {
 		const cudaPath = join(vendorRoot, version);
 		try {
-			await rm(cudaPath, { recursive: true, force: true });
+			await rimrafLike(cudaPath);
 			console.log(`Removed ${version} folder from ${vendorRoot}`);
 		} catch (err) {
 			console.warn(`Could not remove ${version}: ${err.message}`);
@@ -57,7 +72,7 @@ async function removeCudaFolders() {
 }
 
 async function bundleOllama() {
-	const platformMap = { win32: "windows", darwin: "darwin" };
+	const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
 	const archMap = { x64: "amd64", arm64: "arm64" };
 
 	const os = platformMap[process.platform];
@@ -89,6 +104,18 @@ async function bundleOllama() {
 		);
 	} else {
 		await removeCudaFolders();
+	}
+
+	try {
+		await rm(
+			`${resolve(__dirname, `../vendor/electron-ollama`)}/ollama-linux-${arch}.tar.zst`,
+			{ recursive: true, force: true },
+		);
+		console.log(
+			`Cleaned up versioned folder for ${metadata.version} after moving binaries`,
+		);
+	} catch {
+		void 0;
 	}
 
 	console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch}`);

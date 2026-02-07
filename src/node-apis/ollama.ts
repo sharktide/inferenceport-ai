@@ -46,7 +46,12 @@ const systemPrompt =
 
 const isDev = !app.isPackaged;
 
-const ollamaBinary = process.platform === "win32" ? "ollama.exe" : "ollama";
+const ollamaBinary =
+	process.platform === "win32"
+		? "ollama.exe"
+		: process.platform === "linux"
+			? "bin/ollama"
+			: "ollama";
 
 const ollamaPath = isDev
 	? path.join("vendor", "electron-ollama", ollamaBinary)
