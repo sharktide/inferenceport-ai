@@ -52,7 +52,7 @@ export default {
             : ["nsis", "appx", "zip", "msi"],
         appId: "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
 		artifactName: isGpuOnly
-            ? "${productName}_GPU-Setup-${version}-${arch}.${ext}"
+            ? "${productName}_CUDA-Setup-${version}-${arch}.${ext}"
             : "${productName}-Setup-${version}-${arch}.${ext}",
         compression: isStoreOnly ? "store" : "normal",
 	},
@@ -65,7 +65,7 @@ export default {
 	linux: {
 		target: ["AppImage", "deb", "tar.xz"],
 		artifactName: isGpuOnly
-            ? "${productName}_GPU-LinuxSetup-${version}-${arch}.${ext}"
+            ? "${productName}_CUDA-LinuxSetup-${version}-${arch}.${ext}"
             : "${productName}-LinuxSetup-${version}-${arch}.${ext}",
 		category: "Utility",
 		maintainer: "Rihaan Meher <sharktidedev@gmail.com>",
