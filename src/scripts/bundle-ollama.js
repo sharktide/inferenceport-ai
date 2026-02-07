@@ -7,14 +7,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 async function rimrafLike(path) {
-  const stat = await lstat(path);
-  if (stat.isDirectory() && !stat.isSymbolicLink()) {
-    const entries = await readdir(path);
-    await Promise.all(entries.map(e => rimrafLike(join(path, e))));
-    await rmdir(path);
-  } else {
-    await unlink(path); // handles files & symlinks
-  }
+	const stat = await lstat(path);
+	if (stat.isDirectory() && !stat.isSymbolicLink()) {
+		const entries = await readdir(path);
+		await Promise.all(entries.map((e) => rimrafLike(join(path, e))));
+		await rmdir(path);
+	} else {
+		await unlink(path); // handles files & symlinks
+	}
 }
 
 async function moveBinariesToRoot(version, os, arch) {
@@ -54,7 +54,11 @@ const createProgressBarLogger = () => {
 };
 async function removeCudaFolders() {
 	const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
-	const cudaVersions = ["lib/ollama/cuda_v12", "lib/ollama/cuda_v13", "lib/ollama/mix_cuda_v13"];
+	const cudaVersions = [
+		"lib/ollama/cuda_v12",
+		"lib/ollama/cuda_v13",
+		"lib/ollama/mix_cuda_v13",
+	];
 
 	for (const version of cudaVersions) {
 		const cudaPath = join(vendorRoot, version);
@@ -105,12 +109,14 @@ async function bundleOllama() {
 	try {
 		await rm(
 			`${resolve(__dirname, `../vendor/electron-ollama`)}/ollama-linux-${arch}.tar.zst`,
-			{ recursive: true, force: true }
+			{ recursive: true, force: true },
 		);
 		console.log(
-			`Cleaned up versioned folder for ${metadata.version} after moving binaries`
+			`Cleaned up versioned folder for ${metadata.version} after moving binaries`,
 		);
-	} catch { void 0; }
+	} catch {
+		void 0;
+	}
 
 	console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch}`);
 }
