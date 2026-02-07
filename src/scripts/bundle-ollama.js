@@ -57,7 +57,7 @@ async function removeCudaFolders() {
 	const cudaVersions = [
 		"lib/ollama/cuda_v12",
 		"lib/ollama/cuda_v13",
-		"lib/ollama/mix_cuda_v13",
+		"lib/ollama/mlx_cuda_v13",
 	];
 
 	for (const version of cudaVersions) {
@@ -75,7 +75,7 @@ async function bundleOllama() {
 	const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
 	const archMap = { x64: "amd64", arm64: "arm64" };
 
-	const os = platformMap["linux"];
+	const os = platformMap[process.platform];
 	const arch = archMap[process.arch];
 
 	if (!os || !arch) {
