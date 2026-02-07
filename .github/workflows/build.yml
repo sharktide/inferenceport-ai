@@ -61,6 +61,25 @@ jobs:
               src/dist/*.deb
               src/dist/*.tar.xz
 
+          - os: windows-latest
+            name: Windows x86_64 GPU
+            artifact: Electron-win64-GPU-build
+            header: build-win64-gpu
+            path: |
+              src/dist/*.appx
+              src/dist/*.zip
+            gpu: true
+
+          - os: ubuntu-latest
+            name: Linux x86_64 GPU
+            artifact: Electron-linux-x64-GPU-build
+            header: build-linux-gpu
+            path: |
+              src/dist/*.AppImage
+              src/dist/*.deb
+              src/dist/*.tar.xz
+            gpu: true          
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -79,6 +98,8 @@ jobs:
       - name: Build Electron app (unsigned)
         working-directory: src
         run: npm run build
+        env:
+          GPU_ONLY: ${{ matrix.gpu == true }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
