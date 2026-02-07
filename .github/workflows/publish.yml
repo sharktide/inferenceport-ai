@@ -174,3 +174,52 @@ jobs:
         working-directory: src
         run: npm run publish
 
+  build-windows-cuda:
+    permissions:
+      contents: write
+    runs-on: windows-2022
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GPU_ONLY: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci && npm install -g typescript
+
+      - name: Build and sign Electron app
+        working-directory: src
+        run: npm run publish
+
+  build-linux-cuda:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      GPU_ONLY: "true"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: src
+        run: npm ci && npm install -g typescript
+
+      - name: Build and publish Electron app
+        working-directory: src
+        run: npm run publish
