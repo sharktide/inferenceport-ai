@@ -1,6 +1,7 @@
 /** @type {import('electron-builder').Configuration} */
 
 const isGpuOnly = process.env.GPU_ONLY === "true";
+const isStoreOnly = process.env.STORE_ONLY === "true";
 
 export default {
 	appId: "com.sharktide.inferenceport",
@@ -53,6 +54,7 @@ export default {
 		artifactName: isGpuOnly
             ? "${productName}_GPU-Setup-${version}-${arch}.${ext}"
             : "${productName}-Setup-${version}-${arch}.${ext}",
+        compression: isStoreOnly ? "store" : "normal",
 	},
 
 	mac: {
