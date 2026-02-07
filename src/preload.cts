@@ -20,34 +20,38 @@ import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
-	listModels: (): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list"),
+	listModels: (clientUrl?: string): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list", clientUrl),
 	runModel: (name: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:run", name),
-	deleteModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:delete", name),
+	deleteModel: (name: string, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:delete", name, clientUrl),
 	resetChat: (): Promise<void> => ipcRenderer.invoke("ollama:reset"),
-	pullModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:pull", name),
+	pullModel: (name: string, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:pull", name, clientUrl),
 	onPullProgress: (cb: (data: PullProgress) => void): void => {
 		ipcRenderer.on(
 			"ollama:pull-progress",
 			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		);
 	},
+	onToolCall: (cb: (calls: any[]) => void) =>
+		ipcRenderer.on("ollama:new_tool_call", (_: Electron.IpcRendererEvent, calls: any[]) => cb(calls)),
 	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
 
 	streamPrompt: (
 		model: string,
 		prompt: string,
 		searchEnabled: boolean,
-		imgEnabled: boolean
+		imgEnabled: boolean,
+		clientUrl?: string
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
 			searchEnabled,
-			imgEnabled
+			imgEnabled,
+			clientUrl
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
 
@@ -89,7 +93,15 @@ contextBridge.exposeInMainWorld("ollama", {
 	},
 
 	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
-	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models")
+	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models"),
+	autoNameSession: async (model: string, prompt: string, clientUrl?: string): Promise<string> => {
+		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt, clientUrl);
+	},
+	startServer: (port: number, users: { email: string; role: string }[]) =>
+		ipcRenderer.invoke("ollama:start-proxy-server", port, users),
+	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),
+	getServerLogs: (): Promise<string> => ipcRenderer.invoke("ollama:get-server-logs"),
+	onLogAppend: (callback: (chunk: string) => void) => ipcRenderer.on("ollama:logs-append", (_: Electron.IpcRendererEvent, chunk: string) => callback(chunk)),
 });
 
 // ===== Utilities =====
@@ -102,8 +114,8 @@ contextBridge.exposeInMainWorld("utils", {
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
-	getWarning: (modelSize: string) =>
-		ipcRenderer.invoke("utils:get-hardware-performance-warning", modelSize),
+	getWarning: (modelSize: string, clientUrl?: string) =>
+		ipcRenderer.invoke("utils:get-hardware-performance-warning", modelSize, clientUrl),
 	isFirstLaunch: (): Promise<boolean> =>
 		ipcRenderer.invoke("utils:is-first-launch"),
 	resetFirstLaunch: (): Promise<void> =>
@@ -125,6 +137,8 @@ contextBridge.exposeInMainWorld("hfspaces", {
 });
 
 contextBridge.exposeInMainWorld("auth", {
+	signInWithGitHub: () => ipcRenderer.invoke("auth:signInWithGitHub"),
+	signInWithGoogle: () => ipcRenderer.invoke("auth:signInWithGoogle"),
 	signInWithEmail: (email: string, password: string) =>
 		ipcRenderer.invoke("auth:signInWithEmail", email, password),
 	signUpWithEmail: (email: string, password: string) =>

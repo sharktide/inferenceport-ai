@@ -31,6 +31,27 @@
 	<body>
 		<root-navbar></root-navbar>
 
+		<div id="remote-host-dialog" class="modal hidden">
+			<div class="modal-content">
+				<h3>Add Remote Host</h3>
+				<p>Enter the remote host IP or URL (e.g. 1.2.3.4 or 1.2.3.4:52458 or http://1.2.3.4:52458)</p>
+				<input type="text" id="remote-host-input" placeholder="Host URL" style="width:100%;max-width:420px;margin-bottom:8px" />
+				<input type="text" id="remote-host-alias" placeholder="Alias (max 20 chars)" maxlength="20" style="width:100%;max-width:420px;margin-bottom:8px" />
+				<div class="modal-actions">
+					<button id="remote-host-cancel">Cancel</button>
+					<button id="remote-host-confirm">Add Host</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="manage-hosts-dialog" class="modal hidden">
+			<div class="modal-content">
+				<h3>Manage Remote Hosts</h3>
+				<ul id="remote-host-list"></ul>
+				<button id="manage-hosts-close">Close</button>
+			</div>
+		</div>
+
 		<div id="del-modal" class="modal hidden">
 			<div class="modal-content">
 				<span class="close-btn" id="del-modal-close">×</span>
@@ -42,6 +63,12 @@
 
 		<main style="padding: 40px">
 			<h1>Installed Models</h1>
+
+			<select id="host-select" style="margin-bottom:16px;">
+				<option value="local">Local</option>
+				<option value="add_remote">Add Remote Host...</option>
+				<option value="manage_hosts">Manage Remote Hosts</option>
+			</select>
 
 			<br />
 

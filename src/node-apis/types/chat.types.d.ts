@@ -35,3 +35,23 @@ export type SessionType = {
 
 export type Session = SessionType;
 export type Sessions = Record<string, Session>;
+
+export type ChatHistoryEntry = {
+	role: "system" | "user" | "assistant" | "tool";
+	content: string;
+	tool_call_id?: string;
+	tool_calls?: ToolCall[];
+};
+
+export type PullChunk = {
+	status?: string;
+	digest?: string;
+	total?: number;
+	completed?: number;
+};
+
+export type PullSection = {
+	label: string;
+	total?: number;
+	completed?: number;
+};

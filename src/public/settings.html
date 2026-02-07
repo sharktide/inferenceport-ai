@@ -11,6 +11,67 @@
 				opacity: 0.5;
 				cursor: not-allowed;
 			}
+			.email-input-wrapper textarea {
+				width: 100%;
+				box-sizing: border-box;
+				font-family: inherit;
+				font-size: 14px;
+				padding: 8px;
+				border: 1px solid #7abff8;
+				border-radius: 14px;
+				resize: vertical;
+				background-color: var(--input-bg);
+				color: var(--input-text);
+			}
+			.email-chip-input {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 6px;
+				padding: 8px 10px;
+				border: 1px solid #7abff8;
+				border-radius: 14px;
+				background: var(--input-bg);
+				max-width: 520px;
+				cursor: text;
+			}
+
+			.email-chip-input input {
+				border: none;
+				outline: none;
+				flex: 1;
+				min-width: 160px;
+				background: transparent;
+				color: var(--input-text);
+				font-size: 14px;
+				padding: 4px;
+			}
+
+			.chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 4px 10px;
+				border-radius: 999px;
+				background: #3a82f7;
+				color: white;
+				font-size: 13px;
+			}
+
+			.chip button {
+				border: none;
+				background: transparent;
+				color: white;
+				cursor: pointer;
+				font-size: 14px;
+				line-height: 1;
+				padding: 0;
+			}
+
+			.chip.invalid {
+				background: #d9534f;
+			}
+
 		</style>
 		<script type="module" src="scripts/staticload/index.js"></script>
 	</head>
@@ -38,7 +99,7 @@
 						<p>Are you SURE you want to delete your account? This action is irreversible!</p>
 						<div class="modal-actions">
 							<button onclick="document.getElementById('delete-dialog').style.display = 'none'">Cancel</button>
-							<button onclick="document.getElementById('delete-dialog').style.display = 'none'; document.getElementById('delete-password-dialog').style.display = 'flex'" style="max-width: 200px; color: red !important">Continue</button>
+							<button id ="del-ps" style="max-width: 200px; color: red !important">Delete</button>
 						</div>
 					</div>
 				</div>
@@ -90,6 +151,40 @@
 						</p>
 						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
 						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
+					</details>
+
+					<details open><summary>Host (Proxy)</summary>
+						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the comma-separated list of allowed emails, then click <strong>Start Hosting</strong>.</p>
+						<div style="display:flex;flex-direction:column;gap:8px;max-width:520px;">
+							<label>Port: 52458</label>
+							<label for="host-emails" class="field-label">
+								Allowed emails
+								<span class="field-hint">(comma-separated)</span>
+							</label>
+
+							<div class="email-chip-input" id="email-chip-input">
+								<div class="chips" id="email-chips"></div>
+								<input
+									type="email"
+									id="email-input"
+									placeholder="Add email and press Enter"
+									autocomplete="off"
+								/>
+							</div>
+
+
+							<div class="modal-actions" style="padding:0">
+								<button id="host-start" style="max-width:200px">Start Hosting</button>
+								<button id="host-stop" disabled style="max-width:200px">Stop Hosting</button>
+							</div>
+							<p id="host-status" class="muted"></p>
+						</div>
+
+						<!-- Server Logs Panel -->
+						<div id="server-logs-panel" style="margin-top:12px;display:none;max-width:720px;">
+							<label>Server Logs &nbsp;&nbsp;&nbsp; <a id="logs-refresh" href="javascript:void(0)">Refresh</a></label>
+							<pre id="logs-output" style="background:var(--input-bg);color:var(--input-text);padding:12px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #7abff8;"></pre>
+						</div>
 					</details>
 			</div>
 			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>

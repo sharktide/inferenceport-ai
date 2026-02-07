@@ -46,7 +46,7 @@
             </uap:FileTypeAssociation>
           </uap:Extension></Extensions>
     </Application>
-    <Application Id="RihaanMeher.InferencePortDameon" Executable="app\resources\vendor\electron-ollama\ollama.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="RihaanMeher.InferencePortDaemon" Executable="app\resources\vendor\electron-ollama\ollama.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         BackgroundColor="transparent"
         DisplayName="InferencePort AI Chat Host"

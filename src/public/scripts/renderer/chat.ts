@@ -31,24 +31,42 @@ const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const modelSelect = document.getElementById(
-	"model-select"
+	"model-select",
 ) as HTMLSelectElement;
+const hostSelect = document.getElementById(
+	"host-select",
+) as HTMLSelectElement | null;
+const remoteHostDialog = document.getElementById(
+	"remote-host-dialog",
+) as HTMLDivElement | null;
+const remoteHostInput = document.getElementById(
+	"remote-host-input",
+) as HTMLInputElement | null;
+const remoteHostConfirm = document.getElementById(
+	"remote-host-confirm",
+) as HTMLButtonElement | null;
+const remoteHostCancel = document.getElementById(
+	"remote-host-cancel",
+) as HTMLButtonElement | null;
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
-	"new-session-btn"
+	"new-session-btn",
 ) as HTMLButtonElement;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
+const remoteHostAlias = document.getElementById(
+	"remote-host-alias",
+) as HTMLInputElement | null;
 const modalTitle = document.getElementById(
-	"file-preview-title"
+	"file-preview-title",
 ) as HTMLTitleElement;
 const modalContent = document.getElementById(
-	"file-preview-content"
+	"file-preview-content",
 ) as HTMLPreElement;
 const modalClose = document.getElementById(
-	"file-preview-close"
+	"file-preview-close",
 ) as HTMLButtonElement;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
@@ -57,7 +75,7 @@ const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
-	"feature-warning"
+	"feature-warning",
 ) as HTMLParagraphElement;
 
 let searchEnabled = false;
@@ -66,6 +84,10 @@ let sessions = {};
 let currentSessionId = null;
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
+interface RemoteHost {
+	url: string;
+	alias: string;
+}
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
@@ -108,7 +130,7 @@ function showSessionProgress(): void {
 
 function setSessionProgress(value: number): void {
 	const bar = document.getElementById(
-		"session-progress-bar"
+		"session-progress-bar",
 	) as HTMLDivElement;
 	if (!bar) return;
 
@@ -120,7 +142,7 @@ async function hideSessionProgress(): void {
 	if (!loaderVisible) return;
 
 	const bar = document.getElementById(
-		"session-progress-bar"
+		"session-progress-bar",
 	) as HTMLDivElement;
 	const loader = document.getElementById("session-loader") as HTMLDivElement;
 
@@ -141,9 +163,148 @@ async function hideSessionProgress(): void {
 		loaderVisible = false;
 	}, 300);
 }
+function openManageHostsDialog() {
+	const dialog = document.getElementById("manage-hosts-dialog")!;
+	const list = document.getElementById("remote-host-list")!;
+	list.innerHTML = "";
 
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	remotes.forEach((host, index) => {
+		const li = document.createElement("li");
+		li.className = "host-item";
+
+		// Host name
+		const nameSpan = document.createElement("span");
+		nameSpan.className = "host-name";
+		nameSpan.textContent = host.alias || host.url;
+		nameSpan.title = host.url;
+		nameSpan.style.fontWeight = "bold";
+
+		// Remove button
+		const removeBtn = document.createElement("button");
+		removeBtn.className = "remove-host";
+		removeBtn.textContent = "Remove";
+
+		removeBtn.style.maxWidth = "100px";
+		removeBtn.addEventListener("click", () => {
+			if (confirm(`Remove host ${host.alias || host.url}?`)) {
+				remotes.splice(index, 1);
+				localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+				updateHostSelectOptions();
+				openManageHostsDialog();
+			}
+		});
+
+		li.appendChild(nameSpan);
+		li.appendChild(removeBtn);
+		list.appendChild(li);
+	});
+
+	dialog.classList.remove("hidden");
+
+	document.getElementById("manage-hosts-close")!.onclick = () => {
+		dialog.classList.add("hidden");
+		hostSelect.value = localStorage.getItem("host_select") || "local";
+	};
+}
+
+function updateHostSelectOptions() {
+	if (!hostSelect) return;
+
+	Array.from(hostSelect.options).forEach((opt) => {
+		if (opt.value.startsWith("remote:")) opt.remove();
+	});
+
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+
+	remotes.forEach((host) => {
+		const opt = document.createElement("option");
+		opt.value = `remote:${host.url}`;
+		opt.textContent = host.alias || `Remote: ${host.url}`;
+		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+		else hostSelect.appendChild(opt);
+	});
+}
+function updateHostSelectState() {
+	const v = hostSelect.value;
+
+	if (v === "add_remote") {
+		remoteHostDialog?.classList.remove("hidden");
+		remoteHostInput!.value = "";
+		remoteHostAlias!.value = "";
+		remoteHostInput?.focus();
+		return;
+	}
+
+	if (v === "manage_hosts") {
+		openManageHostsDialog();
+		return;
+	}
+
+	localStorage.setItem("host_select", v);
+	reloadModelsForHost(v);
+}
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
+document.addEventListener("DOMContentLoaded", () => {
+	const remotes: { url: string; alias?: string }[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
+
+	if (hostSelect) {
+		updateHostSelectOptions();
+
+		hostSelect.addEventListener("change", updateHostSelectState);
+	}
+
+	remoteHostCancel?.addEventListener("click", () => {
+		remoteHostDialog?.classList.add("hidden");
+		if (hostSelect)
+			hostSelect.value = localStorage.getItem("host_select") || "local";
+	});
+
+	remoteHostConfirm?.addEventListener("click", () => {
+		let url = (remoteHostInput?.value || "").trim();
+		const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+
+		if (!url) return;
+
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url) && !/:\d+\//.test(url)) {
+			url = url.replace(/\/+$/, "") + ":52458";
+		}
+		url = url.replace(/\/+$/, "");
+
+		const remotesStored: { url: string; alias?: string }[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		if (!remotesStored.some((r) => r.url === url)) {
+			remotesStored.push({ url, alias });
+			localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+
+			const opt = document.createElement("option");
+			opt.value = `remote:${url}`;
+			opt.textContent = alias ? alias : `Remote: ${url}`;
+			const addRemoteOpt = hostSelect?.querySelector(
+				'option[value="add_remote"]',
+			);
+			if (addRemoteOpt && hostSelect)
+				hostSelect.insertBefore(opt, addRemoteOpt);
+		}
+
+		const sel = `remote:${url}`;
+		if (hostSelect) hostSelect.value = sel;
+		localStorage.setItem("host_select", sel);
+		remoteHostDialog?.classList.add("hidden");
+		reloadModelsForHost(sel);
+	});
+});
 
 async function loadOptions() {
 	showSessionProgress();
@@ -157,7 +318,7 @@ async function loadOptions() {
 		} catch (e) {
 			console.warn(
 				"Failed to load local sessions, starting with empty:",
-				e
+				e,
 			);
 			sessions = {};
 		}
@@ -194,7 +355,7 @@ async function loadOptions() {
 			modelSelect.insertAdjacentHTML(
 				"beforeend",
 				`<option value="add-more-models">➕ Add more models...</option>
-				 <option value="manage-models">✏️ Manage models...</option>`
+				 <option value="manage-models">✏️ Manage models...</option>`,
 			);
 
 			modelSelect.addEventListener("change", () => {
@@ -215,7 +376,7 @@ async function loadOptions() {
 		if (isSyncEnabled() && auth?.session?.user) {
 			const remoteResponse = await safeCallRemote(
 				() => window.sync.getRemoteSessions(),
-				{ sessions: null }
+				{ sessions: null },
 			);
 			setSessionProgress(65);
 
@@ -236,7 +397,7 @@ async function loadOptions() {
 
 				sessions = mergeLocalAndRemoteSessions(
 					sessions as SessionMap,
-					remoteResponse.sessions
+					remoteResponse.sessions,
 				);
 
 				await window.ollama.save(sessions);
@@ -245,7 +406,7 @@ async function loadOptions() {
 				const freshAuth = await window.auth.getSession();
 				if (freshAuth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 			}
@@ -287,6 +448,69 @@ function generateSessionId() {
 	return crypto.randomUUID();
 }
 
+async function reloadModelsForHost(hostValue: string) {
+	modelSelect.innerHTML = `<option disabled>Loading models…</option>`;
+
+	const clientUrl =
+		hostValue.startsWith("remote:")
+			? hostValue.replace("remote:", "")
+			: undefined;
+
+	try {
+		const models = await window.ollama.listModels(clientUrl);
+
+		modelSelect.innerHTML = "";
+
+		for (const model of models) {
+			const opt = document.createElement("option");
+			opt.value = model.name;
+			opt.textContent = model.name;
+			modelSelect.appendChild(opt);
+		}
+
+		modelSelect.insertAdjacentHTML(
+			"beforeend",
+			`<option value="add-more-models">➕ Add more models...</option>
+			 <option value="manage-models">✏️ Manage models...</option>`,
+		);
+
+		// reset selection if stale
+		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
+			modelSelect.selectedIndex = 0;
+		}
+	} catch (err: any) {
+		console.error("Model reload failed:", err);
+
+		modelSelect.innerHTML = "";
+
+		if (err?.code === "UNAUTHORIZED") {
+			modelSelect.innerHTML =
+				`<option disabled>🔒 Unauthorized</option>`;
+
+			showNotification({
+				message:
+					"You are not authorized to list models on this remote host.",
+				type: "error",
+				actions: [
+					{
+						label: "Manage Hosts",
+						onClick: () => openManageHostsDialog(),
+					},
+				],
+			});
+		} else {
+			modelSelect.innerHTML =
+				`<option disabled>Error loading models</option>`;
+
+			showNotification({
+				message:
+					"Failed to fetch models from the selected host.",
+				type: "error",
+			});
+		}
+	}
+}
+
 function showContextMenu(x, y, sessionId, sessionName) {
 	const menu = document.getElementById("session-context-menu");
 	menu.style.left = `${x}px`;
@@ -300,14 +524,18 @@ function showContextMenu(x, y, sessionId, sessionName) {
 				deleteSession(sessionId);
 				break;
 			case "delete_all":
-				if (confirm("Are you sure you want to delete all sessions? This cannot be undone.")) {
+				if (
+					confirm(
+						"Are you sure you want to delete all sessions? This cannot be undone.",
+					)
+				) {
 					sessions = {};
 					currentSessionId = null;
 					window.ollama.save(sessions);
 					window.auth.getSession().then(async (auth) => {
 						if (isSyncEnabled() && auth?.session?.user) {
 							await safeCallRemote(() =>
-								window.sync.saveAllSessions(sessions)
+								window.sync.saveAllSessions(sessions),
 							);
 						}
 						location.reload();
@@ -347,7 +575,7 @@ function deleteSession(sessionId) {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -359,7 +587,7 @@ function deleteSession(sessionId) {
 function openReportDialog(): void {
 	const dialog = document.getElementById("report-dialog") as HTMLDivElement;
 	const cancelBtn = document.getElementById(
-		"report-close"
+		"report-close",
 	) as HTMLButtonElement;
 	dialog.classList.remove("hidden");
 	const closeDialog = () => dialog.classList.add("hidden");
@@ -372,10 +600,10 @@ function openRenameDialog(sessionId, currentName): void {
 	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
 	const input = document.getElementById("rename-input") as HTMLInputElement;
 	const cancelBtn = document.getElementById(
-		"rename-cancel"
+		"rename-cancel",
 	) as HTMLButtonElement;
 	const confirmBtn = document.getElementById(
-		"rename-confirm"
+		"rename-confirm",
 	) as HTMLButtonElement;
 
 	input.value = currentName;
@@ -392,7 +620,7 @@ function openRenameDialog(sessionId, currentName): void {
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 				renderSessionList();
@@ -444,7 +672,7 @@ function renderSessionList(): void {
 
 	const sortedSessions = Object.entries(sessions)
 		.filter(([, session]) =>
-			session.name?.toLowerCase().includes(searchTerm)
+			session.name?.toLowerCase().includes(searchTerm),
 		)
 		.sort(([, a], [, b]) => {
 			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
@@ -480,7 +708,7 @@ function renderSessionList(): void {
 			window.auth.getSession().then(async (auth) => {
 				if (isSyncEnabled() && auth?.session?.user) {
 					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions)
+						window.sync.saveAllSessions(sessions),
 					);
 				}
 				renderSessionList();
@@ -613,7 +841,7 @@ window.ollama.onPullProgress(
 		if (!container) return;
 
 		let box = container.querySelector(
-			`[data-model="${model}"]`
+			`[data-model="${model}"]`,
 		) as HTMLElement | null;
 
 		if (!box) {
@@ -640,7 +868,7 @@ window.ollama.onPullProgress(
 
 		if (pre) {
 			pre.textContent = clean.includes("\r")
-				? clean.split("\r").pop() ?? ""
+				? (clean.split("\r").pop() ?? "")
 				: clean;
 		}
 
@@ -656,85 +884,47 @@ window.ollama.onPullProgress(
 			actions.appendChild(finishBtn);
 			box.appendChild(actions);
 		}
-	}
+	},
 );
 
 async function autoNameSession(
-	model: string,
+	model: string, // still passed for logging/context
 	prompt: string,
-	sessionId: string
+	sessionId: string,
+	clientUrl?: string,
 ): Promise<string> {
 	console.log("[autoNameSession] Called with:", { model, prompt, sessionId });
-	const response = await fetch("http://localhost:11434/api/chat", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			model,
-			messages: [
-				{
-					role: "system",
-					content:
-						"Name this session based on the user prompt that the user submits. Only respond with the title.",
-				},
-				{
-					role: "user",
-					content: `Generate a short title for the following prompt:\n\n${prompt}`,
-				},
-			],
-			stream: false,
-		}),
-	});
-	let data;
-	if (!response.ok) {
-		console.error(
-			"[autoNameSession] API error status:",
-			response.status,
-			response.statusText
-		);
-		showNotification({
-			message: `Failed to auto-name session: ${response.status} ${response.statusText}`,
-			type: "error",
-		});
-		return new Date().toLocaleString();
-	}
+
+	let title: string;
 	try {
-		data = await response.json();
+		title = await window.ollama.autoNameSession(model, prompt, clientUrl);
 	} catch (err) {
-		console.error("[autoNameSession] Failed to parse JSON response:", err);
-		showNotification({
-			message:
-				"Failed to auto-name session: invalid response from model API.",
-			type: "error",
-		});
-		return new Date().toLocaleString();
+		console.error("[autoNameSession] IPC error:", err);
+		title = new Date().toLocaleString();
 	}
-	if (!data || !data.message || typeof data.message.content !== "string") {
-		console.error("[autoNameSession] Unexpected API response:", data);
-		showNotification({
-			message:
-				"Failed to auto-name session: unexpected response from model API.",
-			type: "error",
-		});
-		return new Date().toLocaleString();
-	}
-	let title = data.message.content.trim();
+
 	if (
 		(title.startsWith('"') && title.endsWith('"')) ||
 		(title.startsWith("'") && title.endsWith("'"))
 	) {
 		title = title.slice(1, -1).trim();
 	}
+
 	console.log("[autoNameSession] Received title:", title);
+
 	sessions[sessionId].name = title;
 	window.ollama.save(sessions);
+
 	window.auth.getSession().then(async (auth) => {
 		if (isSyncEnabled() && auth?.session?.user) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
 		renderSessionList();
 	});
+
 	renderSessionList();
 	console.log("[autoNameSession] Session name set and UI updated.");
+
 	return title;
 }
 
@@ -748,27 +938,46 @@ form.addEventListener("submit", async (e) => {
 	updateTextareaState();
 
 	console.log("[form.submit] Submit event triggered");
-	const models = await window.ollama.listModels();
-	if (models.length === 0) {
-		const defaultModel = "llama3.2:3b";
-		showNotification({
-			message: `No models found. Downloading default model: ${defaultModel}`,
-			type: "info",
-		});
-		await pullModel(defaultModel);
-		let attempts = 0;
-		while (attempts < 10) {
-			const models = await window.ollama.listModels();
-			if (models.some((m) => m.name === defaultModel)) break;
-			await new Promise((r) => setTimeout(r, 1000));
-			attempts++;
-		}
-
-		await loadOptions();
-
-		modelSelect.value = defaultModel;
+	let clientUrl: string | undefined = undefined;
+	const hostChoice =
+		(hostSelect && hostSelect.value) ||
+		localStorage.getItem("host_select") ||
+		"local";
+	if (hostChoice && hostChoice.startsWith("remote:")) {
+		clientUrl = hostChoice.slice("remote:".length);
 	}
+	if (!clientUrl) {
+		const models = await window.ollama.listModels();
+		if (models.length === 0) {
+			const defaultModel = "llama3.2:3b";
+			showNotification({
+				message: `No models found. Downloading default model: ${defaultModel}`,
+				type: "info",
+			});
+			await pullModel(defaultModel);
+			let attempts = 0;
+			while (attempts < 10) {
+				const models = await window.ollama.listModels();
+				if (models.some((m) => m.name === defaultModel)) break;
+				await new Promise((r) => setTimeout(r, 1000));
+				attempts++;
+			}
 
+			await loadOptions();
+
+			modelSelect.value = defaultModel;
+		}
+	}
+	if (clientUrl) {
+		const remoteModels = await window.ollama.listModels(clientUrl);
+		if (remoteModels.length === 0) {
+			showNotification({
+				message: "No models available on the selected remote host.",
+				type: "warning",
+			});
+			return;
+		}
+	}
 	if (isStreaming) {
 		window.ollama.stop?.();
 		return;
@@ -779,14 +988,14 @@ form.addEventListener("submit", async (e) => {
 		"[form.submit] Prompt:",
 		prompt,
 		"CurrentSessionId:",
-		currentSessionId
+		currentSessionId,
 	);
 	if (!prompt || !currentSessionId) return;
 	if (sessions[currentSessionId].history.length === 0) {
 		console.log(
-			"[form.submit] First prompt for session, calling autoNameSession..."
+			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
-		autoNameSession(model, prompt, currentSessionId).catch((err) => {
+		autoNameSession(model, prompt, currentSessionId, clientUrl).catch((err) => {
 			console.error("[form.submit] autoNameSession error:", err);
 		});
 	}
@@ -806,7 +1015,15 @@ form.addEventListener("submit", async (e) => {
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
-	window.ollama.streamPrompt(model, fullPrompt, searchEnabled, imgEnabled);
+
+	localStorage.setItem("host_select", hostChoice);
+	window.ollama.streamPrompt(
+		model,
+		fullPrompt,
+		searchEnabled,
+		imgEnabled,
+		clientUrl,
+	);
 
 	let fullResponse = "";
 	isStreaming = true;
@@ -823,12 +1040,38 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
-		botBubble.textContent += `\n⚠️ Error: ${err}`;
+		if (
+			err.toString().toLowerCase().includes("token verification failed")
+		) {
+			botBubble.textContent += `\nInferencePort AI Transport Security has rejected the request. Reason: You are not authorized to use this remote host.`;
+
+			showNotification({
+				message:
+					"InferencePort AI Transport Security has rejected your request. Reason: You are not authorized to use this remote host.",
+				type: "error",
+			});
+		} else if (err.toString().toLowerCase().includes("connection error")) {
+			botBubble.textContent += `\nInferencePort AI could not connect to the host. Please check the host URL and your network connection.`;
+
+			showNotification({
+				message:
+					"InferencePort AI could not connect to the remote host. Please check the host URL and your network connection.",
+				type: "error",
+			});
+		} else {
+			botBubble.textContent += `\n⚠️ Error: ${err}`;
+
+			showNotification({
+				message: `Error during streaming: ${err}`,
+				type: "error",
+			});
+		}
+
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -838,6 +1081,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onDone(() => {
 		session.history.push({ role: "assistant", content: fullResponse });
+		renderChat();
 		const status = document.createElement("div");
 		status.textContent = "✅ Done";
 		status.style.marginTop = "8px";
@@ -848,7 +1092,7 @@ form.addEventListener("submit", async (e) => {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -858,6 +1102,7 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.onAbort(() => {
 		session.history.push({ role: "assistant", content: fullResponse });
+		renderChat();
 		const status = document.createElement("div");
 		status.textContent = "⚠︎ Interrupted";
 		status.style.marginTop = "8px";
@@ -868,7 +1113,7 @@ form.addEventListener("submit", async (e) => {
 		window.auth.getSession().then(async (auth) => {
 			if (isSyncEnabled() && auth?.session?.user) {
 				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions)
+					window.sync.saveAllSessions(sessions),
 				);
 			}
 			renderSessionList();
@@ -921,7 +1166,8 @@ function updateActionButton() {
 		actionBtn.classList.add("streaming");
 		actionBtn.setAttribute("aria-label", "Stop streaming");
 	} else {
-		actionBtn.textContent = "⬆️";
+		actionBtn.innerHTML =
+			"<img src='../assets/img/up-arrow.svg' alt='send' width='40' height='40' />";
 		actionBtn.classList.remove("streaming");
 		actionBtn.setAttribute("aria-label", "Send");
 	}
@@ -972,7 +1218,7 @@ function updateTextareaState() {
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {
 		e.preventDefault();
-		if (!isStreaming){
+		if (!isStreaming) {
 			(document.getElementById("send") as HTMLButtonElement).click();
 		}
 	}
@@ -1019,7 +1265,6 @@ async function setTitle() {
 }
 
 function renderChat() {
-	// Always re-resolve chatBox to avoid stale DOM references
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) {
 		console.warn("renderChat aborted: chatBox not found");
@@ -1048,7 +1293,7 @@ function renderChat() {
 			bubble.className = "chat-bubble user-bubble";
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = window.utils.markdown_parse_and_purify(
-				msg.content || ""
+				msg.content || "",
 			);
 			chatBox.appendChild(bubble);
 			return;
@@ -1058,7 +1303,7 @@ function renderChat() {
 		if (msg.role === "assistant") {
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			const html = window.utils.markdown_parse_and_purify(
-				msg.content || ""
+				msg.content || "",
 			);
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
@@ -1084,29 +1329,29 @@ function renderChat() {
 					}
 
 					const codeBubble = document.createElement(
-						"div"
+						"div",
 					) as HTMLDivElement;
 					codeBubble.className = "ai-code-bubble";
 
 					const header = document.createElement(
-						"div"
+						"div",
 					) as HTMLDivElement;
 					header.className = "ai-code-header";
 
 					const langLabel = document.createElement(
-						"span"
+						"span",
 					) as HTMLSpanElement;
 					langLabel.className = "ai-code-lang";
 					langLabel.textContent = lang;
 
 					const copyBtn = document.createElement(
-						"button"
+						"button",
 					) as HTMLButtonElement;
 					copyBtn.className = "ai-copy-btn";
 					copyBtn.textContent = "Copy";
 					copyBtn.onclick = () => {
 						navigator.clipboard.writeText(
-							codeEl?.textContent || ""
+							codeEl?.textContent || "",
 						);
 						copyBtn.textContent = "Copied!";
 						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
@@ -1128,12 +1373,12 @@ function renderChat() {
 
 		if (msg.role === "image") {
 			const botContainer = document.createElement(
-				"div"
+				"div",
 			) as HTMLDivElement;
 			botContainer.className = "chat-bubble image-bubble";
 
 			const imageWrapper = document.createElement(
-				"div"
+				"div",
 			) as HTMLDivElement;
 			imageWrapper.className = "image-wrapper";
 
@@ -1160,6 +1405,20 @@ function renderChat() {
 			imageWrapper.appendChild(downloadBtn);
 			botContainer.appendChild(imageWrapper);
 			chatBox.appendChild(botContainer);
+			return;
+		}
+
+		/* ---------------- TOOL ---------------- */
+		if (msg.role === "tool") {
+			const toolBubble = document.createElement("div");
+			toolBubble.className = "chat-bubble tool-bubble";
+
+			const header = document.createElement("div");
+			header.className = "tool-header";
+			header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
+
+			toolBubble.appendChild(header);
+			chatBox.appendChild(toolBubble);
 			return;
 		}
 
@@ -1246,6 +1505,25 @@ window.ollama.onNewAsset((msg) => {
 	});
 
 	renderImageAsset(dataUrl);
+});
+
+window.ollama.onToolCall((call) => {
+	if (!currentSessionId || !sessions[currentSessionId]) return;
+
+	const session = sessions[currentSessionId];
+
+	if (call.state === "pending") {
+		session.history.push({
+			role: "tool",
+			tool_call_id: call.id,
+			name: call.name,
+			content: "⏳ Running…",
+		});
+	}
+
+	if (call.state === "resolved") {
+		void 0;
+	}
 });
 
 modelSelect.addEventListener("change", setToolSupport);

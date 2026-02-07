@@ -19,14 +19,20 @@ export {};
 declare global {
 	interface Window {
 		ollama: {
-			listModels: () => Promise<ModelInfo[]>;
+			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
-			deleteModel: (name: string) => Promise<string>;
+			deleteModel: (name: string, clientUrl?: string) => Promise<string>;
 			resetChat: () => Promise<void>;
 			stop: () => void;
-			pullModel: (name: string) => Promise<string>;
+			pullModel: (name: string, clientUrl?: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
-			streamPrompt: (model: string, prompt: string) => void;
+			streamPrompt: (
+				model: string,
+				prompt: string,
+				searchEnabled: boolean,
+				imgEnabled: boolean,
+				clientUrl?: string,
+			) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
 			onDone: (cb: () => void) => void;
@@ -38,6 +44,10 @@ declare global {
 			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
+			stopServer: () => Promise<void>;
+			onLogAppend: (callback: (chunk: string) => void) => void;
+			getServerLogs: () => Promise<string>;
 		};
 
 		utils: {
@@ -45,7 +55,7 @@ declare global {
 			markdown_parse_and_purify: (markdown: string) => string;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
-			getWarning: (modelSize: string) => Promise<{
+			getWarning: (modelSize: string, clientUrl?: string) => Promise<{
 				modelSizeRaw: string;
 				modelSizeB: number;
 				cpu: string;
@@ -77,6 +87,8 @@ declare global {
 				user?: any;
 				error?: string;
 			}>;
+			signInWithGitHub: () => Promise<void>;
+			signInWithGoogle: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string
@@ -101,6 +113,9 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
+			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
+			onToolCall: (cb: (calls: any[]) => void) => void;
+
 		};
 
 		sync: {

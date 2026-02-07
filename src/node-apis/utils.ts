@@ -20,10 +20,17 @@ import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import fs from "fs";
 import path from "path";
 import { shell, app, ipcMain } from "electron";
-import si from "systeminformation";
+import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
 
-import type { Systeminformation } from "systeminformation";
+function is52458(url: string): boolean {
+	try {
+		const u = new URL(url);
+		return u.port === "52458";
+	} catch {
+		return false;
+	}
+}
 
 function detailsBlock(md: any): void {
 	md.block.ruler.before(
@@ -76,12 +83,7 @@ const mdit = MDIT({
 
 mdit.use(detailsBlock);
 
-let cpu: Systeminformation.CpuData | undefined;
-let flags: String | undefined;
-let mem: Systeminformation.MemData | undefined;
-let hardwareInfoPromise: Promise<void> | null = null;
-
-const FIRST_RUN_FILE = "first-run.json";
+const FIRST_RUN_FILE = "first-run-2.0.0.json";
 
 function getFirstRunPath() {
 	return path.join(app.getPath("userData"), FIRST_RUN_FILE);
@@ -119,30 +121,9 @@ function resetFirstLaunch(): void {
 	}
 }
 
-function initHardwareInfo() {
-	if (!hardwareInfoPromise) {
-		hardwareInfoPromise = (async () => {
-			[cpu, mem, flags] = await Promise.all([
-				si.cpu(),
-				si.mem(),
-				si.cpuFlags(),
-			]);
-		})();
-	}
-	return hardwareInfoPromise;
-}
-
-initHardwareInfo();
-
-function parseModelSize(modelSize: string) {
-	const lower = modelSize.toLowerCase();
-	if (lower.endsWith("b")) return parseFloat(lower.replace("b", ""));
-	if (lower.endsWith("m")) return parseFloat(lower.replace("m", "")) / 1000;
-	if (lower.startsWith("e")) return parseFloat(lower.replace("e", ""));
-	return parseFloat(lower);
-}
-
 export default function register() {
+	initHardwareInfo();
+
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
 	});
@@ -252,62 +233,8 @@ export default function register() {
 
 	ipcMain.handle(
 		"utils:get-hardware-performance-warning",
-		async (_event: IpcMainInvokeEvent, modelSizeRaw: string) => {
-			const modelSize = parseModelSize(modelSizeRaw);
-			await initHardwareInfo();
-
-			const ramGB = mem!.total / 1e9;
-			const hasAVX2 = flags!.includes("avx2");
-			const hasAVX512 =
-				flags!.includes("avx512f") || flags!.includes("avx512");
-
-			const score =
-				(hasAVX2 ? 2 : 0) +
-				(hasAVX512 ? 2 : 0) +
-				(cpu!.cores >= 8 ? 1 : 0) +
-				(ramGB >= 16 ? 1 : 0) +
-				(cpu!.cache?.l3 ? cpu!.cache.l3 / 10 : 0);
-
-			let warning = "";
-			if (modelSize > 65) {
-				return {
-					modelSizeRaw,
-					modelSizeB: modelSize,
-					cpu: cpu!.brand,
-					cores: cpu!.cores,
-					ramGB: ramGB.toFixed(1),
-					avx2: hasAVX2,
-					avx512: hasAVX512,
-					warning: `🚫 ${modelSizeRaw} is too large for most consumer hardware. Use a smaller model.`,
-				};
-			}
-
-			if (modelSize <= 1) {
-				warning = `✅ Your system should handle ${modelSizeRaw} models easily.`;
-			} else if (modelSize <= 3) {
-				warning =
-					score >= 4
-						? `✅ ${modelSizeRaw} should run fine on your system.`
-						: `⚠️ ${modelSizeRaw} may be slow (>30s) on your system.`;
-			} else if (modelSize <= 7) {
-				warning =
-					score >= 5
-						? `✅ ${modelSizeRaw} should run with reasonable performance.`
-						: `⚠️ ${modelSizeRaw} may respond slowly or exceed memory limits.`;
-			} else {
-				warning = `🚫 ${modelSizeRaw} is likely too large for your system. Consider using a smaller model.`;
-			}
-
-			return {
-				modelSizeRaw,
-				modelSizeB: modelSize,
-				cpu: cpu!.brand,
-				cores: cpu!.cores,
-				ramGB: ramGB.toFixed(1),
-				avx2: hasAVX2,
-				avx512: hasAVX512,
-				warning,
-			};
+		async (_event: IpcMainInvokeEvent, modelSizeRaw: string, clientUrl?: string) => {
+			return getHardwareRating(modelSizeRaw, clientUrl)
 		}
 	);
 }
