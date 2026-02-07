@@ -1,4 +1,4 @@
-import { showNotification } from "../helper/notification.js"
+import { showNotification } from "../helper/notification.js";
 interface AvailableModel {
 	name: string;
 	description?: string;
@@ -57,19 +57,27 @@ async function fetchAvailableModels(): Promise<AvailableModel[]> {
 	//@ts-ignore
 	return modelItems.map((item) => {
 		const name =
-			item.querySelector("[x-test-model-title] span")?.textContent?.trim() ??
-			"";
-		const description = item.querySelector("p.max-w-lg")?.textContent?.trim();
-		const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map((el) =>
-			el.textContent!.trim()
+			item
+				.querySelector("[x-test-model-title] span")
+				?.textContent?.trim() ?? "";
+		const description = item
+			.querySelector("p.max-w-lg")
+			?.textContent?.trim();
+		const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map(
+			(el) => el.textContent!.trim(),
 		);
 		const pulls =
 			item.querySelector("[x-test-pull-count]")?.textContent?.trim() ??
 			"Unknown";
-		const tagElements = item.querySelectorAll('span[class*="text-blue-600"]');
-		const tags = Array.from(tagElements).map((el) => el.textContent!.trim());
+		const tagElements = item.querySelectorAll(
+			'span[class*="text-blue-600"]',
+		);
+		const tags = Array.from(tagElements).map((el) =>
+			el.textContent!.trim(),
+		);
 		const updated =
-			item.querySelector("[x-test-updated]")?.textContent?.trim() ?? "Unknown";
+			item.querySelector("[x-test-updated]")?.textContent?.trim() ??
+			"Unknown";
 		const link = item.querySelector("a")?.getAttribute("href") ?? undefined;
 
 		return { name, description, sizes, pulls, tags, updated, link };
@@ -116,7 +124,7 @@ window.ollama.onPullProgress(
 		if (!container) return;
 
 		let box = container.querySelector(
-			`[data-model="${model}"]`
+			`[data-model="${model}"]`,
 		) as HTMLElement | null;
 
 		if (!box) {
@@ -143,7 +151,7 @@ window.ollama.onPullProgress(
 
 		if (pre) {
 			pre.textContent = clean.includes("\r")
-				? clean.split("\r").pop() ?? ""
+				? (clean.split("\r").pop() ?? "")
 				: clean;
 		}
 
@@ -159,50 +167,61 @@ window.ollama.onPullProgress(
 			actions.appendChild(finishBtn);
 			box.appendChild(actions);
 		}
-	}
+	},
 );
 
 function openPullModal(modelName: string, sizes: string[]): void {
-    currentModelName = modelName;
-    currentModelSizes = sizes;
+	currentModelName = modelName;
+	currentModelSizes = sizes;
 
-    const nameEl = document.getElementById("modal-model-name") as HTMLTitleElement;
-    const select = document.getElementById("modal-revision-select") as HTMLSelectElement;
-    const modal = document.getElementById("pull-modal") as HTMLDivElement;
-    const warningEl = document.getElementById("modal-performance-warning") as HTMLParagraphElement;
+	const nameEl = document.getElementById(
+		"modal-model-name",
+	) as HTMLTitleElement;
+	const select = document.getElementById(
+		"modal-revision-select",
+	) as HTMLSelectElement;
+	const modal = document.getElementById("pull-modal") as HTMLDivElement;
+	const warningEl = document.getElementById(
+		"modal-performance-warning",
+	) as HTMLParagraphElement;
 
-    if (nameEl) nameEl.textContent = `Pull ${modelName}`;
-    if (select) {
-        select.innerHTML =
-            `<option value="latest">latest</option>` +
-            sizes.map((size) => `<option value="${size}">${size}</option>`).join("");
+	if (nameEl) nameEl.textContent = `Pull ${modelName}`;
+	if (select) {
+		select.innerHTML =
+			`<option value="latest">latest</option>` +
+			sizes
+				.map((size) => `<option value="${size}">${size}</option>`)
+				.join("");
 
-        // Initial warning for first size
-        const initialSize = sizes[0];
-        if (warningEl && initialSize) {
-            window.utils.getWarning(initialSize, getClientUrl()).then((result) => {
-                warningEl.textContent = result.warning;
-                warningEl.className = "modal-warning";
-            });
-        }
+		// Initial warning for first size
+		const initialSize = sizes[0];
+		if (warningEl && initialSize) {
+			window.utils
+				.getWarning(initialSize, getClientUrl())
+				.then((result) => {
+					warningEl.textContent = result.warning;
+					warningEl.className = "modal-warning";
+				});
+		}
 
-        // Dynamic update on change
-        select.onchange = () => {
-            const selectedSize = select.value;
-            if (selectedSize === "latest") {
-                warningEl.textContent = "";
-                return;
-            }
-            window.utils.getWarning(selectedSize, getClientUrl()).then((result) => {
-                warningEl.textContent = result.warning;
-                warningEl.className = "modal-warning";
-            });
-        };
-    }
+		// Dynamic update on change
+		select.onchange = () => {
+			const selectedSize = select.value;
+			if (selectedSize === "latest") {
+				warningEl.textContent = "";
+				return;
+			}
+			window.utils
+				.getWarning(selectedSize, getClientUrl())
+				.then((result) => {
+					warningEl.textContent = result.warning;
+					warningEl.className = "modal-warning";
+				});
+		};
+	}
 
-    modal?.classList.remove("hidden");
+	modal?.classList.remove("hidden");
 }
-
 
 document
 	.getElementById("pull-modal-close")
@@ -214,7 +233,7 @@ function closePullModal(): void {
 
 document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 	const select = document.getElementById(
-		"modal-revision-select"
+		"modal-revision-select",
 	) as HTMLSelectElement;
 	const revision = select?.value ?? "latest";
 	const fullName =
@@ -226,42 +245,68 @@ document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 });
 
 function renderInstalledModels(filter: string = "", fail?: boolean): void {
-	const spinner = document.getElementById("installed-spinner") as HTMLDivElement;
+	const spinner = document.getElementById(
+		"installed-spinner",
+	) as HTMLDivElement;
 	const container = document.getElementById("installed-models");
 	if (!spinner || !container) return;
 
 	spinner.style.display = "flex";
 
 	try {
-		if (fail) throw new Error("Could not load models from the selected host.");
+		if (fail)
+			throw new Error("Could not load models from the selected host.");
 		container.innerHTML = "";
 		const theme = localStorage.getItem("theme");
 
 		if (installedModels.length === 0) {
 			const modelsNotFound = document.createElement("p");
-			modelsNotFound.innerHTML = "No models installed. Scroll down to choose from over 100 different chatbots";
-			if (theme === 'light') {
-				modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+			modelsNotFound.innerHTML =
+				"No models installed. Scroll down to choose from over 100 different chatbots";
+			if (theme === "light") {
+				modelsNotFound.style.setProperty(
+					"color",
+					"rgb(0, 0, 0)",
+					"important",
+				);
 			}
 			container.appendChild(modelsNotFound);
 			return;
 		}
 
 		installedModels
-			.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
-			.forEach((model) => {
-				const card = document.createElement("div");
-				card.className = "marketplace-card";
-				card.innerHTML = `
-					<h2>${model.name}</h2>
-					<p><strong>Size:</strong> ${model.size}</p>
-					<p><strong>Modified:</strong> ${model.modified}</p>
-					<button>Delete</button>
-				`;
-				const button = card.querySelector("button");
-				button?.addEventListener("click", () => deleteModel(model.name));
-				container.appendChild(card);
-			});
+			.filter((model) =>
+				model.name.toLowerCase().includes(filter.toLowerCase()),
+			)
+            .forEach((model) => {
+                const card = document.createElement("div");
+                card.className = "marketplace-card";
+
+                const h2 = document.createElement("h2");
+                h2.textContent = model.name;
+                card.appendChild(h2);
+
+                const pSize = document.createElement("p");
+                const strongSize = document.createElement("strong");
+                strongSize.textContent = "Size:";
+                pSize.appendChild(strongSize);
+                pSize.append(` ${model.size}`);
+                card.appendChild(pSize);
+
+                const pModified = document.createElement("p");
+                const strongModified = document.createElement("strong");
+                strongModified.textContent = "Modified:";
+                pModified.appendChild(strongModified);
+                pModified.append(` ${model.modified}`);
+                card.appendChild(pModified);
+
+                const button = document.createElement("button");
+                button.textContent = "Delete";
+                button.addEventListener("click", () => deleteModel(model.name));
+                card.appendChild(button);
+
+                container.appendChild(card);
+            });
 	} catch (err: any) {
 		container.innerHTML = `<p style="color:red"><strong>Error loading installed models:</strong> ${err?.message ?? err}</p>`;
 		showNotification({
@@ -273,7 +318,7 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
 	}
 }
 
-function renderAvailableModels(filter: string = ""): void {
+function renderAvailableModels(filter: string = "", fail?: boolean): void {
 	const spinner = document.getElementById("spinner-av") as HTMLDivElement;
 	const container = document.getElementById("available-models");
 	if (!spinner || !container) return;
@@ -281,56 +326,97 @@ function renderAvailableModels(filter: string = ""): void {
 	spinner.style.display = "flex";
 
 	try {
+		if (fail) {
+			throw new Error("Could not load models from Ollama. Check your internet connection.")
+		}
+
 		container.innerHTML = "";
 
 		const installedNames = installedModels.map((m) => m.name);
 
 		availableModels
 			.filter((model) => !installedNames.includes(model.name))
-			.filter((model) => model.name.toLowerCase().includes(filter.toLowerCase()))
+			.filter((model) =>
+				model.name.toLowerCase().includes(filter.toLowerCase()),
+			)
 			.forEach((model) => {
 				const card = document.createElement("div");
 				card.className = "marketplace-card";
 				card.id = encodeURIComponent(model.name);
 
-				const sizeOptions = model.sizes
-					.map((size) => `<option value="${size}">${size}</option>`)
-					.join("");
-				const tagBadges = model.tags
-					.map((tag) => `<span class="model-tag">${tag}</span>`)
-					.join(" ");
+				const h2 = document.createElement("h2");
+				h2.textContent = model.name;
+				card.appendChild(h2);
 
+				const pDesc = document.createElement("p");
+				pDesc.className = "model-description";
+				pDesc.textContent =
+					model.description ?? "No description available.";
+				card.appendChild(pDesc);
+
+				const tagsDiv = document.createElement("div");
+				tagsDiv.className = "model-tags";
+				model.tags.forEach((tag) => {
+					const span = document.createElement("span");
+					span.className = "model-tag";
+					span.textContent = tag;
+					tagsDiv.appendChild(span);
+				});
+				card.appendChild(tagsDiv);
+
+				const featuresDiv = document.createElement("div");
+				featuresDiv.className = "model-features";
 				const supportsTools = modelSupportsTools(model.name);
+				TOOL_FEATURES.forEach((f) => {
+					const span = document.createElement("span");
+					span.className = `feature-badge ${supportsTools ? "on" : "off"}`;
+					span.textContent = `${f.icon} ${f.label}`;
+					featuresDiv.appendChild(span);
+				});
+				card.appendChild(featuresDiv);
 
-				const featureBadges = supportsTools
-					? TOOL_FEATURES.map((f) => `<span class="feature-badge on">${f.icon} ${f.label}</span>`).join("")
-					: TOOL_FEATURES.map((f) => `<span class="feature-badge off">${f.icon} ${f.label}</span>`).join("");
+				const metaDiv = document.createElement("div");
+				metaDiv.className = "model-meta";
 
-				card.innerHTML = `
-					<h2>${model.name}</h2>
-					<p class="model-description">${model.description ?? "No description available."}</p>
-					<div class="model-tags">${tagBadges}</div>
-					<div class="model-features">${featureBadges}</div>
-					<div class="model-meta">
-						<p><strong>Pulls:</strong> ${model.pulls}</p>
-						<p><strong>Updated:</strong> ${model.updated}</p>
-						<a href="https://ollama.com${model.link ?? ""}" target="_blank" class="model-link">More details</a>
-					</div>
-					<button class="marketplace-btn">Open Download Dialog</button>
-				`;
+				const pullsP = document.createElement("p");
+				pullsP.innerHTML = `<strong>Pulls:</strong> ${model.pulls}`;
+				metaDiv.appendChild(pullsP);
 
-				const button = card.querySelector("button");
-				button?.addEventListener("click", () => openPullModal(model.name, model.sizes));
+				const updatedP = document.createElement("p");
+				updatedP.innerHTML = `<strong>Updated:</strong> ${model.updated}`;
+				metaDiv.appendChild(updatedP);
+
+				if (model.link) {
+					const linkA = document.createElement("a");
+					linkA.href = `https://ollama.com${model.link}`;
+					linkA.target = "_blank";
+					linkA.className = "model-link";
+					linkA.textContent = "More details";
+					metaDiv.appendChild(linkA);
+				}
+
+				card.appendChild(metaDiv);
+
+				const button = document.createElement("button");
+				button.className = "marketplace-btn";
+				button.textContent = "Open Download Dialog";
+				button.addEventListener("click", () =>
+					openPullModal(model.name, model.sizes),
+				);
+				card.appendChild(button);
 
 				container.appendChild(card);
-			});
+		});
 
 		const targetId = decodeURIComponent(location.hash.slice(1));
 		if (targetId) {
 			const targetEl = document.getElementById(targetId);
 			if (targetEl) {
 				const yOffset = -100;
-				const y = targetEl.getBoundingClientRect().top + window.pageYOffset + yOffset;
+				const y =
+					targetEl.getBoundingClientRect().top +
+					window.pageYOffset +
+					yOffset;
 				window.scrollTo({ top: y, behavior: "smooth" });
 
 				targetEl.classList.add("highlight");
@@ -346,7 +432,6 @@ function renderAvailableModels(filter: string = ""): void {
 		spinner.style.display = "none";
 	}
 }
-
 
 document
 	.getElementById("search-installed")
@@ -420,7 +505,9 @@ function openManageHostsDialog() {
 }
 
 function updateHostSelectOptions() {
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const hostSelect = document.getElementById(
+		"host-select",
+	) as HTMLSelectElement;
 	if (!hostSelect) return;
 
 	Array.from(hostSelect.options).forEach((opt) => {
@@ -441,12 +528,16 @@ function updateHostSelectOptions() {
 }
 
 function updateHostSelectState() {
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const hostSelect = document.getElementById(
+		"host-select",
+	) as HTMLSelectElement;
 	const v = hostSelect.value;
 
 	if (v === "add_remote") {
 		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+		const remoteHostInput = document.getElementById(
+			"remote-host-input",
+		) as HTMLInputElement;
 		remoteHostDialog?.classList.remove("hidden");
 		remoteHostInput?.focus();
 		return;
@@ -459,7 +550,7 @@ function updateHostSelectState() {
 
 	currentHost = v;
 	localStorage.setItem("host_select", v);
-	
+
 	(async () => {
 		const clientUrl = getClientUrl();
 		try {
@@ -483,12 +574,20 @@ function removeHostMarketplace(index: number) {
 
 document.addEventListener("DOMContentLoaded", async () => {
 	try {
-		const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+		const hostSelect = document.getElementById(
+			"host-select",
+		) as HTMLSelectElement;
 		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
-		const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
+		const remoteHostInput = document.getElementById(
+			"remote-host-input",
+		) as HTMLInputElement;
+		const remoteHostAlias = document.getElementById(
+			"remote-host-alias",
+		) as HTMLInputElement;
 		const remoteHostCancel = document.getElementById("remote-host-cancel")!;
-		const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
+		const remoteHostConfirm = document.getElementById(
+			"remote-host-confirm",
+		)!;
 
 		const savedHost = localStorage.getItem("host_select") || "local";
 		currentHost = savedHost;
@@ -502,13 +601,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 		remoteHostCancel?.addEventListener("click", () => {
 			remoteHostDialog?.classList.add("hidden");
 			if (hostSelect) {
-				hostSelect.value = localStorage.getItem("host_select") || "local";
+				hostSelect.value =
+					localStorage.getItem("host_select") || "local";
 			}
 		});
 
 		remoteHostConfirm?.addEventListener("click", () => {
 			let url = (remoteHostInput?.value || "").trim();
-			const alias = (remoteHostAlias?.value || "").trim().substring(0, 20);
+			const alias = (remoteHostAlias?.value || "")
+				.trim()
+				.substring(0, 20);
 
 			if (!url) return;
 
@@ -519,18 +621,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 			url = url.replace(/\/+$/, "");
 
 			const remotesStored: RemoteHost[] = JSON.parse(
-				localStorage.getItem("remote_hosts") || "[]"
+				localStorage.getItem("remote_hosts") || "[]",
 			);
 
 			if (!remotesStored.some((r) => r.url === url)) {
 				remotesStored.push({ url, alias });
-				localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+				localStorage.setItem(
+					"remote_hosts",
+					JSON.stringify(remotesStored),
+				);
 
 				const opt = document.createElement("option");
 				opt.value = `remote:${url}`;
 				opt.textContent = alias ? alias : `Remote: ${url}`;
 
-				const addRemoteOpt = hostSelect?.querySelector('option[value="add_remote"]');
+				const addRemoteOpt = hostSelect?.querySelector(
+					'option[value="add_remote"]',
+				);
 				if (addRemoteOpt && hostSelect) {
 					hostSelect.insertBefore(opt, addRemoteOpt);
 				}
@@ -550,10 +657,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 		const clientUrl = getClientUrl();
 
-		availableModels = await fetchAvailableModels();
-
 		const { supportsTools } = await window.ollama.getToolSupportingModels();
-		toolSupportingModels = new Set(supportsTools.map((m: string) => m.toLowerCase()));
+		toolSupportingModels = new Set(
+			supportsTools.map((m: string) => m.toLowerCase()),
+		);
 		try {
 			installedModels = await window.ollama.listModels(clientUrl);
 			renderInstalledModels();
@@ -561,8 +668,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 			installedModels = [];
 			renderInstalledModels("", true);
 		}
-		renderAvailableModels();
-
+		try {
+			availableModels = await fetchAvailableModels();
+			renderAvailableModels();
+		} catch (err: any) {
+			availableModels = []
+			renderAvailableModels(undefined, true)
+		}
 	} catch (err: any) {
 		showNotification({
 			message: `Initialization error: ${err?.message ?? err}`,
@@ -570,6 +682,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 		});
 	}
 });
-
 
 (window as any).removeHostMarketplace = removeHostMarketplace;
