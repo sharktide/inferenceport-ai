@@ -15,9 +15,13 @@ limitations under the License.
 */
 
 export {};
-
+import type { iConstructor, iInstance } from "./public/scripts/staticload/index.ts";
 declare global {
+	interface declarations {
+		iInstance: iInstance;
+	}
 	interface Window {
+		ic: iConstructor;
 		ollama: {
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
