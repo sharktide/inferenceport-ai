@@ -133,56 +133,13 @@
 			</div>
 		</div>
 
-		<div id="rename-dialog" class="modal hidden">
-			<div class="modal-content">
-				<h3>Rename Session</h3>
-				<input type="text" id="rename-input" />
-				<div class="modal-actions">
-					<button id="rename-cancel">Cancel</button>
-					<button id="rename-confirm">Rename</button>
-				</div>
-			</div>
-		</div>
-		<div id="report-dialog" class="modal hidden">
-			<div class="modal-content" style="width: 500px;">
-				<h3>Report Inappropriate Content</h3>
-				<p>In the event that one of the models used here outputs 
-					inappropriate content, you may report it by following the 
-					instructions here: 
-					<a href="javascript:window.utils.web_open('https://InferencePortAI.vercel.app/security.html#reporting')">
-						InferencePortAI Reporting Instructions
-					</a>
-				</p>
-				<div class="modal-actions">
-					<button id="report-close">Close</button>
-				</div>
-			</div>
-		</div>
 		<div id="session-context-menu" class="context-menu hidden">
 			<div class="context-item" data-action="rename">Rename</div>
 			<div class="context-item" data-action="report" style="color: rgb(226, 147, 0);">Report Content</div>
 			<div class="context-item" data-action="delete" style="color: red;">Delete Session</div>
 			<div class="context-item" data-action="delete_all" style="color: red;">Delete All Sessions</div>
 		</div>
-		<div id="remote-host-dialog" class="modal hidden">
-			<div class="modal-content">
-				<h3>Add Remote Host</h3>
-				<p>Enter the remote host IP or URL (e.g. 1.2.3.4 or 1.2.3.4:52458 or http://1.2.3.4:52458)</p>
-				<input type="text" id="remote-host-input" placeholder="Host URL" style="width:100%;max-width:420px;margin-bottom:8px" />
-				<input type="text" id="remote-host-alias" placeholder="Alias (max 20 chars)" maxlength="20" style="width:100%;max-width:420px;margin-bottom:8px" />
-				<div class="modal-actions">
-					<button id="remote-host-cancel">Cancel</button>
-					<button id="remote-host-confirm">Add Host</button>
-				</div>
-			</div>
-		</div>
-		<div id="manage-hosts-dialog" class="modal hidden">
-			<div class="modal-content">
-				<h3>Manage Remote Hosts</h3>
-				<ul id="remote-host-list"></ul>
-				<button id="manage-hosts-close">Close</button>
-			</div>
-		</div>
+
 		<main
 			id="app-root"
 			class="hidden"
@@ -191,7 +148,6 @@
 				<aside class="sidebar">
 					<select id="host-select" style="margin-bottom:8px;">
 						<option value="local">Local</option>
-						<option value="add_remote">Add Remote Host...</option>
 						<option value="manage_hosts">Manage Remote Hosts</option>
 					</select>
 					<select id="model-select"></select>
