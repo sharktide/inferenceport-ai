@@ -139,13 +139,13 @@ saveButton.addEventListener('click', async () => {
 
     status.textContent = "Saving...";
     setTimeout(() => {
-        (document.getElementById("rename-dialog") as HTMLDivElement).style.display = "none";
+        (document.getElementById("rename-dialog") as HTMLDivElement).classList.add("hidden");
         window.location.reload();
     }, 1000);
 });
 
 (document.getElementById("rename-cancel") as HTMLButtonElement).addEventListener('click', function() {
-    (document.getElementById("rename-dialog") as HTMLDivElement).style.display = "none";
+    (document.getElementById("rename-dialog") as HTMLDivElement).classList.add("hidden");
 });
 
 (document.getElementById("deleteforreal") as HTMLButtonElement).addEventListener('click', async function() {
@@ -189,7 +189,7 @@ saveButton.addEventListener('click', async () => {
 (document.getElementById("del-ps") as HTMLButtonElement).addEventListener('click', showDelModal)
 async function showDelModal(): Promise<void> {
     const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
-    (document.getElementById('delete-dialog') as HTMLDivElement).style.display = 'none';
+    (document.getElementById('delete-dialog') as HTMLDivElement).classList.add("hidden");
     try {
         const { session } = await window.auth.getSession();
         if (!session?.user) {
