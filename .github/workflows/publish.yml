@@ -206,7 +206,6 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
       GPU_ONLY: "true"
-      STORE_ONLY: "true"
 
     steps:
       - name: Checkout repo
