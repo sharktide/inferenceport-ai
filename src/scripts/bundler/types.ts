@@ -11,6 +11,8 @@ export interface ElectronOllamaConfig {
 export interface PlatformConfig {
   os: 'windows' | 'darwin' | 'linux';
   arch: 'arm64' | 'amd64';
+  // Optional variant for GPU/target-specific builds, e.g. 'cuda', 'rocm', 'jetpack5', 'jetpack6'
+  variant?: string;
 }
 
 export interface OllamaAssetMetadata {
