@@ -3,10 +3,13 @@ import AuthManager from "./Managers/AuthManager.js";
 
 import iModal from "./Utility/modal.js";
 
-export interface IC {
+export interface iConstructor {
     iModal: typeof iModal;
 }
-const ic: IC = {
+export interface iInstance {
+    iModal: iModal;
+}
+const ic: iConstructor = {
     iModal: iModal,
 }
 

@@ -15,8 +15,11 @@ limitations under the License.
 */
 
 export {};
-import type { IC } from "./public/scripts/staticload/index.ts";
+import type { IC, iInstance } from "./public/scripts/staticload/index.ts";
 declare global {
+	interface declarations {
+		iInstance: iInstance;
+	}
 	interface Window {
 		ic: IC;
 		ollama: {

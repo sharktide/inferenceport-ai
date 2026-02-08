@@ -80,41 +80,7 @@
 		<main style="padding: 40px">
 			<div class="settings-container">
 				<h1>Settings</h1>
-				<div id="rename-dialog" class="modal hidden">
-					<div class="modal-content">
-						<h2>Change Username</h2>
-						<p>Pick your new username:</p>
-						<input type="text" id="username" placeholder="Enter username" style="max-width: 200px;">
-						<br />
-						<div class="modal-actions">
-							<button id="rename-cancel">Cancel</button>
-							<button id="save" style="max-width: 200px;">Save</button>
-						</div>
-						<p id="status"></p>
-					</div>
-				</div>
-				<div id="delete-dialog" class="modal hidden">
-					<div class="modal-content">
-						<h2>Delete Account</h2>
-						<p>Are you SURE you want to delete your account? This action is irreversible!</p>
-						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-dialog').classList.add('hidden')">Cancel</button>
-							<button id ="del-ps" style="max-width: 200px; color: red !important">Delete</button>
-						</div>
-					</div>
-				</div>
-				<div id="delete-password-dialog" class="modal hidden">
-					<div class="modal-content">
-						<h2>Delete Account</h2>
-						<p>Please enter your password to permanently delete your account.</p>
-						<input type="password" id="password" placeholder="Enter password" style="max-width: 275x;">
-						<div class="modal-actions">
-							<button onclick="document.getElementById('delete-password-dialog').classList.add('hidden')">Cancel</button>
-							<button style="max-width: 200px; color: red !important" id="deleteforreal">Delete</button>
-						</div>
-						<p id="delete-password-status"></p>
-					</div>
-				</div>
+				
 				<details open><summary>General</summary>
 					<p> </p>
 					<div>
@@ -125,11 +91,11 @@
 				<details open id="account-settings"><Summary>Account</Summary>
 					<p> </p>
 					<div>
-						<button onclick="document.getElementById('rename-dialog').classList.remove('hidden')" class="theme-toggle">Change Username</button>
+						<button id="open-rename" class="theme-toggle">Change Username</button>
 					</div>
 					<p> </p>
 					<div>
-						<button onclick="document.getElementById('delete-dialog').classList.remove('hidden')" class="theme-toggle red" style="color: red !important">Delete Account</button>
+						<button id="open-delete" class="theme-toggle red" style="color: red !important">Delete Account</button>
 					</div>
 				</details>
 				<!--

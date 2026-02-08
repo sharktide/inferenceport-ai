@@ -1,11 +1,37 @@
 import { showNotification } from "./helper/notification.js";
 
-const usernameInput = document.getElementById('username') as HTMLInputElement;
-const saveButton = document.getElementById('save') as HTMLButtonElement;
-const status = document.getElementById('status') as HTMLParagraphElement;
+const chipContainer = document.getElementById("email-chips") as HTMLDivElement;
+const emailInput = document.getElementById("email-input") as HTMLInputElement;
+const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement;
+const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement;
+const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement;
+const hostStatus = document.getElementById('host-status') as HTMLParagraphElement;
+const serverLogsPanel = document.getElementById('server-logs-panel') as HTMLDivElement;
+const logsRefreshBtn = document.getElementById('logs-refresh') as HTMLButtonElement;
+const logsStartBtn = document.getElementById('logs-start') as HTMLButtonElement;
+const logsStopBtn = document.getElementById('logs-stop') as HTMLButtonElement;
+const logsOutput = document.getElementById('logs-output') as HTMLPreElement;
+
+const RESTART_REQUIRED_KEY = "host_restart_required";
+
+const EMAIL_STORAGE_KEY = "host_emails_v2";
+const HOST_USERS_KEY = "host_users_v1";
 
 const syncCheckbox = document.getElementById('sync-chats') as HTMLInputElement | null;
 const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDetailsElement | null;
+let emails: string[] = [];
+
+let hostConfigModal: declarations["iInstance"]["iModal"];
+let renameModal: declarations["iInstance"]["iModal"];
+let deleteConfirmModal: declarations["iInstance"]["iModal"];
+let deletePasswordModal: declarations["iInstance"]["iModal"];
+
+document.addEventListener("DOMContentLoaded", () => {
+	hostConfigModal = new window.ic.iModal("host-config-modal", 650);
+	renameModal = new window.ic.iModal("rename-modal", 400);
+	deleteConfirmModal = new window.ic.iModal("delete-confirm-modal", 420);
+	deletePasswordModal = new window.ic.iModal("delete-password-modal", 420);
+});
 
 (async () => {
     try {
@@ -31,8 +57,6 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
                 syncCheckbox.disabled = false;
                 syncCheckbox.addEventListener('change', () => {
                     localStorage.setItem('sync_enabled', syncCheckbox.checked ? 'true' : 'false');
-                    status && (status.textContent = 'Saved.');
-                    setTimeout(() => { if (status) status.textContent = ''; }, 1200);
                 });
             }
         }
@@ -40,13 +64,6 @@ const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDe
         console.warn('Could not initialize sync setting', e);
     }
 })();
-
-const chipContainer = document.getElementById("email-chips")!;
-const emailInput = document.getElementById("email-input") as HTMLInputElement;
-const EMAIL_STORAGE_KEY = "host_emails_v2";
-const HOST_USERS_KEY = "host_users_v1";
-
-let emails: string[] = [];
 
 function isValidEmail(email: string) {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -126,99 +143,6 @@ emailInput.addEventListener("blur", () => {
 	emailInput.value = "";
 });
 
-saveButton.addEventListener('click', async () => {
-    const username = usernameInput.value.trim();
-    if (!username) return status.textContent = "Please enter a username.";
-
-    const { session } = await window.auth.getSession();
-    const userId = session?.user?.id;
-    if (!userId) return status.textContent = "Not logged in.";
-
-    const result = await window.auth.setUsername(userId, username);
-    if (result.error) return status.textContent = `Error: ${result.error}`;
-
-    status.textContent = "Saving...";
-    setTimeout(() => {
-        (document.getElementById("rename-dialog") as HTMLDivElement).classList.add("hidden");
-        window.location.reload();
-    }, 1000);
-});
-
-(document.getElementById("rename-cancel") as HTMLButtonElement).addEventListener('click', function() {
-    (document.getElementById("rename-dialog") as HTMLDivElement).classList.add("hidden");
-});
-
-(document.getElementById("deleteforreal") as HTMLButtonElement).addEventListener('click', async function() {
-    const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
-    deleteStatus.textContent = "Deleting account...";
-
-    try {
-        const { session } = await window.auth.getSession();
-        if (!session?.user) {
-            deleteStatus.textContent = "Not logged in.";
-            return;
-        }
-
-        if (session.user.app_metadata?.provider === "email") {
-            const passwordInput = document.getElementById("password") as HTMLInputElement;
-            const password = passwordInput.value;
-            const { success, error } = await window.auth.verifyPassword(password);
-            if (!success) {
-                deleteStatus.textContent = `Error: ${error || 'Verification failed'}`;
-                return;
-            }
-        }
-
-        const result = await window.auth.deleteAccount();
-        if (!result.success) {
-            deleteStatus.textContent = `Error: ${result.error || 'Deletion failed'}`;
-            return;
-        }
-
-        deleteStatus.textContent = "Account deleted successfully.";
-        setTimeout(() => {
-            window.auth.signOut().finally(() => {
-                window.location.href = "index.html";
-            });
-        }, 1000);
-    } catch (e: any) {
-        deleteStatus.textContent = `Error: ${e.message || e}`;
-    }
-});
-
-(document.getElementById("del-ps") as HTMLButtonElement).addEventListener('click', showDelModal)
-async function showDelModal(): Promise<void> {
-    const deleteStatus = document.getElementById("delete-password-status") as HTMLParagraphElement;
-    (document.getElementById('delete-dialog') as HTMLDivElement).classList.add("hidden");
-    try {
-        const { session } = await window.auth.getSession();
-        if (!session?.user) {
-            deleteStatus.textContent = "Not logged in.";
-            return;
-        }
-
-        if (session.user.app_metadata?.provider === "email") {
-            (document.getElementById('delete-password-dialog') as HTMLDivElement).style.display = 'flex'
-            return
-        } else {
-            const result = await window.auth.deleteAccount();
-            if (!result.success) {
-                deleteStatus.textContent = `Error: ${result.error || 'Deletion failed'}`;
-                return;
-            }
-
-            deleteStatus.textContent = "Account deleted successfully.";
-            setTimeout(() => {
-                window.auth.signOut().finally(() => {
-                    window.location.href = "index.html";
-                });
-            }, 1000);
-        }
-    } catch (e: any) {
-        deleteStatus.textContent = `Error: ${e.message || e}`;
-        return
-    }
-}
 window.addEventListener("DOMContentLoaded", async () => {
     const { session } = await window.auth.getSession();
     if (session) return;
@@ -249,12 +173,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     details.appendChild(msg);
 });
 
-const hostEmailsInput = document.getElementById('host-emails') as HTMLTextAreaElement;
-const hostStartBtn = document.getElementById('host-start') as HTMLButtonElement;
-const hostStopBtn = document.getElementById('host-stop') as HTMLButtonElement;
-const hostStatus = document.getElementById('host-status') as HTMLParagraphElement;
-const RESTART_REQUIRED_KEY = "host_restart_required";
-
 async function setHostingUIRunning(running: boolean, port?: number) {
     if (hostStartBtn) hostStartBtn.disabled = running;
     if (hostStopBtn) hostStopBtn.disabled = !running;
@@ -267,29 +185,13 @@ async function setHostingUIRunning(running: boolean, port?: number) {
     }
 }
 
-const serverLogsPanel = document.getElementById('server-logs-panel') as HTMLDivElement;
-const logsRefreshBtn = document.getElementById('logs-refresh') as HTMLButtonElement;
-const logsStartBtn = document.getElementById('logs-start') as HTMLButtonElement;
-const logsStopBtn = document.getElementById('logs-stop') as HTMLButtonElement;
-const logsClearBtn = document.getElementById('logs-clear') as HTMLButtonElement;
-const logsOutput = document.getElementById('logs-output') as HTMLPreElement;
-
-let isLogStreaming = false;
-
 function setServerLogUIRunning(running: boolean, port?: number) {
     if (!serverLogsPanel) return;
     serverLogsPanel.style.display = running ? 'block' : 'none';
     if (!running) {
-        isLogStreaming = false;
         if (logsStartBtn) logsStartBtn.disabled = false;
         if (logsStopBtn) logsStopBtn.disabled = true;
     }
-}
-
-function appendLogs(chunk: string) {
-    if (!logsOutput) return;
-    logsOutput.textContent += chunk;
-    logsOutput.scrollTop = logsOutput.scrollHeight;
 }
 
 logsRefreshBtn?.addEventListener('click', async () => {
@@ -353,121 +255,93 @@ async function isLocalProxyRunning(port: number, timeout = 1000): Promise<boolea
 hostStartBtn?.addEventListener('click', async () => {
 	const models = await window.ollama.listModels(undefined);
 	if (models.length === 0) {
-        if (hostStatus) hostStatus.textContent = 'No models available. Please download a model before starting the server.';
-        showNotification({message: "Could not start the server", type: "error"});
-        return;
-    }
+		if (hostStatus) hostStatus.textContent = 'No models available. Please download a model before starting the server.';
+		showNotification({ message: "Could not start the server", type: "error" });
+		return;
+	}
 
-    const port = 52458;
-    const emailsToUse = emails.filter(isValidEmail);
-    if (emailsToUse.length === 0) {
-        if (hostStatus) hostStatus.textContent = 'No valid emails configured.';
-        return;
-    }
+	const port = 52458;
+	const emailsToUse = emails.filter(isValidEmail);
+	if (emailsToUse.length === 0) {
+		if (hostStatus) hostStatus.textContent = 'No valid emails configured.';
+		return;
+	}
 
-    const existingUsersRaw = localStorage.getItem(HOST_USERS_KEY);
-    let existingUsers: { email: string; role: string }[] = [];
-    try { existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : []; } catch { existingUsers = []; }
+	const existingUsersRaw = localStorage.getItem(HOST_USERS_KEY);
+	let existingUsers: { email: string; role: string }[] = [];
+	try {
+		existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+	} catch {}
 
-    const users: { email: string; role: string }[] = emailsToUse.map(e => {
-        const found = existingUsers.find(u => u.email === e);
-        return { email: e, role: (found && found.role) || 'member' };
-    });
+	const users = emailsToUse.map(e => {
+		const found = existingUsers.find(u => u.email === e);
+		return { email: e, role: found?.role || 'member' };
+	});
 
-    const modal = document.createElement('div');
-    modal.style.position = 'fixed';
-    modal.style.left = '0';
-    modal.style.top = '0';
-    modal.style.right = '0';
-    modal.style.bottom = '0';
-    modal.style.background = 'rgba(0,0,0,0.4)';
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    modal.id = 'host-config-modal';
+	const rows = users.map((u, idx) => `
+		<tr>
+			<td style="padding:8px; text-align:left">${u.email}</td>
+			<td style="padding:8px; text-align:right">
+				<select data-idx="${idx}">
+					<option value="member" ${u.role === 'member' ? 'selected' : ''}>Member</option>
+					<option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+				</select>
+			</td>
+		</tr>
+	`).join("");
 
-    const dialog = document.createElement('div');
-    dialog.style.background = 'var(--gray)';
-    dialog.style.padding = '16px';
-    dialog.style.borderRadius = '8px';
-    dialog.style.width = '600px';
-    dialog.style.maxHeight = '80vh';
-    dialog.style.overflow = 'auto';
+	const html = `
+		<h3>Configure Hosted Users & Roles</h3>
+		<table style="width:100%; border-collapse:collapse">
+			<tr>
+				<th style="text-align:left">Email</th>
+				<th style="text-align:left">Role</th>
+			</tr>
+			${rows}
+		</table>
+	`;
 
-    const title = document.createElement('h3');
-    title.textContent = 'Configure Hosted Users & Roles';
-    dialog.appendChild(title);
+	hostConfigModal.open({
+		html,
+		actions: [
+			{
+				id: "cancel-host",
+				label: "Cancel",
+				onClick: () => hostConfigModal.close()
+			},
+			{
+				id: "start-host",
+				label: "Start Server",
+				onClick: async () => {
+					hostConfigModal.close();
+					if (hostStatus) hostStatus.textContent = "Starting...";
 
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
-    const header = document.createElement('tr');
-    header.innerHTML = '<th style="text-align:left">Email</th><th style="text-align:left">Role</th>';
-    table.appendChild(header);
+					try {
+						clearRestartRequired();
+						await window.ollama.startServer(port, users);
+						localStorage.setItem(HOST_USERS_KEY, JSON.stringify(users));
+						localStorage.setItem('host_emails', hostEmailsInput?.value || '');
+						setHostingUIRunning(true, port);
+					} catch (e: any) {
+						if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
+					}
+				}
+			}
+		]
+	});
 
-    users.forEach((u, idx) => {
-        const row = document.createElement('tr');
-        const emailTd = document.createElement('td');
-        emailTd.textContent = u.email;
-        emailTd.style.padding = '8px';
-
-        const roleTd = document.createElement('td');
-        roleTd.style.padding = '8px';
-        const select = document.createElement('select');
-        ['member','admin'].forEach(r => {
-            const opt = document.createElement('option');
-            opt.value = r;
-            opt.textContent = r.charAt(0).toUpperCase() + r.slice(1);
-            if (r === u.role) opt.selected = true;
-            select.appendChild(opt);
-        });
-        roleTd.appendChild(select);
-
-        row.appendChild(emailTd);
-        row.appendChild(roleTd);
-        table.appendChild(row);
-
-        select.addEventListener('change', () => {
-            users[idx]!.role = select.value;
-        });
-    });
-
-    dialog.appendChild(table);
-
-    const actions = document.createElement('div');
-    actions.style.marginTop = '12px';
-    actions.style.textAlign = 'right';
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.marginRight = '8px';
-    cancelBtn.onclick = () => modal.remove();
-    cancelBtn.style.marginBottom = "10px";
-
-    const startBtn = document.createElement('button');
-    startBtn.textContent = 'Start Server';
-    startBtn.onclick = async () => {
-        modal.remove();
-        if (hostStatus) hostStatus.textContent = 'Starting...';
-        try {
-            clearRestartRequired();
-            await window.ollama.startServer(port, users);
-            localStorage.setItem(HOST_USERS_KEY, JSON.stringify(users));
-            localStorage.setItem('host_emails', hostEmailsInput?.value || '');
-            setHostingUIRunning(true, port);
-        } catch (e: any) {
-            if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
-        }
-    };
-
-    actions.appendChild(cancelBtn);
-    actions.appendChild(startBtn);
-    dialog.appendChild(actions);
-    modal.appendChild(dialog);
-    document.body.appendChild(modal);
+	requestAnimationFrame(() => {
+		document.querySelectorAll<HTMLSelectElement>("#host-config-modal select")
+			.forEach(select => {
+				select.addEventListener("change", () => {
+					const idx = Number(select.dataset.idx);
+					users[idx]!.role = select.value;
+				});
+			});
+	});
 });
 
-hostStopBtn?.addEventListener('click', async () => {
+hostStopBtn.addEventListener('click', async () => {
     if (hostStatus) hostStatus.textContent = 'Stopping...';
     try {
         await window.ollama.stopServer();
@@ -477,5 +351,148 @@ hostStopBtn?.addEventListener('click', async () => {
         if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;
     }
 });
+
+(document.getElementById("open-rename") as HTMLButtonElement).addEventListener("click", () => {
+	renameModal.open({
+		html: `
+			<div style="text-align:left">
+				<h3>Change Username</h3>
+				<p>Pick your new username:</p>
+				<input type="text" id="rename-username" placeholder="Enter username" style="width:100%">
+				<p id="rename-status" style="margin-top:8px;"></p>
+			</div>
+		`,
+		actions: [
+			{
+				id: "rename-cancel",
+				label: "Cancel",
+				onClick: () => renameModal.close()
+			},
+			{
+				id: "rename-save",
+				label: "Save",
+				onClick: async () => {
+					const input = document.getElementById("rename-username") as HTMLInputElement;
+					const statusEl = document.getElementById("rename-status") as HTMLParagraphElement;
+					const username = input.value.trim();
+
+					if (!username) {
+						statusEl.textContent = "Please enter a username.";
+						return;
+					}
+
+					statusEl.textContent = "Saving...";
+
+					const { session } = await window.auth.getSession();
+					const userId = session?.user?.id;
+					if (!userId) {
+						statusEl.textContent = "Not logged in.";
+						return;
+					}
+
+					const result = await window.auth.setUsername(userId, username);
+					if (result.error) {
+						statusEl.textContent = `Error: ${result.error}`;
+						return;
+					}
+
+					renameModal.close();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 700);
+				}
+			}
+		]
+	});
+});
+
+(document.getElementById("open-delete") as HTMLButtonElement).addEventListener("click", () => {
+	deleteConfirmModal.open({
+		html: `
+			<div style="text-align:left">
+				<h3 style="color:red">Delete Account</h3>
+				<p>Are you sure you want to permanently delete your account?</p>
+			</div>
+		`,
+		actions: [
+			{
+				id: "delete-cancel",
+				label: "Cancel",
+				onClick: () => deleteConfirmModal.close()
+			},
+			{
+				id: "delete-continue",
+				label: "Delete",
+				onClick: async () => {
+					deleteConfirmModal.close();
+					await handleDeleteFlow();
+				}
+			}
+		]
+	});
+});
+
+async function handleDeleteFlow() {
+	const { session } = await window.auth.getSession();
+	if (!session?.user) return;
+
+	if (session.user.app_metadata?.provider === "email") {
+		deletePasswordModal.open({
+			html: `
+				<div style="text-align:left">
+					<h3 style="color:red">Confirm Password</h3>
+					<p>Please enter your password to delete your account.</p>
+					<input type="password" id="delete-password-input" style="width:100%">
+					<p id="delete-password-status"></p>
+				</div>
+			`,
+			actions: [
+				{
+					id: "pw-cancel",
+					label: "Cancel",
+					onClick: () => deletePasswordModal.close()
+				},
+				{
+					id: "pw-delete",
+					label: "Delete",
+					onClick: async () => {
+						const input = document.getElementById("delete-password-input") as HTMLInputElement;
+						const statusEl = document.getElementById("delete-password-status") as HTMLParagraphElement;
+
+						statusEl.textContent = "Verifying...";
+
+						const { success, error } = await window.auth.verifyPassword(input.value);
+						if (!success) {
+							statusEl.textContent = `Error: ${error || "Verification failed"}`;
+							return;
+						}
+
+						await performFinalDeletion(statusEl);
+					}
+				}
+			]
+		});
+	} else {
+		await performFinalDeletion();
+	}
+}
+
+async function performFinalDeletion(statusEl?: HTMLElement) {
+	if (statusEl) statusEl.textContent = "Deleting account...";
+
+	const result = await window.auth.deleteAccount();
+	if (!result.success) {
+		if (statusEl) statusEl.textContent = `Error: ${result.error || "Deletion failed"}`;
+		return;
+	}
+
+	if (statusEl) statusEl.textContent = "Deleted.";
+
+	setTimeout(() => {
+		window.auth.signOut().finally(() => {
+			window.location.href = "index.html";
+		});
+	}, 800);
+}
 
 setHostingUIRunning(false);

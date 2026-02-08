@@ -10,7 +10,7 @@ export interface ModalOptions {
     html?: string;
     inputs?: { id: string; type: string; placeholder?: string }[];
     actions?: ModalAction[];
-    lockContent?: boolean; // NEW: if true, modal content cannot be changed later
+    lockContent?: boolean;
 }
 
 export default class iModal {
@@ -77,34 +77,33 @@ export default class iModal {
         const body = this.content.querySelector(".modal-body")!;
         const actionsContainer = this.content.querySelector(".modal-actions")!;
 
+        body.innerHTML = "";
+        actionsContainer.innerHTML = "";
+
         if (options.html) {
             body.innerHTML = options.html;
-            actionsContainer.innerHTML = "";
-            return;
+        } else {
+            if (options.title) {
+                const h3 = document.createElement("h3");
+                h3.textContent = options.title;
+                body.appendChild(h3);
+            }
+            if (options.text) {
+                const p = document.createElement("p");
+                p.textContent = options.text;
+                body.appendChild(p);
+            }
+            if (options.inputs) {
+                options.inputs.forEach((input) => {
+                    const el = document.createElement("input");
+                    el.id = input.id;
+                    el.type = input.type;
+                    if (input.placeholder) el.placeholder = input.placeholder;
+                    body.appendChild(el);
+                });
+            }
         }
 
-        body.innerHTML = "";
-        if (options.title) {
-            const h3 = document.createElement("h3");
-            h3.textContent = options.title;
-            body.appendChild(h3);
-        }
-        if (options.text) {
-            const p = document.createElement("p");
-            p.textContent = options.text;
-            body.appendChild(p);
-        }
-        if (options.inputs) {
-            options.inputs.forEach((input) => {
-                const el = document.createElement("input");
-                el.id = input.id;
-                el.type = input.type;
-                if (input.placeholder) el.placeholder = input.placeholder;
-                body.appendChild(el);
-            });
-        }
-
-        actionsContainer.innerHTML = "";
         if (options.actions) {
             options.actions.forEach((action) => {
                 const btn = document.createElement("button");
