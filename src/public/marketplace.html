@@ -6,7 +6,6 @@
 	<title>Marketplace - Select Backend - InferencePortAI</title>
 	<script type="module" src="Components.js"></script>
 	<script type="module" src="scripts/staticload/index.js"></script>
-
 	<link rel="stylesheet" href="styles/styles.css" />
 </head>
 
@@ -19,11 +18,12 @@
 			<p class="provider-subtitle">
 				Pick where you'd like to get models, spaces, or websites from.
 			</p>
+
 			<div class="provider-card-grid">
 				<div class="provider-card black" onclick="window.location.href='marketplace/ollama.html'">
-					<h2>Chatbots (LLMs) &nbsp;&nbsp;<button class="info-btn"
-							onclick="event.stopPropagation(); showInfo('ollama');"
-							style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
+					<h2>
+						Chatbots (LLMs)
+						<button class="info-btn" onclick="event.stopPropagation(); showInfo('ollama');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
 					</h2>
 					<img src="assets/img/ollama.svg" alt="Local models runtime" />
 					<p>Runs locally — no cloud required.</p>
@@ -32,105 +32,79 @@
 						<a href="javascript:window.utils.web_open('https://ollama.com');">Local model runtime -
 							Ollama</a>
 					</p>
-					<br />
 				</div>
+
 				<div class="provider-card black" onclick="window.location.href='marketplace/spaces.html'">
-					<h2>Huggingface Spaces <button class="info-btn"
-							onclick="event.stopPropagation(); showInfo('spaces');"
-							style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
+					<h2>
+						Huggingface Spaces
+						<button class="info-btn" onclick="event.stopPropagation(); showInfo('spaces');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
 					</h2>
-					<img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></span>
+					<img src="assets/img/huggingface.svg" alt="Huggingface Logo" />
 					<p>Pipelines: N/A</p>
 					<p>
 						Provider:
 						<a href="javascript:window.utils.web_open('https://huggingface.co/spaces/');">Huggingface
 							Spaces</a>
 					</p>
-					<br />
 				</div>
+
 				<div class="provider-card black" onclick="window.location.href='marketplace/website.html'">
-					<h2>Websites&nbsp;&nbsp;&nbsp;<button class="info-btn"
-							onclick="event.stopPropagation(); showInfo('website');"
-							style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
+					<h2>
+						Websites
+						<button class="info-btn" onclick="event.stopPropagation(); showInfo('website');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
 					</h2>
 					<img src="assets/img/globe.svg" alt="Internet Logo" />
 					<p>Pipelines: N/A</p>
-					<p>
-						Provider:
-						<a>N/A</a>
-					</p>
-					<br />
+					<p>Provider: <a>N/A</a></p>
 				</div>
 			</div>
-			<br />
+
 			<p>
-				DISCLAIMER: We are not affialated with Ollama, Huggingface, and any of its subsideraries. Websites and
-				HF spaces added may have their own privacy policies. Review them carefully. Review the terms of this
-				software's license
+				DISCLAIMER: We are not affiliated with Ollama, Huggingface, or any subsidiaries. Websites and HF spaces
+				added may have their own privacy policies. Review them carefully.
 			</p>
-			<div id="infoModal" class="modal hidden">
-				<div class="modal-content" style="width: 400px;"> <span class="close-btn" onclick="closeInfo()">&times;</span>
-					<h3 id="infoTitle"></h3>
-					<p id="infoText"></p>
-				</div>
-			</div>
 		</div>
+
 		<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 		<footer>
-			<p>By using this app, you agree to the <a
-					href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
-					Service</a> and <a
-					href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
-					Policy</a>. We reserve the right to change these terms and policies at anytime without any further
-				notice.</p>
+			<p>
+				By using this app, you agree to the
+				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
+					Service</a>
+				and
+				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
+					Policy</a>.
+			</p>
 		</footer>
-
 	</main>
+
 	<script>
-		function open(url) {
-			console.log("[WARNING] Opening external URL");
-			window.utils.web_open(url);
-		}
+		let modal;
+		document.addEventListener("DOMContentLoaded", () => {
+			modal = new window.ic.iModal("infoModal", 400);
+		});
 		function showInfo(type) {
-			const modal = document.getElementById('infoModal');
-			const title = document.getElementById('infoTitle');
-			const text = document.getElementById('infoText');
-
-			if (type === 'spaces') {
-				title.textContent = "What are Hugging Face Spaces?";
-				text.textContent = "HF Spaces are community-hosted web apps on Hugging Face. Developers share ML demos, interactive tools, or websites here.";
-			} else if (type === 'website') {
-				title.textContent = "What are Websites?";
-				text.textContent = "Websites are external sources you can connect to through our app. They may have their own privacy policies and terms.";
-			} else if (type === 'ollama') {
-				title.textContent = "What is Ollama?";
-				text.textContent = "Ollama is a local model runtime that allows you to run large language models (chatbots) on your own computer without needing cloud services.";
+			if (type === "spaces") {
+				modal.open({
+					title: "What are Hugging Face Spaces?",
+					text: "HF Spaces are community-hosted web apps on Hugging Face. Developers share ML demos, interactive tools, or websites here.",
+					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
+				});
+			} else if (type === "website") {
+				modal.open({
+					title: "What are Websites?",
+					text: "Websites are external sources you can connect to through our app. They may have their own privacy policies and terms.",
+					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
+				});
+			} else if (type === "ollama") {
+				modal.open({
+					title: "What is Ollama?",
+					text: "Ollama is a local model runtime that allows you to run large language models (chatbots) on your own computer without needing cloud services.",
+					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
+				});
 			}
-
-			modal.classList.remove('hidden');
-		}
-
-		function closeInfo() {
-			const modal = document.getElementById('infoModal');
-			modal.classList.add('hidden');
 		}
 	</script>
 </body>
 
 </html>
-
-<!--
-Copyright 2025 Rihaan Meher
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->

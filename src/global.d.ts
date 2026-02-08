@@ -15,9 +15,10 @@ limitations under the License.
 */
 
 export {};
-
+import type { IC } from "./public/scripts/staticload/index.ts";
 declare global {
 	interface Window {
+		ic: IC;
 		ollama: {
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;

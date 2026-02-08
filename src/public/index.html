@@ -292,10 +292,10 @@
 
 	<script>
 		const showBtn = document.getElementById('show-onboarding');
-		const modal = document.getElementById('onboarding-modal');
+		const omodal = document.getElementById('onboarding-modal');
 		const closeBtn = document.getElementById('onboarding-close');
-		function showOnboarding() { modal.classList.remove('hidden'); }
-		function hideOnboarding() { modal.classList.add('hidden'); }
+		function showOnboarding() { omodal.classList.remove('hidden'); }
+		function hideOnboarding() { omodal.classList.add('hidden'); }
 		showBtn?.addEventListener('click', showOnboarding);
 		closeBtn?.addEventListener('click', hideOnboarding);
 	</script>
@@ -312,17 +312,21 @@
 	</div>
 	</div>
 	<script>
-		const infoModal = document.getElementById('termsModal')
+		let modal;
+		document.addEventListener("DOMContentLoaded", () => {
+			modal = new window.ic.iModal("infoModal", 400, {
+				html: 
+					"<h3>Terms</h3><p>By using this app, you agree to the <a href='javascript:window.utils.web_open(\"https://inferenceportai.vercel.app/security.html\")'>Terms of Service</a> and <a href='javascript:window.utils.web_open(\"https://inferenceportai.vercel.app/security.html#privacy\")'>Privacy Policy</a>. We reserve the right to change these terms and policies at any time without further notice.</p>",
+			}, true);
+			showModal()
+		});
 		async function showModal() {
-			const isFirst = await window.utils.isFirstLaunch()
-			if (isFirst) {
-				infoModal.classList.remove('hidden')
-			}
+			if (!await window.utils.isFirstLaunch()) return;
+			modal.open()
 		}
 		async function closeModal() {
-			infoModal.classList.add('hidden')
+			modal.close()
 		}
-		showModal()
 	</script>
 </body>
 
