@@ -50,14 +50,15 @@ export default {
 		target: isGpuOnly ? ["appx", "zip"] : ["nsis", "appx", "zip", "msi"],
 		appId: "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
 		artifactName: isGpuOnly
-			? "${productName}_CUDA-Setup-${version}-${arch}.${ext}"
-			: "${productName}-Setup-${version}-${arch}.${ext}",
+			? "${productName}-WinCUDA-${version}-${arch}.${ext}"
+			: "${productName}-WinSetup-${version}-${arch}.${ext}",
 		compression: isStoreOnly ? "store" : "normal",
 	},
 
 	mac: {
 		target: ["dmg", "zip", "pkg"],
 		notarize: true,
+		artifactName: "${productName}-MacSetup-${version}-${arch}.${ext}",
 	},
 
 	linux: {
@@ -65,7 +66,7 @@ export default {
 			? ["AppImage", "tar.xz"]
 			: ["AppImage", "deb", "tar.xz"],
 		artifactName: isGpuOnly
-			? "${productName}_CUDA-LinuxSetup-${version}-${arch}.${ext}"
+			? "${productName}-LinuxCUDA-${version}-${arch}.${ext}"
 			: "${productName}-LinuxSetup-${version}-${arch}.${ext}",
 		category: "Utility",
 		maintainer: "Rihaan Meher <sharktidedev@gmail.com>",
