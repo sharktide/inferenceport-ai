@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,18 +36,7 @@ const modelSelect = document.getElementById(
 const hostSelect = document.getElementById(
 	"host-select",
 ) as HTMLSelectElement | null;
-const remoteHostDialog = document.getElementById(
-	"remote-host-dialog",
-) as HTMLDivElement | null;
-const remoteHostInput = document.getElementById(
-	"remote-host-input",
-) as HTMLInputElement | null;
-const remoteHostConfirm = document.getElementById(
-	"remote-host-confirm",
-) as HTMLButtonElement | null;
-const remoteHostCancel = document.getElementById(
-	"remote-host-cancel",
-) as HTMLButtonElement | null;
+
 const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
 	"new-session-btn",
@@ -55,7 +44,6 @@ const newSessionBtn = document.getElementById(
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
-const modal = document.getElementById("file-preview-modal") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
 	"remote-host-alias",
 ) as HTMLInputElement | null;
@@ -77,11 +65,14 @@ const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
-
+let modal: declarations["iInstance"]["iModal"];
 let searchEnabled = false;
 let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
+document.addEventListener("DOMContentLoaded", () => {
+	modal = new window.ic.iModal("global-modal");
+});
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
 interface RemoteHost {
@@ -163,52 +154,69 @@ async function hideSessionProgress(): void {
 		loaderVisible = false;
 	}, 300);
 }
+
 function openManageHostsDialog() {
-	const dialog = document.getElementById("manage-hosts-dialog")!;
-	const list = document.getElementById("remote-host-list")!;
-	list.innerHTML = "";
+    const remotes: RemoteHost[] = JSON.parse(
+        localStorage.getItem("remote_hosts") || "[]",
+    );
 
-	const remotes: RemoteHost[] = JSON.parse(
-		localStorage.getItem("remote_hosts") || "[]",
-	);
+    let listHtml = "";
 
-	remotes.forEach((host, index) => {
-		const li = document.createElement("li");
-		li.className = "host-item";
+    if (remotes.length === 0) {
+        listHtml = `<p style="opacity:.7">No remote hosts added.</p>`;
+    } else {
+        listHtml = remotes.map((host, index) => `
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                gap:10px;
+                margin-bottom:8px;
+                padding:8px;
+                border-radius:6px;
+                background:rgba(255,255,255,0.04);
+            ">
+                <span style="font-weight:600" title="${host.url}">
+                    ${host.alias || host.url}
+                </span>
+                <button data-remove="${index}" style="max-width:100px">
+                    Remove
+                </button>
+            </div>
+        `).join("");
+    }
 
-		// Host name
-		const nameSpan = document.createElement("span");
-		nameSpan.className = "host-name";
-		nameSpan.textContent = host.alias || host.url;
-		nameSpan.title = host.url;
-		nameSpan.style.fontWeight = "bold";
+    modal.open({
+        html: `
+            <h3>Manage Remote Hosts</h3>
+            <div style="margin-top:12px">${listHtml}</div>
+            <div style="margin-top:16px; display:flex; gap:8px;">
+                <button id="add-host-btn">Add Host</button>
+                <button id="close-hosts-btn">Close</button>
+            </div>
+        `
+    });
 
-		// Remove button
-		const removeBtn = document.createElement("button");
-		removeBtn.className = "remove-host";
-		removeBtn.textContent = "Remove";
+    document.querySelectorAll("[data-remove]").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const index = Number((e.target as HTMLElement).dataset.remove);
+            remotes.splice(index, 1);
+            localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+            updateHostSelectOptions();
+            openManageHostsDialog();
+        });
+    });
 
-		removeBtn.style.maxWidth = "100px";
-		removeBtn.addEventListener("click", () => {
-			if (confirm(`Remove host ${host.alias || host.url}?`)) {
-				remotes.splice(index, 1);
-				localStorage.setItem("remote_hosts", JSON.stringify(remotes));
-				updateHostSelectOptions();
-				openManageHostsDialog();
-			}
-		});
+    document.getElementById("add-host-btn")?.addEventListener("click", () => {
+        modal.close();
+        openAddHostDialog();
+    });
 
-		li.appendChild(nameSpan);
-		li.appendChild(removeBtn);
-		list.appendChild(li);
-	});
-
-	dialog.classList.remove("hidden");
-
-	document.getElementById("manage-hosts-close")!.onclick = () => {
-		dialog.classList.add("hidden");
-		hostSelect.value = localStorage.getItem("host_select") || "local";
-	};
+    document.getElementById("close-hosts-btn")?.addEventListener("click", () => {
+        modal.close();
+		hostSelect.value = "local";
+        localStorage.setItem("host_select", "local");
+    });
 }
 
 function updateHostSelectOptions() {
@@ -221,26 +229,18 @@ function updateHostSelectOptions() {
 	const remotes: RemoteHost[] = JSON.parse(
 		localStorage.getItem("remote_hosts") || "[]",
 	);
-	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+	const manageHostsOpt = hostSelect.querySelector('option[value="manage_hosts"]');
 
 	remotes.forEach((host) => {
 		const opt = document.createElement("option");
 		opt.value = `remote:${host.url}`;
 		opt.textContent = host.alias || `Remote: ${host.url}`;
-		if (addRemoteOpt) hostSelect.insertBefore(opt, addRemoteOpt);
+		if (manageHostsOpt) hostSelect.insertBefore(opt, manageHostsOpt);
 		else hostSelect.appendChild(opt);
 	});
 }
 function updateHostSelectState() {
 	const v = hostSelect.value;
-
-	if (v === "add_remote") {
-		remoteHostDialog?.classList.remove("hidden");
-		remoteHostInput!.value = "";
-		remoteHostAlias!.value = "";
-		remoteHostInput?.focus();
-		return;
-	}
 
 	if (v === "manage_hosts") {
 		openManageHostsDialog();
@@ -474,7 +474,6 @@ async function reloadModelsForHost(hostValue: string) {
 			 <option value="manage-models">✏️ Manage models...</option>`,
 		);
 
-		// reset selection if stale
 		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
 			modelSelect.selectedIndex = 0;
 		}
@@ -524,23 +523,33 @@ function showContextMenu(x, y, sessionId, sessionName) {
 				deleteSession(sessionId);
 				break;
 			case "delete_all":
-				if (
-					confirm(
-						"Are you sure you want to delete all sessions? This cannot be undone.",
-					)
-				) {
-					sessions = {};
-					currentSessionId = null;
-					window.ollama.save(sessions);
-					window.auth.getSession().then(async (auth) => {
-						if (isSyncEnabled() && auth?.session?.user) {
-							await safeCallRemote(() =>
-								window.sync.saveAllSessions(sessions),
-							);
-						}
-						location.reload();
-					});
-				}
+				modal.open({
+					title: "Delete All Sessions",
+					html: `<p><strong>This cannot be undone.</strong></p>`,
+					actions: [
+						{ label: "Cancel", variant: "secondary" },
+						{
+							label: "Delete All",
+							variant: "danger",
+							onClick: async () => {
+								sessions = {};
+								currentSessionId = null;
+
+								await window.ollama.save(sessions);
+
+								const auth = await window.auth.getSession();
+								if (isSyncEnabled() && auth?.session?.user) {
+									await safeCallRemote(() =>
+										window.sync.saveAllSessions(sessions),
+									);
+								}
+
+								location.reload();
+							},
+						},
+					],
+				});
+
 				break;
 			case "rename":
 				openRenameDialog(sessionId, sessionName);
@@ -565,73 +574,86 @@ function closeContextMenu() {
 }
 
 function deleteSession(sessionId) {
-	if (confirm("Are you sure you want to delete this session?")) {
-		delete sessions[sessionId];
-		if (currentSessionId === sessionId) {
-			currentSessionId = Object.keys(sessions)[0] || null;
-		}
-		window.ollama.save(sessions);
+	modal.open({
+		title: "Delete Session",
+		html: `<p>This session will be permanently deleted.</p>`,
+		actions: [
+			{ label: "Cancel", variant: "secondary" },
+			{
+				label: "Delete",
+				variant: "danger",
+				onClick: async () => {
+					delete sessions[sessionId];
 
-		window.auth.getSession().then(async (auth) => {
-			if (isSyncEnabled() && auth?.session?.user) {
-				await safeCallRemote(() =>
-					window.sync.saveAllSessions(sessions),
-				);
-			}
-			renderSessionList();
-			location.reload();
-		});
-	}
+					if (currentSessionId === sessionId) {
+						currentSessionId = Object.keys(sessions)[0] || null;
+					}
+
+					await window.ollama.save(sessions);
+
+					const auth = await window.auth.getSession();
+					if (isSyncEnabled() && auth?.session?.user) {
+						await safeCallRemote(() =>
+							window.sync.saveAllSessions(sessions),
+						);
+					}
+
+					renderSessionList();
+					location.reload();
+				},
+			},
+		],
+	});
+}
+
+function openRenameDialog(sessionId, currentName) {
+	modal.open({
+		title: "Rename Session",
+		html: `
+			<input id="rename-input"
+				class="modal-input"
+				value="${currentName}"
+				placeholder="Session name" />
+		`,
+		actions: [
+			{ label: "Cancel", variant: "secondary" },
+			{
+				label: "Save",
+				onClick: async () => {
+					const input = document.getElementById(
+						"rename-input",
+					) as HTMLInputElement;
+
+					const name = input.value.trim();
+					if (!name) return;
+
+					sessions[sessionId].name = name;
+					await window.ollama.save(sessions);
+
+					const auth = await window.auth.getSession();
+					if (isSyncEnabled() && auth?.session?.user) {
+						await safeCallRemote(() =>
+							window.sync.saveAllSessions(sessions),
+						);
+					}
+
+					renderSessionList();
+				},
+			},
+		],
+	});
 }
 
 function openReportDialog(): void {
-	const dialog = document.getElementById("report-dialog") as HTMLDivElement;
-	const cancelBtn = document.getElementById(
-		"report-close",
-	) as HTMLButtonElement;
-	dialog.classList.remove("hidden");
-	const closeDialog = () => dialog.classList.add("hidden");
-	cancelBtn.removeEventListener("click", closeDialog);
-	cancelBtn.addEventListener("click", closeDialog);
-	return void 0;
-}
-
-function openRenameDialog(sessionId, currentName): void {
-	const dialog = document.getElementById("rename-dialog") as HTMLDivElement;
-	const input = document.getElementById("rename-input") as HTMLInputElement;
-	const cancelBtn = document.getElementById(
-		"rename-cancel",
-	) as HTMLButtonElement;
-	const confirmBtn = document.getElementById(
-		"rename-confirm",
-	) as HTMLButtonElement;
-
-	input.value = currentName;
-	dialog.classList.remove("hidden");
-
-	const closeDialog = () => dialog.classList.add("hidden");
-	cancelBtn.removeEventListener("click", closeDialog);
-	cancelBtn.addEventListener("click", closeDialog);
-	function rename() {
-		const newName = input.value.trim();
-		if (newName) {
-			sessions[sessionId].name = newName;
-			window.ollama.save(sessions);
-			window.auth.getSession().then(async (auth) => {
-				if (isSyncEnabled() && auth?.session?.user) {
-					await safeCallRemote(() =>
-						window.sync.saveAllSessions(sessions),
-					);
-				}
-				renderSessionList();
-			});
-			renderSessionList();
-		}
-		closeDialog();
-	}
-	confirmBtn.removeEventListener("click", rename);
-	confirmBtn.addEventListener("click", rename);
-	return void 0;
+	modal.open({
+		title: "Report Issue",
+		html: `
+			<p>If you encountered a problem, please report it.</p>
+			<a href="https://github.com/sharktide/inferenceport/issues"
+			   target="_blank">Open GitHub Issues</a>
+		`,
+		actions: [{ label: "Close" }],
+	});
 }
 
 function createNewSession(): void {
@@ -1251,9 +1273,11 @@ document.getElementById("file-preview-close").addEventListener("click", () => {
 });
 
 function openFilePreview(file) {
-	modalTitle.textContent = file.name;
-	modalContent.textContent = file.content;
-	modal.classList.remove("hidden");
+	modal.open({
+		title: file.name,
+		html: `<pre class="file-preview">${file.content}</pre>`,
+		actions: [{ label: "Close" }],
+	});
 }
 
 modalClose.addEventListener("click", () => {
@@ -1525,6 +1549,67 @@ window.ollama.onToolCall((call) => {
 		void 0;
 	}
 });
+
+function openAddHostDialog() {
+    modal.open({
+        html: `
+            <h3>Add Remote Host</h3>
+            <p style="opacity:.7">
+                Enter the remote host IP or URL
+            </p>
+
+            <input id="new-host-url"
+                   placeholder="http://1.2.3.4:52458"
+                   style="width:100%;margin-bottom:8px" />
+
+            <input id="new-host-alias"
+                   placeholder="Alias (optional, max 20 chars)"
+                   maxlength="20"
+                   style="width:100%;margin-bottom:12px" />
+
+            <div style="display:flex; gap:8px;">
+                <button id="confirm-add-host">Add</button>
+                <button id="cancel-add-host">Cancel</button>
+            </div>
+        `
+    });
+
+    document.getElementById("cancel-add-host")?.addEventListener("click", () => {
+        modal.close();
+		hostSelect.value = "local";
+		localStorage.setItem("host_select", "local");
+		reloadModelsForHost("local");
+    });
+
+    document.getElementById("confirm-add-host")?.addEventListener("click", () => {
+        let url = (document.getElementById("new-host-url") as HTMLInputElement).value.trim();
+        const alias = (document.getElementById("new-host-alias") as HTMLInputElement).value.trim().substring(0, 20);
+
+        if (!url) return;
+
+        if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+        if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
+        url = url.replace(/\/+$/, "");
+
+        const remotesStored: RemoteHost[] = JSON.parse(
+            localStorage.getItem("remote_hosts") || "[]",
+        );
+
+        if (!remotesStored.some(r => r.url === url)) {
+            remotesStored.push({ url, alias });
+            localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
+        }
+
+        updateHostSelectOptions();
+
+        const sel = `remote:${url}`;
+        hostSelect!.value = sel;
+        localStorage.setItem("host_select", sel);
+
+        modal.close();
+        reloadModelsForHost(sel);
+    });
+}
 
 modelSelect.addEventListener("change", setToolSupport);
 
