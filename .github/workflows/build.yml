@@ -134,6 +134,45 @@ jobs:
 
           echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
           echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
+      - name: Ensure PR build matrix comment exists
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          MARKER="$PR_COMMENT_MARKER"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id")
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Build matrix comment already exists"
+            exit 0
+          fi
+
+          cat <<'EOF' > comment.md
+          <!-- BUILD-MATRIX-STATUS -->
+          ## Build Matrix Status
+
+          | Platform | OS Runner | Architecture | Accelerator | Artifact | Status |
+          |---------|-----------|--------------|-------------|----------|--------|
+          | Windows | windows-latest | x86_64 | CPU | Electron-win64-build | ⏳ |
+          | Windows | windows-11-arm | ARM64 | CPU | Electron-win-arm64-build | ⏳ |
+          | macOS | macos-latest | ARM64 | CPU | Electron-mac-arm64-build | ⏳ |
+          | macOS | macos-15-intel | x86_64 | CPU | Electron-mac-x64-build | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CPU | Electron-linux-x64-build | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CPU | Electron-linux-arm64-build | ⏳ |
+          | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |
+          EOF
+
+          gh api repos/${{ github.repository }}/issues/$PR/comments \
+            -X POST -f body="$(cat comment.md)"
 
       - name: Update PR table (building)
         if: github.event_name == 'pull_request'
