@@ -137,11 +137,10 @@ async function bundleOllama() {
 
     const eo = new ElectronOllama({ basePath: resolve(__dirname, "../vendor"), githubToken: process.env.GH_TOKEN });
 
-    const envVariant = process.env.OLLAMA_VARIANT
-        ? process.env.OLLAMA_VARIANT.toString().toLowerCase()
-        : process.env.GOLLAMA_ACCELERATION === "cuda"
-        ? "cuda"
-        : undefined;
+    const envVariantRaw = process.env.OLLAMA_ACCELERATION?.toLowerCase();
+    const envVariant = envVariantRaw && envVariantRaw !== "cpu"
+            ? envVariantRaw
+            : undefined;
 
     const platformConfig = envVariant ? { os, arch, variant: envVariant } : { os, arch };
     const metadata = await eo.getMetadata("latest", platformConfig);
