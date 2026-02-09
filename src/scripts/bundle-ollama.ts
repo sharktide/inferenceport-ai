@@ -127,8 +127,8 @@ async function removeCudaFolders() {
 async function bundleOllama() {
     const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
     const archMap = { x64: "amd64", arm64: "arm64" };
-    const os = platformMap["linux"];
-    const arch = archMap["arm64"];
+    const os = platformMap[process.platform];
+    const arch = archMap[process.arch];
     if (!os || !arch) {
         console.error(`Unsupported platform: ${process.platform} ${process.arch}`);
         process.exit(1);
