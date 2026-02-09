@@ -5,10 +5,8 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
-
   issue_comment:
     types: [created]
-
   workflow_dispatch:
     inputs:
       accelerator:
@@ -16,12 +14,7 @@ on:
         type: choice
         required: false
         default: cpu
-        options:
-          - cpu
-          - cuda
-          - rocm
-          - jetpack5
-          - jetpack6
+        options: [cpu, cuda, rocm, jetpack5, jetpack6]
 
 permissions:
   contents: read
@@ -33,10 +26,11 @@ concurrency:
 
 jobs:
   build:
-    env:
-      PR_COMMENT_MARKER: "<!-- BUILD-MATRIX-STATUS -->"
     if: ${{ github.event_name != 'issue_comment' || contains(github.event.comment.body, '!build') }}
     runs-on: ${{ matrix.os }}
+
+    env:
+      PR_COMMENT_MARKER: "<!-- BUILD-MATRIX-STATUS -->"
 
     strategy:
       fail-fast: false
@@ -45,107 +39,88 @@ jobs:
           - os: windows-latest
             name: Windows x86_64
             artifact: Electron-win64-build
-            header: build-win64
             path: src/dist/*
             accel: cpu
 
           - os: windows-11-arm
             name: Windows ARM64
             artifact: Electron-win-arm64-build
-            header: build-win-arm
             path: src/dist/*
             accel: cpu
 
           - os: macos-latest
             name: macOS ARM64
             artifact: Electron-mac-arm64-build
-            header: build-macos
             path: src/dist/*.*
             accel: cpu
 
           - os: macos-15-intel
             name: macOS x86_64
             artifact: Electron-mac-x64-build
-            header: build-macos-x86
             path: src/dist/*.*
             accel: cpu
 
           - os: ubuntu-latest
             name: Linux x86_64
             artifact: Electron-linux-x64-build
-            header: build-linux
             path: src/dist/*.*
             accel: cpu
 
           - os: ubuntu-24.04-arm
             name: Linux ARM64
             artifact: Electron-linux-arm64-build
-            header: build-linux-arm
             path: src/dist/*.*
             accel: cpu
 
-          # ---------------- GPU BUILDS (opt-in only) ----------------
           - os: windows-latest
             name: Windows CUDA
             artifact: Electron-win64-cuda
-            header: build-win-cuda
             path: src/dist/*.*
             accel: cuda
 
           - os: ubuntu-latest
             name: Linux CUDA x86_64
             artifact: Electron-linux-cuda
-            header: build-linux-cuda
             path: src/dist/*.*
             accel: cuda
 
           - os: ubuntu-24.04-arm
             name: Linux ARM CUDA
             artifact: Electron-linux-arm-cuda
-            header: build-linux-arm-cuda
             path: src/dist/*.*
             accel: cuda
 
           - os: ubuntu-latest
             name: Linux ROCm
             artifact: Electron-linux-rocm
-            header: build-linux-rocm
             path: src/dist/*.*
             accel: rocm
 
           - os: ubuntu-24.04-arm
             name: JetPack 5
             artifact: Electron-jetpack5
-            header: build-jetpack5
             path: src/dist/*.*
             accel: jetpack5
 
           - os: ubuntu-24.04-arm
             name: JetPack 6
             artifact: Electron-jetpack6
-            header: build-jetpack6
             path: src/dist/*.*
             accel: jetpack6
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Determine accelerator
-        id: accel
         shell: bash
         env:
           DISPATCH_ACCEL: ${{ github.event.inputs.accelerator }}
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          ACCEL=""
-          BUILD_CH="standard"
-
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             ACCEL="$DISPATCH_ACCEL"
-          elif [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
-            BODY="$COMMENT_BODY"
-            case "$BODY" in
+          elif [[ "$GITHUB_EVENT_NAME" == "issue_comment" ]]; then
+            case "$COMMENT_BODY" in
               *"!build cuda"*) ACCEL=cuda ;;
               *"!build rocm"*) ACCEL=rocm ;;
               *"!build jetpack5"*) ACCEL=jetpack5 ;;
@@ -154,132 +129,125 @@ jobs:
               *) ACCEL="" ;;
             esac
           else
-            # Push / PR → CPU only
             ACCEL="cpu"
           fi
 
           echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
           echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
 
-          echo "Detected accelerator: $ACCEL"
-
-      - name: Init / update PR build table (building)
+      - name: Update PR table (building)
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS_ICON: "🚧"
         shell: bash
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          MARKER="$PR_COMMENT_MARKER"
+          PR=${{ github.event.pull_request.number }}
+          ARTIFACT="${{ matrix.artifact }}"
 
-          TABLE="$MARKER
-          ## Build Matrix Status
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
 
-          | Platform | OS Runner | Architecture | Accelerator | Artifact | Status |
-          |---------|-----------|--------------|-------------|----------|--------|
-          | Windows | windows-latest | x86_64 | CPU | Electron-win64-build | ⏳ |
-          | Windows | windows-11-arm | ARM64 | CPU | Electron-win-arm64-build | ⏳ |
-          | macOS | macos-latest | ARM64 | CPU | Electron-mac-arm64-build | ⏳ |
-          | macOS | macos-15-intel | x86_64 | CPU | Electron-mac-x64-build | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | CPU | Electron-linux-x64-build | ⏳ |
-          | Linux | ubuntu-24.04-arm | ARM64 | CPU | Electron-linux-arm64-build | ⏳ |
-          | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
-          | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
-          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
-          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |"
+          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
 
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
-            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id")
+          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+            BEGIN { FS=OFS="|" }
+            $0 ~ a { $NF=" " i " " }
+            { print }
+          ')
 
-          if [ -z "$COMMENT_ID" ]; then
-            gh pr comment "$PR_NUMBER" --body "$TABLE"
-          fi
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
 
-      - name: Skip non-requested GPU builds
+      - name: Skip non-requested builds
         if: ${{ matrix.accel != env.ACCELERATOR }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS_ICON: "⏭️"
         shell: bash
         run: |
           echo "RUN=FALSE" >> $GITHUB_ENV
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_NUMBER=${{ github.event.pull_request.number }}
-            ROW="| .*${{ matrix.artifact }}.* |"
-            ICON="⏭️"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR=${{ github.event.pull_request.number }}
+            ARTIFACT="${{ matrix.artifact }}"
 
-            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
               --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
 
             BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-            UPDATED=$(echo "$BODY" | sed -E "s/$ROW/$(echo "$ROW" | sed 's/.*/&/' | sed "s/| [^|]*$/| $ICON |/")/")
 
-            gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
-              -X PATCH -f body="$UPDATED"
+            UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+              BEGIN { FS=OFS="|" }
+              $0 ~ a { $NF=" " i " " }
+              { print }
+            ')
+
+            gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
           fi
 
           exit 0
 
-      - name: Setup Node
-        if: ${{ env.RUN != 'FALSE' }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
+        if: env.RUN != 'FALSE'
         with:
           node-version: 24
 
       - name: Install deps
-        if: ${{ env.RUN != 'FALSE' }}
+        if: env.RUN != 'FALSE'
         working-directory: src
         run: npm ci
 
       - name: Build Electron
-        if: ${{ env.RUN != 'FALSE' }}
+        if: env.RUN != 'FALSE'
         working-directory: src
-        env:
-          ACCELERATOR: ${{ env.ACCELERATOR }}
         run: npm run build
 
-      - name: Upload artifact
-        if: ${{ env.RUN != 'FALSE' }}
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: env.RUN != 'FALSE'
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
 
-      - name: Mark build success
+      - name: Mark success
         if: success() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
+          STATUS_ICON: "✅"
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          ICON="✅"
+          PR=${{ github.event.pull_request.number }}
+          ARTIFACT="${{ matrix.artifact }}"
 
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
             --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
 
           BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-          UPDATED=$(echo "$BODY" | sed "s|${{ matrix.artifact }}.*|${{ matrix.artifact }} | $ICON |")
 
-          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
-            -X PATCH -f body="$UPDATED"
+          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+            BEGIN { FS=OFS="|" }
+            $0 ~ a { $NF=" " i " " }
+            { print }
+          ')
 
-      - name: Mark build failure
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
+
+      - name: Mark failure
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
+          STATUS_ICON: "❌"
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          ICON="❌"
+          PR=${{ github.event.pull_request.number }}
+          ARTIFACT="${{ matrix.artifact }}"
 
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
             --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
 
           BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-          UPDATED=$(echo "$BODY" | sed "s|${{ matrix.artifact }}.*|${{ matrix.artifact }} | $ICON |")
 
-          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
-            -X PATCH -f body="$UPDATED"
+          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+            BEGIN { FS=OFS="|" }
+            $0 ~ a { $NF=" " i " " }
+            { print }
+          ')
 
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
