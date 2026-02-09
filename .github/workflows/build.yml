@@ -147,8 +147,8 @@ jobs:
               *"!build rocm"*) ACCEL=rocm ;;
               *"!build jetpack5"*) ACCEL=jetpack5 ;;
               *"!build jetpack6"*) ACCEL=jetpack6 ;;
-              *"!build cpu"*) ACCEL=cpu ;;  # optional, only if you want CPU builds via comment
-              *) ACCEL="" ;;                 # no match → nothing runs
+              *"!build cpu"*) ACCEL=cpu ;;
+              *) ACCEL="" ;;
             esac
           else
             # Push/PR events → always build CPU
