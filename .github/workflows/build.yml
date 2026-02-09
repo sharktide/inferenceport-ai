@@ -191,7 +191,7 @@ jobs:
 
           UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
             BEGIN { FS=OFS="|" }
-            $0 ~ a { $NF=" " i " " }
+            $0 ~ a { $(NF-1)=" " i " " }
             { print }
           ')
 
@@ -217,7 +217,7 @@ jobs:
 
             UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
               BEGIN { FS=OFS="|" }
-              $0 ~ a { $NF=" " i " " }
+              $0 ~ a { $(NF-1)=" " i " " }
               { print }
             ')
 
@@ -252,6 +252,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATUS_ICON: "✅"
+        shell: bash
         run: |
           PR=${{ github.event.pull_request.number }}
           ARTIFACT="${{ matrix.artifact }}"
@@ -263,7 +264,7 @@ jobs:
 
           UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
             BEGIN { FS=OFS="|" }
-            $0 ~ a { $NF=" " i " " }
+            $0 ~ a { $(NF-1)=" " i " " }
             { print }
           ')
 
@@ -274,6 +275,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATUS_ICON: "❌"
+        shell: bash
         run: |
           PR=${{ github.event.pull_request.number }}
           ARTIFACT="${{ matrix.artifact }}"
@@ -285,7 +287,7 @@ jobs:
 
           UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
             BEGIN { FS=OFS="|" }
-            $0 ~ a { $NF=" " i " " }
+            $0 ~ a { $(NF-1)=" " i " " }
             { print }
           ')
 
