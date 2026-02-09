@@ -154,6 +154,7 @@ jobs:
           else
             # Push / PR → CPU only
             ACCEL="cpu"
+          fi
 
           echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
           echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
