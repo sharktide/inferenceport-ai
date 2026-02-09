@@ -137,6 +137,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           ACCEL=""
+          BUILD_CH="standard"
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             ACCEL="$DISPATCH_ACCEL"
@@ -151,13 +152,13 @@ jobs:
               *) ACCEL="" ;;
             esac
           else
-            # Push/PR events → always build CPU
+            # Push / PR → CPU only
             ACCEL="cpu"
-          fi
 
           echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
-          echo "Detected accelerator: $ACCEL"
+          echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
 
+          echo "Detected accelerator: $ACCEL"
 
       - name: Skip non-requested GPU builds
         if: ${{ matrix.accel != env.ACCELERATOR }}
