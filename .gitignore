@@ -1563,6 +1563,14 @@ scripts/bundler/unzip.d.ts
 scripts/bundler/unzip.d.ts.map
 scripts/bundler/unzip.js
 scripts/bundler/unzip.js.map
+scripts\bundle-ollama.d.d.ts
+scripts\bundle-ollama.d.d.ts.map
+scripts\bundle-ollama.d.js
+scripts\bundle-ollama.d.js.map
+scripts\bundle-ollama.d.ts
+scripts\bundle-ollama.d.ts.map
+scripts\bundle-ollama.js
+scripts\bundle-ollama.js.map
 scripts\bundler\github-fetch.d.d.ts
 scripts\bundler\github-fetch.d.d.ts.map
 scripts\bundler\github-fetch.d.js

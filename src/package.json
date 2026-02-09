@@ -6,10 +6,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "node scripts/clean.js",
     "watch": "tsc --watch",
-    "compile": "tsc",
+    "compile": "npx tsgo",
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish never && npm run clean",
-    "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --publish always && npm run clean",
+    "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish never && npm run clean",
+    "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish always && npm run clean",
     "prepack": "node scripts/bundle-ollama.js"
   },
   "keywords": [],
@@ -37,75 +37,5 @@
     "electron-builder": "^26.6.0",
     "glob": "^13.0.0",
     "typescript": "^5.9.3"
-  },
-  "build": {
-    "appId": "com.sharktide.inferenceport",
-    "productName": "InferencePort AI",
-    "files": [
-      "public/**/*",
-      "node-apis/**",
-      "main.js",
-      "preload.cjs",
-      "package.json",
-      "!./scripts/*",
-      "LICENSE",
-      "third_party_licenses",
-      "!**/._*"
-    ],
-    "extraResources": [
-      {
-        "from": "vendor/electron-ollama",
-        "to": "vendor/electron-ollama",
-        "filter": [
-          "!**/._*"
-        ]
-      }
-    ],
-    "publish": {
-      "provider": "github",
-      "owner": "sharktide",
-      "repo": "InferencePort-AI",
-      "releaseType": "release"
-    },
-    "fileAssociations": [
-      {
-        "ext": "import",
-        "name": "InferencePortAI Metadata File",
-        "role": "Editor"
-      }
-    ],
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": [
-        "appx",
-        "zip",
-        "msi",
-        "nsis"
-      ],
-      "appId": "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip",
-        "pkg"
-      ],
-      "notarize": true
-    },
-    "linux": {
-      "target": [ "AppImage", "deb", "tar.xz" ],
-      "artifactName": "${productName}-LinuxSetup-${version}-${arch}.${ext}",
-      "category": "Utility",
-      "maintainer": "Rihaan Meher <sharktidedev@gmail.com>"
-    },
-    "nsis": {
-      "perMachine": true
-    },
-    "appx": {
-      "customManifestPath": "build/AppxManifest.xml"
-    }
   }
 }

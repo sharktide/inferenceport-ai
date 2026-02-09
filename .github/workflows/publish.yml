@@ -2,22 +2,27 @@ name: Publish Electron App
 
 on:
   workflow_dispatch:
+    inputs:
+      gpu:
+        description: "GPU variant to publish (cuda, rocm, jetpack5, jetpack6, all)"
+        required: false
+        default: all
+
+permissions:
+  contents: write
 
 jobs:
   build-macos:
-    permissions:
-      contents: write
     runs-on: macos-26
     env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
       CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
       CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -25,36 +30,33 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23'
+          node-version: 24
 
       - name: Install dependencies
         working-directory: src
         run: npm ci && npm install -g typescript
 
-      - name: Build and sign Electron app
+      - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
         run: npm run publish
 
-      - name: Verify Identity
+      - name: Verify macOS identity
         working-directory: src
         run: |
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
 
   build-macos-x86:
-    permissions:
-      contents: write
     runs-on: macos-15-intel
     env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      GH_TOKEN: ${{ secrets.GH_TOKEN }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
       CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
       CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -62,115 +64,166 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '23'
+          node-version: 24
 
       - name: Install dependencies
         working-directory: src
         run: npm ci && npm install -g typescript
 
-      - name: Build and sign Electron app
+      - name: Build and publish CPU Electron app (macOS x86)
         working-directory: src
         run: npm run publish
 
-      - name: Verify Identity
+      - name: Verify macOS identity
         working-directory: src
         run: |
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
-          
+
   build-windows:
-    permissions:
-      contents: write
-    runs-on: windows-2022
+    runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '24'
-
-      - name: Install dependencies
+          node-version: 24
+      - run: npm ci && npm install -g typescript
         working-directory: src
-        run: npm ci && npm install -g typescript
-
-      - name: Build and sign Electron app
+      - run: npm run publish
         working-directory: src
-        run: npm run publish
-  
+
   build-windows-arm:
-    permissions:
-      contents: write
     runs-on: windows-11-arm
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-  
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '24'
-
-      - name: Install dependencies
+          node-version: 24
+      - run: npm ci && npm install -g typescript
         working-directory: src
-        run: npm ci && npm install -g typescript
-
-      - name: Build and sign Electron app
+      - run: npm run publish
         working-directory: src
-        run: npm run publish
 
   build-linux:
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '24'
-
-      - name: Install dependencies
+          node-version: 24
+      - run: npm ci && npm install -g typescript
         working-directory: src
-        run: npm ci && npm install -g typescript
-
-      - name: Build and publish Electron app
+      - run: npm run publish
         working-directory: src
-        run: npm run publish
 
   build-linux-arm:
-    permissions:
-      contents: write
     runs-on: ubuntu-24.04-arm
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
         with:
-          node-version: '24'
-
-      - name: Install dependencies
+          node-version: 24
+      - run: npm ci && npm install -g typescript
         working-directory: src
-        run: npm ci && npm install -g typescript
-
-      - name: Build and publish Electron app
+      - run: npm run publish
         working-directory: src
-        run: npm run publish
 
+  build-windows-cuda:
+    if: ${{ github.event.inputs.gpu == 'cuda' || github.event.inputs.gpu == 'all' }}
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "cuda"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
+
+  build-linux-cuda:
+    if: ${{ github.event.inputs.gpu == 'cuda' || github.event.inputs.gpu == 'all' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "cuda"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
+  build-windows-rocm:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
+  build-linux-rocm:
+    if: ${{ github.event.inputs.gpu == 'rocm' || github.event.inputs.gpu == 'all' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "rocm"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
+
+  build-linux-jetpack5:
+    if: ${{ github.event.inputs.gpu == 'jetpack5' || github.event.inputs.gpu == 'all' }}
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "jetpack5"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
+
+  build-linux-jetpack6:
+    if: ${{ github.event.inputs.gpu == 'jetpack6' || github.event.inputs.gpu == 'all' }}
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "jetpack6"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
