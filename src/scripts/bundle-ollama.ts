@@ -71,7 +71,7 @@ async function mergeOllamaLibs() {
         } catch {}
     }
 
-    sources.sort((a, b) => (a.includes("jetpack") ? 1 : 0));
+    sources.sort((a, b) => Number(a.includes("jetpack")) - Number(b.includes("jetpack")));
 
     for (const src of sources) {
         await copyRecursive(src, target);
