@@ -132,6 +132,7 @@ jobs:
 
       - name: Determine accelerator
         id: accel
+        shell: bash
         run: |
           # Default CPU
           ACCEL=cpu
