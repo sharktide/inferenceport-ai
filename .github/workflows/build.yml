@@ -1,178 +1,177 @@
 name: Build
 
 on:
-    pull_request:
-        types: [opened, synchronize, reopened]
-    push:
-        branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
 
-    issue_comment:
-        types: [created]
+  issue_comment:
+    types: [created]
 
-    workflow_dispatch:
-        inputs:
-            accelerator:
-                description: "GPU backend to build"
-                type: choice
-                required: false
-                default: cpu
-                options:
-                    - cpu
-                    - cuda
-                    - rocm
-                    - jetpack5
-                    - jetpack6
+  workflow_dispatch:
+    inputs:
+      accelerator:
+        description: "GPU backend to build"
+        type: choice
+        required: false
+        default: cpu
+        options:
+          - cpu
+          - cuda
+          - rocm
+          - jetpack5
+          - jetpack6
 
 permissions:
-    contents: read
-    pull-requests: write
+  contents: read
+  pull-requests: write
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-    build:
-        if: |
-            github.event_name != 'issue_comment' ||
-            startsWith(github.event.comment.body, '!build')
+  build:
+    if: ${{ github.event_name != 'issue_comment' || contains(github.event.comment.body, '!build') }}
+    runs-on: ${{ matrix.os }}
 
-        runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ---------------- CPU BUILDS (always run) ----------------
+          - os: windows-latest
+            name: Windows x86_64
+            artifact: Electron-win64-build
+            header: build-win64
+            path: src/dist/*
+            accel: cpu
 
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    # ---------------- CPU BUILDS ----------------
-                    - os: windows-latest
-                      name: Windows x86_64
-                      artifact: Electron-win64-build
-                      header: build-win64
-                      path: src/dist/*
-                      accel: cpu
+          - os: windows-11-arm
+            name: Windows ARM64
+            artifact: Electron-win-arm64-build
+            header: build-win-arm
+            path: src/dist/*
+            accel: cpu
 
-                    - os: windows-11-arm
-                      name: Windows ARM64
-                      artifact: Electron-win-arm64-build
-                      header: build-win-arm
-                      path: src/dist/*
-                      accel: cpu
+          - os: macos-latest
+            name: macOS ARM64
+            artifact: Electron-mac-arm64-build
+            header: build-macos
+            path: src/dist/*.*
+            accel: cpu
 
-                    - os: macos-latest
-                      name: macOS ARM64
-                      artifact: Electron-mac-arm64-build
-                      header: build-macos
-                      path: src/dist/*.*
-                      accel: cpu
+          - os: macos-15-intel
+            name: macOS x86_64
+            artifact: Electron-mac-x64-build
+            header: build-macos-x86
+            path: src/dist/*.*
+            accel: cpu
 
-                    - os: macos-15-intel
-                      name: macOS x86_64
-                      artifact: Electron-mac-x64-build
-                      header: build-macos-x86
-                      path: src/dist/*.*
-                      accel: cpu
+          - os: ubuntu-latest
+            name: Linux x86_64
+            artifact: Electron-linux-x64-build
+            header: build-linux
+            path: src/dist/*.*
+            accel: cpu
 
-                    - os: ubuntu-latest
-                      name: Linux x86_64
-                      artifact: Electron-linux-x64-build
-                      header: build-linux
-                      path: src/dist/*.*
-                      accel: cpu
+          - os: ubuntu-24.04-arm
+            name: Linux ARM64
+            artifact: Electron-linux-arm64-build
+            header: build-linux-arm
+            path: src/dist/*.*
+            accel: cpu
 
-                    - os: ubuntu-24.04-arm
-                      name: Linux ARM64
-                      artifact: Electron-linux-arm64-build
-                      header: build-linux-arm
-                      path: src/dist/*.*
-                      accel: cpu
+          # ---------------- GPU BUILDS (opt-in only) ----------------
+          - os: windows-latest
+            name: Windows CUDA
+            artifact: Electron-win64-cuda
+            header: build-win-cuda
+            path: src/dist/*.*
+            accel: cuda
 
-                    # ---------------- GPU BUILDS (OPT-IN) ----------------
-                    - os: windows-latest
-                      name: Windows CUDA
-                      artifact: Electron-win64-cuda
-                      header: build-win-cuda
-                      path: src/dist/*.*
-                      accel: cuda
+          - os: ubuntu-latest
+            name: Linux CUDA x86_64
+            artifact: Electron-linux-cuda
+            header: build-linux-cuda
+            path: src/dist/*.*
+            accel: cuda
 
-                    - os: ubuntu-latest
-                      name: Linux CUDA x86_64
-                      artifact: Electron-linux-cuda
-                      header: build-linux-cuda
-                      path: src/dist/*.*
-                      accel: cuda
+          - os: ubuntu-24.04-arm
+            name: Linux ARM CUDA
+            artifact: Electron-linux-arm-cuda
+            header: build-linux-arm-cuda
+            path: src/dist/*.*
+            accel: cuda
 
-                    - os: ubuntu-24.04-arm
-                      name: Linux ARM CUDA
-                      artifact: Electron-linux-arm-cuda
-                      header: build-linux-arm-cuda
-                      path: src/dist/*.*
-                      accel: cuda
+          - os: ubuntu-latest
+            name: Linux ROCm
+            artifact: Electron-linux-rocm
+            header: build-linux-rocm
+            path: src/dist/*.*
+            accel: rocm
 
-                    - os: ubuntu-latest
-                      name: Linux ROCm
-                      artifact: Electron-linux-rocm
-                      header: build-linux-rocm
-                      path: src/dist/*.*
-                      accel: rocm
+          - os: ubuntu-24.04-arm
+            name: JetPack 5
+            artifact: Electron-jetpack5
+            header: build-jetpack5
+            path: src/dist/*.*
+            accel: jetpack5
 
-                    - os: ubuntu-24.04-arm
-                      name: JetPack 5
-                      artifact: Electron-jetpack5
-                      header: build-jetpack5
-                      path: src/dist/*.*
-                      accel: jetpack5
+          - os: ubuntu-24.04-arm
+            name: JetPack 6
+            artifact: Electron-jetpack6
+            header: build-jetpack6
+            path: src/dist/*.*
+            accel: jetpack6
 
-                    - os: ubuntu-24.04-arm
-                      name: JetPack 6
-                      artifact: Electron-jetpack6
-                      header: build-jetpack6
-                      path: src/dist/*.*
-                      accel: jetpack6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+      - name: Determine accelerator
+        id: accel
+        run: |
+          # Default CPU
+          ACCEL=cpu
 
-            - name: Determine accelerator
-              id: accel
-              run: |
-                  ACCEL=cpu
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            ACCEL="${{ github.event.inputs.accelerator }}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
+            BODY="${{ github.event.comment.body }}"
+            [[ "$BODY" == *"!build cuda"* ]] && ACCEL=cuda
+            [[ "$BODY" == *"!build rocm"* ]] && ACCEL=rocm
+            [[ "$BODY" == *"!build jetpack5"* ]] && ACCEL=jetpack5
+            [[ "$BODY" == *"!build jetpack6"* ]] && ACCEL=jetpack6
+          fi
 
-                  if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                    ACCEL="${{ inputs.accelerator }}"
-                  elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-                    BODY="${{ github.event.comment.body }}"
-                    [[ "$BODY" == *"!build cuda"* ]] && ACCEL=cuda
-                    [[ "$BODY" == *"!build rocm"* ]] && ACCEL=rocm
-                    [[ "$BODY" == *"!build jetpack5"* ]] && ACCEL=jetpack5
-                    [[ "$BODY" == *"!build jetpack6"* ]] && ACCEL=jetpack6
-                  fi
+          echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
+          echo "Detected accelerator: $ACCEL"
 
-                  echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
+      - name: Skip non-requested GPU builds
+        if: ${{ matrix.accel != 'cpu' && matrix.accel != env.ACCELERATOR }}
+        run: |
+          echo "Skipping ${{ matrix.name }} (requested: $ACCELERATOR)"
+          exit 0
 
-            - name: Skip non-requested GPU builds
-              if: matrix.accel != env.ACCELERATOR
-              run: |
-                  echo "Skipping ${{ matrix.name }} (requested: $ACCELERATOR)"
-                  exit 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
-            - name: Setup Node
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 24
+      - name: Install deps
+        working-directory: src
+        run: npm ci
 
-            - name: Install deps
-              working-directory: src
-              run: npm ci
+      - name: Build Electron
+        working-directory: src
+        env:
+          ACCELERATOR: ${{ env.ACCELERATOR }}
+        run: npm run build
 
-            - name: Build Electron
-              working-directory: src
-              env:
-                  ACCELERATOR: ${{ env.ACCELERATOR }}
-              run: npm run build
-
-            - name: Upload artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: ${{ matrix.artifact }}
-                  path: ${{ matrix.path }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
