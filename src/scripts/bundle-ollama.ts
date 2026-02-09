@@ -189,7 +189,9 @@ async function bundleOllama() {
     } else {
         await eo.download(metadata.version, platformConfig, { log: createProgressBarLogger() });
         await moveBinariesToRoot(metadata.version, os, arch, envVariant);
-        if (envVariant && envVariant !== "cuda") {
+        const accel = process.env.OLLAMA_ACCELERATION?.toLowerCase();
+
+        if (accel !== "cuda") {
             try { await removeCudaFolders(); } catch {}
         }
     }
