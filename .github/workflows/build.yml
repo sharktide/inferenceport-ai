@@ -90,6 +90,12 @@ jobs:
             path: src/dist/*.*
             accel: cuda
 
+          - os: windows-latest
+            name: Windows ROCm
+            artifact: Electron-win64-rocm
+            path: src/dist/*.*
+            accel: rocm
+
           - os: ubuntu-latest
             name: Linux ROCm
             artifact: Electron-linux-rocm
@@ -166,6 +172,7 @@ jobs:
           | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
           | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
           | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
+          | Windows | windows-latest | x86_64 | ROCm | Electron-win64-rocm | ⏳ |
           | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
           | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
           | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |
