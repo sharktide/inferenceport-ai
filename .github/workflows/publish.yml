@@ -141,8 +141,7 @@ jobs:
     runs-on: windows-2022
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      GPU_ONLY: "true"
-      GPU_VARIANT: "cuda"
+      GOLLAMA_ACCELERATION: "cuda"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -158,8 +157,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      GPU_ONLY: "true"
-      GPU_VARIANT: "cuda"
+      GOLLAMA_ACCELERATION: "cuda"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -175,8 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      GPU_ONLY: "true"
-      GPU_VARIANT: "rocm"
+      GOLLAMA_ACCELERATION: "rocm"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -192,8 +189,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      GPU_ONLY: "true"
-      GPU_VARIANT: "jetpack5"
+      GOLLAMA_ACCELERATION: "jetpack5"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -209,8 +205,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      GPU_ONLY: "true"
-      GPU_VARIANT: "jetpack6"
+      GOLLAMA_ACCELERATION: "jetpack6"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
