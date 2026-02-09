@@ -174,29 +174,6 @@ jobs:
           gh api repos/${{ github.repository }}/issues/$PR/comments \
             -X POST -f body="$(cat comment.md)"
 
-      - name: Update PR table (building)
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STATUS_ICON: "🚧"
-        shell: bash
-        run: |
-          PR=${{ github.event.pull_request.number }}
-          ARTIFACT="${{ matrix.artifact }}"
-
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
-            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
-
-          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-
-          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
-            BEGIN { FS=OFS="|" }
-            $0 ~ a { $(NF-1)=" " i " " }
-            { print }
-          ')
-
-          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
-
       - name: Skip non-requested builds
         if: ${{ matrix.accel != env.ACCELERATOR }}
         env:
@@ -248,7 +225,7 @@ jobs:
           path: ${{ matrix.path }}
 
       - name: Mark success
-        if: success() && github.event_name == 'pull_request'
+        if: success() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATUS_ICON: "✅"
@@ -271,7 +248,7 @@ jobs:
           gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
 
       - name: Mark failure
-        if: failure() && github.event_name == 'pull_request'
+        if: failure() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STATUS_ICON: "❌"
