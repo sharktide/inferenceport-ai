@@ -6,6 +6,26 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+const ALLOWED_VARIANTS = new Set([
+    "cuda",
+    "rocm",
+    "jetpack5",
+    "jetpack6",
+]);
+
+function sanitizeVariant(input?: string): string | undefined {
+    if (!input) return undefined;
+
+    const normalized = input.trim().toLowerCase();
+
+    if (!ALLOWED_VARIANTS.has(normalized)) {
+        console.warn(`Ignoring invalid OLLAMA_ACCELERATION: "${input}"`);
+        return undefined;
+    }
+
+    return normalized;
+}
+
 async function rimrafLike(path: string) {
     const stats = await lstat(path);
     if (stats.isDirectory() && !stats.isSymbolicLink()) {
@@ -137,10 +157,7 @@ async function bundleOllama() {
 
     const eo = new ElectronOllama({ basePath: resolve(__dirname, "../vendor"), githubToken: process.env.GH_TOKEN });
 
-    const envVariantRaw = process.env.OLLAMA_ACCELERATION?.toLowerCase();
-    const envVariant = envVariantRaw && envVariantRaw !== "cpu"
-            ? envVariantRaw
-            : undefined;
+    const envVariant = sanitizeVariant(process.env.OLLAMA_ACCELERATION);
 
     const platformConfig = envVariant ? { os, arch, variant: envVariant } : { os, arch };
     const metadata = await eo.getMetadata("latest", platformConfig);
