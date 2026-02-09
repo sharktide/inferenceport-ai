@@ -127,8 +127,8 @@ async function removeCudaFolders() {
 async function bundleOllama() {
     const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
     const archMap = { x64: "amd64", arm64: "arm64" };
-    const os = platformMap[process.platform];
-    const arch = archMap[process.arch];
+    const os = platformMap["linux"];
+    const arch = archMap["arm64"];
     if (!os || !arch) {
         console.error(`Unsupported platform: ${process.platform} ${process.arch}`);
         process.exit(1);
@@ -160,6 +160,14 @@ async function bundleOllama() {
             const jetpackConfig = { os, arch, variant: envVariant };
             const jetpackMeta = await eo.getMetadata(baseMeta.version, jetpackConfig);
             await eo.download(jetpackMeta.version, jetpackConfig, { log: createProgressBarLogger() });
+            if (envVariant === "jetpack5") {
+                await moveBinariesToRoot(baseMeta.version, os, arch, "jetpack5");
+            } else if (envVariant === "jetpack6") {
+                await moveBinariesToRoot(baseMeta.version, os, arch, "jetpack6");
+            } else {
+                console.warn(`Unknown jetpack variant: ${envVariant}, skipping move`);
+            }
+            await removeCudaFolders()
         }
     } else {
         await eo.download(metadata.version, platformConfig, { log: createProgressBarLogger() });

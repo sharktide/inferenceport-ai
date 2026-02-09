@@ -1,7 +1,18 @@
 /** @type {import('electron-builder').Configuration} */
 
-const isGpuOnly = process.env.GPU_ONLY === "true";
-const isStoreOnly = process.env.STORE_ONLY === "true";
+const acceleration =
+	process.env.OLLAMA_ACCELERATION?.toLowerCase() || "cpu";
+
+const buildChannel =
+	process.env.BUILD_CHANNEL?.toLowerCase() || "standard";
+
+const isGpuBuild = acceleration !== "cpu";
+const isStoreBuild = buildChannel === "store";
+
+const accelLabel =
+	acceleration === "cpu"
+		? "CPU"
+		: acceleration.toUpperCase();
 
 export default {
 	appId: "com.sharktide.inferenceport",
@@ -47,27 +58,35 @@ export default {
 	},
 
 	win: {
-		target: isGpuOnly ? ["appx", "zip"] : ["nsis", "appx", "zip", "msi"],
+		target: isGpuBuild
+			? ["appx", "zip"]
+			: ["nsis", "appx", "zip", "msi"],
+
 		appId: "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
-		artifactName: isGpuOnly
-			? "${productName}-WinCUDA-${version}-${arch}.${ext}"
-			: "${productName}-WinSetup-${version}-${arch}.${ext}",
-		compression: isStoreOnly ? "store" : "normal",
+
+		artifactName: isGpuBuild
+			? `${"${productName}"}-Windows-${accelLabel}-${"${version}"}-${"${arch}"}.${"${ext}"}`
+			: `${"${productName}"}-Windows-${"${version}"}-${"${arch}"}.${"${ext}"}`,
+
+		compression: isStoreBuild ? "store" : "normal",
 	},
 
 	mac: {
 		target: ["dmg", "zip", "pkg"],
 		notarize: true,
-		artifactName: "${productName}-MacSetup-${version}-${arch}.${ext}",
+		artifactName:
+			"${productName}-MacOS-${version}-${arch}.${ext}",
 	},
 
 	linux: {
-		target: isGpuOnly
+		target: isGpuBuild
 			? ["AppImage", "tar.xz"]
 			: ["AppImage", "deb", "tar.xz"],
-		artifactName: isGpuOnly
-			? "${productName}-LinuxCUDA-${version}-${arch}.${ext}"
-			: "${productName}-LinuxSetup-${version}-${arch}.${ext}",
+
+		artifactName: isGpuBuild
+			? `${"${productName}"}-Linux-${accelLabel}-${"${version}"}-${"${arch}"}.${"${ext}"}`
+			: `${"${productName}"}-Linux-${"${version}"}-${"${arch}"}.${"${ext}"}`,
+
 		category: "Utility",
 		maintainer: "Rihaan Meher <sharktidedev@gmail.com>",
 	},

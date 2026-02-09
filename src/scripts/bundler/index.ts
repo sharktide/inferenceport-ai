@@ -29,6 +29,15 @@ export type {
 };
 export { ElectronOllamaServer };
 
+function toJsDelivrUrl(
+	owner: string,
+	repo: string,
+	version: string,
+	fileName: string,
+) {
+	return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${version}/${fileName}`;
+}
+
 export class ElectronOllama {
 	private config: ElectronOllamaConfig;
 	private server: ElectronOllamaServer | null = null;
@@ -235,6 +244,12 @@ export class ElectronOllama {
 		}
 
 		log?.(100, `Extracted archive ${metadata.fileName}`);
+
+		try {
+			await fs.unlink(filePath);
+		} catch (err) {
+			console.warn(`Failed to remove archive ${filePath}: ${err}`);
+		}
 	}
 
 	public async extractTarZst(file: string, outDir: string): Promise<void> {
