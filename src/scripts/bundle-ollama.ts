@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { resolve, join, dirname } from "path";
 import { readdir, rename, rm, unlink, lstat, rmdir, stat, mkdir, copyFile, access } from "fs/promises";
 import { ElectronOllama } from "./bundler/index.js";
@@ -59,8 +58,8 @@ async function mergeOllamaLibs() {
         const parent = join(src, "..", "..");
         try {
             await rimrafLike(parent);
-        } catch (err) {
-            console.warn(`Failed to remove old folder ${parent}: ${err?.message ?? err}`);
+        } catch (err: any) {
+            console.warn(`Failed to remove old folder ${parent}: ${err.message ?? err}`);
         }
     }
 
@@ -83,8 +82,8 @@ async function moveBinariesToRoot(version: string, os: string, arch: string, var
                 await rename(src, dest);
             }
             console.log(`Moved binaries from ${sourceDir} to ${vendorRoot}`);
-        } catch (err) {
-            console.warn(`No files moved from ${sourceDir}: ${err?.message ?? err}`);
+        } catch (err: any) {
+            console.warn(`No files moved from ${sourceDir}: ${err.message ?? err}`);
         }
     }
 
@@ -118,7 +117,7 @@ async function removeCudaFolders() {
         try {
             await rimrafLike(cudaPath);
             console.log(`Removed ${version} folder from ${vendorRoot}`);
-        } catch (err) {
+        } catch (err: any) {
             console.warn(`Could not remove ${version}: ${err.message}`);
         }
     }
@@ -127,7 +126,9 @@ async function removeCudaFolders() {
 async function bundleOllama() {
     const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
     const archMap = { x64: "amd64", arm64: "arm64" };
+    //@ts-expect-error
     const os = platformMap[process.platform];
+    //@ts-expect-error
     const arch = archMap[process.arch];
     if (!os || !arch) {
         console.error(`Unsupported platform: ${process.platform} ${process.arch}`);
@@ -138,7 +139,7 @@ async function bundleOllama() {
 
     const envVariant = process.env.OLLAMA_VARIANT
         ? process.env.OLLAMA_VARIANT.toString().toLowerCase()
-        : process.env.GPU_ONLY === "true"
+        : process.env.GOLLAMA_ACCELERATION === "cuda"
         ? "cuda"
         : undefined;
 
