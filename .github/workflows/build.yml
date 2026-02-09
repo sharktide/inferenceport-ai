@@ -33,6 +33,8 @@ concurrency:
 
 jobs:
   build:
+    env:
+      PR_COMMENT_MARKER: "<!-- BUILD-MATRIX-STATUS -->"
     if: ${{ github.event_name != 'issue_comment' || contains(github.event.comment.body, '!build') }}
     runs-on: ${{ matrix.os }}
 
@@ -161,12 +163,63 @@ jobs:
 
           echo "Detected accelerator: $ACCEL"
 
-      - name: Skip non-requested GPU builds
-        if: ${{ matrix.accel != env.ACCELERATOR }}
+      - name: Init / update PR build table (building)
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          echo "Skipping ${{ matrix.name }} (requested: $ACCELERATOR)"
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          MARKER="$PR_COMMENT_MARKER"
+
+          TABLE="$MARKER
+          ## Build Matrix Status
+
+          | Platform | OS Runner | Architecture | Accelerator | Artifact | Status |
+          |---------|-----------|--------------|-------------|----------|--------|
+          | Windows | windows-latest | x86_64 | CPU | Electron-win64-build | ⏳ |
+          | Windows | windows-11-arm | ARM64 | CPU | Electron-win-arm64-build | ⏳ |
+          | macOS | macos-latest | ARM64 | CPU | Electron-mac-arm64-build | ⏳ |
+          | macOS | macos-15-intel | x86_64 | CPU | Electron-mac-x64-build | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CPU | Electron-linux-x64-build | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CPU | Electron-linux-arm64-build | ⏳ |
+          | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id")
+
+          if [ -z "$COMMENT_ID" ]; then
+            gh pr comment "$PR_NUMBER" --body "$TABLE"
+          fi
+
+      - name: Skip non-requested GPU builds
+        if: ${{ matrix.accel != env.ACCELERATOR }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
           echo "RUN=FALSE" >> $GITHUB_ENV
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            ROW="| .*${{ matrix.artifact }}.* |"
+            ICON="⏭️"
+
+            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+              --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+            BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+            UPDATED=$(echo "$BODY" | sed -E "s/$ROW/$(echo "$ROW" | sed 's/.*/&/' | sed "s/| [^|]*$/| $ICON |/")/")
+
+            gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+              -X PATCH -f body="$UPDATED"
+          fi
+
           exit 0
 
       - name: Setup Node
@@ -193,3 +246,40 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
+
+      - name: Mark build success
+        if: success() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          ICON="✅"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+          UPDATED=$(echo "$BODY" | sed "s|${{ matrix.artifact }}.*|${{ matrix.artifact }} | $ICON |")
+
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+            -X PATCH -f body="$UPDATED"
+
+      - name: Mark build failure
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          ICON="❌"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+          UPDATED=$(echo "$BODY" | sed "s|${{ matrix.artifact }}.*|${{ matrix.artifact }} | $ICON |")
+
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+            -X PATCH -f body="$UPDATED"
+
