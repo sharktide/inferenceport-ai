@@ -40,7 +40,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ---------------- CPU BUILDS (always run) ----------------
           - os: windows-latest
             name: Windows x86_64
             artifact: Electron-win64-build
@@ -152,26 +151,32 @@ jobs:
 
       - name: Skip non-requested GPU builds
         if: ${{ matrix.accel != 'cpu' && matrix.accel != env.ACCELERATOR }}
+        shell: bash
         run: |
           echo "Skipping ${{ matrix.name }} (requested: $ACCELERATOR)"
+          echo "RUN=FALSE" >> $GITHUB_ENV
           exit 0
 
       - name: Setup Node
+        if: ${{ env.RUN != 'FALSE' }}
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install deps
+        if: ${{ env.RUN != 'FALSE' }}
         working-directory: src
         run: npm ci
 
       - name: Build Electron
+        if: ${{ env.RUN != 'FALSE' }}
         working-directory: src
         env:
           ACCELERATOR: ${{ env.ACCELERATOR }}
         run: npm run build
 
       - name: Upload artifact
+        if: ${{ env.RUN != 'FALSE' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
