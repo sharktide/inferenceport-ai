@@ -132,14 +132,17 @@ jobs:
       - name: Determine accelerator
         id: accel
         shell: bash
+        env:
+          DISPATCH_ACCEL: ${{ github.event.inputs.accelerator }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           # Default CPU
           ACCEL=cpu
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            ACCEL="${{ github.event.inputs.accelerator }}"
+            ACCEL="$DISPATCH_ACCEL"
           elif [[ "${GITHUB_EVENT_NAME}" == "issue_comment" ]]; then
-            BODY="${{ github.event.comment.body }}"
+            BODY="$COMMENT_BODY"
             [[ "$BODY" == *"!build cuda"* ]] && ACCEL=cuda
             [[ "$BODY" == *"!build rocm"* ]] && ACCEL=rocm
             [[ "$BODY" == *"!build jetpack5"* ]] && ACCEL=jetpack5
