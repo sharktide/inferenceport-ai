@@ -31,7 +31,11 @@ import type {
 	PullChunk,
 	PullSection,
 } from "./types/index.types.d.ts";
-import { startProxyServer, stopProxyServer, getServerLogs } from "./helper/server.js";
+import {
+	startProxyServer,
+	stopProxyServer,
+	getServerLogs,
+} from "./helper/server.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
@@ -151,7 +155,8 @@ function formatBytes(bytes?: number): string {
 function timeAgo(dateString: string | Date | undefined): string {
 	if (!dateString) return "Unknown";
 
-	const date = typeof dateString === "string" ? new Date(dateString) : dateString;
+	const date =
+		typeof dateString === "string" ? new Date(dateString) : dateString;
 	if (isNaN(date.getTime())) return "Unknown";
 
 	const now = new Date();
@@ -192,9 +197,7 @@ function renderProgress(sections: Map<string, PullSection>): string {
 		const pct = Math.floor((completed / total) * 100);
 
 		lines.push(
-			`${section.label} ${bar} ${pct}% (${formatBytes(
-				completed,
-			)} / ${formatBytes(total)})`,
+			`${bar} ${pct}%`,
 		);
 	}
 
@@ -880,134 +883,117 @@ Keep it under 5 words.
 			clientUrl?: string,
 		): Promise<string> => {
 			const sections = new Map<string, PullSection>();
-			console.log(clientUrl)
-
+			if (!clientUrl) {
+				clientUrl = "http://localhost:11434";
+			}
 			return new Promise(async (resolve, reject) => {
-				if (clientUrl) {
-					try {
-						const base = clientUrl.replace(/\/$/, "");
-						const res = await fetch(`${base}/api/pull`, {
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${await issueProxyToken()}`,
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({ name: modelName }),
-						});
+				try {
+					const base = clientUrl.replace(/\/$/, "");
+					const res = await fetch(`${base}/api/pull`, {
+						method: "POST",
+						headers: {
+							Authorization: `Bearer ${await issueProxyToken()}`,
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({ name: modelName }),
+					});
 
-						if (res.status === 401 || res.status === 403) {
-							const err: any = new Error("unauthorized");
-							err.code = "UNAUTHORIZED";
-							reject(err);
-							return;
-						}
+					if (res.status === 401 || res.status === 403) {
+						const err: any = new Error("unauthorized");
+						err.code = "UNAUTHORIZED";
+						reject(err);
+						return;
+					}
 
-						if (!res.ok) {
-							const err: any = new Error(res.statusText);
-							err.code = "REMOTE_PULL_FAILED";
-							reject(err);
-							return;
-						}
+					if (!res.ok) {
+						const err: any = new Error(res.statusText);
+						err.code = "REMOTE_PULL_FAILED";
+						reject(err);
+						return;
+					}
 
-						if (res.body) {
-							const reader = res.body.getReader();
-							const decoder = new TextDecoder();
-							const win = BrowserWindow.getAllWindows()[0];
+					if (res.body) {
+						const reader = res.body.getReader();
+						const decoder = new TextDecoder();
+						const win = BrowserWindow.getAllWindows()[0];
 
-							try {
-								while (true) {
-									const { done, value } = await reader.read();
-									if (done) break;
+						try {
+							while (true) {
+								const { done, value } = await reader.read();
+								if (done) break;
 
-									const chunk = decoder.decode(value, {
-										stream: true,
-									});
-									const lines = chunk.split("\n");
+								const chunk = decoder.decode(value, {
+									stream: true,
+								});
+								const lines = chunk.split("\n");
 
-									for (const line of lines) {
-										if (!line.trim()) continue;
+								for (const line of lines) {
+									if (!line.trim()) continue;
 
-										let parsed: PullChunk;
-										try {
-											parsed = JSON.parse(line);
-										} catch {
-											continue;
-										}
+									let parsed: PullChunk;
+									try {
+										parsed = JSON.parse(line);
+									} catch {
+										continue;
+									}
 
-										if (parsed.status && !parsed.digest) {
-											sections.set(parsed.status, {
-												label: parsed.status,
-											});
-										}
+									if (parsed.status && !parsed.digest) {
+										sections.set(parsed.status, {
+											label: parsed.status,
+										});
+									}
 
-										if (parsed.digest) {
-											const key = parsed.digest.slice(
-												0,
-												12,
-											);
+									if (parsed.digest) {
+										const key = parsed.digest.slice(0, 12);
 
-											const section =
-												sections.get(key) ??
-												sections.set(key, {
+										const section =
+											sections.get(key) ??
+											sections
+												.set(key, {
 													label: `pulling ${key}`,
 													completed: 0,
-												}).get(key)!;
+												})
+												.get(key)!;
 
-											if (section && parsed.total !== undefined) {
-												section.total = parsed.total;
-											}
-											if (section && parsed.completed !== undefined) {
-												section.completed =
-													parsed.completed;
-											}
+										if (
+											section &&
+											parsed.total !== undefined
+										) {
+											section.total = parsed.total;
 										}
-
-										const payload: PullProgress = {
-											model: modelName,
-											output: renderProgress(sections),
-										};
-
-										if (win) {
-											win.webContents.send(
-												"ollama:pull-progress",
-												payload,
-											);
+										if (
+											section &&
+											parsed.completed !== undefined
+										) {
+											section.completed =
+												parsed.completed;
 										}
 									}
+
+									const payload: PullProgress = {
+										model: modelName,
+										output: renderProgress(sections),
+									};
+
+									if (win) {
+										win.webContents.send(
+											"ollama:pull-progress",
+											payload,
+										);
+									}
 								}
-							} catch (e) {
-								reject(e);
-								return;
 							}
+						} catch (e) {
+							reject(e);
+							return;
 						}
-
-						resolve(`${modelName} pulled from remote`);
-					} catch (err) {
-						reject(err);
 					}
-					return;
+
+					resolve(`${modelName} pulled from remote`);
+				} catch (err) {
+					reject(err);
 				}
-
-				// --- local path unchanged ---
-				const child = spawn(ollamaPath, ["pull", modelName]);
-
-				const sendProgress = (data: Buffer) => {
-					const clean = stripAnsi(data.toString());
-					const payload: PullProgress = {
-						model: modelName,
-						output: clean,
-					};
-					const win = BrowserWindow.getAllWindows()[0];
-					if (win) {
-						win.webContents.send("ollama:pull-progress", payload);
-					}
-				};
-
-				child.stdout.on("data", sendProgress);
-				child.stderr.on("data", sendProgress);
-
-				child.on("close", () => resolve(`${modelName} pulled`));
-				child.on("error", (err: Error) => reject(err.message));
+				return;
 			});
 		},
 	);
