@@ -886,18 +886,29 @@ Keep it under 5 words.
 			if (!clientUrl) {
 				clientUrl = "http://localhost:11434";
 			}
+			
 			return new Promise(async (resolve, reject) => {
 				try {
 					const base = clientUrl.replace(/\/$/, "");
-					const res = await fetch(`${base}/api/pull`, {
-						method: "POST",
-						headers: {
-							Authorization: `Bearer ${await issueProxyToken()}`,
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({ name: modelName }),
-					});
-
+					let res: Response;
+					if (clientUrl === "http://localhost:11434") {
+						res = await fetch(`${base}/api/pull`, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({ name: modelName }),
+						});
+					} else {
+						res = await fetch(`${base}/api/pull`, {
+							method: "POST",
+							headers: {
+								"Authorization": `Bearer ${await issueProxyToken()}`,
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({ name: modelName }),
+						});
+					}
 					if (res.status === 401 || res.status === 403) {
 						const err: any = new Error("unauthorized");
 						err.code = "UNAUTHORIZED";

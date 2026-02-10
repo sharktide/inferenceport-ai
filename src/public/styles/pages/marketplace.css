@@ -60,11 +60,12 @@
 }
 
 .marketplace-card[data-category="chatbots"] {
-	border-left: 3px solid #6b5bff;
+	border-left: 3px solid #ff6b9b;
+
 }
 
 .marketplace-card[data-category="demos"] {
-	border-left: 3px solid #ff6b9b;
+border-left: 3px solid #ddce28;
 }
 
 .marketplace-card[data-category="websites"] {
