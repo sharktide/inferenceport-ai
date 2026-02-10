@@ -245,7 +245,7 @@ async function renderSpaces() {
 	const spaces = await window.hfspaces.get_cards();
 	if (!spaces || spaces == "") {
 		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No models added. Visit the <a href='marketplace/spaces.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 10,000 different AI models";
+		modelsNotFound.innerHTML = "No models added. Visit the <a href='marketplace.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 10,000 different AI models";
 		if (theme === 'light') {
 			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
 		}
@@ -263,7 +263,7 @@ async function renderWebsites() {
 	const websites = await window.hfspaces.get_website_cards();
 	if (!websites || websites == "") {
 		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No website shortcuts added. Visit the <a href='marketplace/website.html' style='color: var(--dark-text) !important'>marketplace</a> to add any website shortcut to this app";
+		modelsNotFound.innerHTML = "No website shortcuts added. Visit the <a href='marketplace.html' style='color: var(--dark-text) !important'>marketplace</a> to add any website shortcut to this app";
 		if (theme === 'light') {
 			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
 		}
