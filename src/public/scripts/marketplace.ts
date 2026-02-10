@@ -61,6 +61,10 @@ const fileModal = new window.ic.iModal(
 );
 
 type ImportType = "space" | "website" | "huggingface";
+interface RemoteHost {
+	url: string;
+	alias: string;
+}
 
 function notify(message: string, type: "success" | "warning" | "error") {
 	showNotification({
@@ -72,7 +76,7 @@ function notify(message: string, type: "success" | "warning" | "error") {
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
-}
+} 
 
 function normalizeHFModelId(input: string): string | null {
     input = input.trim();
@@ -299,25 +303,74 @@ async function openHuggingFaceModal(prefill?: string) {
 	hfModal.open({
 		title: "Import Hugging Face GGUF Model",
 		html: `
-            <h3 style="margin-bottom:8px">Hugging Face Model Import</h3>
-            Enter the model path in the format <code>username/repo</code>. The model must have at least one .gguf file in its repository.</p>
-            <div style="display:flex;flex-direction:column;gap:14px">
-                <input id="hf-model-id"
-                       placeholder="username/repo"
-                       value="${prefill ?? ""}"
-                       style="padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" />
+				<h3 style="margin-bottom:8px">Hugging Face Model Import</h3>
+				Enter the model path in the format <code>username/repo</code>. The model must have at least one .gguf file in its repository.</p>
+				<div style="display:flex;flex-direction:column;gap:14px">
+					<input id="hf-model-id"
+						   placeholder="username/repo"
+						   value="${prefill ?? ""}"
+						   style="padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" />
 
-                <div id="hf-status" style="font-size:13px;min-height:18px;opacity:.8;"></div>
+					<div style="display:flex;gap:8px;align-items:center;">
+						<label style="font-size:13px;opacity:.9;min-width:60px">Host</label>
+						<select id="hf-host-select">
+							<option value="local">Local</option>
+							<option value="add_remote">Add Remote...</option>
+							<option value="manage_hosts">Manage Remotes</option>
+						</select>
+					</div> 
 
-                <div id="hf-quant-container"></div>
-            </div>
-        `,
+					<div id="hf-status" style="font-size:13px;min-height:18px;opacity:.8;"></div>
+
+					<div id="hf-quant-container"></div>
+				</div>
+			`,
 		actions: [],
 	});
 
 	const inputEl = document.getElementById("hf-model-id") as HTMLInputElement;
 	const container = document.getElementById("hf-quant-container")!;
 	const statusEl = document.getElementById("hf-status") as HTMLDivElement;
+	const hostSelect = document.getElementById("hf-host-select") as HTMLSelectElement;
+
+	function updateHFHostOptions() {
+		if (!hostSelect) return;
+		Array.from(hostSelect.options).forEach((opt) => {
+			if (opt.value.startsWith("remote:")) opt.remove();
+		});
+
+		const remotes: RemoteHost[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+		const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+
+		remotes.forEach((host) => {
+			const opt = document.createElement("option");
+			opt.value = `remote:${host.url}`;
+			opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
+			if (addRemoteOpt && hostSelect) hostSelect.insertBefore(opt, addRemoteOpt);
+		});
+
+		const saved = localStorage.getItem("host_select") || "local";
+		hostSelect.value = saved;
+
+		hostSelect.onchange = () => {
+			const v = hostSelect.value;
+			if (v === "add_remote") {
+				const remoteHostDialog = document.getElementById("remote-host-dialog")!;
+				const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+				remoteHostDialog?.classList.remove("hidden");
+				remoteHostInput?.focus();
+				return;
+			}
+			if (v === "manage_hosts") {
+				const dialog = document.getElementById("manage-hosts-dialog")!;
+				dialog.classList.remove("hidden");
+				return;
+			}
+			localStorage.setItem("host_select", v);
+		};
+	}
 
 	async function fetchQuants() {
 		const rawInput = inputEl.value;
@@ -378,6 +431,10 @@ async function openHuggingFaceModal(prefill?: string) {
 				).value;
 
 				const ollamaId = `hf.co/${modelId}:${selectedQuant}`;
+
+				const hostVal = (document.getElementById("hf-host-select") as HTMLSelectElement)?.value || "local";
+				const clientUrl = hostVal && hostVal.startsWith("remote:") ? hostVal.replace("remote:", "") : undefined;
+
 				hfModal.close();
 
 				showNotification({
@@ -385,7 +442,15 @@ async function openHuggingFaceModal(prefill?: string) {
 					type: "info",
 				});
 
-				await window.ollama.pullModel(ollamaId);
+				try {
+					await window.ollama.pullModel(ollamaId, clientUrl);
+				} catch (err: any) {
+					showNotification({
+						message: `Error pulling model: ${err?.message ?? err}`,
+						type: "error",
+						actions: [{ label: "OK", onClick: () => void 0 }],
+					});
+				}
 			};
 		} catch {
 			container.innerHTML = "";
@@ -393,6 +458,11 @@ async function openHuggingFaceModal(prefill?: string) {
 			statusEl.style.color = "var(--danger)";
 		}
 	}
+
+	// populate host options for the modal and then optionally fetch quants
+	try {
+		updateHFHostOptions();
+	} catch {}
 
 	if (prefill) {
 		fetchQuants();
