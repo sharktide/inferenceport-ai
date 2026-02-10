@@ -3,108 +3,263 @@
 
 <head>
 	<meta charset="UTF-8" />
-	<title>Marketplace - Select Backend - InferencePortAI</title>
+	<title>Marketplace - InferencePortAI</title>
 	<script type="module" src="Components.js"></script>
 	<script type="module" src="scripts/staticload/index.js"></script>
 	<link rel="stylesheet" href="styles/styles.css" />
+
+	<style>
+		:root {
+			--chip-bg: rgba(0, 0, 0, 0.04);
+			--chip-bg-hover: rgba(0, 0, 0, 0.08);
+		}
+
+		[data-theme="dark"] {
+			--chip-bg: rgba(255, 255, 255, 0.04);
+			--chip-bg-hover: rgba(255, 255, 255, 0.08);
+		}
+
+		button {
+			max-width: max-content;
+		}
+		.hero {
+			padding: 40px;
+			padding-bottom: 60px;
+		}
+
+		.hero h1 {
+			font-size: 36px;
+			font-weight: 600;
+			letter-spacing: -0.5px;
+			margin-bottom: 8px;
+		}
+
+		.hero p {
+			color: var(--muted);
+			margin-bottom: 28px;
+			font-size: 15px;
+		}
+
+		.search-bar {
+			display: flex;
+			gap: 14px;
+			align-items: center;
+			flex-wrap: wrap;
+			margin-bottom: 30px;
+		}
+
+		.search-bar input {
+			flex: 1;
+			min-width: 260px;
+			padding: 12px 14px;
+			border-radius: 12px;
+			border: 1px solid var(--border);
+			background: var(--surface);
+			color: var(--text);
+			outline: none;
+			transition: all 0.2s ease;
+		}
+
+		.search-bar input:focus {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px var(--accent-soft);
+		}
+
+		.chips {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+
+		.chip {
+			padding: 8px 14px;
+			border-radius: 999px;
+			background: var(--chip-bg);
+			border: 1px solid var(--border);
+			color: var(--muted);
+			cursor: pointer;
+			transition: all 0.2s ease;
+			font-size: 13px;
+		}
+
+		.chip:hover {
+			background: var(--chip-bg-hover);
+			color: var(--text);
+		}
+
+		.chip.active {
+			background: var(--accent);
+			border-color: var(--accent);
+		}
+
+		.category-section {
+			margin: 30px 0 50px;
+		}
+
+		.category-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 16px;
+			margin-left: 20px;
+		}
+
+		.category-header h2 {
+			font-size: 20px;
+			font-weight: 600;
+		}
+
+		.view-all {
+			background: transparent;
+			border: 1px solid var(--border);
+			padding: 8px 14px;
+			border-radius: 10px;
+			color: var(--muted);
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.view-all:hover {
+			border-color: var(--accent);
+			color: var(--text);
+		}
+
+		.card-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+			gap: 20px;
+		}
+
+		footer {
+			color: var(--muted);
+			font-size: 12px;
+			margin-top: 20px;
+		}
+
+		@media (max-width: 700px) {
+			.hero {
+				margin-top: 20px;
+			}
+		}
+
+		.sections-grid {
+			display: grid;
+			gap: 40px;
+			grid-template-columns: 1fr;
+		}
+
+		@media (min-width: 1100px) {
+			.sections-grid {
+				grid-template-columns: repeat(2, 1fr);
+			}
+		}
+
+		@media (min-width: 1600px) {
+			.sections-grid {
+				grid-template-columns: repeat(3, 1fr);
+			}
+		}
+
+	</style>
 </head>
 
 <body>
+
 	<root-navbar></root-navbar>
 
-	<main style="padding: 40px">
-		<div class="provider-select-container">
-			<h1>Choose a Source</h1>
-			<p class="provider-subtitle">
-				Pick where you'd like to get models, spaces, or websites from.
-			</p>
+	<main class="hero">
+		<h1>Marketplace</h1>
+		<p>Discover Chatbots, AI demos, and curated websites — all in one place.</p>
 
-			<div class="provider-card-grid">
-				<div class="provider-card black" onclick="window.location.href='marketplace/ollama.html'">
-					<h2>
-						Chatbots (LLMs)
-						<button class="info-btn" onclick="event.stopPropagation(); showInfo('ollama');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
-					</h2>
-					<img src="assets/img/ollama.svg" alt="Local models runtime" />
-					<p>Runs locally — no cloud required.</p>
-					<p>
-						Provider:
-						<a href="javascript:window.utils.web_open('https://ollama.com');">Local model runtime -
-							Ollama</a>
-					</p>
-				</div>
-
-				<div class="provider-card black" onclick="window.location.href='marketplace/spaces.html'">
-					<h2>
-						Huggingface Spaces
-						<button class="info-btn" onclick="event.stopPropagation(); showInfo('spaces');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
-					</h2>
-					<img src="assets/img/huggingface.svg" alt="Huggingface Logo" />
-					<p>Pipelines: N/A</p>
-					<p>
-						Provider:
-						<a href="javascript:window.utils.web_open('https://huggingface.co/spaces/');">Huggingface
-							Spaces</a>
-					</p>
-				</div>
-
-				<div class="provider-card black" onclick="window.location.href='marketplace/website.html'">
-					<h2>
-						Websites
-						<button class="info-btn" onclick="event.stopPropagation(); showInfo('website');" style="width: 48px; background: transparent !important; outline: none !important;">ℹ️</button>
-					</h2>
-					<img src="assets/img/globe.svg" alt="Internet Logo" />
-					<p>Pipelines: N/A</p>
-					<p>Provider: <a>N/A</a></p>
-				</div>
+		<div class="search-bar">
+			<input id="market-search" placeholder="Search models, demos, or websites" />
+			<div class="chips">
+				<div class="chip active" data-filter="all">All</div>
+				<div class="chip" data-filter="chatbots">Chatbots</div>
+				<div class="chip" data-filter="demos">AI Demos</div>
 			</div>
-
-			<p>
-				DISCLAIMER: We are not affiliated with Ollama, Huggingface, or any subsidiaries. Websites and HF spaces
-				added may have their own privacy policies. Review them carefully.
-			</p>
 		</div>
 
-		<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
+		<button id="import-file-btn" style="margin-bottom:20px;">
+			Import .import File
+		</button>
+
+		<div class="sections-grid">
+
+		<section class="category-section" data-category="chatbots">
+			<div class="category-header">
+				<h2>Chatbots</h2>
+				<button class="view-all" onclick="window.location.href='marketplace/ollama.html'">View Ollama</button>
+			</div>
+			<div class="card-grid">
+				<div class="marketplace-card" data-name="Ollama" data-category="chatbots" onclick="window.location.href='marketplace/ollama.html'">
+					<div>
+						<h3>Ollama — Local LLMs</h3>
+						<p>Run powerful chat models locally with zero cloud uploads.</p>
+					</div>
+					<div class="meta-row"><span>Local runtime</span><span>Learn</span></div>
+				</div>
+
+				<div class="marketplace-card" data-name="Mistral" data-category="chatbots">
+					<div>
+						<h3>Mistral 7B</h3>
+						<p>High-performance general-purpose open model.</p>
+					</div>
+					<div class="meta-row"><span>7B</span><span>23.2M pulls</span></div>
+				</div>
+
+				<div class="marketplace-card" data-name="Llama3" data-category="chatbots">
+					<div>
+						<h3>Llama 3</h3>
+						<p>Advanced reasoning and coding capabilities.</p>
+					</div>
+					<div class="meta-row"><span>8B</span><span>13M pulls</span></div>
+				</div>
+			</div>
+		</section>
+
+		<section class="category-section" data-category="demos">
+			<div class="category-header">
+				<h2>AI Demos</h2>
+				<button class="view-all" onclick="window.location.href='marketplace/spaces.html'">Browse Spaces</button>
+			</div>
+			<div class="card-grid">
+				<div class="marketplace-card" data-name="HuggingFace Spaces" data-category="demos" data-import="space">
+					<div>
+						<h3>Hugging Face Spaces</h3>
+						<p>Community-hosted ML apps and research demos.</p>
+					</div>
+					<div class="meta-row"><span>Spaces</span><span>Browse</span></div>
+				</div>
+				<div class="marketplace-card" data-name="ChatGPT" data-category="demos" data-import="website">
+					<div>
+						<h3>Websites</h3>
+						<p>Open trusted external AI websites directly from the app.</p>
+					</div>
+					<div class="meta-row"><span>Website</span><span>Link</span></div>
+				</div>
+			</div>
+		</section>
+		</div>
+
+		<footer>
+			DISCLAIMER: We are not affiliated with Ollama, Hugging Face, or external websites.
+		</footer>
+
 		<footer>
 			<p>
 				By using this app, you agree to the
-				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
-					Service</a>
+				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a>
 				and
-				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
-					Policy</a>.
+				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>.
 			</p>
 		</footer>
 	</main>
-
+	<script type="module" src="scripts/marketplace.js"></script>
 	<script>
-		let modal;
-		document.addEventListener("DOMContentLoaded", () => {
-			modal = new window.ic.iModal("infoModal", 400);
-		});
-		function showInfo(type) {
-			if (type === "spaces") {
-				modal.open({
-					title: "What are Hugging Face Spaces?",
-					text: "HF Spaces are community-hosted web apps on Hugging Face. Developers share ML demos, interactive tools, or websites here.",
-					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
-				});
-			} else if (type === "website") {
-				modal.open({
-					title: "What are Websites?",
-					text: "Websites are external sources you can connect to through our app. They may have their own privacy policies and terms.",
-					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
-				});
-			} else if (type === "ollama") {
-				modal.open({
-					title: "What is Ollama?",
-					text: "Ollama is a local model runtime that allows you to run large language models (chatbots) on your own computer without needing cloud services.",
-					actions: [{ id: "okBtn", label: "OK", onClick: () => modal.close() }]
-				});
-			}
-		}
+
 	</script>
+
 </body>
 
 </html>
