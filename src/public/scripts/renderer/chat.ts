@@ -346,7 +346,7 @@ async function loadOptions() {
 			models.forEach((model, i) => {
 				const option = document.createElement("option");
 				option.value = model.name;
-				option.textContent = model.name;
+				option.textContent = model.name.replace(/^hf\.co\/[^/]+\//, "");
 				modelSelect.appendChild(option);
 
 				setSessionProgress(20 + (25 * (i + 1)) / total);
@@ -464,7 +464,7 @@ async function reloadModelsForHost(hostValue: string) {
 		for (const model of models) {
 			const opt = document.createElement("option");
 			opt.value = model.name;
-			opt.textContent = model.name;
+			opt.textContent = model.name.replace(/^hf\.co\/[^/]+\//, "");
 			modelSelect.appendChild(opt);
 		}
 

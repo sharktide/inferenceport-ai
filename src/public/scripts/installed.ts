@@ -141,6 +141,16 @@ async function renderOllama() {
 			return;
 		}
         models.forEach((model) => {
+			let hfurl: string | undefined = undefined;
+
+			if (model.name.includes("hf.co/") || model.name.includes("huggingface.co/") && model.name) {
+				let splitname = model.name.split(":");
+				if (splitname[0]) {
+					hfurl = `https://${splitname[0].trim()}`;
+				} else {
+					hfurl = `https://${model.name.trim()}`;
+				}
+			}
             const card = document.createElement("div");
             card.className = "marketplace-card";
             card.setAttribute("modelid", model.name);
@@ -155,7 +165,7 @@ async function renderOllama() {
             `;
 
             const title = document.createElement("h3");
-            title.textContent = `${getEmoji()} ${model.name}`;
+            title.textContent = `${getEmoji()} ${model.name.replace(/^hf\.co\/[^/]+\//, "")}`;
             title.style.cssText = "margin: 0; font-size: 18px;";
 
             const provider = document.createElement("p");
@@ -203,7 +213,11 @@ async function renderOllama() {
 
             const shareBtn = document.createElement("button");
             shareBtn.textContent = "Info";
-            shareBtn.onclick = () => window.open(`https://ollama.com/library/${model.name}`)
+			if (hfurl) {
+				shareBtn.onclick = () => window.open(hfurl);
+			} else {
+            	shareBtn.onclick = () => window.open(`https://ollama.com/library/${model.name}`)
+			}
             shareBtn.style.cssText = `
                 padding: 8px 12px;
                 width: 100%;

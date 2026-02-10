@@ -122,7 +122,7 @@ window.ollama.onPullProgress(
 	({ model, output }: { model: string; output: string }) => {
 		const container = document.getElementById("notification-container");
 		if (!container) return;
-		model = model.replace(/^hf\.co\//, "");
+		model = model.replace(/^hf\.co\/[^/]+\//, "");
 		let box = container.querySelector(
 			`[data-model="${model}"]`,
 		) as HTMLElement | null;
