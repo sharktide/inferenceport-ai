@@ -5,12 +5,13 @@ export type Version = SpecificVersion | LatestVersion;
 export interface ElectronOllamaConfig {
   basePath: string;
   directory?: string;
-  githubToken?: string;
+  githubToken?: string | undefined;
 }
 
 export interface PlatformConfig {
   os: 'windows' | 'darwin' | 'linux';
   arch: 'arm64' | 'amd64';
+  variant?: string;
 }
 
 export interface OllamaAssetMetadata {

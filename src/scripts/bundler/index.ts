@@ -29,6 +29,15 @@ export type {
 };
 export { ElectronOllamaServer };
 
+function toJsDelivrUrl(
+	owner: string,
+	repo: string,
+	version: string,
+	fileName: string,
+) {
+	return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${version}/${fileName}`;
+}
+
 export class ElectronOllama {
 	private config: ElectronOllamaConfig;
 	private server: ElectronOllamaServer | null = null;
@@ -87,14 +96,22 @@ export class ElectronOllama {
 	 * Get the name of the asset for the given platform configuration (e.g. "ollama-windows-amd64.zip" or "ollama-darwin.tgz")
 	 */
 	public getAssetName(platformConfig: PlatformConfig): string {
-		const { os, arch: architecture } = platformConfig;
+		const { os, arch: architecture, variant } = platformConfig as PlatformConfig & {
+			variant?: "rocm" | "cuda" | "jetpack5" | "jetpack6";
+		};
+
+		const v = variant ? variant.toString().toLowerCase() : undefined;
 
 		switch (os) {
 			case "windows":
+				if (v === "rocm") return `ollama-windows-${architecture}-rocm.zip`;
 				return `ollama-windows-${architecture}.zip`;
 			case "darwin":
 				return "ollama-darwin.tgz";
 			case "linux":
+				if (v === "rocm") return `ollama-linux-${architecture}-rocm.tar.zst`;
+				if (v && v.startsWith("jetpack"))
+					return `ollama-linux-${architecture}-${v}.tar.zst`;
 				return `ollama-linux-${architecture}.tar.zst`;
 		}
 	}
@@ -227,6 +244,12 @@ export class ElectronOllama {
 		}
 
 		log?.(100, `Extracted archive ${metadata.fileName}`);
+
+		try {
+			await fs.unlink(filePath);
+		} catch (err) {
+			console.warn(`Failed to remove archive ${filePath}: ${err}`);
+		}
 	}
 
 	public async extractTarZst(file: string, outDir: string): Promise<void> {
@@ -286,13 +309,19 @@ export class ElectronOllama {
 		version: SpecificVersion,
 		platformConfig: PlatformConfig = this.currentPlatformConfig(),
 	): string {
-		return path.join(
+		const parts: string[] = [
 			this.config.basePath,
 			this.config.directory!,
 			version,
 			platformConfig.os,
 			platformConfig.arch,
-		);
+		];
+
+		if ((platformConfig as PlatformConfig & { variant?: string }).variant) {
+			parts.push((platformConfig as PlatformConfig & { variant?: string }).variant!);
+		}
+
+		return path.join(...parts);
 	}
 
 	/**

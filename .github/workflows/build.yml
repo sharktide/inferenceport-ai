@@ -4,16 +4,34 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
-    branches:
-      - main
+    branches: [main]
+  issue_comment:
+    types: [created]
   workflow_dispatch:
+    inputs:
+      accelerator:
+        description: "GPU backend to build"
+        type: choice
+        required: false
+        default: cpu
+        options: [cpu, cuda, rocm, jetpack5, jetpack6]
 
 permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'issue_comment' }}
+
 jobs:
   build:
+    if: ${{ github.event_name != 'issue_comment' || contains(github.event.comment.body, '!build') }}
+    runs-on: ${{ matrix.os }}
+
+    env:
+      PR_COMMENT_MARKER: "<!-- BUILD-MATRIX-STATUS -->"
+
     strategy:
       fail-fast: false
       matrix:
@@ -21,88 +39,240 @@ jobs:
           - os: windows-latest
             name: Windows x86_64
             artifact: Electron-win64-build
-            header: build-win64
             path: src/dist/*
+            accel: cpu
+
           - os: windows-11-arm
-            name: Windows ARM x64
-            artifact: Electron-winaarch64-build
-            header: build-arm
+            name: Windows ARM64
+            artifact: Electron-win-arm64-build
             path: src/dist/*
+            accel: cpu
+
           - os: macos-latest
-            name: MacOS ARM x64
-            artifact: Electron-macOS-build
-            header: build-macos
-            path: |
-              src/dist/*.dmg
-              src/dist/*.zip
-              src/dist/*.pkg
+            name: macOS ARM64
+            artifact: Electron-mac-arm64-build
+            path: src/dist/*.*
+            accel: cpu
+
           - os: macos-15-intel
-            name: MacOS x86_64
-            artifact: Electron-macOS-x86-build
-            header: build-macos-x86
-            path: |
-              src/dist/*.dmg
-              src/dist/*.zip
-              src/dist/*.pkg
+            name: macOS x86_64
+            artifact: Electron-mac-x64-build
+            path: src/dist/*.*
+            accel: cpu
+
           - os: ubuntu-latest
             name: Linux x86_64
             artifact: Electron-linux-x64-build
-            header: build-linux
-            path: |
-              src/dist/*.AppImage
-              src/dist/*.deb
-              src/dist/*.tar.xz
-          - os: ubuntu-24.04-arm
-            name: Linux ARM x64
-            artifact: Electron-linux-arm64-build
-            header: build-linux-arm
-            path: |
-              src/dist/*.AppImage
-              src/dist/*.deb
-              src/dist/*.tar.xz
+            path: src/dist/*.*
+            accel: cpu
 
-    runs-on: ${{ matrix.os }}
+          - os: ubuntu-24.04-arm
+            name: Linux ARM64
+            artifact: Electron-linux-arm64-build
+            path: src/dist/*.*
+            accel: cpu
+
+          - os: windows-latest
+            name: Windows CUDA
+            artifact: Electron-win64-cuda
+            path: src/dist/*.*
+            accel: cuda
+
+          - os: ubuntu-latest
+            name: Linux CUDA x86_64
+            artifact: Electron-linux-cuda
+            path: src/dist/*.*
+            accel: cuda
+
+          - os: ubuntu-24.04-arm
+            name: Linux ARM CUDA
+            artifact: Electron-linux-arm-cuda
+            path: src/dist/*.*
+            accel: cuda
+
+          - os: windows-latest
+            name: Windows ROCm
+            artifact: Electron-win64-rocm
+            path: src/dist/*.*
+            accel: rocm
+
+          - os: ubuntu-latest
+            name: Linux ROCm
+            artifact: Electron-linux-rocm
+            path: src/dist/*.*
+            accel: rocm
+
+          - os: ubuntu-24.04-arm
+            name: JetPack 5
+            artifact: Electron-jetpack5
+            path: src/dist/*.*
+            accel: jetpack5
+
+          - os: ubuntu-24.04-arm
+            name: JetPack 6
+            artifact: Electron-jetpack6
+            path: src/dist/*.*
+            accel: jetpack6
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Determine accelerator
+        shell: bash
+        env:
+          DISPATCH_ACCEL: ${{ github.event.inputs.accelerator }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            ACCEL="$DISPATCH_ACCEL"
+          elif [[ "$GITHUB_EVENT_NAME" == "issue_comment" ]]; then
+            case "$COMMENT_BODY" in
+              *"!build cuda"*) ACCEL=cuda ;;
+              *"!build rocm"*) ACCEL=rocm ;;
+              *"!build jetpack5"*) ACCEL=jetpack5 ;;
+              *"!build jetpack6"*) ACCEL=jetpack6 ;;
+              *"!build cpu"*) ACCEL=cpu ;;
+              *) ACCEL="" ;;
+            esac
+          else
+            ACCEL="cpu"
+          fi
+
+          echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
+          echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
+      - name: Ensure PR build matrix comment exists
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          MARKER="$PR_COMMENT_MARKER"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id")
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "Build matrix comment already exists"
+            exit 0
+          fi
+
+          cat <<'EOF' > comment.md
+          <!-- BUILD-MATRIX-STATUS -->
+          ## Build Matrix Status
+
+          | Platform | OS Runner | Architecture | Accelerator | Artifact | Status |
+          |---------|-----------|--------------|-------------|----------|--------|
+          | Windows | windows-latest | x86_64 | CPU | Electron-win64-build | ⏳ |
+          | Windows | windows-11-arm | ARM64 | CPU | Electron-win-arm64-build | ⏳ |
+          | macOS | macos-latest | ARM64 | CPU | Electron-mac-arm64-build | ⏳ |
+          | macOS | macos-15-intel | x86_64 | CPU | Electron-mac-x64-build | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CPU | Electron-linux-x64-build | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CPU | Electron-linux-arm64-build | ⏳ |
+          | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
+          | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
+          | Windows | windows-latest | x86_64 | ROCm | Electron-win64-rocm | ⏳ |
+          | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
+          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |
+          EOF
+
+          gh api repos/${{ github.repository }}/issues/$PR/comments \
+            -X POST -f body="$(cat comment.md)"
+
+      - name: Skip non-requested builds
+        if: ${{ matrix.accel != env.ACCELERATOR }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS_ICON: "⏭️"
+        shell: bash
+        run: |
+          echo "RUN=FALSE" >> $GITHUB_ENV
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR=${{ github.event.pull_request.number }}
+            ARTIFACT="${{ matrix.artifact }}"
+
+            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+              --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+            BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+
+            UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+              BEGIN { FS=OFS="|" }
+              $0 ~ a { $(NF-1)=" " i " " }
+              { print }
+            ')
+
+            gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
+          fi
+
+          exit 0
+
+      - uses: actions/setup-node@v4
+        if: env.RUN != 'FALSE'
         with:
           node-version: 24
 
-      - name: Install dependencies
+      - name: Install deps
+        if: env.RUN != 'FALSE'
         working-directory: src
-        run: npm ci && npm install -g typescript
+        run: npm ci
 
-      - name: Build Electron app (unsigned)
+      - name: Build Electron
+        if: env.RUN != 'FALSE'
         working-directory: src
         run: npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: env.RUN != 'FALSE'
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
 
-      - name: Comment success on PR
-        if: success() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: ${{ matrix.header }}
-          message: |
-            ✅ Build succeeded.
-            Artifact: **${{ matrix.artifact }}**
-            Device: ${{ runner.os }} ${{ runner.arch }}
-            You can [download it from the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+      - name: Mark success
+        if: success() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS_ICON: "✅"
+        shell: bash
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          ARTIFACT="${{ matrix.artifact }}"
 
-      - name: Comment failure on PR
-        if: failure() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@6c08a17c18283862973a337a10f2d6510ca3e4f0
-        with:
-          header: ${{ matrix.header }}
-          message: |
-            ❌ Build failed. Check logs.
-            Device: ${{ runner.os }} ${{ runner.arch }}
-            You can [view the logs in the workflow run](https://github.com/sharktide/inferenceport-ai/actions/runs/${{ github.run_id }}) for 90 days.
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+
+          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+            BEGIN { FS=OFS="|" }
+            $0 ~ a { $(NF-1)=" " i " " }
+            { print }
+          ')
+
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
+
+      - name: Mark failure
+        if: failure() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS_ICON: "❌"
+        shell: bash
+        run: |
+          PR=${{ github.event.pull_request.number }}
+          ARTIFACT="${{ matrix.artifact }}"
+
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
+            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
+
+          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
+
+          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
+            BEGIN { FS=OFS="|" }
+            $0 ~ a { $(NF-1)=" " i " " }
+            { print }
+          ')
+
+          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
