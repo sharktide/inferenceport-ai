@@ -97,6 +97,10 @@ contextBridge.exposeInMainWorld("ollama", {
 	autoNameSession: async (model: string, prompt: string, clientUrl?: string): Promise<string> => {
 		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt, clientUrl);
 	},
+	importGGUF: (fileName: string, data: Uint8Array | null, isModelFile: boolean, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:import-gguf", fileName, data, isModelFile, clientUrl),
+	importGGUFMulti: (modelfileName: string, modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string): Promise<string> =>
+		ipcRenderer.invoke("ollama:import-gguf-multi", modelfileName, modelfileData, ggufName, ggufData, clientUrl),
 	startServer: (port: number, users: { email: string; role: string }[]) =>
 		ipcRenderer.invoke("ollama:start-proxy-server", port, users),
 	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),

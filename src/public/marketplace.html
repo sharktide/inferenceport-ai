@@ -1,263 +1,345 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Marketplace - InferencePortAI</title>
+		<script type="module" src="Components.js"></script>
+		<script type="module" src="scripts/staticload/index.js"></script>
+		<link rel="stylesheet" href="styles/styles.css" />
 
-<head>
-	<meta charset="UTF-8" />
-	<title>Marketplace - InferencePortAI</title>
-	<script type="module" src="Components.js"></script>
-	<script type="module" src="scripts/staticload/index.js"></script>
-	<link rel="stylesheet" href="styles/styles.css" />
+		<style>
+			:root {
+				--chip-bg: rgba(0, 0, 0, 0.04);
+				--chip-bg-hover: rgba(0, 0, 0, 0.08);
+			}
 
-	<style>
-		:root {
-			--chip-bg: rgba(0, 0, 0, 0.04);
-			--chip-bg-hover: rgba(0, 0, 0, 0.08);
-		}
+			[data-theme="dark"] {
+				--chip-bg: rgba(255, 255, 255, 0.04);
+				--chip-bg-hover: rgba(255, 255, 255, 0.08);
+			}
 
-		[data-theme="dark"] {
-			--chip-bg: rgba(255, 255, 255, 0.04);
-			--chip-bg-hover: rgba(255, 255, 255, 0.08);
-		}
-
-		button {
-			max-width: max-content;
-		}
-		.hero {
-			padding: 40px;
-			padding-bottom: 60px;
-		}
-
-		.hero h1 {
-			font-size: 36px;
-			font-weight: 600;
-			letter-spacing: -0.5px;
-			margin-bottom: 8px;
-		}
-
-		.hero p {
-			color: var(--muted);
-			margin-bottom: 28px;
-			font-size: 15px;
-		}
-
-		.search-bar {
-			display: flex;
-			gap: 14px;
-			align-items: center;
-			flex-wrap: wrap;
-			margin-bottom: 30px;
-		}
-
-		.search-bar input {
-			flex: 1;
-			min-width: 260px;
-			padding: 12px 14px;
-			border-radius: 12px;
-			border: 1px solid var(--border);
-			background: var(--surface);
-			color: var(--text);
-			outline: none;
-			transition: all 0.2s ease;
-		}
-
-		.search-bar input:focus {
-			border-color: var(--accent);
-			box-shadow: 0 0 0 3px var(--accent-soft);
-		}
-
-		.chips {
-			display: flex;
-			gap: 8px;
-			flex-wrap: wrap;
-		}
-
-		.chip {
-			padding: 8px 14px;
-			border-radius: 999px;
-			background: var(--chip-bg);
-			border: 1px solid var(--border);
-			color: var(--muted);
-			cursor: pointer;
-			transition: all 0.2s ease;
-			font-size: 13px;
-		}
-
-		.chip:hover {
-			background: var(--chip-bg-hover);
-			color: var(--text);
-		}
-
-		.chip.active {
-			background: var(--accent);
-			border-color: var(--accent);
-		}
-
-		.category-section {
-			margin: 30px 0 50px;
-		}
-
-		.category-header {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			margin-bottom: 16px;
-			margin-left: 20px;
-		}
-
-		.category-header h2 {
-			font-size: 20px;
-			font-weight: 600;
-		}
-
-		.view-all {
-			background: transparent;
-			border: 1px solid var(--border);
-			padding: 8px 14px;
-			border-radius: 10px;
-			color: var(--muted);
-			cursor: pointer;
-			transition: all 0.2s ease;
-		}
-
-		.view-all:hover {
-			border-color: var(--accent);
-			color: var(--text);
-		}
-
-		.card-grid {
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-			gap: 20px;
-		}
-
-		footer {
-			color: var(--muted);
-			font-size: 12px;
-			margin-top: 20px;
-		}
-
-		@media (max-width: 700px) {
+			button {
+				max-width: max-content;
+			}
 			.hero {
+				padding: 40px;
+				padding-bottom: 60px;
+			}
+
+			.hero h1 {
+				font-size: 36px;
+				font-weight: 600;
+				letter-spacing: -0.5px;
+				margin-bottom: 8px;
+			}
+
+			.hero p {
+				color: var(--muted);
+				margin-bottom: 28px;
+				font-size: 15px;
+			}
+
+			.search-bar {
+				display: flex;
+				gap: 14px;
+				align-items: center;
+				flex-wrap: wrap;
+				margin-bottom: 30px;
+			}
+
+			.search-bar input {
+				flex: 1;
+				min-width: 260px;
+				padding: 12px 14px;
+				border-radius: 12px;
+				border: 1px solid var(--border);
+				background: var(--surface);
+				color: var(--text);
+				outline: none;
+				transition: all 0.2s ease;
+			}
+
+			.search-bar input:focus {
+				border-color: var(--accent);
+				box-shadow: 0 0 0 3px var(--accent-soft);
+			}
+
+			.chips {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+			}
+
+			.chip {
+				padding: 8px 14px;
+				border-radius: 999px;
+				background: var(--chip-bg);
+				border: 1px solid var(--border);
+				color: var(--muted);
+				cursor: pointer;
+				transition: all 0.2s ease;
+				font-size: 13px;
+			}
+
+			.chip:hover {
+				background: var(--chip-bg-hover);
+				color: var(--text);
+			}
+
+			.chip.active {
+				background: var(--accent);
+				border-color: var(--accent);
+			}
+
+			.category-section {
+				margin: 30px 0 50px;
+			}
+
+			.category-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 16px;
+				margin-left: 20px;
+			}
+
+			.category-header h2 {
+				font-size: 20px;
+				font-weight: 600;
+			}
+
+			.view-all {
+				background: transparent;
+				border: 1px solid var(--border);
+				padding: 8px 14px;
+				border-radius: 10px;
+				color: var(--muted);
+				cursor: pointer;
+				transition: all 0.2s ease;
+			}
+
+			.view-all:hover {
+				border-color: var(--accent);
+				color: var(--text);
+			}
+
+			.card-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+				gap: 20px;
+			}
+
+			footer {
+				color: var(--muted);
+				font-size: 12px;
 				margin-top: 20px;
 			}
-		}
 
-		.sections-grid {
-			display: grid;
-			gap: 40px;
-			grid-template-columns: 1fr;
-		}
-
-		@media (min-width: 1100px) {
-			.sections-grid {
-				grid-template-columns: repeat(2, 1fr);
+			@media (max-width: 700px) {
+				.hero {
+					margin-top: 20px;
+				}
 			}
-		}
 
-		@media (min-width: 1600px) {
 			.sections-grid {
-				grid-template-columns: repeat(3, 1fr);
+				display: grid;
+				gap: 40px;
+				grid-template-columns: 1fr;
 			}
-		}
 
-	</style>
-</head>
+			@media (min-width: 1100px) {
+				.sections-grid {
+					grid-template-columns: repeat(2, 1fr);
+				}
+			}
 
-<body>
+			@media (min-width: 1600px) {
+				.sections-grid {
+					grid-template-columns: repeat(3, 1fr);
+				}
+			}
+			.modelfile-preview {
+				margin-top: 16px;
+				padding: 12px;
+				border-radius: 8px;
+				background: var(--surface-2);
+				border: 1px solid var(--border);
+				font-size: 13px;
+			}
 
-	<root-navbar></root-navbar>
+			.preview-section {
+				margin-bottom: 10px;
+			}
 
-	<main class="hero">
-		<h1>Marketplace</h1>
-		<p>Discover Chatbots, AI demos, and curated websites — all in one place.</p>
+			.preview-title {
+				font-weight: 600;
+				margin-bottom: 4px;
+				opacity: 0.9;
+			}
 
-		<div class="search-bar">
-			<input id="market-search" placeholder="Search models, demos, or websites" />
-			<div class="chips">
-				<div class="chip active" data-filter="all">All</div>
-				<div class="chip" data-filter="chatbots">Chatbots</div>
-				<div class="chip" data-filter="demos">AI Demos</div>
-			</div>
-		</div>
+			.modelfile-preview pre {
+				background: var(--surface);
+				padding: 8px;
+				border-radius: 6px;
+				overflow-x: auto;
+				font-size: 12px;
+			}
+		</style>
+	</head>
 
-		<button id="import-file-btn" style="margin-bottom:20px;">
-			Import .import File
-		</button>
+	<body>
+		<root-navbar></root-navbar>
 
-		<div class="sections-grid">
-
-		<section class="category-section" data-category="chatbots">
-			<div class="category-header">
-				<h2>Chatbots</h2>
-			</div>
-			<div class="card-grid">
-				<div class="marketplace-card" data-name="Ollama" data-category="chatbots" onclick="window.location.href='marketplace/ollama.html'">
-					<div>
-						<h3>Ollama — Local Chat</h3>
-						<p>Run powerful chat models locally with zero cloud uploads.</p>
-					</div>
-					<div class="meta-row"><span>Local runtime</span><span>Learn</span></div>
-				</div>
-
-				<div class="marketplace-card" data-name="huggingface" data-category="chatbots" data-import="huggingface">
-					<div>
-						<h3>Hugging Face</h3>
-						<p>Browse and download thousands of open source chatbots</p>
-					</div>
-					<div class="meta-row"><span>Hugging Face</span><span>Browse</span></div>
-				</div>
-
-				<div class="marketplace-card" data-name="Llama3" data-category="chatbots">
-					<div>
-						<h3>Llama.CPP</h3>
-						<p>Create or import your own models and run them locally with InferencePort AI</p>
-					</div>
-					<div class="meta-row"><span>8B</span><span>13M pulls</span></div>
-				</div>
-			</div>
-		</section>
-
-		<section class="category-section" data-category="demos">
-			<div class="category-header">
-				<h2>AI Demos</h2>
-			</div>
-			<div class="card-grid">
-				<div class="marketplace-card" data-name="HuggingFace Spaces" data-category="demos" data-import="space">
-					<div>
-						<h3>Hugging Face Spaces</h3>
-						<p>Community-hosted ML apps and research demos.</p>
-					</div>
-					<div class="meta-row"><span>Spaces</span><span>Browse</span></div>
-				</div>
-				<div class="marketplace-card" data-name="ChatGPT" data-category="demos" data-import="website">
-					<div>
-						<h3>Websites</h3>
-						<p>Open trusted external AI websites directly from the app.</p>
-					</div>
-					<div class="meta-row"><span>Website</span><span>Link</span></div>
-				</div>
-			</div>
-		</section>
-		</div>
-
-		<footer>
-			DISCLAIMER: We are not affiliated with Ollama, Hugging Face, or external websites.
-		</footer>
-
-		<footer>
+		<main class="hero">
+			<h1>Marketplace</h1>
 			<p>
-				By using this app, you agree to the
-				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a>
-				and
-				<a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>.
+				Discover Chatbots, AI demos, and curated websites — all in one
+				place.
 			</p>
-		</footer>
-	</main>
-	<script type="module" src="scripts/marketplace.js"></script>
-	<script>
 
-	</script>
+			<div class="search-bar">
+				<input
+					id="market-search"
+					placeholder="Search models, demos, or websites"
+				/>
+				<div class="chips">
+					<div class="chip active" data-filter="all">All</div>
+					<div class="chip" data-filter="chatbots">Chatbots</div>
+					<div class="chip" data-filter="demos">AI Demos</div>
+				</div>
+			</div>
 
-</body>
+			<button id="import-file-btn" style="margin-bottom: 20px">
+				Import .import File
+			</button>
 
+			<div class="sections-grid">
+				<section class="category-section" data-category="chatbots">
+					<div class="category-header">
+						<h2>Chatbots</h2>
+					</div>
+					<div class="card-grid">
+						<div
+							class="marketplace-card"
+							data-name="Ollama"
+							data-category="chatbots"
+							onclick="
+								window.location.href = 'marketplace/ollama.html'
+							"
+						>
+							<div>
+								<h3>Ollama — Local Chat</h3>
+								<p>
+									Run powerful chat models locally with zero
+									cloud uploads.
+								</p>
+							</div>
+							<div class="meta-row">
+								<span>Local runtime</span><span>Learn</span>
+							</div>
+						</div>
+
+						<div
+							class="marketplace-card"
+							data-name="huggingface"
+							data-category="chatbots"
+							data-import="huggingface"
+						>
+							<div>
+								<h3>Hugging Face</h3>
+								<p>
+									Browse and download thousands of open source
+									chatbots
+								</p>
+							</div>
+							<div class="meta-row">
+								<span>Hugging Face</span><span>Browse</span>
+							</div>
+						</div>
+
+						<div
+							class="marketplace-card"
+							data-name="Llama3"
+							data-category="chatbots"
+							data-import="gguf"
+						>
+							<div>
+								<h3>Llama.CPP</h3>
+								<p>
+									Create or import your own models and run
+									them locally with InferencePort AI
+								</p>
+							</div>
+							<div class="meta-row">
+								<span>8B</span><span>13M pulls</span>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section class="category-section" data-category="demos">
+					<div class="category-header">
+						<h2>AI Demos</h2>
+					</div>
+					<div class="card-grid">
+						<div
+							class="marketplace-card"
+							data-name="HuggingFace Spaces"
+							data-category="demos"
+							data-import="space"
+						>
+							<div>
+								<h3>Hugging Face Spaces</h3>
+								<p>
+									Community-hosted ML apps and research demos.
+								</p>
+							</div>
+							<div class="meta-row">
+								<span>Spaces</span><span>Browse</span>
+							</div>
+						</div>
+						<div
+							class="marketplace-card"
+							data-name="ChatGPT"
+							data-category="demos"
+							data-import="website"
+						>
+							<div>
+								<h3>Websites</h3>
+								<p>
+									Open trusted external AI websites directly
+									from the app.
+								</p>
+							</div>
+							<div class="meta-row">
+								<span>Website</span><span>Link</span>
+							</div>
+						</div>
+					</div>
+				</section>
+			</div>
+
+			<footer>
+				DISCLAIMER: We are not affiliated with Ollama, Hugging Face, or
+				external websites.
+			</footer>
+
+			<footer>
+				<p>
+					By using this app, you agree to the
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')"
+						>Terms of Service</a
+					>
+					and
+					<a
+						href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')"
+						>Privacy Policy</a
+					>.
+				</p>
+			</footer>
+		</main>
+		<script type="module" src="scripts/marketplace.js"></script>
+		<script></script>
+	</body>
 </html>

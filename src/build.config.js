@@ -51,6 +51,11 @@ export default {
 			name: "InferencePortAI Metadata File",
 			role: "Editor",
 		},
+		{
+			ext : "gguf",
+			name: "GGUF Model File",
+			role: "None",
+		}
 	],
 
 	directories: {

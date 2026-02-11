@@ -3,6 +3,7 @@ import { showNotification } from "./helper/notification.js";
 
 const modal = new window.ic.iModal("marketImportModal", 520, undefined, false);
 const hfModal = new window.ic.iModal("hfModal", 600);
+const ggufModal = new window.ic.iModal("ggufModal", 640, undefined, false);
 const fileModal = new window.ic.iModal(
 	"fileImportModal",
 	520,
@@ -10,7 +11,7 @@ const fileModal = new window.ic.iModal(
 		title: "Import .import File",
 		html: `
             <div style="max-width: 500px;">
-            <div id="drop-zone">
+            <div id="drop-zone" class="drop-zone">
                 <div class="drop-icon">📂</div>
                 <p id="drop-text">
                 Drag & drop your <strong>.import</strong> file here<br>
@@ -60,7 +61,7 @@ const fileModal = new window.ic.iModal(
 	true,
 );
 
-type ImportType = "space" | "website" | "huggingface";
+type ImportType = "space" | "website" | "huggingface" | "gguf";
 interface RemoteHost {
 	url: string;
 	alias: string;
@@ -162,6 +163,466 @@ function setupDropZone() {
 		const file = fileInput.files?.[0];
 		if (file) showFile(file);
 	});
+}
+
+function parseModelfile(text: string) {
+	const lines = text.split(/\r?\n/);
+
+	let from: string | null = null;
+	let system = "";
+	let template = "";
+	let license: string[] = [];
+	let parameters: Record<string, string> = {};
+	let messages: Array<{ role: string; content: string }> = [];
+
+	let currentBlock: "system" | "template" | null = null;
+
+	for (let rawLine of lines) {
+		const line = rawLine.trim();
+		if (!line || line.startsWith("#")) continue;
+
+		if (/^FROM\b/i.test(line)) {
+			from = line.replace(/^FROM\s+/i, "").trim();
+			currentBlock = null;
+			continue;
+		}
+
+		if (/^SYSTEM\b/i.test(line)) {
+			currentBlock = "system";
+			system += rawLine.replace(/^SYSTEM\s*/i, "") + "\n";
+			continue;
+		}
+
+		if (/^TEMPLATE\b/i.test(line)) {
+			currentBlock = "template";
+			template += rawLine.replace(/^TEMPLATE\s*/i, "") + "\n";
+			continue;
+		}
+
+		if (/^LICENSE\b/i.test(line)) {
+			license.push(line.replace(/^LICENSE\s+/i, "").trim());
+			currentBlock = null;
+			continue;
+		}
+
+		if (/^PARAMETER\b/i.test(line)) {
+			const rest = line.replace(/^PARAMETER\s+/i, "").trim();
+
+			if (!rest) continue;
+
+			const parts = rest.split(/\s+/);
+			const key = parts.shift();
+
+			if (!key) continue;
+
+			parameters[key] = parts.join(" ");
+			currentBlock = null;
+			continue;
+		}
+
+		if (/^MESSAGE\b/i.test(line)) {
+			const rest = line.replace(/^MESSAGE\s+/i, "");
+			const firstSpace = rest.indexOf(" ");
+			if (firstSpace === -1) continue;
+
+			const role = rest.substring(0, firstSpace).trim();
+			const content = rest.substring(firstSpace + 1).trim();
+
+			messages.push({ role, content });
+			currentBlock = null;
+			continue;
+		}
+
+		if (currentBlock === "system") {
+			system += rawLine + "\n";
+		} else if (currentBlock === "template") {
+			template += rawLine + "\n";
+		}
+	}
+
+	return {
+		from,
+		system: system.trim(),
+		template: template.trim(),
+		license,
+		parameters,
+		messages,
+	};
+}
+
+function stripWrappingQuotes(value: string): string {
+	if (
+		(value.startsWith('"') && value.endsWith('"')) ||
+		(value.startsWith("'") && value.endsWith("'"))
+	) {
+		return value.slice(1, -1).trim();
+	}
+	return value;
+}
+
+function getGGUFFromReference(from: string | null): string | null {
+	if (!from) return null;
+	const normalized = stripWrappingQuotes(from).trim();
+	return /\.gguf$/i.test(normalized) ? normalized : null;
+}
+
+function renderModelfilePreview(parsed: any) {
+	const preview = document.getElementById("modelfile-preview")!;
+	preview.classList.remove("hidden");
+
+	const paramList = Object.entries(parsed.parameters)
+		.map(([k, v]) => `<div><strong>${k}</strong>: ${v}</div>`)
+		.join("");
+
+	const messageList = parsed.messages
+		.map(
+			(m: any) =>
+				`<div><strong>${m.role}</strong>: ${m.content}</div>`,
+		)
+		.join("");
+
+	preview.innerHTML = `
+		<div class="preview-section">
+			<div class="preview-title">Base Model</div>
+			<div class="preview-value">${parsed.from ?? "None"}</div>
+		</div>
+
+		${
+			paramList
+				? `
+		<div class="preview-section">
+			<div class="preview-title">Parameters</div>
+			${paramList}
+		</div>`
+				: ""
+		}
+
+		${
+			parsed.system
+				? `
+		<details>
+			<summary>System Prompt</summary>
+			<pre>${parsed.system}</pre>
+		</details>`
+				: ""
+		}
+
+		${
+			parsed.template
+				? `
+		<details>
+			<summary>Template</summary>
+			<pre>${parsed.template}</pre>
+		</details>`
+				: ""
+		}
+
+		${
+			messageList
+				? `
+		<div class="preview-section">
+			<div class="preview-title">Messages</div>
+			${messageList}
+		</div>`
+				: ""
+		}
+
+		${
+			parsed.license.length
+				? `
+		<div class="preview-section">
+			<div class="preview-title">License</div>
+			${parsed.license.join("<br>")}
+		</div>`
+				: ""
+		}
+	`;
+}
+
+function openGGUFModal() {
+	ggufModal.open({
+		title: "Import GGUF / Modelfile",
+		html: `
+			<div>
+
+				<div id="gguf-drop-zone" class="drop-zone">
+					<div class="drop-icon">📦</div>
+					<p>
+						Drag & drop your <strong>.gguf</strong> or <strong>Modelfile</strong><br>
+						or <span class="click-to-upload">click to upload</span>
+					</p>
+					<small>Supported: .gguf files and Modelfile (select both for GGUF-based Modelfiles)</small>
+					<input id="gguf-file-input" type="file" multiple hidden />
+				</div>
+
+				<div id="gguf-file-indicator" class="file-indicator hidden">
+					<div class="file-name"></div>
+					<div class="file-size"></div>
+				</div>
+				<div id="modelfile-preview" class="modelfile-preview hidden"></div>
+
+				<div style="display:flex;gap:8px;align-items:center;">
+					<label style="font-size:13px;opacity:.9;min-width:60px">Host</label>
+					<select id="gguf-host-select">
+						<option value="local">Local</option>
+					</select>
+					<button id="gguf-import-btn" disabled>Import</button>
+
+				</div>
+
+				<div id="gguf-status" style="font-size:13px;min-height:18px;opacity:.8;"></div>
+			</div>
+		`,
+		actions: [],
+	});
+	const hostSelect = document.getElementById("gguf-host-select") as HTMLSelectElement;
+	function updateGGUFHostOptions() {
+		if (!hostSelect) return;
+
+		Array.from(hostSelect.options).forEach((opt) => {
+			if (opt.value.startsWith("remote:")) opt.remove();
+		});
+
+		const remotes: RemoteHost[] = JSON.parse(
+			localStorage.getItem("remote_hosts") || "[]",
+		);
+
+		remotes.forEach((host) => {
+			const opt = document.createElement("option");
+			opt.value = `remote:${host.url}`;
+			opt.textContent = host.alias
+				? host.alias
+				: `Remote: ${host.url}`;
+			hostSelect.appendChild(opt);
+		});
+
+		const saved = localStorage.getItem("host_select") || "local";
+		hostSelect.value = saved;
+	}
+
+	updateGGUFHostOptions();
+	setupGGUFDropZone();
+}
+
+function setupGGUFDropZone() {
+	const dropZone = document.getElementById("gguf-drop-zone")!;
+	const fileInput = document.getElementById("gguf-file-input") as HTMLInputElement;
+	const indicator = document.getElementById("gguf-file-indicator")!;
+	const fileNameEl = indicator.querySelector(".file-name")!;
+	const fileSizeEl = indicator.querySelector(".file-size")!;
+	const importBtn = document.getElementById("gguf-import-btn") as HTMLButtonElement;
+	const hostSelect = document.getElementById("gguf-host-select") as HTMLSelectElement;
+	const statusEl = document.getElementById("gguf-status") as HTMLDivElement;
+
+	importBtn.disabled = true;
+
+	function isValid(file: File) {
+		return (
+			file.name.toLowerCase().endsWith(".gguf") ||
+			file.name === "Modelfile"
+		);
+	}
+
+	let selectedModelfile: File | null = null;
+	let selectedGGUF: File | null = null;
+	let requiredGGUFFrom: string | null = null;
+
+	function resetPreview() {
+		const preview = document.getElementById("modelfile-preview")!;
+		preview.classList.add("hidden");
+		preview.innerHTML = "";
+	}
+
+	async function showFiles(fileList: FileList | File[]) {
+		const files = Array.from(fileList);
+		selectedModelfile = null;
+		selectedGGUF = null;
+		requiredGGUFFrom = null;
+
+		const invalid = files.filter((f) => !isValid(f));
+		const modelfile = files.find((f) => f.name === "Modelfile") ?? null;
+		const gguf = files.find((f) =>
+			f.name.toLowerCase().endsWith(".gguf"),
+		) ?? null;
+
+		if (!modelfile && !gguf) {
+			indicator.classList.remove("hidden");
+			indicator.classList.add("error");
+			fileNameEl.textContent = "Invalid file type";
+			fileSizeEl.textContent = "Only .gguf or Modelfile allowed";
+			statusEl.textContent = "";
+			importBtn.disabled = true;
+			resetPreview();
+			return;
+		}
+
+		if (invalid.length) {
+			indicator.classList.remove("hidden");
+			indicator.classList.add("error");
+			fileNameEl.textContent = "Unsupported file selected";
+			fileSizeEl.textContent = "Only .gguf and Modelfile are allowed";
+			statusEl.textContent = "";
+			importBtn.disabled = true;
+			resetPreview();
+			return;
+		}
+
+		selectedModelfile = modelfile;
+		selectedGGUF = gguf;
+
+		if (selectedModelfile) {
+			const text = await selectedModelfile.text();
+			const parsed = parseModelfile(text);
+			renderModelfilePreview(parsed);
+			requiredGGUFFrom = getGGUFFromReference(parsed.from);
+		} else {
+			resetPreview();
+		}
+
+		if (selectedModelfile && requiredGGUFFrom && !selectedGGUF) {
+			indicator.classList.remove("hidden");
+			indicator.classList.add("error");
+			fileNameEl.textContent = selectedModelfile.name;
+			fileSizeEl.textContent = "Modelfile references .gguf (add GGUF file too)";
+			statusEl.textContent = "Select both Modelfile and the referenced .gguf file";
+			statusEl.style.color = "var(--danger)";
+			importBtn.disabled = true;
+			return;
+		}
+
+		const names = [selectedModelfile?.name, selectedGGUF?.name].filter(
+			Boolean,
+		) as string[];
+		const totalBytes = [selectedModelfile, selectedGGUF]
+			.filter(Boolean)
+			.reduce((sum, file) => sum + (file?.size ?? 0), 0);
+
+		indicator.classList.remove("hidden", "error");
+		fileNameEl.textContent = names.join(" + ");
+		fileSizeEl.textContent = `${(totalBytes / 1024 / 1024).toFixed(2)} MB`;
+		if (selectedModelfile && requiredGGUFFrom && selectedGGUF) {
+			statusEl.textContent = `Resolved GGUF reference: ${requiredGGUFFrom}`;
+			statusEl.style.color = "var(--success)";
+		} else {
+			statusEl.textContent = "";
+		}
+		importBtn.disabled = false;
+	}
+
+	dropZone.addEventListener("click", () => fileInput.click());
+
+	dropZone.addEventListener("dragover", (e) => {
+		e.preventDefault();
+		dropZone.classList.add("drag-active");
+	});
+
+	dropZone.addEventListener("dragleave", () => {
+		dropZone.classList.remove("drag-active");
+	});
+
+	dropZone.addEventListener("drop", (e) => {
+		e.preventDefault();
+		dropZone.classList.remove("drag-active");
+
+		const dropped = e.dataTransfer?.files;
+		if (dropped?.length) {
+			fileInput.files = dropped;
+			showFiles(dropped);
+		}
+	});
+
+	fileInput.addEventListener("change", () => {
+		const files = fileInput.files;
+		if (files?.length) showFiles(files);
+	});
+
+	importBtn.onclick = async () => {
+		if (!selectedModelfile && !selectedGGUF) return;
+
+		try {
+			statusEl.textContent = "Preparing import...";
+			statusEl.style.color = "var(--muted)";
+
+			const hostVal = hostSelect.value || "local";
+			const clientUrl =
+				hostVal.startsWith("remote:")
+					? hostVal.replace("remote:", "")
+					: undefined;
+
+			let importLabel = "";
+
+			ggufModal.close();
+			if (selectedModelfile && requiredGGUFFrom) {
+				if (!selectedGGUF) {
+					throw new Error(
+						"Modelfile references .gguf. Select Modelfile and GGUF together.",
+					);
+				}
+
+				const modelfileBuf = new Uint8Array(
+					await selectedModelfile.arrayBuffer(),
+				);
+				const ggufBuf = new Uint8Array(await selectedGGUF.arrayBuffer());
+
+				importLabel = `${selectedModelfile.name} + ${selectedGGUF.name}`;
+
+				showNotification({
+					message: `Importing ${importLabel}...`,
+					type: "info",
+				});
+
+				await window.ollama.importGGUFMulti(
+					selectedModelfile.name,
+					modelfileBuf,
+					selectedGGUF.name,
+					ggufBuf,
+					clientUrl,
+				);
+			} else if (selectedModelfile) {
+				const modelfileBuf = new Uint8Array(
+					await selectedModelfile.arrayBuffer(),
+				);
+				importLabel = selectedModelfile.name;
+
+				showNotification({
+					message: `Importing ${importLabel}...`,
+					type: "info",
+				});
+
+				await window.ollama.importGGUF(
+					selectedModelfile.name,
+					modelfileBuf,
+					true,
+					clientUrl,
+				);
+			} else if (selectedGGUF) {
+				const ggufBuf = new Uint8Array(await selectedGGUF.arrayBuffer());
+				importLabel = selectedGGUF.name;
+
+				showNotification({
+					message: `Importing ${importLabel}...`,
+					type: "info",
+				});
+
+				await window.ollama.importGGUF(
+					selectedGGUF.name,
+					ggufBuf,
+					false,
+					clientUrl,
+				);
+			}
+
+			showNotification({
+				message: `Import started for ${importLabel}`,
+				type: "success",
+			});
+		} catch (err: any) {
+			showNotification({
+				message: `Import failed: ${err?.message ?? err}`,
+				type: "error",
+			});
+		}
+	};
 }
 
 function openSpaceModal() {
@@ -315,8 +776,6 @@ async function openHuggingFaceModal(prefill?: string) {
 						<label style="font-size:13px;opacity:.9;min-width:60px">Host</label>
 						<select id="hf-host-select">
 							<option value="local">Local</option>
-							<option value="add_remote">Add Remote...</option>
-							<option value="manage_hosts">Manage Remotes</option>
 						</select>
 					</div> 
 
@@ -342,34 +801,15 @@ async function openHuggingFaceModal(prefill?: string) {
 		const remotes: RemoteHost[] = JSON.parse(
 			localStorage.getItem("remote_hosts") || "[]",
 		);
-		const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
 
 		remotes.forEach((host) => {
 			const opt = document.createElement("option");
 			opt.value = `remote:${host.url}`;
 			opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
-			if (addRemoteOpt && hostSelect) hostSelect.insertBefore(opt, addRemoteOpt);
 		});
 
 		const saved = localStorage.getItem("host_select") || "local";
 		hostSelect.value = saved;
-
-		hostSelect.onchange = () => {
-			const v = hostSelect.value;
-			if (v === "add_remote") {
-				const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-				const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
-				remoteHostDialog?.classList.remove("hidden");
-				remoteHostInput?.focus();
-				return;
-			}
-			if (v === "manage_hosts") {
-				const dialog = document.getElementById("manage-hosts-dialog")!;
-				dialog.classList.remove("hidden");
-				return;
-			}
-			localStorage.setItem("host_select", v);
-		};
 	}
 
 	async function fetchQuants() {
@@ -516,6 +956,8 @@ function setupImportCards() {
 		el.addEventListener("click", () => {
 			if (type === "space") openSpaceModal();
 			if (type === "huggingface") openHuggingFaceModal();
+            else if (type === "gguf") openGGUFModal();
+
 			else openWebsiteModal();
 		});
 	});
