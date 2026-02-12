@@ -1034,7 +1034,14 @@ window.ollama.onPullProgress(
 
 			const msg = document.createElement("div");
 			msg.className = "message";
-			msg.innerHTML = `<strong>Pulling ${model}</strong><pre></pre>`;
+
+			const strong = document.createElement("strong");
+			strong.textContent = `Pulling ${model}`;
+
+			const pre = document.createElement("pre");
+
+			msg.appendChild(strong);
+			msg.appendChild(pre);
 
 			box.appendChild(close);
 			box.appendChild(msg);
