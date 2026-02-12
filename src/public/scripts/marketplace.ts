@@ -266,25 +266,43 @@ function getGGUFFromReference(from: string | null): string | null {
 	return /\.gguf$/i.test(normalized) ? normalized : null;
 }
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
 function renderModelfilePreview(parsed: any) {
 	const preview = document.getElementById("modelfile-preview")!;
 	preview.classList.remove("hidden");
 
 	const paramList = Object.entries(parsed.parameters)
-		.map(([k, v]) => `<div><strong>${k}</strong>: ${v}</div>`)
+		.map(
+			([k, v]) =>
+				`<div><strong>${escapeHtml(String(k))}</strong>: ${escapeHtml(
+					String(v),
+				)}</div>`,
+		)
 		.join("");
 
 	const messageList = parsed.messages
 		.map(
 			(m: any) =>
-				`<div><strong>${m.role}</strong>: ${m.content}</div>`,
+				`<div><strong>${escapeHtml(
+					String(m.role),
+				)}</strong>: ${escapeHtml(String(m.content))}</div>`,
 		)
 		.join("");
+
+	const baseModel = parsed.from != null ? escapeHtml(String(parsed.from)) : "None";
 
 	preview.innerHTML = `
 		<div class="preview-section">
 			<div class="preview-title">Base Model</div>
-			<div class="preview-value">${parsed.from ?? "None"}</div>
+			<div class="preview-value">${baseModel}</div>
 		</div>
 
 		${
