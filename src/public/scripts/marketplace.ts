@@ -827,6 +827,7 @@ async function openHuggingFaceModal(prefill?: string) {
 			const opt = document.createElement("option");
 			opt.value = `remote:${host.url}`;
 			opt.textContent = host.alias ? host.alias : `Remote: ${host.url}`;
+			hostSelect.appendChild(opt);
 		});
 
 		const saved = localStorage.getItem("host_select") || "local";
