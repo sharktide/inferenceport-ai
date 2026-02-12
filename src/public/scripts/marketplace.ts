@@ -976,9 +976,8 @@ function setupImportCards() {
 
 		el.addEventListener("click", () => {
 			if (type === "space") openSpaceModal();
-			if (type === "huggingface") openHuggingFaceModal();
+			else if (type === "huggingface") openHuggingFaceModal();
             else if (type === "gguf") openGGUFModal();
-
 			else openWebsiteModal();
 		});
 	});
