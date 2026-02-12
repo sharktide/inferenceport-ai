@@ -765,7 +765,10 @@ async function openHuggingFaceModal(prefill?: string) {
 		title: "Import Hugging Face GGUF Model",
 		html: `
 				<h3 style="margin-bottom:8px">Hugging Face Model Import</h3>
-				Enter the model path in the format <code>username/repo</code>. The model must have at least one .gguf file in its repository.</p>
+				Enter the model path in the format <code>username/repo</code>.
+				The model must have at least one .gguf file in its repository.
+				<a href='javascript:window.utils.web_open("https://huggingface.co/models?apps=llama.cpp,ollama&sort=trending")'>
+					Browse Hugging Face Models</a>
 				<div style="display:flex;flex-direction:column;gap:14px">
 					<input id="hf-model-id"
 						   placeholder="username/repo"
