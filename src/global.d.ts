@@ -76,7 +76,6 @@ declare global {
 			}>;
 			isFirstLaunch: () => Promise<boolean>;
 			resetFirstLaunch: () => Promise<boolean>;
-			DOMPurify: (dirty: string) => string;
 		};
 
 		hfspaces: {
