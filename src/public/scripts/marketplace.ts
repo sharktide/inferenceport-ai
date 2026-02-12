@@ -872,7 +872,7 @@ async function openHuggingFaceModal(prefill?: string) {
 			statusEl.textContent = `Found ${uniqueQuants.length} quantizations`;
 			statusEl.style.color = "var(--success)";
 
-			container.innerHTML = `
+			container.innerHTML = window.utils.DOMPurify(`
             <label>Select Quantization:</label>
             <select id="hf-quant-select">
                 ${uniqueQuants.map((q) => `<option value="${q}">${q}</option>`).join("")}
@@ -880,7 +880,7 @@ async function openHuggingFaceModal(prefill?: string) {
             <button id="hf-pull-btn" style="margin-top:10px">
                 Pull Model
             </button>
-        `;
+        `);
 
 			const pullBtn = document.getElementById(
 				"hf-pull-btn",
