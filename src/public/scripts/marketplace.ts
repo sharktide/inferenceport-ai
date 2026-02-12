@@ -948,26 +948,6 @@ function openFileImport() {
 	});
 }
 
-function setupDragDrop() {
-	document.addEventListener("dragover", (e) => {
-		e.preventDefault();
-	});
-
-	document.addEventListener("drop", async (e) => {
-		e.preventDefault();
-
-		const file = e.dataTransfer?.files?.[0];
-		if (!file || !file.name.endsWith(".import")) return;
-
-		try {
-			const text = await file.text();
-			const config = JSON.parse(text);
-		} catch {
-			notify("Invalid .import file", "error");
-		}
-	});
-}
-
 function setupImportCards() {
 	const cards = document.querySelectorAll("[data-import]");
 
@@ -1025,7 +1005,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	search.addEventListener("input", applyFilter);
 
 	setupImportCards();
-	setupDragDrop();
 	const params = new URLSearchParams(window.location.search);
 	const autoHF = params.get("hf");
 
