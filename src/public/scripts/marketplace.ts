@@ -299,7 +299,7 @@ function renderModelfilePreview(parsed: any) {
 
 	const baseModel = parsed.from != null ? escapeHtml(String(parsed.from)) : "None";
 
-	preview.innerHTML = `
+	preview.innerHTML = window.utils.DOMPurify(`
 		<div class="preview-section">
 			<div class="preview-title">Base Model</div>
 			<div class="preview-value">${baseModel}</div>
@@ -354,7 +354,7 @@ function renderModelfilePreview(parsed: any) {
 		</div>`
 				: ""
 		}
-	`;
+	`);
 }
 
 function openGGUFModal() {
@@ -781,7 +781,7 @@ function extractQuant(filename: string): string | null {
 async function openHuggingFaceModal(prefill?: string) {
 	hfModal.open({
 		title: "Import Hugging Face GGUF Model",
-		html: `
+		html: window.utils.DOMPurify(`
 				<h3 style="margin-bottom:8px">Hugging Face Model Import</h3>
 				Enter the model path in the format <code>username/repo</code>.
 				The model must have at least one .gguf file in its repository.
@@ -804,7 +804,7 @@ async function openHuggingFaceModal(prefill?: string) {
 
 					<div id="hf-quant-container"></div>
 				</div>
-			`,
+			`),
 		actions: [],
 	});
 
