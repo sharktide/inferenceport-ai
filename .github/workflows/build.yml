@@ -140,139 +140,20 @@ jobs:
 
           echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
           echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
-      - name: Ensure PR build matrix comment exists
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          PR=${{ github.event.pull_request.number }}
-          MARKER="$PR_COMMENT_MARKER"
-
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
-            --jq ".[] | select(.body | contains(\"$MARKER\")) | .id")
-
-          if [ -n "$COMMENT_ID" ]; then
-            echo "Build matrix comment already exists"
-            exit 0
-          fi
-
-          cat <<'EOF' > comment.md
-          <!-- BUILD-MATRIX-STATUS -->
-          ## Build Matrix Status
-
-          | Platform | OS Runner | Architecture | Accelerator | Artifact | Status |
-          |---------|-----------|--------------|-------------|----------|--------|
-          | Windows | windows-latest | x86_64 | CPU | Electron-win64-build | ⏳ |
-          | Windows | windows-11-arm | ARM64 | CPU | Electron-win-arm64-build | ⏳ |
-          | macOS | macos-latest | ARM64 | CPU | Electron-mac-arm64-build | ⏳ |
-          | macOS | macos-15-intel | x86_64 | CPU | Electron-mac-x64-build | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | CPU | Electron-linux-x64-build | ⏳ |
-          | Linux | ubuntu-24.04-arm | ARM64 | CPU | Electron-linux-arm64-build | ⏳ |
-          | Windows | windows-latest | x86_64 | CUDA | Electron-win64-cuda | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | CUDA | Electron-linux-cuda | ⏳ |
-          | Linux | ubuntu-24.04-arm | ARM64 | CUDA | Electron-linux-arm-cuda | ⏳ |
-          | Windows | windows-latest | x86_64 | ROCm | Electron-win64-rocm | ⏳ |
-          | Linux | ubuntu-latest | x86_64 | ROCm | Electron-linux-rocm | ⏳ |
-          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 5 | Electron-jetpack5 | ⏳ |
-          | Jetson | ubuntu-24.04-arm | ARM64 | JetPack 6 | Electron-jetpack6 | ⏳ |
-          EOF
-
-          gh api repos/${{ github.repository }}/issues/$PR/comments \
-            -X POST -f body="$(cat comment.md)"
-
-      - name: Skip non-requested builds
-        if: ${{ matrix.accel != env.ACCELERATOR }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STATUS_ICON: "⏭️"
-        shell: bash
-        run: |
-          echo "RUN=FALSE" >> $GITHUB_ENV
-
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR=${{ github.event.pull_request.number }}
-            ARTIFACT="${{ matrix.artifact }}"
-
-            COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
-              --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
-
-            BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-
-            UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
-              BEGIN { FS=OFS="|" }
-              $0 ~ a { $(NF-1)=" " i " " }
-              { print }
-            ')
-
-            gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
-          fi
-
-          exit 0
 
       - uses: actions/setup-node@v4
-        if: env.RUN != 'FALSE'
         with:
           node-version: 24
 
       - name: Install deps
-        if: env.RUN != 'FALSE'
         working-directory: src
         run: npm ci
 
       - name: Build Electron
-        if: env.RUN != 'FALSE'
         working-directory: src
         run: npm run build
 
       - uses: actions/upload-artifact@v4
-        if: env.RUN != 'FALSE'
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
-
-      - name: Mark success
-        if: success() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STATUS_ICON: "✅"
-        shell: bash
-        run: |
-          PR=${{ github.event.pull_request.number }}
-          ARTIFACT="${{ matrix.artifact }}"
-
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
-            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
-
-          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-
-          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
-            BEGIN { FS=OFS="|" }
-            $0 ~ a { $(NF-1)=" " i " " }
-            { print }
-          ')
-
-          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
-
-      - name: Mark failure
-        if: failure() && github.event_name == 'pull_request' && env.RUN != 'FALSE'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STATUS_ICON: "❌"
-        shell: bash
-        run: |
-          PR=${{ github.event.pull_request.number }}
-          ARTIFACT="${{ matrix.artifact }}"
-
-          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/$PR/comments \
-            --jq ".[] | select(.body | contains(\"$PR_COMMENT_MARKER\")) | .id")
-
-          BODY=$(gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID --jq .body)
-
-          UPDATED=$(echo "$BODY" | awk -v a="$ARTIFACT" -v i="$STATUS_ICON" '
-            BEGIN { FS=OFS="|" }
-            $0 ~ a { $(NF-1)=" " i " " }
-            { print }
-          ')
-
-          gh api repos/${{ github.repository }}/issues/comments/$COMMENT_ID -X PATCH -f body="$UPDATED"
