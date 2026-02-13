@@ -858,7 +858,7 @@ async function openHuggingFaceModal(prefill?: string) {
 			const repoData = await repoRes.json();
 			const siblings = repoData.siblings || [];
 
-			const quants = siblings
+			const quants: Array<string> = siblings
 				.filter((f: any) =>
 					f.rfilename?.toLowerCase().endsWith(".gguf"),
 				)
@@ -867,7 +867,7 @@ async function openHuggingFaceModal(prefill?: string) {
 
 			if (quants.length === 0) throw new Error();
 
-			const uniqueQuants = [...new Set(quants)];
+			const uniqueQuants: Array<string> = [...new Set(quants as Array<string>)];
 
 			statusEl.textContent = `Found ${uniqueQuants.length} quantizations`;
 			statusEl.style.color = "var(--success)";
@@ -875,7 +875,7 @@ async function openHuggingFaceModal(prefill?: string) {
 			container.innerHTML = `
             <label>Select Quantization:</label>
             <select id="hf-quant-select">
-                ${uniqueQuants.map((q) => `<option value="${q}">${q}</option>`).join("")}
+                ${uniqueQuants.map((q: string) => `<option value="${q}">${escapeHtml(q)}</option>`).join("")}
             </select>
             <button id="hf-pull-btn" style="margin-top:10px">
                 Pull Model
