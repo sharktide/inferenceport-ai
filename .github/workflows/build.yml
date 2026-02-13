@@ -123,23 +123,8 @@ jobs:
           DISPATCH_ACCEL: ${{ github.event.inputs.accelerator }}
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            ACCEL="$DISPATCH_ACCEL"
-          elif [[ "$GITHUB_EVENT_NAME" == "issue_comment" ]]; then
-            case "$COMMENT_BODY" in
-              *"!build cuda"*) ACCEL=cuda ;;
-              *"!build rocm"*) ACCEL=rocm ;;
-              *"!build jetpack5"*) ACCEL=jetpack5 ;;
-              *"!build jetpack6"*) ACCEL=jetpack6 ;;
-              *"!build cpu"*) ACCEL=cpu ;;
-              *) ACCEL="" ;;
-            esac
-          else
-            ACCEL="cpu"
-          fi
-
-          echo "ACCELERATOR=$ACCEL" >> $GITHUB_ENV
-          echo "OLLAMA_ACCELERATION=$ACCEL" >> $GITHUB_ENV
+          echo "ACCELERATOR=${{ matrix.accel }}" >> $GITHUB_ENV
+          echo "OLLAMA_ACCELERATION=${{ matrix.accel }}" >> $GITHUB_ENV
 
       - uses: actions/setup-node@v4
         with:

@@ -85,7 +85,7 @@ export default {
 
 	linux: {
 		target: isGpuBuild
-			? ["AppImage", "tar.xz"]
+			? ["tar.xz"]
 			: ["AppImage", "deb", "tar.xz"],
 
 		artifactName: isGpuBuild
