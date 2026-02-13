@@ -24,6 +24,12 @@ const siteDir: string = path.join(app.getPath("userData"), "websites");
 
 import type { ImportSchema } from "./types/index.types.d.ts";
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+}
+
 function getWebsites(): string[] {
     try {
         const files: string[] = fs.readdirSync(siteDir);
@@ -71,26 +77,26 @@ function getWebsiteData(): string {
             const data: ImportSchema = JSON.parse(content);
             if (data.type === "website") {
             html += `
-                <div class="marketplace-card" siteId="${data.url}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
-                    <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
-                    <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">${data.url}</p>
+                <div class="marketplace-card" siteId="${escapeHtml(data.url)}" style="background: ${escapeHtml(data.background)}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
+                    <h3 style="margin: 0; font-size: 18px;">${escapeHtml(data.emoji)} ${escapeHtml(data.title)}</h3>
+                    <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">${escapeHtml(data.url)}</p>
 
                     <p style="margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
                         &nbsp;
                     </p>
 
-                    <!-- <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);">Launch</button> -->
-                    <a href="${data.url}" target="_blank" rel="noopener noreferrer">
-                        <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);">Launch</button>
+                    <!-- <button class="darkhvr" style="background: ${escapeHtml(data.background)}; filter: brightness(90%);">Launch</button> -->
+                    <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener noreferrer">
+                        <button class="darkhvr" style="background: ${escapeHtml(data.background)}; filter: brightness(90%);">Launch</button>
                     </a>
 
                     <br />
-                    <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="showDelModal('${data.url}', '${data.title}', 'website')">Delete</button>
+                    <button class="darkhvr" style="background: ${escapeHtml(data.background)}; filter: brightness(90%);" onclick="showDelModal('${escapeHtml(data.url)}', '${escapeHtml(data.title)}', 'website')">Delete</button>
 
                     <div class="menu-container" style="position: absolute; top: 12px; right: 12px;">
                         <button class="menu-button" onclick="toggleMenu(this)" style="background: transparent; border: none; font-size: 18px;">⋮</button>
                         <div class="menu-dropdown" style="display: none; position: absolute; right: 0; background: var(--bg-light); border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); z-index: 10;">
-                            <button onclick="shareWebsite('${data.url}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
+                            <button onclick="shareWebsite('${escapeHtml(data.url)}', '${escapeHtml(data.title)}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
                         </div>
                     </div>
                 </div>
@@ -152,23 +158,23 @@ function getData(): string {
             const data: ImportSchema = JSON.parse(content);
             if (data.type === "space") {
             html += `
-                <div class="marketplace-card" spaceid="${data.author}/${data.title}" style="background: ${data.background}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
-                    <h3 style="margin: 0; font-size: 18px;">${data.emoji} ${data.title}</h3>
-                    <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">by ${data.author}</p>
+                <div class="marketplace-card" spaceid="${escapeHtml(data.author)}/${escapeHtml(data.title)}" style="background: ${escapeHtml(data.background)}; padding: 16px; border-radius: var(--border-radius); margin-bottom: 12px; position: relative;">
+                    <h3 style="margin: 0; font-size: 18px;">${escapeHtml(data.emoji)} ${escapeHtml(data.title)}</h3>
+                    <p style="margin: 4px 0 0; font-size: 14px; color: var(--text-dark);">by ${escapeHtml(data.author)}</p>
 
                     <p style="margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;">
                         ${data.short_description ?? "No description available."}
                     </p>
 
-                    <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="window.location.href='./renderer/spaces.html?author=${data.author}&repo=${data.title}&sdk=${data.sdk}'">Launch</button>
+                    <button class="darkhvr" style="background: ${escapeHtml(data.background)}; filter: brightness(90%);" onclick="window.location.href='./renderer/spaces.html?author=${escapeHtml(data.author)}&repo=${escapeHtml(data.title)}&sdk=${escapeHtml(data.sdk)}'">Launch</button>
                     <br />
-                    <button class="darkhvr" style="background: ${data.background}; filter: brightness(90%);" onclick="showDelModal('${data.author}', '${data.title}', 'space')">Delete</button>
+                    <button class="darkhvr" style="background: ${escapeHtml(data.background)}; filter: brightness(90%);" onclick="showDelModal('${escapeHtml(data.author)}', '${escapeHtml(data.title)}', 'space')">Delete</button>
 
                     <!-- Three-dot menu -->
                     <div class="menu-container" style="position: absolute; top: 12px; right: 12px;">
                         <button class="menu-button" onclick="toggleMenu(this)" style="background: transparent; border: none; font-size: 18px;">⋮</button>
                         <div class="menu-dropdown" style="display: none; position: absolute; right: 0; background: var(--bg-light); border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); z-index: 10;">
-                            <button onclick="shareSpace('${data.author}', '${data.title}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
+                            <button onclick="shareSpace('${escapeHtml(data.author)}', '${escapeHtml(data.title)}')" style="padding: 8px 12px; width: 100%; background: none; border: none; text-align: left; background-color: var(--bg-light); color: var(--text-dark) !important;">Share</button>
                         </div>
                     </div>
                 </div>
