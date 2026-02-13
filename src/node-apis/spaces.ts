@@ -26,8 +26,11 @@ import type { ImportSchema } from "./types/index.types.d.ts";
 
 function escapeHtml(value: string): string {
 	return value
+		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
 function getWebsites(): string[] {
