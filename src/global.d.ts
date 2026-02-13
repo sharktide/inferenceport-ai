@@ -56,7 +56,7 @@ declare global {
 			onLogAppend: (callback: (chunk: string) => void) => void;
 			getServerLogs: () => Promise<string>;
 			importGGUF: (fileName: string, data: Uint8Array | null, isModelFile: boolean, clientUrl?: string) => Promise<string>;
-			importGGUFMulti: (modelfileName: string, modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string) => Promise<string>;
+			importGGUFMulti: (modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string) => Promise<string>;
 		};
 
 		utils: {

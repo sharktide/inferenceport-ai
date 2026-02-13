@@ -373,6 +373,8 @@ function openGGUFModal() {
 					<input id="gguf-file-input" type="file" multiple hidden />
 				</div>
 
+				<input id="gguf-alias" type="text" placeholder="Optional alias for this model" maxlength="20"/>
+
 				<div id="gguf-file-indicator" class="file-indicator hidden">
 					<div class="file-name"></div>
 					<div class="file-size"></div>
@@ -431,6 +433,7 @@ function setupGGUFDropZone() {
 	const importBtn = document.getElementById("gguf-import-btn") as HTMLButtonElement;
 	const hostSelect = document.getElementById("gguf-host-select") as HTMLSelectElement;
 	const statusEl = document.getElementById("gguf-status") as HTMLDivElement;
+	const ggufAliasInput = document.getElementById("gguf-alias") as HTMLInputElement;
 
 	importBtn.disabled = true;
 
@@ -590,9 +593,10 @@ function setupGGUFDropZone() {
 				});
 
 				await window.ollama.importGGUFMulti(
-					selectedModelfile.name,
 					modelfileBuf,
-					selectedGGUF.name,
+					(ggufAliasInput.value.trim() != "")
+						? ggufAliasInput.value
+						: selectedGGUF.name,
 					ggufBuf,
 					clientUrl,
 				);
@@ -608,7 +612,9 @@ function setupGGUFDropZone() {
 				});
 
 				await window.ollama.importGGUF(
-					selectedModelfile.name,
+					(ggufAliasInput.value.trim() != "")
+						? ggufAliasInput.value
+						: ("modelfile" + Math.floor(Math.random() * 99) + 1),
 					modelfileBuf,
 					true,
 					clientUrl,
@@ -623,7 +629,9 @@ function setupGGUFDropZone() {
 				});
 
 				await window.ollama.importGGUF(
-					selectedGGUF.name,
+					(ggufAliasInput.value.trim() != "")
+						? ggufAliasInput.value
+						: selectedGGUF.name,
 					ggufBuf,
 					false,
 					clientUrl,
@@ -1017,7 +1025,7 @@ window.ollama.onPullProgress(
 	({ model, output }: { model: string; output: string }) => {
 		const container = document.getElementById("notification-container");
 		if (!container) return;
-		model = model.replace(/^hf\.co\/[^/]+\//, "");
+		model = model.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-gguf72/, "");
 		let box = container.querySelector(
 			`[data-model="${model}"]`,
 		) as HTMLElement | null;

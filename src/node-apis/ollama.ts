@@ -1200,8 +1200,11 @@ Keep it under 5 words.
 			const authHeaders: Record<string, string> = clientUrl
 				? { Authorization: `Bearer ${await issueProxyToken()}` }
 				: {};
-
-			const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+			
+			const safeName = fileName
+				.replace(/[^a-zA-Z0-9._-]/g, "_")
+				.slice(0, 20)
+				.concat("-gguf72");
 			const buffer = Buffer.from(data);
 
 			try {
@@ -1284,7 +1287,6 @@ Keep it under 5 words.
 		"ollama:import-gguf-multi",
 		async (
 			_event: IpcMainInvokeEvent,
-			modelfileName: string,
 			modelfileData: Uint8Array | null,
 			ggufName: string,
 			ggufData: Uint8Array | null,
@@ -1303,10 +1305,10 @@ Keep it under 5 words.
 				? { Authorization: `Bearer ${await issueProxyToken()}` }
 				: {};
 
-			const safeModelfileName = ggufName.replace(
-				/[^a-zA-Z0-9._-]/g,
-				"_",
-			);
+			const safeModelfileName = ggufName
+				.replace(/[^a-zA-Z0-9._-]/g, "_")
+				.slice(0, 20)
+				.concat("-gguf72");
 
 			const modelfileBuffer = Buffer.from(modelfileData);
 			const ggufBuffer = Buffer.from(ggufData);
@@ -1332,7 +1334,7 @@ Keep it under 5 words.
 			);
 
 			const modelName = buildModelName(
-				safeModelfileName,
+				safeModelfileName.concat("-gguf"),
 				 /\.gguf$/i,
 			);
 
