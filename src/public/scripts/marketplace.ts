@@ -350,7 +350,7 @@ function renderModelfilePreview(parsed: any) {
 				? `
 		<div class="preview-section">
 			<div class="preview-title">License</div>
-            ${parsed.license.map(l => escapeHtml(l)).join("<br>")}
+            ${parsed.license.map((l: string) => escapeHtml(l)).join("<br>")}
 		</div>`
 				: ""
 		}
@@ -631,7 +631,7 @@ function setupGGUFDropZone() {
 			}
 
 			showNotification({
-				message: `Import started for ${importLabel}`,
+				message: `Import completed for ${importLabel}`,
 				type: "success",
 			});
 		} catch (err: any) {

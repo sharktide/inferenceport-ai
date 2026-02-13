@@ -283,7 +283,7 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
                 card.className = "marketplace-card";
 
                 const h2 = document.createElement("h2");
-                h2.textContent = model.name;
+                h2.textContent = model.name.replace(/^hf\.co\/[^/]+\//, "").replace(/^huggingface\.co\/[^/]+\//, "");
                 card.appendChild(h2);
 
                 const pSize = document.createElement("p");
