@@ -314,13 +314,13 @@ function renderModelfilePreview(parsed: any) {
 		</div>`
 				: ""
 		}
-
+ 
 		${
 			parsed.system
 				? `
 		<details>
 			<summary>System Prompt</summary>
-			<pre>${parsed.system}</pre>
+			<pre>${escapeHtml(parsed.system)}</pre>
 		</details>`
 				: ""
 		}
@@ -330,7 +330,7 @@ function renderModelfilePreview(parsed: any) {
 				? `
 		<details>
 			<summary>Template</summary>
-			<pre>${parsed.template}</pre>
+			<pre>${escapeHtml(parsed.template)}</pre>
 		</details>`
 				: ""
 		}
@@ -350,7 +350,7 @@ function renderModelfilePreview(parsed: any) {
 				? `
 		<div class="preview-section">
 			<div class="preview-title">License</div>
-			${parsed.license.join("<br>")}
+            ${parsed.license.map(l => escapeHtml(l)).join("<br>")}
 		</div>`
 				: ""
 		}
@@ -790,7 +790,7 @@ async function openHuggingFaceModal(prefill?: string) {
 				<div style="display:flex;flex-direction:column;gap:14px">
 					<input id="hf-model-id"
 						   placeholder="username/repo"
-						   value="${prefill ?? ""}"
+						   value="${escapeHtml(prefill ?? "")}"
 						   style="padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);" />
 
 					<div style="display:flex;gap:8px;align-items:center;">
