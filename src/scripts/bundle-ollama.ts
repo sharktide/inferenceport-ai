@@ -63,26 +63,57 @@ async function mergeOllamaLibs() {
 
     for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        const libPath = join(vendorRoot, entry.name, "lib/ollama");
-        try {
-            const s = await stat(libPath);
-            if (s.isDirectory()) sources.push(libPath);
-        } catch {}
+
+        const versionDir = join(vendorRoot, entry.name);
+        const libSearchPath = versionDir;
+
+        async function findLibOllama(dir: string) {
+            const items = await readdir(dir, { withFileTypes: true });
+
+            for (const item of items) {
+                const fullPath = join(dir, item.name);
+
+                if (item.isDirectory()) {
+                    if (
+                        item.name === "ollama" &&
+                        dir.endsWith(join("lib"))
+                    ) {
+                        sources.push(fullPath);
+                    } else {
+                        await findLibOllama(fullPath);
+                    }
+                }
+            }
+        }
+
+        await findLibOllama(libSearchPath);
     }
 
-    sources.sort((a, b) => Number(a.includes("jetpack")) - Number(b.includes("jetpack")));
+    if (sources.length === 0) {
+        console.log("No lib/ollama folders found to merge.");
+        return;
+    }
+
+    console.log("Merging from sources:");
+    console.log(sources);
 
     for (const src of sources) {
         await copyRecursive(src, target);
-        const parent = join(src, "..", "..");
-        try {
-            await rimrafLike(parent);
-        } catch (err: any) {
-            console.warn(`Failed to remove old folder ${parent}: ${err.message ?? err}`);
-        }
     }
 
-    console.log("✅ Merged all Ollama libs into:", target);
+    for (const src of sources) {
+        const libDir = join(src, ".."); // only remove the lib folder
+
+        try {
+            const remaining = await readdir(libDir);
+            if (remaining.length === 0) {
+                await rm(libDir, { recursive: true, force: true });
+                console.log("Removed empty:", libDir);
+            }
+        } catch {}
+    }
+
+    console.log("✅ Safely merged all Ollama libs into:", target);
 }
 
 async function moveBinariesToRoot(version: string, os: string, arch: string, variant?: string) {
