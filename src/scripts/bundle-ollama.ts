@@ -58,62 +58,63 @@ async function mergeOllamaLibs() {
     const target = join(vendorRoot, "lib/ollama");
     await mkdir(target, { recursive: true });
 
-    const entries = await readdir(vendorRoot, { withFileTypes: true });
-    const sources: string[] = [];
+    async function findLibOllamaDirs(dir: string): Promise<string[]> {
+        const results: string[] = [];
+        const items = await readdir(dir, { withFileTypes: true });
 
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
+        for (const item of items) {
+            const full = join(dir, item.name);
 
-        const versionDir = join(vendorRoot, entry.name);
-        const libSearchPath = versionDir;
-
-        async function findLibOllama(dir: string) {
-            const items = await readdir(dir, { withFileTypes: true });
-
-            for (const item of items) {
-                const fullPath = join(dir, item.name);
-
-                if (item.isDirectory()) {
-                    if (
-                        item.name === "ollama" &&
-                        dir.endsWith(join("lib"))
-                    ) {
-                        sources.push(fullPath);
-                    } else {
-                        await findLibOllama(fullPath);
-                    }
+            if (item.isDirectory()) {
+                if (item.name === "ollama" && dir.endsWith("lib")) {
+                    results.push(full);
+                } else {
+                    results.push(...await findLibOllamaDirs(full));
                 }
             }
         }
 
-        await findLibOllama(libSearchPath);
+        return results;
+    }
+
+    const entries = await readdir(vendorRoot, { withFileTypes: true });
+
+    let sources: string[] = [];
+
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const versionDir = join(vendorRoot, entry.name);
+        sources.push(...await findLibOllamaDirs(versionDir));
     }
 
     if (sources.length === 0) {
-        console.log("No lib/ollama folders found to merge.");
+        console.log("No lib/ollama folders found.");
         return;
     }
 
-    console.log("Merging from sources:");
+    console.log("Flattening libs from:");
     console.log(sources);
 
-    for (const src of sources) {
-        await copyRecursive(src, target);
-    }
+    async function copyAllFilesFlat(dir: string) {
+        const items = await readdir(dir, { withFileTypes: true });
 
-    for (const src of sources) {
-        const libDir = join(src, ".."); // only remove the lib folder
+        for (const item of items) {
+            const full = join(dir, item.name);
 
-        try {
-            const remaining = await readdir(libDir);
-            if (remaining.length === 0) {
-                await rm(libDir, { recursive: true, force: true });
-                console.log("Removed empty:", libDir);
+            if (item.isDirectory()) {
+                await copyAllFilesFlat(full); // recurse
+            } else {
+                const dest = join(target, item.name);
+                await copyFile(full, dest);
             }
-        } catch {}
+        }
     }
 
-    console.log("✅ Safely merged all Ollama libs into:", target);
+    for (const src of sources) {
+        await copyAllFilesFlat(src);
+    }
+
+    console.log("✅ Fully flattened Ollama libs into:", target);
 }
 
 async function moveBinariesToRoot(version: string, os: string, arch: string, variant?: string) {
