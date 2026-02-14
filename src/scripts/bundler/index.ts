@@ -317,10 +317,6 @@ export class ElectronOllama {
 			platformConfig.arch,
 		];
 
-		if ((platformConfig as PlatformConfig & { variant?: string }).variant) {
-			parts.push((platformConfig as PlatformConfig & { variant?: string }).variant!);
-		}
-
 		return path.join(...parts);
 	}
 

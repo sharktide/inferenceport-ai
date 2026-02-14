@@ -108,7 +108,7 @@ async function moveBinariesToRoot(version: string, os: string, arch: string, var
 
     await moveFromDir(baseDir);
 
-    if (variant) {
+    if (variant && variant !== "cuda") {
         const variantDir = join(baseDir, variant);
         await moveFromDir(variantDir);
     }
@@ -143,6 +143,7 @@ async function removeCudaFolders() {
 }
 
 async function bundleOllama() {
+    const accel = process.env.OLLAMA_ACCELERATION?.toLowerCase();
     const platformMap = { win32: "windows", darwin: "darwin", linux: "linux" };
     const archMap = { x64: "amd64", arm64: "arm64" };
     //@ts-expect-error
@@ -194,15 +195,14 @@ async function bundleOllama() {
     } else {
         await eo.download(metadata.version, platformConfig, { log: createProgressBarLogger() });
         await moveBinariesToRoot(metadata.version, os, arch, envVariant);
-        const accel = process.env.OLLAMA_ACCELERATION?.toLowerCase();
 
         if (accel !== "cuda") {
             try { await removeCudaFolders(); } catch {}
         }
     }
-
-    await mergeOllamaLibs();
-
+    if (accel !== "cuda") {
+        await mergeOllamaLibs();
+    }
     try {
         await rm(`${resolve(__dirname, "../vendor/electron-ollama")}/ollama-linux-${arch}.tar.zst`, { recursive: true, force: true });
     } catch {}
