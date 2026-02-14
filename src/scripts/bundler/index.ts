@@ -254,7 +254,7 @@ export class ElectronOllama {
 
 	public async extractTarZst(file: string, outDir: string): Promise<void> {
 		return new Promise((resolve, reject) => {
-			const proc = spawn("tar", ["-xvf", file, "-C", outDir]);
+			const proc = spawn("tar", ["-xf", file, "-C", outDir]);
 
 			proc.on("error", reject);
 			proc.on("close", (code) => {
