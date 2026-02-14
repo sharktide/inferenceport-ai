@@ -176,7 +176,7 @@ async function bundleOllama() {
             await eo.download(rocmMeta.version, rocmConfig, { log: createProgressBarLogger() });
             console.log("Downloaded ROCm")
             await moveBinariesToRoot(baseMeta.version, os, arch, "rocm");
-            consols.log("Moved Binaries")
+            console.log("Moved Binaries")
             try { await removeCudaFolders(); } catch {}
             console.log("Removed CUDA")
         } else if (envVariant?.includes("jetpack")) {
