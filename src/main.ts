@@ -115,18 +115,6 @@ function createWindow() {
 							),
 						),
 				},
-				{
-					label: "Spaces",
-					click: () =>
-						mainWindow.loadFile(
-							path.join(
-								__dirname,
-								"public",
-								"marketplace",
-								"spaces.html",
-							),
-						),
-				},
 			],
 		},
 		{

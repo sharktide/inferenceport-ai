@@ -15,13 +15,16 @@ limitations under the License.
 */
 
 export {};
-import type { iConstructor, iInstance } from "./public/scripts/staticload/index.ts";
+import type { iConstructor, iInstance, iFunctions } from "./public/scripts/staticload/index.ts";
+
 declare global {
 	interface declarations {
 		iInstance: iInstance;
+		iFunctions: iFunctions;
 	}
 	interface Window {
 		ic: iConstructor;
+		ifc: iFunctions;
 		ollama: {
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
@@ -52,6 +55,8 @@ declare global {
 			stopServer: () => Promise<void>;
 			onLogAppend: (callback: (chunk: string) => void) => void;
 			getServerLogs: () => Promise<string>;
+			importGGUF: (fileName: string, data: Uint8Array | null, isModelFile: boolean, clientUrl?: string) => Promise<string>;
+			importGGUFMulti: (modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string) => Promise<string>;
 		};
 
 		utils: {

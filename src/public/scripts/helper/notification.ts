@@ -14,8 +14,12 @@ function showNotification({
 	type = "info",
 	actions = [],
 }: NotificationOptions): void {
-	const container = document.getElementById("notification-container");
-	if (!container) return;
+	let container = document.getElementById("notification-container");
+	if (!container) {
+		container = document.createElement("div");
+		container.id = "notification-container";
+		document.body.appendChild(container);
+	};
 
 	const box = document.createElement("div");
 	box.className = `notification ${type}`;

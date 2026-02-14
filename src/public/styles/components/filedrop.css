@@ -1,7 +1,7 @@
 /*
 Copyright 2025 Rihaan Meher
 */
-#drop-zone {
+.drop-zone {
   border: 2px dashed var(--primary-color);
   border-radius: var(--border-radius);
   padding: 40px;
@@ -12,7 +12,7 @@ Copyright 2025 Rihaan Meher
   transition: background-color 0.3s ease;
 }
 
-#drop-zone:hover {
+.drop-zone:hover {
   background-color: var(--light-blue);
 }
 

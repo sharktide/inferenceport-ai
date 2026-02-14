@@ -122,7 +122,7 @@ window.ollama.onPullProgress(
 	({ model, output }: { model: string; output: string }) => {
 		const container = document.getElementById("notification-container");
 		if (!container) return;
-
+		model = model.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-GGUF72$/, "");
 		let box = container.querySelector(
 			`[data-model="${model}"]`,
 		) as HTMLElement | null;
@@ -193,7 +193,6 @@ function openPullModal(modelName: string, sizes: string[]): void {
 				.map((size) => `<option value="${size}">${size}</option>`)
 				.join("");
 
-		// Initial warning for first size
 		const initialSize = sizes[0];
 		if (warningEl && initialSize) {
 			window.utils
@@ -204,7 +203,6 @@ function openPullModal(modelName: string, sizes: string[]): void {
 				});
 		}
 
-		// Dynamic update on change
 		select.onchange = () => {
 			const selectedSize = select.value;
 			if (selectedSize === "latest") {
@@ -283,7 +281,7 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
                 card.className = "marketplace-card";
 
                 const h2 = document.createElement("h2");
-                h2.textContent = model.name;
+                h2.textContent = model.name.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-GGUF72$/, "");;
                 card.appendChild(h2);
 
                 const pSize = document.createElement("p");
