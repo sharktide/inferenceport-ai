@@ -165,14 +165,20 @@ async function bundleOllama() {
     if (envVariant === "rocm" || (envVariant?.includes("jetpack"))) {
         const baseConfig = { os, arch };
         const baseMeta = await eo.getMetadata(metadata.version, baseConfig);
+        console.log("BASE VERSION:", baseMeta.version);
+        console.log("ROCM VERSION:", rocmMeta.version);
+
         await eo.download(baseMeta.version, baseConfig, { log: createProgressBarLogger() });
 
         if (envVariant === "rocm") {
             const rocmConfig = { os, arch, variant: "rocm" };
             const rocmMeta = await eo.getMetadata(baseMeta.version, rocmConfig).catch(() => eo.getMetadata("latest", rocmConfig));
             await eo.download(rocmMeta.version, rocmConfig, { log: createProgressBarLogger() });
+            console.log("Downloaded ROCm")
             await moveBinariesToRoot(baseMeta.version, os, arch, "rocm");
+            consols.log("Moved Binaries")
             try { await removeCudaFolders(); } catch {}
+            console.log("Removed CUDA")
         } else if (envVariant?.includes("jetpack")) {
             const jetpackConfig = { os, arch, variant: envVariant };
             const jetpackMeta = await eo.getMetadata(baseMeta.version, jetpackConfig);
@@ -202,6 +208,9 @@ async function bundleOllama() {
         await rm(`${resolve(__dirname, "../vendor/electron-ollama")}/ollama-linux-${arch}.tar.zst`, { recursive: true, force: true });
     } catch {}
     console.log(`Bundled Ollama ${metadata.version} for ${os}-${arch}`);
+    console.log("==== FINAL VENDOR TREE ====");
+    console.log(await readdir(vendorRoot, { withFileTypes: true }));
 }
 
 bundleOllama();
+
