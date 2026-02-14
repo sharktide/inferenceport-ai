@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
+const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
 const ALLOWED_VARIANTS = new Set([
     "cuda",
     "rocm",
@@ -55,7 +55,6 @@ async function copyRecursive(src: string, dest: string) {
 }
 
 async function mergeOllamaLibs() {
-    const vendorRoot = resolve(__dirname, "../vendor/electron-ollama");
     const target = join(vendorRoot, "lib/ollama");
     await mkdir(target, { recursive: true });
 
@@ -166,13 +165,13 @@ async function bundleOllama() {
         const baseConfig = { os, arch };
         const baseMeta = await eo.getMetadata(metadata.version, baseConfig);
         console.log("BASE VERSION:", baseMeta.version);
-        console.log("ROCM VERSION:", rocmMeta.version);
 
         await eo.download(baseMeta.version, baseConfig, { log: createProgressBarLogger() });
 
         if (envVariant === "rocm") {
             const rocmConfig = { os, arch, variant: "rocm" };
             const rocmMeta = await eo.getMetadata(baseMeta.version, rocmConfig).catch(() => eo.getMetadata("latest", rocmConfig));
+            console.log("ROCM VERSION:", rocmMeta.version);
             await eo.download(rocmMeta.version, rocmConfig, { log: createProgressBarLogger() });
             console.log("Downloaded ROCm")
             await moveBinariesToRoot(baseMeta.version, os, arch, "rocm");
