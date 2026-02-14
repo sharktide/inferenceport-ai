@@ -58,63 +58,31 @@ async function mergeOllamaLibs() {
     const target = join(vendorRoot, "lib/ollama");
     await mkdir(target, { recursive: true });
 
-    async function findLibOllamaDirs(dir: string): Promise<string[]> {
-        const results: string[] = [];
-        const items = await readdir(dir, { withFileTypes: true });
-
-        for (const item of items) {
-            const full = join(dir, item.name);
-
-            if (item.isDirectory()) {
-                if (item.name === "ollama" && dir.endsWith("lib")) {
-                    results.push(full);
-                } else {
-                    results.push(...await findLibOllamaDirs(full));
-                }
-            }
-        }
-
-        return results;
-    }
-
     const entries = await readdir(vendorRoot, { withFileTypes: true });
-
-    let sources: string[] = [];
+    const sources: string[] = [];
 
     for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        const versionDir = join(vendorRoot, entry.name);
-        sources.push(...await findLibOllamaDirs(versionDir));
+        const libPath = join(vendorRoot, entry.name, "lib/ollama");
+        try {
+            const s = await stat(libPath);
+            if (s.isDirectory()) sources.push(libPath);
+        } catch {}
     }
 
-    if (sources.length === 0) {
-        console.log("No lib/ollama folders found.");
-        return;
-    }
+    sources.sort((a, b) => Number(a.includes("jetpack")) - Number(b.includes("jetpack")));
 
-    console.log("Flattening libs from:");
-    console.log(sources);
-
-    async function copyAllFilesFlat(dir: string) {
-        const items = await readdir(dir, { withFileTypes: true });
-
-        for (const item of items) {
-            const full = join(dir, item.name);
-
-            if (item.isDirectory()) {
-                await copyAllFilesFlat(full); // recurse
-            } else {
-                const dest = join(target, item.name);
-                await copyFile(full, dest);
-            }
+    for (const src of sources) {
+        await copyRecursive(src, target);
+        const parent = join(src, "..", "..");
+        try {
+            await rimrafLike(parent);
+        } catch (err: any) {
+            console.warn(`Failed to remove old folder ${parent}: ${err.message ?? err}`);
         }
     }
 
-    for (const src of sources) {
-        await copyAllFilesFlat(src);
-    }
-
-    console.log("✅ Fully flattened Ollama libs into:", target);
+    console.log("✅ Merged all Ollama libs into:", target);
 }
 
 async function moveBinariesToRoot(version: string, os: string, arch: string, variant?: string) {
@@ -244,4 +212,3 @@ async function bundleOllama() {
 }
 
 bundleOllama();
-
