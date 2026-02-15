@@ -37,19 +37,6 @@
 	font-size: 18px;
 }
 
-#session-list li {
-	padding: 10px;
-	margin-bottom: 8px;
-	background: var(--bg-light);
-	border-radius: var(--border-radius);
-	cursor: pointer;
-	transition: background 0.3s;
-}
-
-#session-list li:hover {
-	background-color: var(--light-blue);
-}
-
 .chat-panel {
 	flex: 1;
 	padding: 40px;
@@ -817,4 +804,272 @@ select {
 	white-space: pre-wrap;
 	margin: 0;
 	font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.sidebar {
+	width: 290px;
+	min-width: 290px;
+	padding: 14px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	border-radius: 0;
+	overflow: hidden;
+}
+
+.sidebar-section-label {
+	margin: 0;
+	padding: 6px 10px 0;
+	font-size: 13px;
+}
+
+#session-search {
+	width: 100%;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 18%, transparent);
+	background: var(--bg-light);
+	color: var(--text-dark);
+	font-size: 14px;
+	outline: none;
+}
+
+#session-list::-webkit-scrollbar,
+#chat-box::-webkit-scrollbar {
+	width: 8px;
+}
+
+#session-list::-webkit-scrollbar-track,
+#chat-box::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+#session-list::-webkit-scrollbar-thumb,
+#chat-box::-webkit-scrollbar-thumb {
+	background: rgba(120, 120, 120, 0.25);
+	border-radius: 8px;
+	transition: background 0.2s ease;
+}
+
+#session-list::-webkit-scrollbar-thumb:hover,
+#chat-box::-webkit-scrollbar-thumb:hover {
+	background: rgba(120, 120, 120, 0.45);
+}
+#session-search::placeholder {
+	opacity: 0.7;
+}
+
+
+/* ===== Session List ===== */
+
+#session-list {
+	flex: 1;
+	overflow-y: auto;
+	padding: 6px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* Base row */
+#session-list li {
+	display: flex;
+	align-items: center;
+	padding: 10px 12px;
+	border-radius: 10px;
+	font-size: 14px;
+	background: transparent;
+	transition: background 0.15s ease, transform 0.05s ease;
+}
+
+/* Hover state */
+#session-list li:hover {
+	background: rgba(0, 0, 0, 0.05);
+}
+
+.active-session {
+	background: rgba(49, 120, 198, 0.12) !important;
+}
+
+.session-name {
+	font-size: 14px;
+}
+
+.menu-btn {
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+#session-list li:hover .menu-btn {
+	opacity: 1;
+}
+
+.session-name {
+	font-size: 13px;
+}
+
+.active-session {
+	background: transparent;
+	border-bottom: none;
+	border-left: 2px solid var(--blue);
+}
+
+#new-session-btn {
+	border-radius: 8px;
+	text-align: left;
+	padding: 9px 12px;
+	font-size: 14px;
+	background: transparent;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+}
+
+#new-session-btn:hover {
+	background: transparent;
+}
+
+[data-theme="dark"] .sidebar {
+	background-color: color-mix(in srgb, var(--bg-light) 88%, var(--gray) 12%);
+}
+
+[data-theme="dark"] .user-bubble {
+	background: #a9cef619;
+	color: #fff;
+}
+
+.sidebar-controls {
+	margin-top: auto;
+	padding: 10px 6px 4px;
+	border-top: 1px solid color-mix(in srgb, var(--text-dark) 16%, transparent);
+	display: grid;
+	gap: 8px;
+}
+
+.sidebar-controls label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.sidebar-controls select {
+	margin-bottom: 0;
+	max-width: none;
+	font-size: 14px;
+}
+
+/* Empty chat welcome mode */
+.welcome-hero {
+	display: none;
+}
+
+.chat-panel.welcome-mode {
+	justify-content: center;
+	padding-top: 0;
+	padding-bottom: 14px;
+}
+
+.chat-panel.welcome-mode #chat-box {
+	flex: 0;
+	min-height: 0;
+	max-height: 0;
+	padding: 0;
+	margin: 0;
+	overflow: hidden;
+	background: transparent;
+	box-shadow: none;
+}
+
+.chat-panel.welcome-mode .welcome-hero {
+	display: block;
+	width: min(1180px, 100%);
+	margin: 0 auto 14px;
+}
+
+.welcome-title {
+	margin: 0 0 16px;
+	text-align: center;
+	font-size: clamp(28px, 3vw, 44px);
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	color: var(--text-dark);
+}
+
+.welcome-cards {
+	display: none;
+}
+
+.chat-panel.welcome-mode .welcome-cards {
+	display: grid;
+	width: min(1180px, 100%);
+	margin: 0 auto 12px;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.welcome-card {
+	width: 100%;
+	padding: 18px 22px;
+	height: 124px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: center;
+	gap: 14px;
+	border-radius: 18px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+	background: transparent;
+	color: var(--text-dark);
+	font-size: 16px;
+	font-weight: 500;
+	line-height: 1.2;
+	text-align: left;
+}
+
+.welcome-card:hover {
+	transform: none;
+	box-shadow: none;
+	background: color-mix(in srgb, var(--text-dark) 4%, transparent);
+}
+
+.welcome-card-icon {
+	font-size: 22px;
+	line-height: 1;
+}
+
+.chat-panel.welcome-mode chat-box {
+	width: min(1180px, 100%);
+	margin: 0 auto 14px;
+}
+
+[data-theme="dark"] .chat-panel.welcome-mode .welcome-card {
+	border-color: color-mix(in srgb, #ffffff 14%, transparent);
+}
+
+@media (max-width: 1200px) {
+	.welcome-cards {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 760px) {
+	.chat-panel.welcome-mode {
+		justify-content: flex-start;
+		padding-top: 20px;
+	}
+
+	.welcome-title {
+		font-size: clamp(26px, 7vw, 36px);
+		margin-bottom: 14px;
+	}
+
+	.welcome-cards {
+		grid-template-columns: 1fr;
+		gap: 12px;
+	}
+
+	.welcome-card {
+		height: 100px;
+		padding: 14px 16px;
+		font-size: 15px;
+		gap: 10px;
+	}
 }

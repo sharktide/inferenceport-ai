@@ -140,31 +140,47 @@
 			<div class="context-item" data-action="delete_all" style="color: red;">Delete All Sessions</div>
 		</div>
 
-		<main
-			id="app-root"
-			class="hidden"
-		>
+		<main id="app-root" class="hidden">
 			<div class="chat-container">
 				<aside class="sidebar">
-					<select id="host-select" style="margin-bottom:8px;">
-						<option value="local">Local</option>
-						<option value="manage_hosts">Manage Remote Hosts</option>
-					</select>
-					<select id="model-select"></select>
+					<button id="new-session-btn" type="button">+ New chat</button>
 					<input
-						type="text"
+						type="hidden"
 						id="session-search"
-						style="padding-bottom: 10px"
-						placeholder="Search sessions..."
 					/>
-					<p></p>
 					<ul id="session-list"></ul>
-					<button id="new-session-btn">+ New Session</button>
+					<div class="sidebar-controls">
+						<label for="host-select">Host</label>
+						<select id="host-select"></select>
+						<label for="model-select">Model</label>
+						<select id="model-select"></select>
+					</div>
 				</aside>
 
 				<section class="chat-panel">
 					<div id="chat-box"></div>
+					<div id="welcome-hero" class="welcome-hero" aria-hidden="true">
+						<h1 class="welcome-title">What's on your mind today?</h1>
+					</div>
 					<chat-box></chat-box>
+					<div id="welcome-cards" class="welcome-cards" aria-hidden="true">
+						<button type="button" class="welcome-card" data-prompt="Create images for a blog post concept.">
+							<span class="welcome-card-icon">🖼️</span>
+							<span>Create images</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Teach me something useful in 5 minutes.">
+							<span class="welcome-card-icon">📖</span>
+							<span>Learn something</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Help me write and edit this draft clearly.">
+							<span class="welcome-card-icon">✏️</span>
+							<span>Write or edit</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Walk me through this task step by step.">
+							<span class="welcome-card-icon">💡</span>
+							<span>Step-by-step help</span>
+						</button>
+					</div>
 				</section>
 			</div>
 			<div id="notification-container"></div>

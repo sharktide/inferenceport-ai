@@ -51,10 +51,23 @@ function fireAndForget<T>(promise: Promise<T>, label: string) {
 		});
 }
 
+function getDeepLinkRoute(parsed: URL): string {
+	const host = parsed.hostname || "";
+	const pathname = parsed.pathname || "/";
+	const rawRoute = host ? `/${host}${pathname}` : pathname;
+	const normalized = rawRoute.replace(/\/{2,}/g, "/");
+	return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function isAuthCallbackDeepLink(parsed: URL): boolean {
+	const route = getDeepLinkRoute(parsed).replace(/\/+$/, "").toLowerCase();
+	return route === "/auth/callback" || route === "/authcallback";
+}
+
 async function handleAuthCallback(url: string): Promise<boolean> {
 	try {
 		const parsed = new URL(url);
-		if (!parsed.pathname.includes("/auth/callback")) return false;
+		if (!isAuthCallbackDeepLink(parsed)) return false;
 
 		const hashParams = new URLSearchParams(parsed.hash.slice(1));
 		const queryParams = parsed.searchParams;
@@ -65,19 +78,28 @@ async function handleAuthCallback(url: string): Promise<boolean> {
 			hashParams.get("refresh_token") || queryParams.get("refresh_token");
 
 		if (!access_token || !refresh_token) {
-			console.error("OAuth callback missing tokens");
-			return true;
+			console.warn(
+				"OAuth callback deep link did not include both tokens; continuing as a normal deep link.",
+			);
+			return false;
 		}
 
 		await supabase.auth.setSession({ access_token, refresh_token });
 		console.info("Supabase session set successfully");
+
+		if (mainWindow) {
+			const publicDir = path.join(__dirname, "public");
+			mainWindow.loadFile(path.join(publicDir, "auth.html"), {
+				query: { deeplink: "signin-success" },
+			});
+		}
+
 		return true;
 	} catch (err) {
 		console.error("Failed to handle auth callback:", err);
-		return true; // prevent further deep link handling
+		return false;
 	}
 }
-
 
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
@@ -210,25 +232,31 @@ function openFromDeepLink(url: string) {
 	if (!mainWindow) return;
 	try {
 		const parsed = new URL(url);
-		const pathname = parsed.pathname || "/";
-		const host = parsed.hostname || "";
+		const route = getDeepLinkRoute(parsed);
+
 		if (mainWindow.isMinimized()) mainWindow.restore();
 		mainWindow.show();
 		mainWindow.focus();
-		const relative = pathname.replace(/^\/+/, "");
+
+		const normalizedRoute = route.replace(/\/+$/, "") || "/index";
+		const relative =
+			normalizedRoute === "/"
+				? "index"
+				: normalizedRoute.replace(/^\/+/, "");
 
 		const publicDir = path.join(__dirname, "public");
 		const target = path.join(publicDir, `${relative}.html`);
 
 		const resolved = path.resolve(target);
 		if (!resolved.startsWith(publicDir)) {
-			console.warn("Blocked invalid deep link path:", pathname);
+			console.warn("Blocked invalid deep link path:", route);
 			return;
 		}
 		if (!fs.existsSync(resolved)) {
 			mainWindow.loadFile(path.join(publicDir, "index.html"));
 			return;
 		}
+
 		mainWindow.loadFile(resolved, {
 			query: Object.fromEntries(parsed.searchParams.entries()),
 			hash: parsed.hash.replace(/^#/, ""),
