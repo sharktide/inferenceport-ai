@@ -10,7 +10,6 @@ export interface ModalOptions {
     html?: string;
     inputs?: { id: string; type: string; placeholder?: string }[];
     actions?: ModalAction[];
-    lockContent?: boolean;
 }
 
 export default class iModal {
@@ -18,7 +17,7 @@ export default class iModal {
     protected content: HTMLElement;
     private locked: boolean = false;
 
-    constructor(id: string, width?: number, options?: ModalOptions, lockContent: boolean = false) {
+    constructor(id: string, width?: number, options?: ModalOptions, showCloseButton: boolean = true, lockContent: boolean = false) {
         if (width && typeof width !== "number") {
             throw new TypeError("width must be a number");
         }
@@ -31,7 +30,7 @@ export default class iModal {
             existing.className = "modal hidden";
             existing.innerHTML = `
             <div class="modal-content" ${width ? `style="width: ${width}px"` : ""}>
-                <span class="close-btn">&times;</span>
+                ${showCloseButton ? '<span class="close-btn">&times;</span>' : ''}
                 <div class="modal-body"></div>
                 <div class="modal-actions"></div>
             </div>
@@ -53,7 +52,7 @@ export default class iModal {
 
         if (options) {
             this.render(options);
-            if (options.lockContent) {
+            if (lockContent) {
                 this.locked = true;
             }
         }
@@ -62,9 +61,6 @@ export default class iModal {
     public open(options?: ModalOptions) {
         if (options && !this.locked) {
             this.render(options);
-            if (options.lockContent) {
-                this.locked = true;
-            }
         }
         requestAnimationFrame(() => this.modal.classList.remove("hidden"));
     }

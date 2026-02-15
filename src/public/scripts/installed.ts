@@ -1,4 +1,4 @@
-import { showNotification } from "./helper/notification.js"
+import { showNotification } from "./helper/notification.js";
 import { getReadableColor, getEmoji } from "./helper/random.js";
 const theme = localStorage.getItem("theme");
 
@@ -23,6 +23,8 @@ function openManageHostsDialog() {
 	const remotes: RemoteHost[] = JSON.parse(
 		localStorage.getItem("remote_hosts") || "[]",
 	);
+
+	(window as any).reloadneeded = false;
 
 	remotes.forEach((host, index) => {
 		const item = document.createElement("li");
@@ -56,8 +58,10 @@ function openManageHostsDialog() {
 		button.style.padding = "4px 12px";
 		button.style.borderRadius = "4px";
 		button.style.cursor = "pointer";
+		button.style.marginLeft = "16px";
 		button.addEventListener("click", () => {
 			(window as any).removeHost(index);
+			(window as any).reloadneeded = true;
 		});
 
 		container.appendChild(infoContainer);
@@ -71,11 +75,18 @@ function openManageHostsDialog() {
 
 	document.getElementById("manage-hosts-close")!.onclick = () => {
 		dialog.classList.add("hidden");
+		if ((window as any).reloadneeded) {
+			setTimeout(() => {
+				location.reload();
+			}, 300);
+		}
 	};
 }
 
 function updateHostSelectOptions() {
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const hostSelect = document.getElementById(
+		"host-select",
+	) as HTMLSelectElement;
 	if (!hostSelect) return;
 
 	Array.from(hostSelect.options).forEach((opt) => {
@@ -96,12 +107,16 @@ function updateHostSelectOptions() {
 }
 
 function updateHostSelectState() {
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const hostSelect = document.getElementById(
+		"host-select",
+	) as HTMLSelectElement;
 	const v = hostSelect.value;
 
 	if (v === "add_remote") {
 		const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-		const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
+		const remoteHostInput = document.getElementById(
+			"remote-host-input",
+		) as HTMLInputElement;
 		remoteHostDialog?.classList.remove("hidden");
 		remoteHostInput?.focus();
 		return;
@@ -117,36 +132,82 @@ function updateHostSelectState() {
 	renderOllama();
 }
 
+function makeDeeplink(name: string): string {
+	let link: string;
+	if (name.includes("hf.co/") || name.includes("huggingface.co/")) {
+		let id = name.split(":")[0];
+		if (!id) {
+			id = name;
+		}
+		id = id
+			.replace(/^https?:\/\//, "")
+			.replace(/^(?:https?:\/\/)?(?:hf\.co|huggingface\.co)\//, "")
+			.replace(/-gguf72/, "");
+				
+		link = `https://inference.js.org/openapp.html#${encodeURIComponent(id)}`;
+	} else {
+		const base = name.split(":")[0];
+		if (!base) {
+			link = `https://inference.js.org/marketplace.html#${encodeURIComponent(
+				name,
+			)}`;
+			return link;
+		}
+		link = `https://inference.js.org/marketplace.html#${encodeURIComponent(
+			base,
+		)}`;
+	}
+	return link;
+}
+
 async function renderOllama() {
-    const spinner = document.getElementById("spinner-ollama");
-    const container = document.getElementById("installed-models");
-    if (!container) {
-        console.error("Container element not found.");
-        return;
-    }
+	const spinner = document.getElementById("spinner-ollama");
+	const container = document.getElementById("installed-models");
+	if (!container) {
+		console.error("Container element not found.");
+		return;
+	}
 
-    spinner!.style.display = "flex";
-    container.innerHTML = "";
+	spinner!.style.display = "flex";
+	container.innerHTML = "";
 
-    try {
-        const clientUrl = getClientUrl();
-        const models = await window.ollama.listModels(clientUrl);
+	try {
+		const clientUrl = getClientUrl();
+		const models = await window.ollama.listModels(clientUrl);
 		if (models.length === 0) {
-			const modelsNotFound = document.createElement("p")
-            modelsNotFound.innerHTML = "No models installed. Visit the <a href='marketplace/ollama.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 100 different chatbots";
-            if (theme === 'light') {
-                modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
-            }
+			const modelsNotFound = document.createElement("p");
+			modelsNotFound.innerHTML =
+				"No models installed. Visit the <a href='marketplace/ollama.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 100 different chatbots";
+			if (theme === "light") {
+				modelsNotFound.style.setProperty(
+					"color",
+					"rgb(0, 0, 0)",
+					"important",
+				);
+			}
 			container.appendChild(modelsNotFound);
 			return;
 		}
-        models.forEach((model) => {
-            const card = document.createElement("div");
-            card.className = "marketplace-card";
-            card.setAttribute("modelid", model.name);
+		models.forEach((model) => {
+			let hfurl: string | undefined = undefined;
+			console.log("Rendering model:", model.name);
+			if (
+				model.name.includes("hf.co/") ||
+				(model.name.includes("huggingface.co/") && model.name)
+			) {
+				let splitname = model.name.split(":");
+				if (splitname[0]) {
+					hfurl = `https://${splitname[0].trim()}`;
+				} else {
+					hfurl = `https://${model.name.trim()}`;
+				}
+			}
+			const card = document.createElement("div");
+			card.className = "marketplace-card";
+			card.setAttribute("modelid", model.name);
 			const c1 = getReadableColor();
 			const c2 = getReadableColor();
-            card.style.cssText = `
+			card.style.cssText = `
                 background: linear-gradient(to right, ${c1}, ${c2});
                 padding: 16px;
                 border-radius: var(--border-radius);
@@ -154,43 +215,62 @@ async function renderOllama() {
                 position: relative;
             `;
 
-            const title = document.createElement("h3");
-            title.textContent = `${getEmoji()} ${model.name}`;
-            title.style.cssText = "margin: 0; font-size: 18px;";
+			const isHuggingFace = Boolean(
+				model.name.includes("hf.co/") ||
+				model.name.includes("huggingface.co/"),
+			);
+			const isLocalOnly =
+				!isHuggingFace &&
+				(model.name.includes("gguf") ||
+					model.name.includes("modelfile"));
 
-            const provider = document.createElement("p");
-            provider.textContent = "by Ollama";
-            provider.style.cssText = "margin: 4px 0 0; font-size: 14px; color: var(--text-dark);";
+			const title = document.createElement("h3");
+			title.textContent = `${getEmoji()} ${model.name
+				.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+				.replace(/-gguf72/, "")}`;
+			title.style.cssText = "margin: 0; font-size: 18px;";
 
-            const size = document.createElement("p");
-            size.textContent = `Size: ${model.size}`;
-            size.style.cssText = "margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;";
+			const provider = document.createElement("p");
+			const m = model.name
+				.match(/^(?:https?:\/\/)?(?:hf\.co|huggingface\.co)\/([^\/]+)\/[^\/]+|^([^\/]+)\/[^\/]+$/);
+			const user = m ? (m[1] || m[2]) : "Unknown";
+			provider.textContent = isHuggingFace ? (`by ${user}`) : isLocalOnly ? "Custom model" : "by Ollama";
+			provider.style.cssText =
+				"margin: 4px 0 0; font-size: 14px; color: var(--text-dark);";
 
-            const launchBtn = document.createElement("button");
-            launchBtn.textContent = "Open Chat";
-            launchBtn.className = "darkhvr";
-            launchBtn.style.cssText = `background: linear-gradient(to right, ${c1}, ${c2}); filter: brightness(90%);`;
-            launchBtn.onclick = () => runModel(model.name);
+			const size = document.createElement("p");
+			size.textContent = `Size: ${model.size}`;
+			size.style.cssText =
+				"margin: 8px 0 12px; font-size: 13px; color: var(--text-muted); line-height: 1.4;";
 
-            const deleteBtn = document.createElement("button");
-            deleteBtn.textContent = "Delete";
-            deleteBtn.className = "darkhvr";
-            deleteBtn.style.cssText = `background: linear-gradient(to right, ${c1}, ${c2}); filter: brightness(90%);`;
-            deleteBtn.onclick = () => showDelModal(model.name, model.name, "ollama");
+			const launchBtn = document.createElement("button");
+			launchBtn.textContent = "Open Chat";
+			launchBtn.className = "darkhvr";
+			launchBtn.style.cssText = `background: linear-gradient(to right, ${c1}, ${c2}); filter: brightness(90%);`;
+			launchBtn.onclick = () => runModel(model.name);
 
-            const menuContainer = document.createElement("div");
-            menuContainer.className = "menu-container";
-            menuContainer.style.cssText = "position: absolute; top: 12px; right: 12px;";
+			const deleteBtn = document.createElement("button");
+			deleteBtn.textContent = "Delete";
+			deleteBtn.className = "darkhvr";
+			deleteBtn.style.cssText = `background: linear-gradient(to right, ${c1}, ${c2}); filter: brightness(90%);`;
+			deleteBtn.onclick = () =>
+				showDelModal(model.name, model.name, "ollama");
+			if (!isLocalOnly) {
+				const menuContainer = document.createElement("div");
+				menuContainer.className = "menu-container";
+				menuContainer.style.cssText =
+					"position: absolute; top: 12px; right: 12px;";
 
-            const menuButton = document.createElement("button");
-            menuButton.className = "menu-button";
-            menuButton.innerHTML = "⋮";
-            menuButton.onclick = () => toggleMenu(menuButton);
-            menuButton.style.cssText = "background: transparent; border: none; font-size: 18px;";
+				const menuButton = document.createElement("button");
+				menuButton.className = "menu-button";
+				menuButton.innerHTML = "⋮";
+				menuButton.onclick = () => toggleMenu(menuButton);
+				menuButton.style.cssText =
+					"background: transparent; border: none; font-size: 18px;";
 
-            const menuDropdown = document.createElement("div");
-            menuDropdown.className = "menu-dropdown";
-            menuDropdown.style.cssText = `
+				const menuDropdown = document.createElement("div");
+				menuDropdown.className = "menu-dropdown";
+				menuDropdown.style.cssText = `
                 display: none;
                 position: absolute;
                 right: 0;
@@ -201,53 +281,99 @@ async function renderOllama() {
                 z-index: 10;
             `;
 
-            const shareBtn = document.createElement("button");
-            shareBtn.textContent = "Info";
-            shareBtn.onclick = () => window.open(`https://ollama.com/library/${model.name}`)
-            shareBtn.style.cssText = `
-                padding: 8px 12px;
-                width: 100%;
-                background: none;
-                border: none;
-                text-align: left;
-                background-color: var(--bg-light);
-				color: var(--text-dark) !important;
-            `;
+				const shareBtn = document.createElement("button");
+				shareBtn.textContent = "Share";
+				shareBtn.style.cssText = `
+					padding: 8px 12px;
+					width: 100%;
+					background: none;
+					border: none;
+					text-align: left;
+					background-color: var(--bg-light);
+					color: var(--text-dark) !important;
+				`;
+				shareBtn.onclick = () => {
+					console.log("Sharing model:", model.name);
+					const link = makeDeeplink(model.name);
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard
+							.writeText(link)
+							.then(() => {
+								showNotification({
+									message: "Link copied to clipboard",
+									type: "success",
+									actions: [
+										{ label: "OK", onClick: () => void 0 },
+									],
+								});
+							})
+							.catch(() => {
+								prompt("Link:", link);
+							});
+					} else {
+						prompt("Link:", link);
+					}
+				};
 
-            menuDropdown.appendChild(shareBtn);
-            menuContainer.appendChild(menuButton);
-            menuContainer.appendChild(menuDropdown);
+				menuDropdown.appendChild(shareBtn);
 
-            card.appendChild(title);
-            card.appendChild(provider);
-            card.appendChild(size);
-            card.appendChild(launchBtn);
-            card.appendChild(document.createElement("br"));
-            card.appendChild(deleteBtn);
-            card.appendChild(menuContainer);
+				const infoBtn = document.createElement("button");
+				infoBtn.textContent = "Info";
+				if (isHuggingFace && hfurl) {
+					infoBtn.onclick = () => window.open(hfurl);
+				} else {
+					infoBtn.onclick = () =>
+						window.open(`https://ollama.com/library/${model.name}`);
+				}
+				infoBtn.style.cssText = `
+                    padding: 8px 12px;
+                    width: 100%;
+                    background: none;
+                    border: none;
+                    text-align: left;
+                    background-color: var(--bg-light);
+                    color: var(--text-dark) !important;
+                `;
+				menuDropdown.appendChild(infoBtn);
 
-            container.appendChild(card);
-        });
-    } catch (err: any) {
+				menuContainer.appendChild(menuButton);
+				menuContainer.appendChild(menuDropdown);
+				card.appendChild(menuContainer);
+			}
+			card.appendChild(title);
+			card.appendChild(provider);
+			card.appendChild(size);
+			card.appendChild(launchBtn);
+			card.appendChild(document.createElement("br"));
+			card.appendChild(deleteBtn);
+
+			container.appendChild(card);
+		});
+	} catch (err: any) {
 		const errorParagraph = document.createElement("p");
-		const message = (err && typeof err.message === "string") ? err.message : String(err);
-        errorParagraph.textContent = `Error loading models: ${message}`;
+		const message =
+			err && typeof err.message === "string" ? err.message : String(err);
+		errorParagraph.textContent = `Error loading models: ${message}`;
 		container.appendChild(errorParagraph);
-    } finally {
-        spinner!.style.display = "none";
-    }
+	} finally {
+		spinner!.style.display = "none";
+	}
 }
-
 
 async function renderSpaces() {
 	const spinner = document.getElementById("spinner-hf") as HTMLDivElement;
 	spinner.style.display = "flex";
 	const spaces = await window.hfspaces.get_cards();
 	if (!spaces || spaces == "") {
-		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No models added. Visit the <a href='marketplace/spaces.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 10,000 different AI models";
-		if (theme === 'light') {
-			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		const modelsNotFound = document.createElement("p");
+		modelsNotFound.innerHTML =
+			"No models added. Visit the <a href='marketplace.html' style='color: var(--dark-text) !important'>marketplace</a> to choose from over 10,000 different AI models";
+		if (theme === "light") {
+			modelsNotFound.style.setProperty(
+				"color",
+				"rgb(0, 0, 0)",
+				"important",
+			);
 		}
 		document.getElementById("hf-spaces")!.appendChild(modelsNotFound);
 		spinner.style.display = "none";
@@ -258,14 +384,21 @@ async function renderSpaces() {
 }
 
 async function renderWebsites() {
-	const spinner = document.getElementById("spinner-website") as HTMLDivElement
+	const spinner = document.getElementById(
+		"spinner-website",
+	) as HTMLDivElement;
 	spinner.style.display = "flex";
 	const websites = await window.hfspaces.get_website_cards();
 	if (!websites || websites == "") {
-		const modelsNotFound = document.createElement("p")
-		modelsNotFound.innerHTML = "No website shortcuts added. Visit the <a href='marketplace/website.html' style='color: var(--dark-text) !important'>marketplace</a> to add any website shortcut to this app";
-		if (theme === 'light') {
-			modelsNotFound.style.setProperty("color", 'rgb(0, 0, 0)', 'important');
+		const modelsNotFound = document.createElement("p");
+		modelsNotFound.innerHTML =
+			"No website shortcuts added. Visit the <a href='marketplace.html' style='color: var(--dark-text) !important'>marketplace</a> to add any website shortcut to this app";
+		if (theme === "light") {
+			modelsNotFound.style.setProperty(
+				"color",
+				"rgb(0, 0, 0)",
+				"important",
+			);
 		}
 		document.getElementById("websites")!.appendChild(modelsNotFound);
 		spinner.style.display = "none";
@@ -286,16 +419,16 @@ function closePullModal(): void {
 function showDelModal(username: string, repo: string, type: string) {
 	const modal = document.getElementById("del-modal");
 	const delete_yes = document.getElementById(
-		"delete-yes"
+		"delete-yes",
 	) as HTMLButtonElement;
 	const cancel_btn = document.getElementById(
-		"del-modal-close"
+		"del-modal-close",
 	) as HTMLButtonElement;
 	const cancelNo = document.getElementById("cancel-no") as HTMLButtonElement;
 
 	delete_yes.replaceWith(delete_yes.cloneNode(true));
 	const new_delete_yes = document.getElementById(
-		"delete-yes"
+		"delete-yes",
 	) as HTMLButtonElement;
 
 	new_delete_yes.setAttribute("username", username);
@@ -307,20 +440,23 @@ function showDelModal(username: string, repo: string, type: string) {
 			try {
 				const clientUrl = getClientUrl();
 				window.ollama.deleteModel(username, clientUrl);
-                const card = document.querySelector(`.marketplace-card[modelid="${username}"]`) as HTMLElement;
-                if (card) {
-                    card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-                    card.style.opacity = "0";
-                    card.style.transform = "scale(0.95)";
-                    setTimeout(() => card.remove(), 400);
-                }
+				const card = document.querySelector(
+					`.marketplace-card[modelid="${username}"]`,
+				) as HTMLElement;
+				if (card) {
+					card.style.transition =
+						"opacity 0.4s ease, transform 0.4s ease";
+					card.style.opacity = "0";
+					card.style.transform = "scale(0.95)";
+					setTimeout(() => card.remove(), 400);
+				}
 				showNotification({
 					message: `Deleted: ${username}`,
 					type: "success",
 					actions: [
 						{
 							label: "Close",
-							onClick: () => void(0),
+							onClick: () => void 0,
 						},
 					],
 				});
@@ -331,25 +467,27 @@ function showDelModal(username: string, repo: string, type: string) {
 					actions: [{ label: "OK", onClick: () => void 0 }],
 				});
 			}
-		}
-		else if (type === "space") {
+		} else if (type === "space") {
 			try {
 				window.hfspaces.delete(username, repo);
-                const spaceId = `${username}/${repo}`;
-                const card = document.querySelector(`.marketplace-card[spaceid="${spaceId}"]`) as HTMLElement;
-                if (card) {
-                    card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-                    card.style.opacity = "0";
-                    card.style.transform = "scale(0.95)";
-                    setTimeout(() => card.remove(), 400);
-                }
+				const spaceId = `${username}/${repo}`;
+				const card = document.querySelector(
+					`.marketplace-card[spaceid="${spaceId}"]`,
+				) as HTMLElement;
+				if (card) {
+					card.style.transition =
+						"opacity 0.4s ease, transform 0.4s ease";
+					card.style.opacity = "0";
+					card.style.transform = "scale(0.95)";
+					setTimeout(() => card.remove(), 400);
+				}
 				showNotification({
 					message: `Deleted: ${username}/${repo}`,
 					type: "success",
 					actions: [
 						{
 							label: "Close",
-							onClick: () => void(0),
+							onClick: () => void 0,
 						},
 					],
 				});
@@ -363,21 +501,24 @@ function showDelModal(username: string, repo: string, type: string) {
 		} else if (type === "website") {
 			try {
 				window.hfspaces.delete_website(username);
-                const siteID = `${username}`;
-                const card = document.querySelector(`.marketplace-card[siteId="${siteID}"]`) as HTMLElement;
-                if (card) {
-                    card.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-                    card.style.opacity = "0";
-                    card.style.transform = "scale(0.95)";
-                    setTimeout(() => card.remove(), 400);
-                }
+				const siteID = `${username}`;
+				const card = document.querySelector(
+					`.marketplace-card[siteId="${siteID}"]`,
+				) as HTMLElement;
+				if (card) {
+					card.style.transition =
+						"opacity 0.4s ease, transform 0.4s ease";
+					card.style.opacity = "0";
+					card.style.transform = "scale(0.95)";
+					setTimeout(() => card.remove(), 400);
+				}
 				showNotification({
 					message: `Deleted: ${repo}`,
 					type: "success",
 					actions: [
 						{
 							label: "Close",
-							onClick: () => void(0),
+							onClick: () => void 0,
 						},
 					],
 				});
@@ -426,15 +567,16 @@ function runModel(name: string): void {
 }
 
 function toggleMenu(button: HTMLButtonElement) {
-    const dropdown = button.nextElementSibling as HTMLElement
-    dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+	const dropdown = button.nextElementSibling as HTMLElement;
+	dropdown.style.display =
+		dropdown.style.display === "block" ? "none" : "block";
 }
 
 function shareSpace(username: string, repo: string) {
-    window.hfspaces.share(username, repo);
+	window.hfspaces.share(username, repo);
 }
 function shareWebsite(url: string, title: string) {
-    window.hfspaces.share_website(url, title);
+	window.hfspaces.share_website(url, title);
 }
 
 function removeHost(index: number) {
@@ -447,10 +589,16 @@ function removeHost(index: number) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-	const hostSelect = document.getElementById("host-select") as HTMLSelectElement;
+	const hostSelect = document.getElementById(
+		"host-select",
+	) as HTMLSelectElement;
 	const remoteHostDialog = document.getElementById("remote-host-dialog")!;
-	const remoteHostInput = document.getElementById("remote-host-input") as HTMLInputElement;
-	const remoteHostAlias = document.getElementById("remote-host-alias") as HTMLInputElement;
+	const remoteHostInput = document.getElementById(
+		"remote-host-input",
+	) as HTMLInputElement;
+	const remoteHostAlias = document.getElementById(
+		"remote-host-alias",
+	) as HTMLInputElement;
 	const remoteHostCancel = document.getElementById("remote-host-cancel")!;
 	const remoteHostConfirm = document.getElementById("remote-host-confirm")!;
 
@@ -465,7 +613,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	remoteHostCancel?.addEventListener("click", () => {
 		remoteHostDialog?.classList.add("hidden");
-		if (hostSelect) hostSelect.value = localStorage.getItem("host_select") || "local";
+		if (hostSelect)
+			hostSelect.value = localStorage.getItem("host_select") || "local";
 	});
 
 	remoteHostConfirm?.addEventListener("click", () => {
@@ -503,7 +652,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		localStorage.setItem("host_select", sel);
 		remoteHostDialog?.classList.add("hidden");
 	});
-	
+
 	renderOllama();
 	renderSpaces();
 	renderWebsites();
@@ -514,4 +663,3 @@ document.addEventListener("DOMContentLoaded", () => {
 (window as any).shareSpace = shareSpace;
 (window as any).shareWebsite = shareWebsite;
 (window as any).removeHost = removeHost;
-

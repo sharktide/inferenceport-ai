@@ -51,6 +51,11 @@ export default {
 			name: "InferencePortAI Metadata File",
 			role: "Editor",
 		},
+		{
+			ext : "gguf",
+			name: "GGUF Model File",
+			role: "None",
+		}
 	],
 
 	directories: {
@@ -80,7 +85,7 @@ export default {
 
 	linux: {
 		target: isGpuBuild
-			? ["AppImage", "tar.xz"]
+			? ["tar.xz"]
 			: ["AppImage", "deb", "tar.xz"],
 
 		artifactName: isGpuBuild

@@ -1,93 +1,143 @@
-/*
-Copyright 2025 Rihaan Meher
-*/
-.provider-select-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background-color: var(--bg-light);
-  padding: 40px 20px;
+.marketplace-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	padding: 18px;
+	min-height: 140px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	cursor: pointer;
+	transition: all 0.25s ease;
+	position: relative;
+	overflow: hidden;
+}
+[data-theme="dark"] .marketplace-card {
+	background-color: var(--dark-gray);
+}
+.marketplace-card::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		135deg,
+		rgba(107, 91, 255, 0.08),
+		transparent 60%
+	);
+	opacity: 0;
+	transition: opacity 0.3s ease;
 }
 
-.provider-select-container h1 {
-  font-size: 32px;
-  margin-bottom: 40px;
-  color: var(--text-dark);
+.marketplace-card:hover {
+	transform: translateY(-4px);
+	background: var(--surface-hover);
+	border-color: rgba(107, 91, 255, 0.4);
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
-.provider-card-grid {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
+.marketplace-card:hover::before {
+	opacity: 1;
 }
 
-.provider-card {
-  width: 300px;
-  padding: 15px;
-  border-radius: var(--border-radius);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: transform 0.2s ease;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.marketplace-card h3 {
+	margin: 0 0 6px;
+	font-size: 17px;
+	font-weight: 600;
 }
 
-.provider-card:hover {
-  transform: translateY(-6px);
+.marketplace-card p {
+	margin: 0;
+	font-size: 14px;
+	color: var(--muted);
 }
 
-.provider-card img {
-  width: 80px;
-  margin-bottom: 20px;
+.meta-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+	color: var(--muted);
+	margin-top: 14px;
 }
 
-.provider-card h2 {
-  font-size: 22px;
-  margin-bottom: 12px;
+.marketplace-card[data-category="chatbots"] {
+	border-left: 3px solid #ff6b9b;
+
 }
 
-.provider-card p {
+.marketplace-card[data-category="demos"] {
+border-left: 3px solid #ddce28;
+}
+
+.marketplace-card[data-category="websites"] {
+	border-left: 3px solid #5ad0ff;
+}
+
+.file-indicator {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(0, 255, 140, 0.08);
+  border: 1px solid rgba(0, 255, 140, 0.25);
   font-size: 14px;
-  margin: 6px 0;
+  animation: fadeIn 0.2s ease;
 }
 
-.provider-card.black {
-  background-color: #4a4a4a;
-  color: white;
+.file-indicator.error {
+  background: rgba(255, 70, 70, 0.08);
+  border-color: rgba(255, 70, 70, 0.4);
 }
 
-.provider-card.yellow {
-  background-color: #fff8dc;
-  color: #333;
+.file-indicator.hidden {
+  display: none;
 }
 
-.provider-subtitle {
-  font-size: 16px;
-  color: var(--dark-text);
-  margin-bottom: 40px;
+.file-name {
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
-.black-bg {
-  background-color: #4a4a4a;
-  color: rgb(209, 209, 209);
+.file-size {
+  font-size: 12px;
+  color: var(--muted);
 }
 
-/* Marketplace-specific cards reuse .marketplace-card from card.css */
-
-.provider-card button {
-  align-self: flex-end;
+#drop-zone.drag-active {
+  border-color: var(--accent);
+  background: rgba(107, 91, 255, 0.1);
 }
 
-.recommendation-grid .card {
-  width: 220px;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  background: var(--bg-light);
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.recommend-card h3 { margin: 0 0 6px 0; }
-.recommend-card p { margin: 0 0 10px 0; font-size: 13px; color: var(--text-muted); }
-.recommend-card .card-actions { text-align: right; }
-.recommend-card button { padding: 8px 10px; border-radius: 6px; }
+
+/* Modelfile preview styles */
+.modelfile-preview {
+	font-size: 13px;
+	color: var(--text);
+}
+.modelfile-preview .preview-header {
+	display:flex;
+	justify-content:space-between;
+	align-items:center;
+	gap:12px;
+	margin-bottom:8px;
+}
+.modelfile-warning {
+	color: #8a3b00;
+	background: rgba(255, 140, 0, 0.08);
+	padding:6px 8px;
+	border-radius:8px;
+	font-size:12px;
+}
+.preview-value {
+	font-weight:600;
+	color:var(--text);
+}
+.param-grid { display:flex; flex-direction:column; gap:6px; }
+.param-row { display:flex; justify-content:space-between; gap:8px; }
+.param-key { color:var(--muted); }
+.param-val { font-weight:600; }
+.message-item { margin-bottom:8px; }
+.message-content { margin-top:4px; white-space:pre-wrap; background:var(--surface); padding:8px; border-radius:6px; }
+.license-block { color:var(--muted); }
