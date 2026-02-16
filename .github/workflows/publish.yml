@@ -196,6 +196,20 @@ jobs:
         working-directory: src
       - run: npm run publish
         working-directory: src
+  build-linux-arm-cuda:
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "cuda"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 24
+      - run: npm ci && npm install -g typescript
+        working-directory: src
+      - run: npm run publish
+        working-directory: src
 
   build-linux-jetpack5:
     if: ${{ github.event.inputs.gpu == 'jetpack5' || github.event.inputs.gpu == 'all' }}
