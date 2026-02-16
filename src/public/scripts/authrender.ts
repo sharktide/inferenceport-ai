@@ -3,7 +3,6 @@ const passwordInput = document.getElementById('password') as HTMLInputElement;
 const loginButton = document.getElementById('login') as HTMLButtonElement;
 const signupButton = document.getElementById('signup') as HTMLButtonElement;
 const statusText = document.getElementById('status') as HTMLParagraphElement;
-const urlParams = new URLSearchParams(window.location.search);
 (window as any).mode = 0;
 
 type AuthSessionResult = {
@@ -57,33 +56,21 @@ googleButton?.addEventListener("click", async () => {
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
     const returnBtn = document.getElementById("return-home-btn")!;
-    modal.classList.remove("hidden");
+    modal.style.display = "flex";
 
     returnBtn.onclick = () => {
-        modal.classList.add("hidden");
-        setTimeout(() => {
+        modal.style.display = "none";
         window.location.href = "index.html";
-        }, 300);
     };
 }
 
-async function showDeepLinkSignInResultIfPresent() {
-    if (urlParams.get("deeplink") !== "signin-success") return;
-
-    const { session } = await window.auth.getSession();
-    if (session?.user) {
-        showSignInSuccessModal();
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-        updateStatus("Sign-in callback was received, but no active session was found.");
-    }
-}
-
 window.auth.onAuthStateChange((session) => {
-    showSignInSuccessModal();
+    if (session?.user) {
+        if (window.location.pathname.includes("auth")) {
+            showSignInSuccessModal();
+        }
+    }
 });
-
-void showDeepLinkSignInResultIfPresent();
 
 signupButton.addEventListener('click', async () => {
     if ((window as any).mode === 0) {
