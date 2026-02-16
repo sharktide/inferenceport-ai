@@ -288,12 +288,24 @@
 	</div>
 	<script>
 		let modal;
+		let whatsNewModal;
+		const WHATS_NEW_VERSION = "2026.02-lightning";
+		const WHATS_NEW_KEY = `inferenceportai.whatsnew.${WHATS_NEW_VERSION}`;
 		document.addEventListener("DOMContentLoaded", () => {
 			modal = new window.ic.iModal("infoModal", 400, {
 				html: 
 					"<h3>Terms</h3><p>By using this app, you agree to the <a href='javascript:window.utils.web_open(\"https://inferenceportai.vercel.app/security.html\")'>Terms of Service</a> and <a href='javascript:window.utils.web_open(\"https://inferenceportai.vercel.app/security.html#privacy\")'>Privacy Policy</a>. We reserve the right to change these terms and policies at any time without further notice.</p>",
 			}, true);
+			whatsNewModal = new window.ic.iModal("whatsNewModal", 560, {
+				html:
+					"<h3>What's New</h3>" +
+					"<p><strong>Lightning Image-Turbo</strong> is now the default model for image generation, built for ultra realistic scenes.</p>" +
+					"<p><strong>Lightning-Text v2</strong> is now available with generation speeds up to 1000 words/sec.</p>" +
+					"<p><a href='javascript:window.utils.web_open(\"https://inference.js.org/lightning.html\")'>Learn more about Lightning models</a></p>" +
+					"<div style='text-align:right;margin-top:12px;'><button onclick='closeWhatsNewModal()'>Got it</button></div>",
+			}, true);
 			showModal()
+			showWhatsNewModal()
 		});
 		async function showModal() {
 			if (!await window.utils.isFirstLaunch()) return;
@@ -301,6 +313,15 @@
 		}
 		async function closeModal() {
 			modal.close()
+		}
+		function showWhatsNewModal() {
+			const hasSeenCurrentVersion = localStorage.getItem(WHATS_NEW_KEY) === "1";
+			if (hasSeenCurrentVersion) return;
+			whatsNewModal.open();
+		}
+		function closeWhatsNewModal() {
+			localStorage.setItem(WHATS_NEW_KEY, "1");
+			whatsNewModal.close();
 		}
 	</script>
 </body>
