@@ -29,7 +29,7 @@ limitations under the License.
 @import "./components/filedrop.css";
 @import "./components/loading.css";
 @import "./components/highlight.css";
-
+@import "./components/switch.css";
 /** Page-Specific Styles **/
 @import "./pages/auth.css";
 @import "./pages/marketplace.css";

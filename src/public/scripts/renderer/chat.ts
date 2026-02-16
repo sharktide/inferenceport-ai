@@ -41,21 +41,15 @@ const sessionList = document.getElementById("session-list") as HTMLDivElement;
 const newSessionBtn = document.getElementById(
 	"new-session-btn",
 ) as HTMLButtonElement;
+const chatPanel = document.querySelector(".chat-panel") as HTMLElement | null;
+const welcomeHero = document.getElementById("welcome-hero") as HTMLDivElement | null;
+const welcomeCards = document.getElementById("welcome-cards") as HTMLDivElement | null;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
 	"remote-host-alias",
 ) as HTMLInputElement | null;
-const modalTitle = document.getElementById(
-	"file-preview-title",
-) as HTMLTitleElement;
-const modalContent = document.getElementById(
-	"file-preview-content",
-) as HTMLPreElement;
-const modalClose = document.getElementById(
-	"file-preview-close",
-) as HTMLButtonElement;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
 const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
@@ -65,13 +59,118 @@ const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
+const lightningToggleTop = document.getElementById(
+	"lightning-toggle-top",
+) as ToggleSwitchElement | null;
+const lightningToggleSidebar = document.getElementById(
+	"lightning-toggle-sidebar",
+) as ToggleSwitchElement | null;
+const lightningToggleStatus = document.getElementById(
+	"lightning-toggle-status",
+) as ToggleSwitchElement | null;
+const sidebarControls = document.getElementById(
+	"sidebar-controls",
+) as HTMLDivElement | null;
+const lightningStatus = document.getElementById(
+	"lightning-status",
+) as HTMLDivElement | null;
 let modal: declarations["iInstance"]["iModal"];
 let searchEnabled = false;
 let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
+const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
+const LIGHTNING_MODEL_VALUE = "lightning";
+const LIGHTNING_CLIENT_URL = "lightning";
+const LIGHTNING_ENABLED_KEY = "lightning_enabled";
+let lightningEnabled = readLightningSetting();
+
+type ToggleSwitchElement = HTMLElement & {
+	checked: boolean;
+};
+
+function readLightningSetting(): boolean {
+	try {
+		return localStorage.getItem(LIGHTNING_ENABLED_KEY) === "true";
+	} catch (e) {
+		return false;
+	}
+}
+
+function syncLightningToggles(enabled: boolean): void {
+	if (lightningToggleTop && lightningToggleTop.checked !== enabled) {
+		lightningToggleTop.checked = enabled;
+	}
+	if (lightningToggleSidebar && lightningToggleSidebar.checked !== enabled) {
+		lightningToggleSidebar.checked = enabled;
+	}
+	if (lightningToggleStatus && lightningToggleStatus.checked !== enabled) {
+		lightningToggleStatus.checked = enabled;
+	}
+}
+
+function applyLightningState(): void {
+	syncLightningToggles(lightningEnabled);
+	sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
+	lightningStatus?.setAttribute("aria-hidden", String(!lightningEnabled));
+	if (hostSelect) hostSelect.disabled = lightningEnabled;
+	modelSelect.disabled = lightningEnabled;
+	void setTitle();
+}
+
+function setLightningEnabled(enabled: boolean): void {
+	lightningEnabled = enabled;
+	try {
+		localStorage.setItem(LIGHTNING_ENABLED_KEY, String(enabled));
+	} catch (e) {
+		void 0;
+	}
+	applyLightningState();
+	void setToolSupport();
+}
+
+function initLightningToggleEvents(): void {
+	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach((toggle) => {
+		toggle?.addEventListener("change", () => {
+			setLightningEnabled(Boolean(toggle.checked));
+		});
+	});
+	applyLightningState();
+}
+
+function setWelcomeMode(enabled: boolean): void {
+	if (!chatPanel) return;
+	chatPanel.classList.toggle("welcome-mode", enabled);
+	if (welcomeHero) {
+		welcomeHero.setAttribute("aria-hidden", String(!enabled));
+	}
+	if (welcomeCards) {
+		welcomeCards.setAttribute("aria-hidden", String(!enabled));
+	}
+}
+
+function initWelcomeCards(): void {
+	if (!welcomeCards) return;
+
+	welcomeCards
+		.querySelectorAll<HTMLButtonElement>(".welcome-card")
+		.forEach((card) => {
+			card.addEventListener("click", () => {
+				const prompt =
+					card.dataset.prompt || card.textContent?.trim() || "";
+
+				textarea.value = prompt;
+				typingBar.classList.remove("empty");
+				updateTextareaState();
+				textarea.focus();
+			});
+		});
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 	modal = new window.ic.iModal("global-modal");
+	initWelcomeCards();
+	initLightningToggleEvents();
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -96,6 +195,12 @@ let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
 
 async function setToolSupport() {
+	if (lightningEnabled) {
+		typingBar.classList.remove("no-tools");
+		featureWarning.style.display = "none";
+		return;
+	}
+
 	if (
 		modelsSupportsTools.includes(modelSelect.value.split(":")[0]) ||
 		toolNotice
@@ -118,7 +223,7 @@ function showSessionProgress(): void {
 	loader.classList.remove("hidden", "fading");
 	loaderVisible = true;
 }
-
+	   
 function setSessionProgress(value: number): void {
 	const bar = document.getElementById(
 		"session-progress-bar",
@@ -226,21 +331,53 @@ function updateHostSelectOptions() {
 		if (opt.value.startsWith("remote:")) opt.remove();
 	});
 
+	if (![...hostSelect.options].some(o => o.value === "local")) {
+		const localOpt = document.createElement("option");
+		localOpt.value = "local";
+		localOpt.textContent = "Local";
+		hostSelect.appendChild(localOpt);
+	}
+
+	if (![...hostSelect.options].some(o => o.value === "add_remote")) {
+		const addOpt = document.createElement("option");
+		addOpt.value = "add_remote";
+		addOpt.textContent = "Add Remote Host";
+		hostSelect.appendChild(addOpt);
+	}
+
+	if (![...hostSelect.options].some(o => o.value === "manage_hosts")) {
+		const manageOpt = document.createElement("option");
+		manageOpt.value = "manage_hosts";
+		manageOpt.textContent = "Manage Remote Hosts";
+		hostSelect.appendChild(manageOpt);
+	}
+
 	const remotes: RemoteHost[] = JSON.parse(
 		localStorage.getItem("remote_hosts") || "[]",
 	);
-	const manageHostsOpt = hostSelect.querySelector('option[value="manage_hosts"]');
 
+	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
+	
 	remotes.forEach((host) => {
 		const opt = document.createElement("option");
 		opt.value = `remote:${host.url}`;
 		opt.textContent = host.alias || `Remote: ${host.url}`;
-		if (manageHostsOpt) hostSelect.insertBefore(opt, manageHostsOpt);
-		else hostSelect.appendChild(opt);
+
+		if (addRemoteOpt) {
+			hostSelect.insertBefore(opt, addRemoteOpt);
+		} else {
+			hostSelect.appendChild(opt);
+		}
 	});
 }
+
 function updateHostSelectState() {
 	const v = hostSelect.value;
+
+	if (v === "add_remote") {
+		openAddHostDialog();
+		return;
+	}
 
 	if (v === "manage_hosts") {
 		openManageHostsDialog();
@@ -250,6 +387,7 @@ function updateHostSelectState() {
 	localStorage.setItem("host_select", v);
 	reloadModelsForHost(v);
 }
+
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
 document.addEventListener("DOMContentLoaded", () => {
@@ -418,16 +556,21 @@ async function loadOptions() {
 		setSessionProgress(95);
 
 		try {
-			if (urlParams.model != null) {
-				modelSelect.value = urlParams.model;
-			} else {
-				modelSelect.value =
-					sessions[currentSessionId]?.model ?? modelSelect.value;
+			if (!lightningEnabled) {
+				if (urlParams.model != null) {
+					modelSelect.value = urlParams.model;
+				} else {
+					const savedModel = sessions[currentSessionId]?.model;
+					if (savedModel && savedModel !== LIGHTNING_MODEL_VALUE) {
+						modelSelect.value = savedModel;
+					}
+				}
 			}
 		} catch (e) {
 			console.warn(e);
 			void 0;
 		}
+		void setToolSupport();
 	} catch (err) {
 		console.error(err);
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
@@ -527,27 +670,32 @@ function showContextMenu(x, y, sessionId, sessionName) {
 					title: "Delete All Sessions",
 					html: `<p><strong>This cannot be undone.</strong></p>`,
 					actions: [
-						{ label: "Cancel", variant: "secondary" },
-						{
-							label: "Delete All",
-							variant: "danger",
-							onClick: async () => {
-								sessions = {};
-								currentSessionId = null;
-
-								await window.ollama.save(sessions);
-
-								const auth = await window.auth.getSession();
-								if (isSyncEnabled() && auth?.session?.user) {
-									await safeCallRemote(() =>
-										window.sync.saveAllSessions(sessions),
-									);
-								}
-
-								location.reload();
+							{
+								id: "cancel-delete-all",
+								label: "Cancel",
+								onClick: () => modal.close(),
 							},
-						},
-					],
+							{
+								id: "confirm-delete-all",
+								label: "Delete All",
+								onClick: async () => {
+									sessions = {};
+									currentSessionId = null;
+									modal.close();
+
+									await window.ollama.save(sessions);
+
+									const auth = await window.auth.getSession();
+									if (isSyncEnabled() && auth?.session?.user) {
+										await safeCallRemote(() =>
+											window.sync.saveAllSessions(sessions),
+										);
+									}
+
+									location.reload();
+								},
+							},
+						],
 				});
 
 				break;
@@ -578,10 +726,14 @@ function deleteSession(sessionId) {
 		title: "Delete Session",
 		html: `<p>This session will be permanently deleted.</p>`,
 		actions: [
-			{ label: "Cancel", variant: "secondary" },
 			{
+				id: "cancel-delete-session",
+				label: "Cancel",
+				onClick: () => modal.close(),
+			},
+			{
+				id: "confirm-delete-session",
 				label: "Delete",
-				variant: "danger",
 				onClick: async () => {
 					delete sessions[sessionId];
 
@@ -599,6 +751,7 @@ function deleteSession(sessionId) {
 					}
 
 					renderSessionList();
+					modal.close();
 					location.reload();
 				},
 			},
@@ -616,8 +769,13 @@ function openRenameDialog(sessionId, currentName) {
 				placeholder="Session name" />
 		`,
 		actions: [
-			{ label: "Cancel", variant: "secondary" },
 			{
+				id: "cancel-rename-session",
+				label: "Cancel",
+				onClick: () => modal.close(),
+			},
+			{
+				id: "save-rename-session",
 				label: "Save",
 				onClick: async () => {
 					const input = document.getElementById(
@@ -625,7 +783,9 @@ function openRenameDialog(sessionId, currentName) {
 					) as HTMLInputElement;
 
 					const name = input.value.trim();
-					if (!name) return;
+					if (!name) {
+						return;
+					}
 
 					sessions[sessionId].name = name;
 					await window.ollama.save(sessions);
@@ -638,6 +798,7 @@ function openRenameDialog(sessionId, currentName) {
 					}
 
 					renderSessionList();
+					modal.close();
 				},
 			},
 		],
@@ -652,7 +813,13 @@ function openReportDialog(): void {
 			<a href="https://github.com/sharktide/inferenceport/issues"
 			   target="_blank">Open GitHub Issues</a>
 		`,
-		actions: [{ label: "Close" }],
+		actions: [
+			{
+				id: "close-report-dialog",
+				label: "Close",
+				onClick: () => modal.close(),
+			},
+		],
 	});
 }
 
@@ -660,7 +827,7 @@ function createNewSession(): void {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
 	sessions[id] = {
-		model: modelSelect.value,
+		model: lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value,
 		name,
 		history: [],
 		favorite: false,
@@ -961,43 +1128,51 @@ form.addEventListener("submit", async (e) => {
 
 	console.log("[form.submit] Submit event triggered");
 	let clientUrl: string | undefined = undefined;
-	const hostChoice =
+	let hostChoice =
 		(hostSelect && hostSelect.value) ||
 		localStorage.getItem("host_select") ||
 		"local";
-	if (hostChoice && hostChoice.startsWith("remote:")) {
-		clientUrl = hostChoice.slice("remote:".length);
-	}
-	if (!clientUrl) {
-		const models = await window.ollama.listModels();
-		if (models.length === 0) {
-			const defaultModel = "llama3.2:3b";
-			showNotification({
-				message: `No models found. Downloading default model: ${defaultModel}`,
-				type: "info",
-			});
-			await pullModel(defaultModel);
-			let attempts = 0;
-			while (attempts < 10) {
-				const models = await window.ollama.listModels();
-				if (models.some((m) => m.name === defaultModel)) break;
-				await new Promise((r) => setTimeout(r, 1000));
-				attempts++;
-			}
-
-			await loadOptions();
-
-			modelSelect.value = defaultModel;
+	let model = modelSelect.value;
+	if (lightningEnabled) {
+		hostChoice = LIGHTNING_CLIENT_URL;
+		clientUrl = LIGHTNING_CLIENT_URL;
+		model = LIGHTNING_MODEL_VALUE;
+	} else {
+		if (hostChoice && hostChoice.startsWith("remote:")) {
+			clientUrl = hostChoice.slice("remote:".length);
 		}
-	}
-	if (clientUrl) {
-		const remoteModels = await window.ollama.listModels(clientUrl);
-		if (remoteModels.length === 0) {
-			showNotification({
-				message: "No models available on the selected remote host.",
-				type: "warning",
-			});
-			return;
+		if (!clientUrl) {
+			const models = await window.ollama.listModels();
+			if (models.length === 0) {
+				const defaultModel = "llama3.2:3b";
+				showNotification({
+					message: `No models found. Downloading default model: ${defaultModel}`,
+					type: "info",
+				});
+				await pullModel(defaultModel);
+				let attempts = 0;
+				while (attempts < 10) {
+					const models = await window.ollama.listModels();
+					if (models.some((m) => m.name === defaultModel)) break;
+					await new Promise((r) => setTimeout(r, 1000));
+					attempts++;
+				}
+
+				await loadOptions();
+
+				modelSelect.value = defaultModel;
+				model = defaultModel;
+			}
+		}
+		if (clientUrl) {
+			const remoteModels = await window.ollama.listModels(clientUrl);
+			if (remoteModels.length === 0) {
+				showNotification({
+					message: "No models available on the selected remote host.",
+					type: "warning",
+				});
+				return;
+			}
 		}
 	}
 	if (isStreaming) {
@@ -1005,7 +1180,6 @@ form.addEventListener("submit", async (e) => {
 		return;
 	}
 
-	const model = modelSelect.value;
 	console.log(
 		"[form.submit] Prompt:",
 		prompt,
@@ -1013,6 +1187,7 @@ form.addEventListener("submit", async (e) => {
 		currentSessionId,
 	);
 	if (!prompt || !currentSessionId) return;
+	setWelcomeMode(false);
 	if (sessions[currentSessionId].history.length === 0) {
 		console.log(
 			"[form.submit] First prompt for session, calling autoNameSession...",
@@ -1031,14 +1206,19 @@ form.addEventListener("submit", async (e) => {
 	renderChat();
 
 	const botBubble = document.createElement("div");
-	botBubble.className = "chat-bubble bot-bubble";
-	botBubble.textContent = "🤖 Thinking";
+	botBubble.className = "chat-bubble bot-bubble thinking";
+	botBubble.textContent = "Thinking";
+	botBubble.setAttribute("data-text", botBubble.textContent);
+	let isThinking = true;
+	let isGenerating = false;
 	chatBox.appendChild(botBubble);
 	chatBox.scrollTop = chatBox.scrollHeight;
 
 	window.ollama.removeAllListeners?.();
 
-	localStorage.setItem("host_select", hostChoice);
+	if (!lightningEnabled) {
+		localStorage.setItem("host_select", hostChoice);
+	}
 	window.ollama.streamPrompt(
 		model,
 		fullPrompt,
@@ -1052,6 +1232,13 @@ form.addEventListener("submit", async (e) => {
 	updateActionButton();
 
 	window.ollama.onResponse((chunk) => {
+		if (isThinking) {
+			botBubble.classList.remove("thinking");
+			botBubble.removeAttribute("data-text");
+			isThinking = false;
+			isGenerating = true;
+			botBubble.classList.add("generating");
+		}
 		fullResponse += chunk;
 		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML =
@@ -1062,6 +1249,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		if (
 			err.toString().toLowerCase().includes("token verification failed")
 		) {
@@ -1102,6 +1292,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onDone(() => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
 		renderChat();
 		const status = document.createElement("div");
@@ -1123,6 +1316,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onAbort(() => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
 		renderChat();
 		const status = document.createElement("div");
@@ -1252,40 +1448,23 @@ newSessionBtn.addEventListener("click", createNewSession);
 	document.getElementById("session-search") as HTMLInputElement
 ).addEventListener("input", renderSessionList);
 
-document.addEventListener("click", (e) => {
-	if (e.target.classList.contains("file-preview-btn")) {
-		const index = e.target.dataset.index;
-		const file = attachedFiles[index];
-		(
-			document.getElementById("file-preview-title") as HTMLTitleElement
-		).textContent = file.name;
-		(
-			document.getElementById("file-preview-content") as HTMLPreElement
-		).textContent = file.content;
-		(
-			document.getElementById("file-preview-modal") as HTMLDivElement
-		).classList.remove("hidden");
-	}
-});
-
-document.getElementById("file-preview-close").addEventListener("click", () => {
-	document.getElementById("file-preview-modal").classList.add("hidden");
-});
-
 function openFilePreview(file) {
 	modal.open({
 		title: file.name,
 		html: `<pre class="file-preview">${file.content}</pre>`,
-		actions: [{ label: "Close" }],
+		actions: [
+			{
+				id: "close-file-preview",
+				label: "Close",
+				onClick: () => modal.close(),
+			},
+		],
 	});
 }
 
-modalClose.addEventListener("click", () => {
-	modal.classList.add("hidden");
-});
-
 async function setTitle() {
-	document.title = modelSelect.value + " - Chat - InferencePortAI";
+	const titleModel = lightningEnabled ? LIGHTNING_MODEL_DISPLAY : modelSelect.value;
+	document.title = titleModel + " - Chat - InferencePortAI";
 }
 
 function renderChat() {
@@ -1303,12 +1482,11 @@ function renderChat() {
 	chatBox.innerHTML = "";
 
 	if (!session || !session.history || session.history.length === 0) {
-		const emptyMsg = document.createElement("div");
-		emptyMsg.className = "empty-chat";
-		emptyMsg.textContent = "Start chatting to see messages here.";
-		chatBox.appendChild(emptyMsg);
+		setWelcomeMode(true);
 		return;
 	}
+
+	setWelcomeMode(false);
 
 	session.history.forEach((msg) => {
 		/* ---------------- USER ---------------- */
@@ -1439,7 +1617,9 @@ function renderChat() {
 
 			const header = document.createElement("div");
 			header.className = "tool-header";
-			header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
+			if (msg.name == "generate_image") {
+				header.textContent = "⚡Generated an Image with Lightning-Image Turbo";
+			} else header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
 
 			toolBubble.appendChild(header);
 			chatBox.appendChild(toolBubble);
@@ -1551,45 +1731,47 @@ window.ollama.onToolCall((call) => {
 });
 
 function openAddHostDialog() {
-    modal.open({
-        html: `
-            <h3>Add Remote Host</h3>
-            <p style="opacity:.7">
-                Enter the remote host IP or URL
-            </p>
+	modal.open({
+		html: `
+			<h3>Add Remote Host</h3>
+			<p style="opacity:.7">
+				Enter the remote host IP or URL
+			</p>
 
-            <input id="new-host-url"
-                   placeholder="http://1.2.3.4:52458"
-                   style="width:100%;margin-bottom:8px" />
+			<input id="new-host-url"
+				   placeholder="http://1.2.3.4:52458"
+				   style="width:100%;margin-bottom:8px" />
 
-            <input id="new-host-alias"
-                   placeholder="Alias (optional, max 20 chars)"
-                   maxlength="20"
-                   style="width:100%;margin-bottom:12px" />
+			<input id="new-host-alias"
+				   placeholder="Alias (optional, max 20 chars)"
+				   maxlength="20"
+				   style="width:100%;margin-bottom:12px" />
 
-            <div style="display:flex; gap:8px;">
-                <button id="confirm-add-host">Add</button>
-                <button id="cancel-add-host">Cancel</button>
-            </div>
-        `
-    });
+			<div style="display:flex; gap:8px;">
+				<button id="confirm-add-host">Add</button>
+				<button id="cancel-add-host">Cancel</button>
+			</div>
+		`
+	});
 
-    document.getElementById("cancel-add-host")?.addEventListener("click", () => {
-        modal.close();
-		hostSelect.value = "local";
-		localStorage.setItem("host_select", "local");
-		reloadModelsForHost("local");
-    });
+	document.getElementById("cancel-add-host")?.addEventListener("click", () => {
+		modal.close();
+		if (hostSelect) {
+			hostSelect.value = "local";
+			localStorage.setItem("host_select", "local");
+			reloadModelsForHost("local");
+		}
+	});
 
-    document.getElementById("confirm-add-host")?.addEventListener("click", () => {
-        let url = (document.getElementById("new-host-url") as HTMLInputElement).value.trim();
-        const alias = (document.getElementById("new-host-alias") as HTMLInputElement).value.trim().substring(0, 20);
+	document.getElementById("confirm-add-host")?.addEventListener("click", () => {
+		let url = (document.getElementById("new-host-url") as HTMLInputElement).value.trim();
+		const alias = (document.getElementById("new-host-alias") as HTMLInputElement).value.trim().substring(0, 20);
 
-        if (!url) return;
+		if (!url) return;
 
-        if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-        if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
-        url = url.replace(/\/+$/, "");
+		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+		if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
+		url = url.replace(/\/+$/, "");
 
         const remotesStored: RemoteHost[] = JSON.parse(
             localStorage.getItem("remote_hosts") || "[]",

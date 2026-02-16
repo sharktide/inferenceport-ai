@@ -27,17 +27,9 @@
           "prompt": {
             "type": "string",
             "description": "Describe the image you want in great detail (10-30 words)"
-          },
-          "width": {
-            "type": "number",
-            "description": "width of image in pixels up to 1920"
-          },
-          "height": {
-            "type": "number",
-            "description": "height of image in pixels up to 1920"
           }
         },
-        "required": ["prompt", "width", "height"]
+        "required": ["prompt"]
       }
     }
   }
