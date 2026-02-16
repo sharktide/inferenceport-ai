@@ -4,12 +4,59 @@
 	flex: 1;
 	min-height: 0;
 	padding: 10px;
+	gap: 10px;
 }
 
 .chat-container {
 	display: flex;
 	flex: 1;
 	min-height: 0;
+}
+
+.lightning-banner-copy {
+	font-size: 14px;
+	line-height: 1.45;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	position: relative;
+	z-index: 1;
+}
+
+.lightning-toggle-inline {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	white-space: nowrap;
+	position: relative;
+	z-index: 1;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+@keyframes lightningPulse {
+	0%,
+	100% {
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+			0 14px 36px rgba(9, 56, 146, 0.25);
+	}
+	50% {
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.16) inset,
+			0 18px 44px rgba(12, 76, 186, 0.38);
+	}
+}
+
+@keyframes lightningSweep {
+	0% {
+		transform: translateX(-120%);
+	}
+	100% {
+		transform: translateX(120%);
+	}
 }
 
 #chat-form {
@@ -817,6 +864,67 @@ select {
 	overflow: hidden;
 }
 
+.lightning-sidebar-banner {
+	padding: 12px;
+	border-radius: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background:
+		radial-gradient(circle at 14% 16%, rgba(255, 228, 111, 0.22), transparent 56%),
+		linear-gradient(140deg, rgba(31, 78, 176, 0.92), rgba(0, 163, 219, 0.86));
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	color: #eff7ff;
+	box-shadow: 0 10px 30px rgba(8, 66, 153, 0.24);
+	position: relative;
+	overflow: hidden;
+}
+
+.lightning-sidebar-banner::before {
+	content: "";
+	position: absolute;
+	inset: -40%;
+	background: conic-gradient(
+		from 0deg at 50% 50%,
+		rgba(255, 255, 255, 0) 0deg,
+		rgba(255, 255, 255, 0.18) 85deg,
+		rgba(255, 255, 255, 0) 170deg
+	);
+	animation: lightningRotate 6s linear infinite;
+	pointer-events: none;
+}
+
+.lightning-sidebar-copy {
+	font-size: 13px;
+	line-height: 1.35;
+	font-weight: 600;
+	position: relative;
+	z-index: 1;
+}
+
+.lightning-sidebar-note {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.35;
+	opacity: 0.96;
+	position: relative;
+	z-index: 1;
+}
+
+.lightning-sidebar-banner .lightning-toggle-inline {
+	background: rgba(5, 29, 86, 0.36);
+	border-color: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes lightningRotate {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
 .sidebar-section-label {
 	margin: 0;
 	padding: 6px 10px 0;
@@ -864,6 +972,7 @@ select {
 
 #session-list {
 	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
 	padding: 6px 6px;
 	display: flex;
@@ -931,6 +1040,10 @@ select {
 	background-color: color-mix(in srgb, var(--bg-light) 88%, var(--gray) 12%);
 }
 
+[data-theme="dark"] .lightning-sidebar-banner {
+	border-color: rgba(255, 255, 255, 0.24);
+}
+
 [data-theme="dark"] .user-bubble {
 	background: #a9cef619;
 	color: #fff;
@@ -942,6 +1055,55 @@ select {
 	border-top: 1px solid color-mix(in srgb, var(--text-dark) 16%, transparent);
 	display: grid;
 	gap: 8px;
+}
+
+.sidebar-controls.lightning-enabled #standard-model-controls {
+	display: none;
+}
+
+.lightning-status {
+	display: none;
+	padding: 12px;
+	border-radius: 12px;
+	background:
+		radial-gradient(circle at 90% 10%, rgba(250, 224, 89, 0.2), transparent 48%),
+		color-mix(in srgb, var(--blue) 18%, transparent);
+	border: 1px solid color-mix(in srgb, var(--blue) 36%, transparent);
+}
+
+.sidebar-controls.lightning-enabled .lightning-status {
+	display: block;
+}
+
+.lightning-status-title,
+.lightning-status-model {
+	margin: 0;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.lightning-status-model {
+	margin-top: 6px;
+	opacity: 0.85;
+}
+
+.lightning-status-image {
+	margin: 6px 0 0;
+	font-size: 12px;
+	line-height: 1.35;
+	opacity: 0.88;
+}
+
+.lightning-status-toggle {
+	margin-top: 10px;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.14);
+	border: 1px solid color-mix(in srgb, #ffffff 28%, transparent);
+	font-size: 12px;
 }
 
 .sidebar-controls label {
@@ -1051,6 +1213,10 @@ select {
 }
 
 @media (max-width: 760px) {
+	.lightning-toggle-inline {
+		white-space: normal;
+	}
+
 	.chat-panel.welcome-mode {
 		justify-content: flex-start;
 		padding-top: 20px;

@@ -144,16 +144,39 @@
 			<div class="chat-container">
 				<aside class="sidebar">
 					<button id="new-session-btn" type="button">+ New chat</button>
+					<div class="lightning-sidebar-banner">
+						<div class="lightning-sidebar-copy">
+							Lightning Text v2 delivers ultra fast responses up to 1000 words/sec.
+						</div>
+						<p class="lightning-sidebar-note">
+							New: Lightning-Image Turbo is now free and is the default image generation model.
+						</p>
+						<div class="lightning-toggle-inline">
+							<span>Enable Lightning</span>
+							<toggle-switch
+								id="lightning-toggle-sidebar"
+								name="lightning-toggle-sidebar"
+								aria-label="Enable Lightning"
+							></toggle-switch>
+						</div>
+					</div>
 					<input
 						type="hidden"
 						id="session-search"
 					/>
 					<ul id="session-list"></ul>
-					<div class="sidebar-controls">
-						<label for="host-select">Host</label>
-						<select id="host-select"></select>
-						<label for="model-select">Model</label>
-						<select id="model-select"></select>
+					<div class="sidebar-controls" id="sidebar-controls">
+						<div id="standard-model-controls">
+							<label for="host-select">Host</label>
+							<select id="host-select"></select>
+							<label for="model-select">Model</label>
+							<select id="model-select"></select>
+						</div>
+						<div id="lightning-status" class="lightning-status" aria-hidden="true">
+							<p class="lightning-status-title">Lightning is Enabled.</p>
+							<p class="lightning-status-model">Text model selected: @InferencePort/Lightning-Text-v2.</p>
+							<p class="lightning-status-image">Default image model: @InferencePort/Lightning-Image-Turbo (free).</p>
+						</div>
 					</div>
 				</aside>
 

@@ -59,11 +59,84 @@ const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
+const lightningToggleTop = document.getElementById(
+	"lightning-toggle-top",
+) as ToggleSwitchElement | null;
+const lightningToggleSidebar = document.getElementById(
+	"lightning-toggle-sidebar",
+) as ToggleSwitchElement | null;
+const lightningToggleStatus = document.getElementById(
+	"lightning-toggle-status",
+) as ToggleSwitchElement | null;
+const sidebarControls = document.getElementById(
+	"sidebar-controls",
+) as HTMLDivElement | null;
+const lightningStatus = document.getElementById(
+	"lightning-status",
+) as HTMLDivElement | null;
 let modal: declarations["iInstance"]["iModal"];
 let searchEnabled = false;
 let imgEnabled = false;
 let sessions = {};
 let currentSessionId = null;
+const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
+const LIGHTNING_MODEL_VALUE = "lightning";
+const LIGHTNING_CLIENT_URL = "lightning";
+const LIGHTNING_ENABLED_KEY = "lightning_enabled";
+let lightningEnabled = readLightningSetting();
+
+type ToggleSwitchElement = HTMLElement & {
+	checked: boolean;
+};
+
+function readLightningSetting(): boolean {
+	try {
+		return localStorage.getItem(LIGHTNING_ENABLED_KEY) === "true";
+	} catch (e) {
+		return false;
+	}
+}
+
+function syncLightningToggles(enabled: boolean): void {
+	if (lightningToggleTop && lightningToggleTop.checked !== enabled) {
+		lightningToggleTop.checked = enabled;
+	}
+	if (lightningToggleSidebar && lightningToggleSidebar.checked !== enabled) {
+		lightningToggleSidebar.checked = enabled;
+	}
+	if (lightningToggleStatus && lightningToggleStatus.checked !== enabled) {
+		lightningToggleStatus.checked = enabled;
+	}
+}
+
+function applyLightningState(): void {
+	syncLightningToggles(lightningEnabled);
+	sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
+	lightningStatus?.setAttribute("aria-hidden", String(!lightningEnabled));
+	if (hostSelect) hostSelect.disabled = lightningEnabled;
+	modelSelect.disabled = lightningEnabled;
+	void setTitle();
+}
+
+function setLightningEnabled(enabled: boolean): void {
+	lightningEnabled = enabled;
+	try {
+		localStorage.setItem(LIGHTNING_ENABLED_KEY, String(enabled));
+	} catch (e) {
+		void 0;
+	}
+	applyLightningState();
+	void setToolSupport();
+}
+
+function initLightningToggleEvents(): void {
+	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach((toggle) => {
+		toggle?.addEventListener("change", () => {
+			setLightningEnabled(Boolean(toggle.checked));
+		});
+	});
+	applyLightningState();
+}
 
 function setWelcomeMode(enabled: boolean): void {
 	if (!chatPanel) return;
@@ -97,6 +170,7 @@ function initWelcomeCards(): void {
 document.addEventListener("DOMContentLoaded", () => {
 	modal = new window.ic.iModal("global-modal");
 	initWelcomeCards();
+	initLightningToggleEvents();
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -121,6 +195,12 @@ let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
 
 async function setToolSupport() {
+	if (lightningEnabled) {
+		typingBar.classList.remove("no-tools");
+		featureWarning.style.display = "none";
+		return;
+	}
+
 	if (
 		modelsSupportsTools.includes(modelSelect.value.split(":")[0]) ||
 		toolNotice
@@ -476,16 +556,21 @@ async function loadOptions() {
 		setSessionProgress(95);
 
 		try {
-			if (urlParams.model != null) {
-				modelSelect.value = urlParams.model;
-			} else {
-				modelSelect.value =
-					sessions[currentSessionId]?.model ?? modelSelect.value;
+			if (!lightningEnabled) {
+				if (urlParams.model != null) {
+					modelSelect.value = urlParams.model;
+				} else {
+					const savedModel = sessions[currentSessionId]?.model;
+					if (savedModel && savedModel !== LIGHTNING_MODEL_VALUE) {
+						modelSelect.value = savedModel;
+					}
+				}
 			}
 		} catch (e) {
 			console.warn(e);
 			void 0;
 		}
+		void setToolSupport();
 	} catch (err) {
 		console.error(err);
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
@@ -742,7 +827,7 @@ function createNewSession(): void {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
 	sessions[id] = {
-		model: modelSelect.value,
+		model: lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value,
 		name,
 		history: [],
 		favorite: false,
@@ -1043,43 +1128,51 @@ form.addEventListener("submit", async (e) => {
 
 	console.log("[form.submit] Submit event triggered");
 	let clientUrl: string | undefined = undefined;
-	const hostChoice =
+	let hostChoice =
 		(hostSelect && hostSelect.value) ||
 		localStorage.getItem("host_select") ||
 		"local";
-	if (hostChoice && hostChoice.startsWith("remote:")) {
-		clientUrl = hostChoice.slice("remote:".length);
-	}
-	if (!clientUrl) {
-		const models = await window.ollama.listModels();
-		if (models.length === 0) {
-			const defaultModel = "llama3.2:3b";
-			showNotification({
-				message: `No models found. Downloading default model: ${defaultModel}`,
-				type: "info",
-			});
-			await pullModel(defaultModel);
-			let attempts = 0;
-			while (attempts < 10) {
-				const models = await window.ollama.listModels();
-				if (models.some((m) => m.name === defaultModel)) break;
-				await new Promise((r) => setTimeout(r, 1000));
-				attempts++;
-			}
-
-			await loadOptions();
-
-			modelSelect.value = defaultModel;
+	let model = modelSelect.value;
+	if (lightningEnabled) {
+		hostChoice = LIGHTNING_CLIENT_URL;
+		clientUrl = LIGHTNING_CLIENT_URL;
+		model = LIGHTNING_MODEL_VALUE;
+	} else {
+		if (hostChoice && hostChoice.startsWith("remote:")) {
+			clientUrl = hostChoice.slice("remote:".length);
 		}
-	}
-	if (clientUrl) {
-		const remoteModels = await window.ollama.listModels(clientUrl);
-		if (remoteModels.length === 0) {
-			showNotification({
-				message: "No models available on the selected remote host.",
-				type: "warning",
-			});
-			return;
+		if (!clientUrl) {
+			const models = await window.ollama.listModels();
+			if (models.length === 0) {
+				const defaultModel = "llama3.2:3b";
+				showNotification({
+					message: `No models found. Downloading default model: ${defaultModel}`,
+					type: "info",
+				});
+				await pullModel(defaultModel);
+				let attempts = 0;
+				while (attempts < 10) {
+					const models = await window.ollama.listModels();
+					if (models.some((m) => m.name === defaultModel)) break;
+					await new Promise((r) => setTimeout(r, 1000));
+					attempts++;
+				}
+
+				await loadOptions();
+
+				modelSelect.value = defaultModel;
+				model = defaultModel;
+			}
+		}
+		if (clientUrl) {
+			const remoteModels = await window.ollama.listModels(clientUrl);
+			if (remoteModels.length === 0) {
+				showNotification({
+					message: "No models available on the selected remote host.",
+					type: "warning",
+				});
+				return;
+			}
 		}
 	}
 	if (isStreaming) {
@@ -1087,7 +1180,6 @@ form.addEventListener("submit", async (e) => {
 		return;
 	}
 
-	const model = modelSelect.value;
 	console.log(
 		"[form.submit] Prompt:",
 		prompt,
@@ -1121,7 +1213,9 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.removeAllListeners?.();
 
-	localStorage.setItem("host_select", hostChoice);
+	if (!lightningEnabled) {
+		localStorage.setItem("host_select", hostChoice);
+	}
 	window.ollama.streamPrompt(
 		model,
 		fullPrompt,
@@ -1350,7 +1444,8 @@ function openFilePreview(file) {
 }
 
 async function setTitle() {
-	document.title = modelSelect.value + " - Chat - InferencePortAI";
+	const titleModel = lightningEnabled ? LIGHTNING_MODEL_DISPLAY : modelSelect.value;
+	document.title = titleModel + " - Chat - InferencePortAI";
 }
 
 function renderChat() {

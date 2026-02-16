@@ -119,6 +119,13 @@ async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 		});
 	}
 
+	if (baseURL == "lightning") {
+		return new OpenAI({
+			baseURL: "https://sharktide-lightning.hf.space/gen",
+			apiKey: "No key needed, rate limited by user",
+		});
+	}
+
 	return new OpenAI({
 		baseURL,
 		apiKey: "ollama",
@@ -348,15 +355,14 @@ function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	});
 }
 
-async function GenerateImage(prompt: string, width: number, height: number) {
+async function GenerateImage(prompt: string) {
 	const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-	LOG(trace, "ENTER GenerateImage", { prompt, width, height });
-
+	LOG(trace, "ENTER GenerateImage", { prompt });
+	
 	const url =
-		`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}` +
-		`?width=${width}&height=${height}`;
-
+		`https://sharktide-lightning.hf.space/genimg/${encodeURIComponent(prompt)}`
+		
 	LOG(trace, "FETCH URL", url);
 
 	let response: Response;
@@ -783,8 +789,6 @@ Keep it under 5 words.
 						if (toolCall.function.name === "generate_image") {
 							const { dataUrl } = await GenerateImage(
 								args.prompt,
-								args.width,
-								args.height,
 							);
 
 							event.sender.send("ollama:new-asset", {
@@ -792,7 +796,7 @@ Keep it under 5 words.
 								content: dataUrl,
 							});
 
-							toolResult = "Image generated successfully.";
+							toolResult = "Image generated successfully and shown to the user.";
 						}
 
 						chatHistory.push({
