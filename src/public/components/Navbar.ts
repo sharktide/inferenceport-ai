@@ -50,11 +50,8 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="renderer/chat.html">Chat</a></li>
                     <li><a href="index.html">Home</a></li>
                     <li><a href="marketplace.html">Explore</a></li>
-                    <li><a href="installed.html">My Models</a></li>
+                    <li><a href="installed.html">Installed</a></li>
                     <li><a href="settings.html">Settings</a></li>
-                    <li><a href="help/index.html" target="_blank">Help</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy</a></li>
                 </ul>
             </nav>
         `;
@@ -72,11 +69,8 @@ export class Type1Navbar extends HTMLElement {
                     <li><a href="chat.html">Chat</a></li>
                     <li><a href="../index.html">Home</a></li>
                     <li><a href="../marketplace.html">Explore</a></li>
-                    <li><a href="../installed.html">My Models</a></li>
+                    <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
-                    <li><a href="../help/index.html" target="_blank">Help</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy</a></li>
                 </ul>
             </nav>
         `;
@@ -94,11 +88,8 @@ export class MarketplaceNavbar extends HTMLElement {
                     <li><a href="../renderer/chat.html">Chat</a></li>
                     <li><a href="../index.html">Home</a></li>
                     <li><a href="../marketplace.html">Explore</a></li>
-                    <li><a href="../installed.html">My Models</a></li>
+                    <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
-                    <li><a href="../help/index.html" target="_blank">Help</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms</a></li>
-                    <li><a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy</a></li>
                 </ul>
             </nav>
         `;
