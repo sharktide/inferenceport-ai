@@ -1206,8 +1206,11 @@ form.addEventListener("submit", async (e) => {
 	renderChat();
 
 	const botBubble = document.createElement("div");
-	botBubble.className = "chat-bubble bot-bubble";
-	botBubble.textContent = "🤖 Thinking";
+	botBubble.className = "chat-bubble bot-bubble thinking";
+	botBubble.textContent = "Thinking";
+	botBubble.setAttribute("data-text", botBubble.textContent);
+	let isThinking = true;
+	let isGenerating = false;
 	chatBox.appendChild(botBubble);
 	chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -1229,6 +1232,13 @@ form.addEventListener("submit", async (e) => {
 	updateActionButton();
 
 	window.ollama.onResponse((chunk) => {
+		if (isThinking) {
+			botBubble.classList.remove("thinking");
+			botBubble.removeAttribute("data-text");
+			isThinking = false;
+			isGenerating = true;
+			botBubble.classList.add("generating");
+		}
 		fullResponse += chunk;
 		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML =
@@ -1239,6 +1249,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onError((err) => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		if (
 			err.toString().toLowerCase().includes("token verification failed")
 		) {
@@ -1279,6 +1292,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onDone(() => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
 		renderChat();
 		const status = document.createElement("div");
@@ -1300,6 +1316,9 @@ form.addEventListener("submit", async (e) => {
 	});
 
 	window.ollama.onAbort(() => {
+		botBubble.classList.remove("thinking");
+		botBubble.removeAttribute("data-text");
+		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
 		renderChat();
 		const status = document.createElement("div");
@@ -1598,7 +1617,9 @@ function renderChat() {
 
 			const header = document.createElement("div");
 			header.className = "tool-header";
-			header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
+			if (msg.name == "generate_image") {
+				header.textContent = "⚡Generated an Image with Lightning-Image Turbo";
+			} else header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
 
 			toolBubble.appendChild(header);
 			chatBox.appendChild(toolBubble);
