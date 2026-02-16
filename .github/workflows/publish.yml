@@ -171,6 +171,7 @@ jobs:
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
+      OLLAMA_ACCELERATION: "rocm"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
