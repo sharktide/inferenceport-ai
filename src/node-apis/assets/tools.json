@@ -32,5 +32,39 @@
         "required": ["prompt"]
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "generate_audio",
+      "description": "Generate audio from a prompt",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Describe the audio you want in great detail (10-30 words)"
+          }
+        },
+        "required": ["prompt"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "generate_video",
+      "description": "Generate a video from a prompt",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Describe the video you want in great detail (10-30 words)"
+          }
+        },
+        "required": ["prompt"]
+      }
+    }
   }
 ]
