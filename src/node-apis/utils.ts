@@ -18,18 +18,51 @@ import sanitizeHtml from "sanitize-html";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
 import fs from "fs";
+import { constants } from "fs";
 import path from "path";
 import { shell, app, ipcMain } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
+import type { UUID } from "crypto";
 
-function is52458(url: string): boolean {
+const dataDir: string = app.getPath("userData");
+
+export function is52458(url: string): boolean {
 	try {
 		const u = new URL(url);
 		return u.port === "52458";
 	} catch {
 		return false;
 	}
+}
+
+export async function save_stream(response: Blob): Promise<UUID> {
+    const asset_id = crypto.randomUUID();
+    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+
+    const fd = await fs.promises.open(file_path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY);
+
+    try {
+        for await (const chunk of response.stream()) {
+            await fd.write(chunk);
+        }
+    } catch (err) {
+		await fd.close().catch(() => {});
+        await fs.promises.unlink(file_path).catch(() => {});
+        throw err;
+    }
+
+    await fd.close();
+
+    return asset_id;
+}
+
+export async function load_blob(asset_id: UUID): Promise<Blob> {
+    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+
+    const buffer = await fs.promises.readFile(file_path);
+
+    return new Blob([buffer]);
 }
 
 function detailsBlock(md: any): void {
@@ -123,7 +156,9 @@ function resetFirstLaunch(): void {
 
 export default function register() {
 	initHardwareInfo();
-
+	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Blob> => {
+		return await load_blob(assetId);
+	});
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
 	});

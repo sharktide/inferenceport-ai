@@ -17,9 +17,9 @@ limitations under the License.
 import { app, ipcMain, BrowserWindow } from "electron";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
-import fs from "fs";
+import fs, { constants } from "fs";
 import path from "path";
-import crypto from "crypto";
+import crypto, { type UUID } from "crypto";
 import { exec, spawn } from "child_process";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -31,16 +31,24 @@ import type {
 	PullProgress,
 	PullChunk,
 	PullSection,
+	ToolList,
+	ToolParametersSchema,
 } from "./types/index.types.d.ts";
 import {
 	startProxyServer,
 	stopProxyServer,
 	getServerLogs,
 } from "./helper/server.js";
+import {
+	is52458,
+	save_stream,
+	load_blob,
+} from "./utils.js";
 import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
 import { getSession } from "./auth.js";
+import { GenerateImage, duckDuckGoSearch, generateVideo, generateAudioOrSFX } from "./helper/tools.js";
 
 const logDir: string = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
@@ -69,15 +77,6 @@ const ollamaPath = isDev
 
 let chatHistory: ChatHistoryEntry[] = [];
 let chatProcess: ReturnType<typeof spawn> | null = null;
-
-function is52458(url: string): boolean {
-	try {
-		const u = new URL(url);
-		return u.port === "52458";
-	} catch {
-		return false;
-	}
-}
 
 async function issueProxyToken(): Promise<string> {
 	console.log("Issuing Proxy Token");
@@ -317,24 +316,6 @@ export async function fetchSupportedTools(): Promise<{
 	return { supportsTools };
 }
 
-async function duckDuckGoSearch(query: string) {
-	const res = await fetch(
-		`https://api.duckduckgo.com/?q=${encodeURIComponent(
-			query,
-		)}&format=json&no_html=1&skip_disambig=1`,
-	);
-	const data = await res.json();
-
-	return {
-		abstract: data.AbstractText,
-		heading: data.Heading,
-		related: (data.RelatedTopics || []).slice(0, 5).map((r: any) => ({
-			text: r.Text,
-			url: r.FirstURL,
-		})),
-	};
-}
-
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
 		if (m.role === "tool") {
@@ -355,86 +336,6 @@ function messagesForModel(history: ChatHistoryEntry[]): any[] {
 
 		return { role: m.role, content: m.content };
 	});
-}
-
-async function GenerateImage(prompt: string) {
-	const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-	LOG(trace, "ENTER GenerateImage", { prompt });
-	
-	const url =
-		`https://sharktide-lightning.hf.space/genimg/${encodeURIComponent(prompt)}`
-		
-	LOG(trace, "FETCH URL", url);
-
-	let response: Response;
-	try {
-		response = await fetch(url);
-		LOG(trace, "FETCH RESOLVED", {
-			ok: response.ok,
-			status: response.status,
-			statusText: response.statusText,
-			headers: Object.fromEntries(response.headers.entries()),
-		});
-	} catch (e) {
-		LOG_ERR(trace, "FETCH THREW", e);
-		throw e;
-	}
-
-	if (!response.ok) {
-		LOG_ERR(trace, "NON-OK RESPONSE", {
-			status: response.status,
-			statusText: response.statusText,
-		});
-		throw new Error(`Image fetch failed: ${response.status}`);
-	}
-
-	const contentType = response.headers.get("content-type");
-	LOG(trace, "CONTENT-TYPE", contentType);
-
-	let arrayBuffer: ArrayBuffer;
-	try {
-		arrayBuffer = await response.arrayBuffer();
-		LOG(trace, "ARRAYBUFFER RECEIVED", {
-			byteLength: arrayBuffer.byteLength,
-		});
-	} catch (e) {
-		LOG_ERR(trace, "ARRAYBUFFER FAILED", e);
-		throw e;
-	}
-
-	if (arrayBuffer.byteLength === 0) {
-		LOG_ERR(trace, "EMPTY IMAGE BUFFER");
-		throw new Error("Empty image buffer");
-	}
-
-	let base64: string;
-	try {
-		base64 = Buffer.from(arrayBuffer).toString("base64");
-		LOG(trace, "BASE64 ENCODED", {
-			length: base64.length,
-			head: base64.slice(0, 32),
-		});
-	} catch (e) {
-		LOG_ERR(trace, "BASE64 ENCODE FAILED", e);
-		throw e;
-	}
-
-	LOG(trace, "EXIT GenerateImage OK");
-
-	return {
-		dataUrl: `data:${contentType || "image/png"};base64,${base64}`,
-	};
-}
-
-function LOG(trace: string, label: string, ...args: any[]) {
-	const time = new Date().toISOString();
-	console.log(`[${time}] [${trace}] ${label}`, ...args);
-}
-
-function LOG_ERR(trace: string, label: string, ...args: any[]) {
-	const time = new Date().toISOString();
-	console.error(`[${time}] [${trace}] ❌ ${label}`, ...args);
 }
 
 type ParsedModelfile = {
@@ -844,8 +745,7 @@ Keep it under 5 words.
 			event: IpcMainEvent,
 			modelName: string,
 			userMessage: string,
-			search: boolean,
-			imageGen: boolean,
+			toolList: ToolList,
 			clientUrl?: string,
 		) => {
 			const abortController = new AbortController();
@@ -860,9 +760,11 @@ Keep it under 5 words.
 				}
 			};
 
-			let tools: any[] = [];
-			if (search) tools.push(availableTools[0]);
-			if (imageGen) tools.push(availableTools[1]);
+			let tools: ToolDefinition[] = [];
+			if (toolList.search) tools.push(availableTools[0]!);
+			if (toolList.imageGen) tools.push(availableTools[1]!);
+			if (toolList.videoGen) tools.push(availableTools[2]!);
+			if (toolList.audioGen) tools.push(availableTools[3]!);
 
 			chatHistory.push({ role: "user", content: userMessage });
 
@@ -973,6 +875,26 @@ Keep it under 5 words.
 							});
 
 							toolResult = "Image generated successfully and shown to the user.";
+						}
+						
+						if (toolCall.function.name === "generate_video") {
+							const video: ArrayBuffer = await generateVideo(args.prompt);
+							const videoBlob = new Blob([video], { type: "video/mp4" });
+							const assetID = await save_stream(videoBlob);
+							event.sender.send("ollama:new-asset", {
+								role: "video",
+								content: assetID,
+							});
+						}
+
+						if (toolCall.function.name === "generate_audio_or_sfx") {
+							const audio: ArrayBuffer = await generateAudioOrSFX(args.prompt);
+							const audioBlob = new Blob([audio], { type: "audio/mpeg" });
+							const assetID = await save_stream(audioBlob);
+							event.sender.send("ollama:new-asset", {
+								role: "audio",
+								content: assetID,
+							});
 						}
 
 						chatHistory.push({
