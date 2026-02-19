@@ -64,7 +64,7 @@ export default {
 
 	win: {
 		target: isGpuBuild
-			? ["zip"]
+			? ["7z"]
 			: ["nsis", "appx", "zip", "msi"],
 
 		appId: "RihaanMeher.InferencePortAI_jgdzt0f3vt2yc",
