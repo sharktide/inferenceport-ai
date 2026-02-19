@@ -64,8 +64,7 @@ declare global {
 		};
 
 		utils: {
-			getAsset: (assetId: string) => Promise<Blob>;
-			getAssetSync: (assetId: string) => Blob;
+			getAsset: (assetId: string) => Promise<Buffer>;
 			web_open: (url: string) => Promise<void>;
 			markdown_parse_and_purify: (markdown: string) => string;
 			saveFile: (filePath: string, content: string) => Promise<void>;
