@@ -68,6 +68,14 @@ export async function load_blob(asset_id: UUID): Promise<Buffer> {
     return await fs.promises.readFile(file_path);
 }
 
+export async function delete_blob(asset_id: UUID): Promise<void> {
+    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	try {
+    	await fs.promises.unlink(file_path);
+	} catch (err: Error | any) {
+		if (err.code != "EONENT") throw err;
+	}
+}
 
 function detailsBlock(md: any): void {
 	md.block.ruler.before(
@@ -162,6 +170,9 @@ export default function register() {
 	initHardwareInfo();
 	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
 		return await load_blob(assetId);
+	});
+	ipcMain.handle("utils:rmAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<void> => {
+		return await delete_blob(assetId)
 	});
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
