@@ -157,6 +157,9 @@ function createWindow() {
 		{
 			label: "View",
 			submenu: [
+		        { role: 'zoomIn' },
+				{ role: 'zoomOut' },
+				{ role: 'resetZoom' },
 				{
 					label: "Toggle Developer Tools",
 					accelerator:
