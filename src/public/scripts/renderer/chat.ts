@@ -42,8 +42,12 @@ const newSessionBtn = document.getElementById(
 	"new-session-btn",
 ) as HTMLButtonElement;
 const chatPanel = document.querySelector(".chat-panel") as HTMLElement | null;
-const welcomeHero = document.getElementById("welcome-hero") as HTMLDivElement | null;
-const welcomeCards = document.getElementById("welcome-cards") as HTMLDivElement | null;
+const welcomeHero = document.getElementById(
+	"welcome-hero",
+) as HTMLDivElement | null;
+const welcomeCards = document.getElementById(
+	"welcome-cards",
+) as HTMLDivElement | null;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
@@ -107,6 +111,28 @@ function readLightningSetting(): boolean {
 	}
 }
 
+function collectUsedAssetIds(sessions: any): Set<string> {
+	const used = new Set<string>();
+
+	for (const session of Object.values(sessions)) {
+		if (!session?.history) continue;
+
+		for (const msg of session.history) {
+			if (!msg?.content) continue;
+
+			if (
+				(msg.role === "video" || msg.role === "audio") &&
+				typeof msg.content === "string" &&
+				!msg.content.startsWith("data:")
+			) {
+				used.add(msg.content);
+			}
+		}
+	}
+
+	return used;
+}
+
 function syncLightningToggles(enabled: boolean): void {
 	if (lightningToggleTop && lightningToggleTop.checked !== enabled) {
 		lightningToggleTop.checked = enabled;
@@ -140,11 +166,13 @@ function setLightningEnabled(enabled: boolean): void {
 }
 
 function initLightningToggleEvents(): void {
-	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach((toggle) => {
-		toggle?.addEventListener("change", () => {
-			setLightningEnabled(Boolean(toggle.checked));
-		});
-	});
+	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
+		(toggle) => {
+			toggle?.addEventListener("change", () => {
+				setLightningEnabled(Boolean(toggle.checked));
+			});
+		},
+	);
 	applyLightningState();
 }
 
@@ -240,7 +268,7 @@ function showSessionProgress(): void {
 	loader.classList.remove("hidden", "fading");
 	loaderVisible = true;
 }
-	   
+
 function setSessionProgress(value: number): void {
 	const bar = document.getElementById(
 		"session-progress-bar",
@@ -278,16 +306,18 @@ async function hideSessionProgress(): void {
 }
 
 function openManageHostsDialog() {
-    const remotes: RemoteHost[] = JSON.parse(
-        localStorage.getItem("remote_hosts") || "[]",
-    );
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
 
-    let listHtml = "";
+	let listHtml = "";
 
-    if (remotes.length === 0) {
-        listHtml = `<p style="opacity:.7">No remote hosts added.</p>`;
-    } else {
-        listHtml = remotes.map((host, index) => `
+	if (remotes.length === 0) {
+		listHtml = `<p style="opacity:.7">No remote hosts added.</p>`;
+	} else {
+		listHtml = remotes
+			.map(
+				(host, index) => `
             <div style="
                 display:flex;
                 justify-content:space-between;
@@ -305,40 +335,44 @@ function openManageHostsDialog() {
                     Remove
                 </button>
             </div>
-        `).join("");
-    }
+        `,
+			)
+			.join("");
+	}
 
-    modal.open({
-        html: `
+	modal.open({
+		html: `
             <h3>Manage Remote Hosts</h3>
             <div style="margin-top:12px">${listHtml}</div>
             <div style="margin-top:16px; display:flex; gap:8px;">
                 <button id="add-host-btn">Add Host</button>
                 <button id="close-hosts-btn">Close</button>
             </div>
-        `
-    });
+        `,
+	});
 
-    document.querySelectorAll("[data-remove]").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            const index = Number((e.target as HTMLElement).dataset.remove);
-            remotes.splice(index, 1);
-            localStorage.setItem("remote_hosts", JSON.stringify(remotes));
-            updateHostSelectOptions();
-            openManageHostsDialog();
-        });
-    });
+	document.querySelectorAll("[data-remove]").forEach((btn) => {
+		btn.addEventListener("click", (e) => {
+			const index = Number((e.target as HTMLElement).dataset.remove);
+			remotes.splice(index, 1);
+			localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+			updateHostSelectOptions();
+			openManageHostsDialog();
+		});
+	});
 
-    document.getElementById("add-host-btn")?.addEventListener("click", () => {
-        modal.close();
-        openAddHostDialog();
-    });
+	document.getElementById("add-host-btn")?.addEventListener("click", () => {
+		modal.close();
+		openAddHostDialog();
+	});
 
-    document.getElementById("close-hosts-btn")?.addEventListener("click", () => {
-        modal.close();
-		hostSelect.value = "local";
-        localStorage.setItem("host_select", "local");
-    });
+	document
+		.getElementById("close-hosts-btn")
+		?.addEventListener("click", () => {
+			modal.close();
+			hostSelect.value = "local";
+			localStorage.setItem("host_select", "local");
+		});
 }
 
 function updateHostSelectOptions() {
@@ -348,21 +382,21 @@ function updateHostSelectOptions() {
 		if (opt.value.startsWith("remote:")) opt.remove();
 	});
 
-	if (![...hostSelect.options].some(o => o.value === "local")) {
+	if (![...hostSelect.options].some((o) => o.value === "local")) {
 		const localOpt = document.createElement("option");
 		localOpt.value = "local";
 		localOpt.textContent = "Local";
 		hostSelect.appendChild(localOpt);
 	}
 
-	if (![...hostSelect.options].some(o => o.value === "add_remote")) {
+	if (![...hostSelect.options].some((o) => o.value === "add_remote")) {
 		const addOpt = document.createElement("option");
 		addOpt.value = "add_remote";
 		addOpt.textContent = "Add Remote Host";
 		hostSelect.appendChild(addOpt);
 	}
 
-	if (![...hostSelect.options].some(o => o.value === "manage_hosts")) {
+	if (![...hostSelect.options].some((o) => o.value === "manage_hosts")) {
 		const manageOpt = document.createElement("option");
 		manageOpt.value = "manage_hosts";
 		manageOpt.textContent = "Manage Remote Hosts";
@@ -374,7 +408,7 @@ function updateHostSelectOptions() {
 	);
 
 	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
-	
+
 	remotes.forEach((host) => {
 		const opt = document.createElement("option");
 		opt.value = `remote:${host.url}`;
@@ -501,7 +535,9 @@ async function loadOptions() {
 			models.forEach((model, i) => {
 				const option = document.createElement("option");
 				option.value = model.name;
-				option.textContent = model.name.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-gguf72/, "");;
+				option.textContent = model.name
+					.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+					.replace(/-gguf72/, "");
 				modelSelect.appendChild(option);
 
 				setSessionProgress(20 + (25 * (i + 1)) / total);
@@ -567,6 +603,15 @@ async function loadOptions() {
 			}
 		}
 
+		const assetsOnDisk = await window.utils.listAssets();
+		const usedAssets = collectUsedAssetIds(sessions);
+
+		for (const assetId of assetsOnDisk) {
+			if (!usedAssets.has(assetId)) {
+				await window.utils.rmAsset(assetId);
+			}
+		}
+
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
@@ -611,10 +656,9 @@ function generateSessionId() {
 async function reloadModelsForHost(hostValue: string) {
 	modelSelect.innerHTML = `<option disabled>Loading models…</option>`;
 
-	const clientUrl =
-		hostValue.startsWith("remote:")
-			? hostValue.replace("remote:", "")
-			: undefined;
+	const clientUrl = hostValue.startsWith("remote:")
+		? hostValue.replace("remote:", "")
+		: undefined;
 
 	try {
 		const models = await window.ollama.listModels(clientUrl);
@@ -624,7 +668,9 @@ async function reloadModelsForHost(hostValue: string) {
 		for (const model of models) {
 			const opt = document.createElement("option");
 			opt.value = model.name;
-			opt.textContent = model.name.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-gguf72/, "");
+			opt.textContent = model.name
+				.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+				.replace(/-gguf72/, "");
 			modelSelect.appendChild(opt);
 		}
 
@@ -634,7 +680,9 @@ async function reloadModelsForHost(hostValue: string) {
 			 <option value="manage-models">✏️ Manage models...</option>`,
 		);
 
-		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
+		if (
+			![...modelSelect.options].some((o) => o.value === modelSelect.value)
+		) {
 			modelSelect.selectedIndex = 0;
 		}
 	} catch (err: any) {
@@ -643,8 +691,7 @@ async function reloadModelsForHost(hostValue: string) {
 		modelSelect.innerHTML = "";
 
 		if (err?.code === "UNAUTHORIZED") {
-			modelSelect.innerHTML =
-				`<option disabled>🔒 Unauthorized</option>`;
+			modelSelect.innerHTML = `<option disabled>🔒 Unauthorized</option>`;
 
 			showNotification({
 				message:
@@ -658,12 +705,10 @@ async function reloadModelsForHost(hostValue: string) {
 				],
 			});
 		} else {
-			modelSelect.innerHTML =
-				`<option disabled>Error loading models</option>`;
+			modelSelect.innerHTML = `<option disabled>Error loading models</option>`;
 
 			showNotification({
-				message:
-					"Failed to fetch models from the selected host.",
+				message: "Failed to fetch models from the selected host.",
 				type: "error",
 			});
 		}
@@ -687,32 +732,32 @@ function showContextMenu(x, y, sessionId, sessionName) {
 					title: "Delete All Sessions",
 					html: `<p><strong>This cannot be undone.</strong></p>`,
 					actions: [
-							{
-								id: "cancel-delete-all",
-								label: "Cancel",
-								onClick: () => modal.close(),
+						{
+							id: "cancel-delete-all",
+							label: "Cancel",
+							onClick: () => modal.close(),
+						},
+						{
+							id: "confirm-delete-all",
+							label: "Delete All",
+							onClick: async () => {
+								sessions = {};
+								currentSessionId = null;
+								modal.close();
+
+								await window.ollama.save(sessions);
+
+								const auth = await window.auth.getSession();
+								if (isSyncEnabled() && auth?.session?.user) {
+									await safeCallRemote(() =>
+										window.sync.saveAllSessions(sessions),
+									);
+								}
+
+								location.reload();
 							},
-							{
-								id: "confirm-delete-all",
-								label: "Delete All",
-								onClick: async () => {
-									sessions = {};
-									currentSessionId = null;
-									modal.close();
-
-									await window.ollama.save(sessions);
-
-									const auth = await window.auth.getSession();
-									if (isSyncEnabled() && auth?.session?.user) {
-										await safeCallRemote(() =>
-											window.sync.saveAllSessions(sessions),
-										);
-									}
-
-									location.reload();
-								},
-							},
-						],
+						},
+					],
 				});
 
 				break;
@@ -1233,9 +1278,11 @@ form.addEventListener("submit", async (e) => {
 		console.log(
 			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
-		autoNameSession(model, prompt, currentSessionId, clientUrl).catch((err) => {
-			console.error("[form.submit] autoNameSession error:", err);
-		});
+		autoNameSession(model, prompt, currentSessionId, clientUrl).catch(
+			(err) => {
+				console.error("[form.submit] autoNameSession error:", err);
+			},
+		);
 	}
 	const session = sessions[currentSessionId];
 	session.model = model;
@@ -1508,7 +1555,9 @@ function openFilePreview(file) {
 }
 
 async function setTitle() {
-	const titleModel = lightningEnabled ? LIGHTNING_MODEL_DISPLAY : modelSelect.value;
+	const titleModel = lightningEnabled
+		? LIGHTNING_MODEL_DISPLAY
+		: modelSelect.value;
 	document.title = titleModel + " - Chat - InferencePortAI";
 }
 
@@ -1641,7 +1690,8 @@ function renderChat() {
 			const header = document.createElement("div");
 			header.className = "tool-header";
 			if (msg.name == "generate_image") {
-				header.textContent = "⚡Generated an Image with Lightning-Image Turbo";
+				header.textContent =
+					"⚡Generated an Image with Lightning-Image Turbo";
 			} else if (msg.name == "generate_video") {
 				header.textContent = "Generated video";
 			} else if (msg.name == "generate_audio_or_sfx") {
@@ -1758,25 +1808,24 @@ function createAudioAssetBubble(dataUrl: string): HTMLDivElement {
 }
 
 async function getAssetObjectUrl(
-    assetId: string,
-    mimeType: string,
+	assetId: string,
+	mimeType: string,
 ): Promise<string> {
-    const cacheKey = `${mimeType}:${assetId}`;
-    if (assetObjectUrlCache.has(cacheKey)) {
-        return assetObjectUrlCache.get(cacheKey)!;
-    }
+	const cacheKey = `${mimeType}:${assetId}`;
+	if (assetObjectUrlCache.has(cacheKey)) {
+		return assetObjectUrlCache.get(cacheKey)!;
+	}
 
-    const rawBuffer = await window.utils.getAsset(assetId);
+	const rawBuffer = await window.utils.getAsset(assetId);
 
-    const uint8 = rawBuffer instanceof Uint8Array
-        ? rawBuffer
-        : new Uint8Array(rawBuffer);
+	const uint8 =
+		rawBuffer instanceof Uint8Array ? rawBuffer : new Uint8Array(rawBuffer);
 
-    const typedBlob = new Blob([uint8], { type: mimeType });
+	const typedBlob = new Blob([uint8], { type: mimeType });
 
-    const objectUrl = URL.createObjectURL(typedBlob);
-    assetObjectUrlCache.set(cacheKey, objectUrl);
-    return objectUrl;
+	const objectUrl = URL.createObjectURL(typedBlob);
+	assetObjectUrlCache.set(cacheKey, objectUrl);
+	return objectUrl;
 }
 
 function renderMediaAssetFromContent(
@@ -1845,7 +1894,10 @@ window.ollama.onNewAsset((msg) => {
 			? `data:image/png;base64,${msg.content}`
 			: msg.content;
 
-	if (["image", "video", "audio"].includes(last?.role) && last.content === content) {
+	if (
+		["image", "video", "audio"].includes(last?.role) &&
+		last.content === content
+	) {
 		return;
 	}
 
@@ -1897,46 +1949,59 @@ function openAddHostDialog() {
 				<button id="confirm-add-host">Add</button>
 				<button id="cancel-add-host">Cancel</button>
 			</div>
-		`
+		`,
 	});
 
-	document.getElementById("cancel-add-host")?.addEventListener("click", () => {
-		modal.close();
-		if (hostSelect) {
-			hostSelect.value = "local";
-			localStorage.setItem("host_select", "local");
-			reloadModelsForHost("local");
-		}
-	});
+	document
+		.getElementById("cancel-add-host")
+		?.addEventListener("click", () => {
+			modal.close();
+			if (hostSelect) {
+				hostSelect.value = "local";
+				localStorage.setItem("host_select", "local");
+				reloadModelsForHost("local");
+			}
+		});
 
-	document.getElementById("confirm-add-host")?.addEventListener("click", () => {
-		let url = (document.getElementById("new-host-url") as HTMLInputElement).value.trim();
-		const alias = (document.getElementById("new-host-alias") as HTMLInputElement).value.trim().substring(0, 20);
+	document
+		.getElementById("confirm-add-host")
+		?.addEventListener("click", () => {
+			let url = (
+				document.getElementById("new-host-url") as HTMLInputElement
+			).value.trim();
+			const alias = (
+				document.getElementById("new-host-alias") as HTMLInputElement
+			).value
+				.trim()
+				.substring(0, 20);
 
-		if (!url) return;
+			if (!url) return;
 
-		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-		if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
-		url = url.replace(/\/+$/, "");
+			if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+			if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
+			url = url.replace(/\/+$/, "");
 
-        const remotesStored: RemoteHost[] = JSON.parse(
-            localStorage.getItem("remote_hosts") || "[]",
-        );
+			const remotesStored: RemoteHost[] = JSON.parse(
+				localStorage.getItem("remote_hosts") || "[]",
+			);
 
-        if (!remotesStored.some(r => r.url === url)) {
-            remotesStored.push({ url, alias });
-            localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
-        }
+			if (!remotesStored.some((r) => r.url === url)) {
+				remotesStored.push({ url, alias });
+				localStorage.setItem(
+					"remote_hosts",
+					JSON.stringify(remotesStored),
+				);
+			}
 
-        updateHostSelectOptions();
+			updateHostSelectOptions();
 
-        const sel = `remote:${url}`;
-        hostSelect!.value = sel;
-        localStorage.setItem("host_select", sel);
+			const sel = `remote:${url}`;
+			hostSelect!.value = sel;
+			localStorage.setItem("host_select", sel);
 
-        modal.close();
-        reloadModelsForHost(sel);
-    });
+			modal.close();
+			reloadModelsForHost(sel);
+		});
 }
 
 modelSelect.addEventListener("change", setToolSupport);
