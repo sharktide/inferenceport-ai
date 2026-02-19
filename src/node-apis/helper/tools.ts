@@ -1,5 +1,40 @@
 import { LOG, LOG_ERR } from "./log.js";
 
+async function fetchWithRetry500(
+    trace: string,
+    url: string,
+    options: RequestInit,
+): Promise<Response> {
+    const attempt = async (n: number): Promise<Response> => {
+        try {
+            const res = await fetch(url, options);
+
+            if (res.status === 500) {
+                LOG_ERR(trace, `500 ERROR ON ATTEMPT ${n}`, {
+                    status: res.status,
+                    statusText: res.statusText,
+                });
+
+                if (n === 1) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    return attempt(2);
+                }
+
+                throw new Error(`Fetch failed twice with 500`);
+            }
+
+            return res;
+        } catch (err) {
+            if (n === 1) {
+                LOG_ERR(trace, "FETCH THREW", err);
+            }
+            throw err;
+        }
+    };
+
+    return attempt(1);
+}
+
 export async function GenerateImage(prompt: string): Promise<{ dataUrl: string }> {
 	const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -86,6 +121,9 @@ export async function duckDuckGoSearch(query: string): Promise<{
             query,
         )}&format=json&no_html=1&skip_disambig=1`,
     );
+	if (!res.ok) {
+		throw new Error("Web search failed. Check your internet connetion")
+	}
     const data = await res.json();
 
     return {
@@ -105,12 +143,10 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
 	
 	const url =
 		`https://sharktide-lightning.hf.space/gen/sfx`
-		
-	LOG(trace, "FETCH URL", url);
 
 	let response: Response;
 	try {
-		response = await fetch(url, {
+		response = await fetchWithRetry500(trace, url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ prompt: prompt }),
@@ -164,12 +200,10 @@ export async function generateVideo(prompt: string): Promise<ArrayBuffer> {
 	
 	const url =
 		`https://sharktide-lightning.hf.space/gen/video`
-		
-	LOG(trace, "FETCH URL", url);
 
 	let response: Response;
 	try {
-		response = await fetch(url, {
+		response = await fetchWithRetry500(trace, url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ prompt: prompt }),
