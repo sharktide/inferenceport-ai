@@ -16,6 +16,7 @@ limitations under the License.
 
 //@ts-nocheck
 
+import { emitWarning } from "node:process";
 import { showNotification } from "../helper/notification.js";
 import {
 	mergeLocalAndRemoteSessions,
@@ -1562,6 +1563,13 @@ async function setTitle() {
 }
 
 function renderChat() {
+	for (const url of assetObjectUrlCache.values()) {
+		try {
+			URL.revokeObjectURL(url);
+		} catch (err: any) {
+			console.warn(err.toString())
+		}
+	}
 	assetObjectUrlCache.clear();
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) {
@@ -1575,9 +1583,6 @@ function renderChat() {
 
 	const session = sessions[currentSessionId];
 	chatBox.innerHTML = "";
-	for (const url of assetObjectUrlCache.values()) {
-		URL.revokeObjectURL(url);
-	}
 	if (!session || !session.history || session.history.length === 0) {
 		setWelcomeMode(true);
 		return;
