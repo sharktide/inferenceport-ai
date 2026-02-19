@@ -22,10 +22,10 @@ export class ChatBox extends HTMLElement {
                         <span id="video-text">Video Generation</span>
                     </button>
                     <button type="button" id="audio-btn" class="search-btn" aria-label="Audio or SFX generation">
-                        <span id="audio-text">Audio/SFX Generation</span>
+                        <span id="audio-text">Music/SFX Generation</span>
                     </button>
                     </div>
-                    <p id="experimental-feature-notice">Experimental: Audio/SFX and Video generation is currently in beta! You may experience intermittent issues or rate limits.</p>
+                    <p id="experimental-feature-notice">Experimental: Music/SFX and Video generation is currently in beta! You may experience intermittent issues or rate limits.</p>
                     <p style="display:none;" id="feature-warning">The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
 
                     <div id="file-preview-modal" class="modal hidden">
