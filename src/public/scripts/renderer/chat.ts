@@ -1562,6 +1562,7 @@ async function setTitle() {
 }
 
 function renderChat() {
+	assetObjectUrlCache.clear();
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) {
 		console.warn("renderChat aborted: chatBox not found");
@@ -1574,7 +1575,9 @@ function renderChat() {
 
 	const session = sessions[currentSessionId];
 	chatBox.innerHTML = "";
-
+	for (const url of assetObjectUrlCache.values()) {
+		URL.revokeObjectURL(url);
+	}
 	if (!session || !session.history || session.history.length === 0) {
 		setWelcomeMode(true);
 		return;
