@@ -1,28 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
 	<meta charset="UTF-8" />
 	<title>Dashboard - InferencePortAI</title>
-	<script type="module" src="Components.js"></script>
-
 	<link rel="stylesheet" href="styles/styles.css" />
+	<script type="module" src="Components.js"></script>
 	<script type="module" src="scripts/staticload/index.js"></script>
 	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		/* Hide horizontal scrollbar and style vertical scrollbar */
+		html {
+			overflow-x: hidden;
+		}
+
+		::-webkit-scrollbar {
+			width: 10px;
+		}
+
+		::-webkit-scrollbar-track {
+			background: transparent;
+		}
+
+		::-webkit-scrollbar-thumb {
+			background: rgba(120, 120, 120, 0.3);
+			border-radius: 8px;
+			transition: background 0.2s ease;
+		}
+
+		::-webkit-scrollbar-thumb:hover {
+			background: rgba(120, 120, 120, 0.5);
+		}
+
+		:root {
+			/* Light mode defaults */
+			--bg-primary: #ffffff;
+			--bg-secondary: #f5f7fa;
+			--bg-tertiary: #e8ecf1;
+			--accent-primary: #0066cc;
+			--accent-secondary: #5b4cdb;
+			--text-primary: #1a1a1a;
+			--text-secondary: #4a5568;
+			--glass-bg: rgba(0, 0, 0, 0.03);
+			--glass-border: rgba(0, 0, 0, 0.1);
+			--gradient-from: #ffffff;
+			--gradient-mid: #f5f7fa;
+			--gradient-to: #e8ecf1;
+			--footer-bg: rgba(100, 100, 100, 0.06);
+		}
+
+		[data-theme="dark"] {
+			/* Dark mode */
+			--bg-primary: #0a0e27;
+			--bg-secondary: #1a1f3a;
+			--bg-tertiary: #2a2f4a;
+			--accent-primary: #00d9ff;
+			--accent-secondary: #6c5ce7;
+			--text-primary: #ffffff;
+			--text-secondary: #b8c5d6;
+			--glass-bg: rgba(255, 255, 255, 0.05);
+			--glass-border: rgba(255, 255, 255, 0.1);
+			--gradient-from: #0a0e27;
+			--gradient-mid: #1a1f3a;
+			--gradient-to: #2a1f4a;
+			--footer-bg: rgba(200, 200, 200, 0.08);
+		}
+
+		body::before {
+			content: '';
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: 
+				radial-gradient(circle at 20% 50%, 
+					var(--accent-primary) 0%, 
+					transparent 50%) opacity(0.1),
+				radial-gradient(circle at 80% 80%, 
+					var(--accent-secondary) 0%, 
+					transparent 50%) opacity(0.1);
+			pointer-events: none;
+			z-index: -1;
+		}
+
 		#card-scroll-wrapper {
 			overflow: hidden;
 			width: 100%;
+			padding: 20px 0;
 		}
 
 		.card-grid {
 			display: flex;
 			gap: 20px;
-			animation: scroll-loop 30s linear infinite;
+			animation: scroll-loop 45s linear infinite;
+		}
+
+		.card-grid:hover {
+			animation-play-state: paused;
 		}
 
 		.marketplace-card {
 			max-width: 500px;
 			flex-shrink: 0;
+			background: var(--glass-bg);
+			backdrop-filter: blur(10px);
+			border: 1px solid var(--glass-border);
+			border-radius: 12px;
+			padding: 24px;
+			transition: all 0.3s ease;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+		}
+
+		.marketplace-card:hover {
+			background: var(--accent-primary) opacity(0.08);
+			border-color: var(--accent-primary) opacity(0.3);
+			transform: translateY(-8px);
+			box-shadow: 0 15px 40px var(--accent-primary) opacity(0.2);
+		}
+
+		.marketplace-card h2 {
+			color: var(--accent-primary);
+			font-size: 24px;
+			margin-bottom: 12px;
+			font-weight: 600;
+		}
+
+		.marketplace-card p {
+			color: var(--text-secondary);
+			line-height: 1.6;
+			margin-bottom: 12px;
+			font-size: 14px;
 		}
 
 		@keyframes scroll-loop {
@@ -35,6 +148,209 @@
 			}
 		}
 
+		main {
+			padding: 60px 40px !important;
+			max-width: 1400px;
+			margin: 0 auto;
+			position: relative;
+			z-index: 1;
+			flex: 1;
+			width: 100%;
+		}
+
+		main h1 {
+			font-size: 48px;
+			margin-bottom: 12px;
+			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			font-weight: 700;
+			letter-spacing: -1px;
+		}
+
+		main > p {
+			font-size: 18px;
+			color: var(--text-secondary);
+			margin-bottom: 32px;
+			font-weight: 300;
+		}
+
+		main h3 {
+			font-size: 24px;
+			margin: 40px 0 20px 0;
+			color: var(--text-primary);
+			font-weight: 600;
+		}
+
+		button {
+			background: var(--glass-bg);
+			backdrop-filter: blur(10px);
+			border: 1.5px solid var(--glass-border);
+			color: var(--text-primary);
+			padding: 14px 28px;
+			border-radius: 20px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			font-size: 16px;
+			font-weight: normal;
+			position: relative;
+			overflow: hidden;
+		}
+
+		button::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: -100%;
+			width: 100%;
+			height: 100%;
+			background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+			transition: left 0.5s ease;
+		}
+
+		button:hover::before {
+			left: 100%;
+		}
+
+		button:hover {
+			background: var(--accent-primary) opacity(0.1);
+			border-color: var(--accent-primary);
+			box-shadow: 0 0 20px var(--accent-primary) opacity(0.3);
+			transform: translateY(-2px);
+		}
+
+		button:active {
+			transform: translateY(0);
+		}
+
+		.marketplace-btn {
+			background: var(--glass-bg);
+			backdrop-filter: blur(10px);
+			border: 1.5px solid var(--glass-border);
+			color: var(--text-primary);
+			padding: 12px 24px;
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			font-size: 14px;
+			font-weight: 600;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.marketplace-btn::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: -100%;
+			width: 100%;
+			height: 100%;
+			background: linear-gradient(90deg, transparent, var(--accent-primary) 50%, transparent);
+			transition: left 0.5s ease;
+			opacity: 0.3;
+		}
+
+		.marketplace-btn:hover::before {
+			left: 100%;
+		}
+
+		.marketplace-btn:hover {
+			background: var(--accent-primary) opacity(0.1);
+			border-color: var(--accent-primary);
+			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
+			transform: translateY(-2px);
+		}
+
+		.model-tags {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin: 12px 0;
+		}
+
+		.model-tag {
+			background: var(--accent-primary) opacity(0.15);
+			border: 1.5px solid var(--accent-primary) opacity(0.4);
+			color: var(--accent-primary);
+			padding: 8px 14px;
+			border-radius: 20px;
+			font-size: 12px;
+			font-weight: 600;
+			display: inline-block;
+			backdrop-filter: blur(4px);
+		}
+
+		.model-meta {
+			margin: 12px 0;
+		}
+
+		.model-link {
+			color: var(--accent-primary);
+			text-decoration: none;
+			font-size: 13px;
+			transition: all 0.2s ease;
+			border-bottom: 1px solid transparent;
+		}
+
+		.model-link:hover {
+			border-bottom-color: var(--accent-primary);
+		}
+
+		footer {
+			text-align: center;
+			padding: 0 40px;
+			color: var(--text-secondary);
+			font-size: 13px;
+			border-top: 1px solid var(--glass-border);
+			margin-top: 0;
+			width: 100vw;
+			margin-left: calc(-50vw + 50%);
+			line-height: 1.8;
+			min-height: 80px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: relative;
+		}
+
+		footer::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: var(--footer-bg);
+			border-top: 1px solid var(--glass-border);
+			z-index: 0;
+			opacity: 1;
+		}
+
+		footer > * {
+			position: relative;
+			z-index: 1;
+		}
+
+		footer p {
+			margin: 0;
+		}
+
+		footer a {
+			color: var(--accent-primary);
+			text-decoration: none;
+			transition: all 0.2s ease;
+			border-bottom: 1px solid transparent;
+		}
+
+		footer a:hover {
+			border-bottom-color: var(--accent-primary);
+		}
+
+		.model-description {
+			color: var(--text-secondary) !important;
+		}
+
 		.info-content .close {
 			float: right;
 			font-size: 20px;
@@ -44,7 +360,6 @@
 		/* Base modal styling */
 		.info-modal {
 			display: none;
-			/* hidden by default */
 			position: fixed;
 			z-index: 999;
 			left: 0;
@@ -52,6 +367,7 @@
 			width: 100%;
 			height: 100%;
 			background: rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(5px);
 			opacity: 0;
 			transition: opacity 0.3s ease;
 		}
@@ -59,12 +375,15 @@
 		/* Modal content box */
 		.info-content {
 			margin: 15% auto;
-			padding: 20px;
-			border-radius: 8px;
+			padding: 30px;
+			border-radius: 24px;
 			width: 400px;
 			transform: scale(0.9);
 			transition: transform 0.3s ease;
-			background-color: var(--bg-light) !important;
+			background: var(--glass-bg);
+			backdrop-filter: blur(15px);
+			border: 1px solid var(--glass-border);
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 		}
 
 		/* Active state (when shown) */
@@ -85,39 +404,270 @@
 		.info-modal.hide .info-content {
 			transform: scale(0.9);
 		}
+
+		/* Scroll animation smooth */
+		@media (prefers-reduced-motion: no-preference) {
+			html {
+				scroll-behavior: smooth;
+			}
+		}
+
+		/* Style all buttons to be dark blue with glass effect */
+		button {
+			background: var(--glass-bg) !important;
+			backdrop-filter: blur(10px);
+			border: 1.5px solid var(--glass-border) !important;
+			color: var(--text-primary) !important;
+			border-radius: 16px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			font-weight: 600;
+			position: relative;
+			overflow: hidden;
+		}
+
+		button:hover {
+			background: var(--accent-primary) opacity(0.1) !important;
+			border-color: var(--accent-primary) !important;
+			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
+			transform: translateY(-2px);
+		}
+
+		/* Rainbow border for Chat Now button */
+		.highlight-button {
+			position: relative;
+			border-radius: 14px;
+			overflow: visible !important;
+		}
+
+		.highlight-button::before {
+			display: none !important;
+		}
+
+		.highlight-button:hover {
+			box-shadow: none !important;
+			border-color: var(--glass-border) !important;
+		}
+
+		.highlight-button::after {
+			content: "";
+			position: absolute;
+			top: -3px;
+			left: -3px;
+			right: -3px;
+			bottom: -3px;
+			border-radius: 14px;
+			border: 3px solid transparent;
+			background: linear-gradient(
+				270deg,
+				#ff0000,
+				#ff9900,
+				#33cc33,
+				#3399ff,
+				#9900cc,
+				#ff0000
+			);
+			background-size: 300% 300%;
+			animation: rainbow-border 8s ease-in-out forwards;
+			mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+			-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+			mask-composite: exclude;
+			-webkit-mask-composite: destination-out;
+			pointer-events: none;
+			z-index: -1;
+		}
+
+		@keyframes rainbow-border {
+			0% {
+				background-position: 300% 50%;
+			}
+			85% {
+				background-position: 0% 50%;
+			}
+			100% {
+				background-position: 0% 50%;
+			}
+		}
+
+		.lightning-section {
+			background: linear-gradient(135deg, var(--accent-primary) opacity(0.08), var(--accent-secondary) opacity(0.08));
+			border: 1.5px solid var(--glass-border);
+			border-radius: 12px;
+			padding: 40px;
+			backdrop-filter: blur(10px);
+			text-align: center;
+			margin: 40px 0;
+		}
+
+		.lightning-section h2 {
+			font-size: 36px;
+			margin-bottom: 12px;
+			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			font-weight: 700;
+		}
+
+		.lightning-section .tagline {
+			font-size: 20px;
+			color: var(--accent-primary);
+			font-weight: 600;
+			margin-bottom: 16px;
+		}
+
+		.lightning-section p {
+			font-size: 16px;
+			color: var(--text-secondary);
+			margin-bottom: 28px;
+			max-width: 600px;
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		.lightning-btn {
+			background: linear-gradient(135deg, var(--accent-primary) opacity(0.2), var(--accent-secondary) opacity(0.2));
+			border: 2px solid var(--accent-primary);
+			color: var(--accent-primary);
+			padding: 16px 40px;
+			border-radius: 12px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			font-size: 16px;
+			font-weight: 600;
+			position: relative;
+			overflow: hidden;
+		}
+
+		.lightning-btn:hover {
+			background: linear-gradient(135deg, var(--accent-primary) opacity(0.3), var(--accent-secondary) opacity(0.3));
+			box-shadow: 0 0 25px var(--accent-primary) opacity(0.4);
+			transform: translateY(-2px);
+		}
+
+		.lightning-models-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 24px;
+			margin-top: 28px;
+		}
+
+		.lightning-model-card {
+			background: var(--glass-bg);
+			border: 1.5px solid var(--glass-border);
+			border-radius: 16px;
+			padding: 28px;
+			backdrop-filter: blur(10px);
+			transition: all 0.3s ease;
+		}
+
+		.lightning-model-card:hover {
+			background: var(--accent-primary) opacity(0.06);
+			border-color: var(--accent-primary) opacity(0.4);
+			transform: translateY(-4px);
+			box-shadow: 0 10px 30px var(--accent-primary) opacity(0.15);
+		}
+
+		.lightning-model-card h3 {
+			font-size: 18px;
+			color: var(--accent-primary);
+			margin-bottom: 12px;
+			font-weight: 600;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.lightning-model-card p {
+			font-size: 14px;
+			color: var(--text-secondary);
+			margin-bottom: 16px;
+			line-height: 1.6;
+		}
+
+		.lightning-model-card ul {
+			list-style: none;
+			padding: 0;
+			text-align: left;
+		}
+
+		.lightning-model-card li {
+			font-size: 13px;
+			color: var(--text-secondary);
+			margin-bottom: 8px;
+			padding-left: 20px;
+			position: relative;
+		}
+
+		.lightning-model-card li:before {
+			content: '•';
+			position: absolute;
+			left: 0;
+			color: var(--accent-primary);
+			font-weight: bold;
+		}
+
+		@media (max-width: 768px) {
+			.lightning-models-grid {
+				grid-template-columns: 1fr;
+			}
+		}
 	</style>
 </head>
 
 <body>
 	<root-navbar></root-navbar>
-	<main style="padding: 40px">
+	<main>
 		<h1>Welcome to InferencePortAI</h1>
 		<p>Your gateway to seamless AI model management and interaction.</p>
-		<div style="margin-bottom:16px" class="highlight">
-			<button class="marketplace-btn" onclick="window.location.href='renderer/chat.html'"
-				style="height: 100px;">Chat Now</button>
-		</div>
+		<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'" style="width: 100%; height: 100px; font-size: 20px;">Chat Now</button>
 
+		<div class="lightning-section">
+			<h2>⚡ Lightning Models Are Here</h2>
+			<div class="tagline">Up to 1000 Words / Second</div>
+			<p>Lightning Text v2 and Lightning Image Turbo deliver incredible speed and quality, free for everyone right now.</p>
+			<button class="lightning-btn" id="trylight">Try Lightning Now</button>
+			<div class="lightning-models-grid">
+				<div class="lightning-model-card">
+					<h3>⚡ Lightning Text v2</h3>
+					<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses instantly for chat, coding, or long-form writing.</p>
+					<ul>
+						<li>Up to 1000 words per second</li>
+						<li>Low-latency streaming output</li>
+						<li>Optimized decoding and caching</li>
+						<li>Perfect for chatbots, code assistants, and document generation</li>
+					</ul>
+				</div>
+				<div class="lightning-model-card">
+					<h3>⚡ Lightning Image Turbo (New Default)</h3>
+					<p>Lightning Image Turbo produces ultra-realistic images with exceptional detail and stunning sci-fi or cinematic visuals.</p>
+					<ul>
+						<li>Ultra-realistic rendering</li>
+						<li>Exceptional sci-fi environments</li>
+						<li>Sharper detail & lighting effects</li>
+						<li>Faster generation than ever before</li>
+					</ul>
+				</div>
+			</div>
+		</div>
 		<div>
 			<h3>Explore Trending Ollama Models</h3>
 			<div id="card-scroll-wrapper">
 				<div class="card-grid">
 					<div class="marketplace-card">
-						<h2>gpt-oss</h2>
-						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning,
+
+						<h2>🚀 gpt-oss</h2>
+						<p class="model-description">OpenAI's open-weight models designed for powerful reasoning,
 							agentic tasks, and versatile developer use cases.</p>
 						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#gpt-oss">
-							<button class="marketplace-btn gloss">View in Marketplace</button>
-						</a>
-					</div>
+							<button class="marketplace-btn">View in Marketplace</button>						</a>					</div>
 					<div class="marketplace-card">
-						<h2>deepseek-r1</h2>
+					<h2>🧠 deepseek-r1</h2>
 						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance
 							approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
 						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span>
@@ -125,50 +675,46 @@
 								class="model-tag">32b</span> <span class="model-tag">70b</span> <span
 								class="model-tag">671b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#deepseek-r1">
 							<button class="marketplace-btn">View in Marketplace</button>
 						</a>
 					</div>
 					<div class="marketplace-card">
-						<h2>llama3.1</h2>
+						<h2>🦙 llama3.1</h2>
 						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in
 							8B, 70B and 405B parameter sizes.</p>
 						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span>
 							<span class="model-tag">405b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#llama3.1">
 							<button class="marketplace-btn">View in Marketplace</button>
 						</a>
 					</div>
 					<div class="marketplace-card">
-						<h2>smollm2</h2>
+						<h2>⚡ smollm2</h2>
 						<p class="model-description">SmolLM2 is a family of compact language models available in three
 							size: 135M, 360M, and 1.7B parameters.</p>
 						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span>
 							<span class="model-tag">1.7b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#smollm2">
 							<button class="marketplace-btn">View in Marketplace</button>
 						</a>
 					</div>
 					<div class="marketplace-card">
-						<h2>phi3</h2>
+						<h2>🎯 phi3</h2>
 						<p class="model-description">Phi-3 is a family of lightweight 3B (Mini) and 14B (Medium)
 							state-of-the-art open models by Microsoft.</p>
 						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#phi3">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -177,14 +723,13 @@
 
 
 					<div class="marketplace-card">
-						<h2>gpt-oss</h2>
+						<h2>🚀 gpt-oss</h2>
 						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning,
 							agentic tasks, and versatile developer use cases.</p>
 						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#gpt-oss">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -192,7 +737,7 @@
 					</div>
 
 					<div class="marketplace-card">
-						<h2>deepseek-r1</h2>
+						<h2>🧠 deepseek-r1</h2>
 						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance
 							approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
 						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span>
@@ -200,36 +745,33 @@
 								class="model-tag">32b</span> <span class="model-tag">70b</span> <span
 								class="model-tag">671b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#deepseek-r1">
 							<button class="marketplace-btn">View in Marketplace</button>
 						</a>
 					</div>
 					<div class="marketplace-card">
-						<h2>llama3.1</h2>
+						<h2>🦙 llama3.1</h2>
 						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in
 							8B, 70B and 405B parameter sizes.</p>
 						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span>
 							<span class="model-tag">405b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/llama3.1#llama3.1" target="_blank"
-								class="model-link">More details</a>
+							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html">
 							<button class="marketplace-btn">View in Marketplace</button>
 						</a>
 					</div>
 					<div class="marketplace-card">
-						<h2>smollm2</h2>
+						<h2>⚡ smollm2</h2>
 						<p class="model-description">SmolLM2 is a family of compact language models available in three
 							size: 135M, 360M, and 1.7B parameters.</p>
 						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span>
 							<span class="model-tag">1.7b</span></div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More
-								details</a>
+							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#smollm2">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -239,17 +781,19 @@
 			</div>
 
 		</div>
-		<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-		<footer>
-			<p>By using this app, you agree to the <a
-					href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
-					Service</a> and <a
-					href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
-					Policy</a>. We reserve the right to change these terms and policies at anytime without any further
-				notice.</p>
-		</footer>
-
 	</main>
+
+	<footer class="copyright-footer">
+		<p>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</p>
+	</footer>
+	<footer>
+		<p>By using this app, you agree to the <a
+				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
+				Service</a> and <a
+				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
+				Policy</a>. We reserve the right to change these terms and policies at anytime without any further
+			notice.</p>
+	</footer>
 
 	<div id="onboarding-modal" class="modal hidden">
 		<div class="modal-content">
@@ -323,6 +867,10 @@
 			localStorage.setItem(WHATS_NEW_KEY, "1");
 			whatsNewModal.close();
 		}
+		document.getElementById("trylight").addEventListener("click", () => {
+			localStorage.setItem("lightning_enabled", true)
+			window.location.href = "renderer/chat.html"
+		});
 	</script>
 </body>
 
