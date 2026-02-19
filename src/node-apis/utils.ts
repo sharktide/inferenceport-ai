@@ -73,8 +73,25 @@ export async function delete_blob(asset_id: UUID): Promise<void> {
 	try {
     	await fs.promises.unlink(file_path);
 	} catch (err: Error | any) {
-		if (err.code != "EONENT") throw err;
+		if (err.code != "ENOENT") throw err;
 	}
+}
+
+export async function listAssets(): Promise<Array<string>> {
+    const assetsDir = path.join(dataDir, "assets");
+
+    try {
+        const files = await fs.promises.readdir(assetsDir, { withFileTypes: true });
+
+        return files
+            .filter(f => f.isFile() && f.name.endsWith(".blob"))
+            .map(f => f.name.replace(/\.blob$/, ""));
+    } catch (err: any) {
+        if (err.code === "ENOENT") {
+            return [];
+        }
+        throw err;
+    }
 }
 
 function detailsBlock(md: any): void {
@@ -176,6 +193,9 @@ export default function register() {
 	});
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
+	});
+	ipcMain.handle("utils:listAssets", async (): Promise<Array<string>> => {
+		return await listAssets()
 	});
 
 	ipcMain.handle("utils:reset-first-launch", () => {

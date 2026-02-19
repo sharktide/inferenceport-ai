@@ -111,6 +111,7 @@ contextBridge.exposeInMainWorld("ollama", {
 contextBridge.exposeInMainWorld("utils", {
 	getAsset: (assetId: string): Promise<Blob> => ipcRenderer.invoke("utils:getAsset", assetId),
 	rmAsset: (assetId: string): Promise<void> => ipcRenderer.invoke("utils:rmAsset", assetId),
+	listAssets: (): Promise<Array<string>> => ipcRenderer.invoke("utils:listAssets"),
 	web_open: (url: string) => ipcRenderer.invoke("utils:web_open", url),
 	markdown_parse_and_purify: (markdown: string): string =>
 		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),
