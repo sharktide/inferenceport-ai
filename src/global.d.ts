@@ -36,8 +36,12 @@ declare global {
 			streamPrompt: (
 				model: string,
 				prompt: string,
-				searchEnabled: boolean,
-				imgEnabled: boolean,
+				toolList: {
+					search: boolean;
+					imageGen: boolean;
+					videoGen: boolean;
+					audioGen: boolean;
+				},
 				clientUrl?: string,
 			) => void;
 			onResponse: (cb: (token: string) => void) => void;
@@ -60,6 +64,8 @@ declare global {
 		};
 
 		utils: {
+			getAsset: (assetId: string) => Promise<Buffer>;
+			rmAsset: (assetId: string) => Promise<void>;
 			web_open: (url: string) => Promise<void>;
 			markdown_parse_and_purify: (markdown: string) => string;
 			saveFile: (filePath: string, content: string) => Promise<void>;

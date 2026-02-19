@@ -1,5 +1,5 @@
-export type Role = "user" | "assistant" | "tool" | "system" | "image";
-export type AssetRole = "image";
+export type Role = "user" | "assistant" | "tool" | "system" | "image" | "video" | "audio";
+export type AssetRole = "image" | "video" | "audio";
 
 export type ChatMessage = {
   role: Role;

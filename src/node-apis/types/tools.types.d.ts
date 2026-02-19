@@ -22,3 +22,10 @@ export type ToolCallFunction = {
 export type ToolCall = {
   function: ToolCallFunction;
 };
+
+export interface ToolList { 
+	search: boolean;
+	imageGen: boolean;
+	videoGen: boolean;
+	audioGen: boolean;
+}
