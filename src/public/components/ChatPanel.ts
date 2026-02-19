@@ -15,12 +15,18 @@ export class ChatBox extends HTMLElement {
                     <button type="button" id="search-btn" class="search-btn" aria-label="Search">
                         <span id="search-text">Web Search</span>
                     </button>
-                    <br>
                     <button type="button" id="img-btn" class="search-btn" aria-label="Search">
                         <span id="img-text">Image Generation</span>
                     </button>
+                    <button type="button" id="video-btn" class="search-btn" aria-label="Video generation">
+                        <span id="video-text">Video Generation</span>
+                    </button>
+                    <button type="button" id="audio-btn" class="search-btn" aria-label="Audio or SFX generation">
+                        <span id="audio-text">Audio/SFX Generation</span>
+                    </button>
                     </div>
-                    <p style="display:none;" id="feature-warning">The selected model does not support web search or image generation. Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
+                    <p id="experimental-feature-notice">Experimental: Audio/SFX and Video generation is currently in beta! You may experience intermittent issues or rate limits.</p>
+                    <p style="display:none;" id="feature-warning">The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
 
                     <div id="file-preview-modal" class="modal hidden">
                         <div class="modal-content full-screen">

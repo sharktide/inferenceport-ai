@@ -763,8 +763,8 @@ Keep it under 5 words.
 			let tools: ToolDefinition[] = [];
 			if (toolList.search) tools.push(availableTools[0]!);
 			if (toolList.imageGen) tools.push(availableTools[1]!);
-			if (toolList.videoGen) tools.push(availableTools[2]!);
-			if (toolList.audioGen) tools.push(availableTools[3]!);
+			if (toolList.audioGen) tools.push(availableTools[2]!);
+			if (toolList.videoGen) tools.push(availableTools[3]!);
 
 			chatHistory.push({ role: "user", content: userMessage });
 
@@ -885,9 +885,10 @@ Keep it under 5 words.
 								role: "video",
 								content: assetID,
 							});
+							toolResult = "Video generated successfully and shown to the user.";
 						}
 
-						if (toolCall.function.name === "generate_audio_or_sfx") {
+						if (toolCall.function.name === "generate_audio") {
 							const audio: ArrayBuffer = await generateAudioOrSFX(args.prompt);
 							const audioBlob = new Blob([audio], { type: "audio/mpeg" });
 							const assetID = await save_stream(audioBlob);
@@ -895,6 +896,7 @@ Keep it under 5 words.
 								role: "audio",
 								content: assetID,
 							});
+							toolResult = "Audio generated successfully and shown to the user.";
 						}
 
 						chatHistory.push({

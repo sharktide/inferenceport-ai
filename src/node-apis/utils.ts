@@ -38,32 +38,36 @@ export function is52458(url: string): boolean {
 
 export async function save_stream(response: Blob): Promise<UUID> {
     const asset_id = crypto.randomUUID();
-    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+    const assetsDir = path.join(dataDir, "assets");
+    const file_path = path.join(assetsDir, `${asset_id}.blob`);
 
-    const fd = await fs.promises.open(file_path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY);
+    await fs.promises.mkdir(assetsDir, { recursive: true });
+
+    const fd = await fs.promises.open(
+        file_path,
+        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+        0o600
+    );
 
     try {
         for await (const chunk of response.stream()) {
             await fd.write(chunk);
         }
     } catch (err) {
-		await fd.close().catch(() => {});
+        await fd.close().catch(() => {});
         await fs.promises.unlink(file_path).catch(() => {});
         throw err;
     }
 
     await fd.close();
-
     return asset_id;
 }
 
-export async function load_blob(asset_id: UUID): Promise<Blob> {
+export async function load_blob(asset_id: UUID): Promise<Buffer> {
     const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
-
-    const buffer = await fs.promises.readFile(file_path);
-
-    return new Blob([buffer]);
+    return await fs.promises.readFile(file_path);
 }
+
 
 function detailsBlock(md: any): void {
 	md.block.ruler.before(
@@ -156,7 +160,7 @@ function resetFirstLaunch(): void {
 
 export default function register() {
 	initHardwareInfo();
-	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Blob> => {
+	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
 		return await load_blob(assetId);
 	});
 	ipcMain.handle("utils:is-first-launch", () => {

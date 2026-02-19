@@ -52,13 +52,20 @@ const remoteHostAlias = document.getElementById(
 ) as HTMLInputElement | null;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
+const videoBtn = document.getElementById("video-btn") as HTMLButtonElement;
+const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement;
 const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
 const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
+const videoLabel = document.getElementById("video-text") as HTMLSpanElement;
+const audioLabel = document.getElementById("audio-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
+const experimentalFeatureNotice = document.getElementById(
+	"experimental-feature-notice",
+) as HTMLParagraphElement | null;
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -77,6 +84,8 @@ const lightningStatus = document.getElementById(
 let modal: declarations["iInstance"]["iModal"];
 let searchEnabled = false;
 let imgEnabled = false;
+let videoEnabled = false;
+let audioEnabled = false;
 let sessions = {};
 let currentSessionId = null;
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
@@ -84,6 +93,7 @@ const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
 let lightningEnabled = readLightningSetting();
+const assetObjectUrlCache = new Map<string, string>();
 
 type ToggleSwitchElement = HTMLElement & {
 	checked: boolean;
@@ -138,6 +148,12 @@ function initLightningToggleEvents(): void {
 	applyLightningState();
 }
 
+function updateExperimentalFeatureNotice(): void {
+	if (!experimentalFeatureNotice) return;
+	experimentalFeatureNotice.style.display =
+		videoEnabled || audioEnabled ? "block" : "none";
+}
+
 function setWelcomeMode(enabled: boolean): void {
 	if (!chatPanel) return;
 	chatPanel.classList.toggle("welcome-mode", enabled);
@@ -171,6 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	modal = new window.ic.iModal("global-modal");
 	initWelcomeCards();
 	initLightningToggleEvents();
+	updateExperimentalFeatureNotice();
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -469,7 +486,7 @@ async function loadOptions() {
 		} catch (e) {
 			modelsSupportsTools = [];
 			toolNotice =
-				"Could not fetch model capabilities. Web search and image generation may not work as expected.";
+				"Could not fetch model capabilities. Tool features may not work as expected.";
 			showNotification({
 				message: toolNotice,
 				type: "warning",
@@ -982,6 +999,30 @@ imgBtn.addEventListener("click", () => {
 	console.log("imgEnabled", imgEnabled);
 });
 
+videoBtn.addEventListener("click", () => {
+	if (videoEnabled) {
+		videoEnabled = false;
+		videoLabel.style.color = "";
+	} else {
+		videoEnabled = true;
+		Object.assign(videoLabel.style, { color: "#f9d400ff" });
+	}
+	console.log("videoEnabled", videoEnabled);
+	updateExperimentalFeatureNotice();
+});
+
+audioBtn.addEventListener("click", () => {
+	if (audioEnabled) {
+		audioEnabled = false;
+		audioLabel.style.color = "";
+	} else {
+		audioEnabled = true;
+		Object.assign(audioLabel.style, { color: "#f9d400ff" });
+	}
+	console.log("audioEnabled", audioEnabled);
+	updateExperimentalFeatureNotice();
+});
+
 let attachedFiles = [];
 
 attachBtn.addEventListener("click", () => fileInput.click());
@@ -1222,8 +1263,12 @@ form.addEventListener("submit", async (e) => {
 	window.ollama.streamPrompt(
 		model,
 		fullPrompt,
-		searchEnabled,
-		imgEnabled,
+		{
+			search: searchEnabled,
+			imageGen: imgEnabled,
+			videoGen: videoEnabled,
+			audioGen: audioEnabled,
+		},
 		clientUrl,
 	);
 
@@ -1574,39 +1619,17 @@ function renderChat() {
 		}
 
 		if (msg.role === "image") {
-			const botContainer = document.createElement(
-				"div",
-			) as HTMLDivElement;
-			botContainer.className = "chat-bubble image-bubble";
+			chatBox.appendChild(createImageAssetBubble(msg.content));
+			return;
+		}
 
-			const imageWrapper = document.createElement(
-				"div",
-			) as HTMLDivElement;
-			imageWrapper.className = "image-wrapper";
+		if (msg.role === "video") {
+			renderMediaAssetFromContent("video", msg.content, chatBox);
+			return;
+		}
 
-			const img = document.createElement("img") as HTMLImageElement;
-			img.src = msg.content;
-			img.alt = "Generated image";
-
-			const downloadBtn = document.createElement("button");
-			downloadBtn.className = "image-download-btn";
-			downloadBtn.title = "Download image";
-			downloadBtn.innerText = "Download";
-
-			downloadBtn.onclick = (e) => {
-				e.stopPropagation();
-				const a = document.createElement("a") as HTMLLinkElement;
-				a.href = msg.content;
-				a.download = `image-${Date.now()}.png`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-			};
-
-			imageWrapper.appendChild(img);
-			imageWrapper.appendChild(downloadBtn);
-			botContainer.appendChild(imageWrapper);
-			chatBox.appendChild(botContainer);
+		if (msg.role === "audio") {
+			renderMediaAssetFromContent("audio", msg.content, chatBox);
 			return;
 		}
 
@@ -1619,6 +1642,10 @@ function renderChat() {
 			header.className = "tool-header";
 			if (msg.name == "generate_image") {
 				header.textContent = "⚡Generated an Image with Lightning-Image Turbo";
+			} else if (msg.name == "generate_video") {
+				header.textContent = "Generated video";
+			} else if (msg.name == "generate_audio_or_sfx") {
+				header.textContent = "Generated audio/SFX";
 			} else header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
 
 			toolBubble.appendChild(header);
@@ -1646,10 +1673,7 @@ function renderChat() {
 	}
 }
 
-function renderImageAsset(dataUrl: string) {
-	const chatBox = document.getElementById("chat-box");
-	if (!chatBox) return;
-
+function createImageAssetBubble(dataUrl: string): HTMLDivElement {
 	const botContainer = document.createElement("div");
 	botContainer.className = "chat-bubble image-bubble";
 
@@ -1675,8 +1699,129 @@ function renderImageAsset(dataUrl: string) {
 	imageWrapper.appendChild(img);
 	imageWrapper.appendChild(downloadBtn);
 	botContainer.appendChild(imageWrapper);
+	return botContainer;
+}
 
-	chatBox.appendChild(botContainer);
+function createVideoAssetBubble(dataUrl: string): HTMLDivElement {
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const video = document.createElement("video");
+	video.controls = true;
+	video.src = dataUrl;
+	video.preload = "metadata";
+	video.style.width = "100%";
+	video.style.borderRadius = "8px";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `video-${Date.now()}.mp4`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	botContainer.appendChild(video);
+	botContainer.appendChild(downloadBtn);
+	return botContainer;
+}
+
+function createAudioAssetBubble(dataUrl: string): HTMLDivElement {
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const audio = document.createElement("audio");
+	audio.controls = true;
+	audio.src = dataUrl;
+	audio.preload = "metadata";
+	audio.style.width = "100%";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `audio-${Date.now()}.mp3`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	botContainer.appendChild(audio);
+	botContainer.appendChild(downloadBtn);
+	return botContainer;
+}
+
+async function getAssetObjectUrl(
+    assetId: string,
+    mimeType: string,
+): Promise<string> {
+    const cacheKey = `${mimeType}:${assetId}`;
+    if (assetObjectUrlCache.has(cacheKey)) {
+        return assetObjectUrlCache.get(cacheKey)!;
+    }
+
+    const rawBuffer = await window.utils.getAsset(assetId);
+
+    const uint8 = rawBuffer instanceof Uint8Array
+        ? rawBuffer
+        : new Uint8Array(rawBuffer);
+
+    const typedBlob = new Blob([uint8], { type: mimeType });
+
+    const objectUrl = URL.createObjectURL(typedBlob);
+    assetObjectUrlCache.set(cacheKey, objectUrl);
+    return objectUrl;
+}
+
+function renderMediaAssetFromContent(
+	role: "video" | "audio",
+	content: string,
+	chatBox: HTMLDivElement,
+): void {
+	if (content.startsWith("data:") || content.startsWith("blob:")) {
+		chatBox.appendChild(
+			role === "video"
+				? createVideoAssetBubble(content)
+				: createAudioAssetBubble(content),
+		);
+		return;
+	}
+
+	const loadingBubble = document.createElement("div");
+	loadingBubble.className = "chat-bubble tool-bubble";
+	loadingBubble.textContent = `Loading ${role} asset...`;
+	chatBox.appendChild(loadingBubble);
+
+	const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
+	void getAssetObjectUrl(content, mimeType)
+		.then((objectUrl) => {
+			const mediaBubble =
+				role === "video"
+					? createVideoAssetBubble(objectUrl)
+					: createAudioAssetBubble(objectUrl);
+			loadingBubble.replaceWith(mediaBubble);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+		})
+		.catch((err) => {
+			loadingBubble.textContent = `Failed to load ${role} asset: ${String(err)}`;
+		});
+}
+
+function renderAsset(role: "image" | "video" | "audio", content: string) {
+	const chatBox = document.getElementById("chat-box");
+	if (!chatBox) return;
+
+	if (role === "image") {
+		chatBox.appendChild(createImageAssetBubble(content));
+	} else {
+		renderMediaAssetFromContent(role, content, chatBox);
+	}
 
 	if (autoScroll) {
 		chatBox.scrollTop = chatBox.scrollHeight;
@@ -1695,20 +1840,21 @@ window.ollama.onNewAsset((msg) => {
 	if (last?.role === msg.role && last?.content === msg.content) return;
 	window.ollama.save(sessions);
 
-	const dataUrl = msg.content.startsWith("data:")
-		? msg.content
-		: `data:image/png;base64,${msg.content}`;
+	const content =
+		msg.role === "image" && !msg.content.startsWith("data:")
+			? `data:image/png;base64,${msg.content}`
+			: msg.content;
 
-	if (last?.role === "image" && last.content === dataUrl) {
+	if (["image", "video", "audio"].includes(last?.role) && last.content === content) {
 		return;
 	}
 
 	session.history.push({
-		role: "image",
-		content: dataUrl,
+		role: msg.role,
+		content,
 	});
 
-	renderImageAsset(dataUrl);
+	renderAsset(msg.role, content);
 });
 
 window.ollama.onToolCall((call) => {

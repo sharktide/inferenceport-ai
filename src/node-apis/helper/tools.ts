@@ -104,7 +104,7 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
 	LOG(trace, "ENTER GenerateAudioOrSFX", { prompt });
 	
 	const url =
-		`https://sharktide-lightning.hf.space/gen/audio`
+		`https://sharktide-lightning.hf.space/gen/sfx`
 		
 	LOG(trace, "FETCH URL", url);
 

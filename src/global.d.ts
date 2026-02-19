@@ -36,8 +36,12 @@ declare global {
 			streamPrompt: (
 				model: string,
 				prompt: string,
-				searchEnabled: boolean,
-				imgEnabled: boolean,
+				toolList: {
+					search: boolean;
+					imageGen: boolean;
+					videoGen: boolean;
+					audioGen: boolean;
+				},
 				clientUrl?: string,
 			) => void;
 			onResponse: (cb: (token: string) => void) => void;

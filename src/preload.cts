@@ -17,6 +17,7 @@ limitations under the License.
 const { contextBridge, ipcRenderer } = require("electron");
 
 import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
@@ -41,16 +42,14 @@ contextBridge.exposeInMainWorld("ollama", {
 	streamPrompt: (
 		model: string,
 		prompt: string,
-		searchEnabled: boolean,
-		imgEnabled: boolean,
+		toolList: ToolList,
 		clientUrl?: string
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
-			searchEnabled,
-			imgEnabled,
+			toolList,
 			clientUrl
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
