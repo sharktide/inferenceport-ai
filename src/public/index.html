@@ -14,8 +14,7 @@
 			box-sizing: border-box;
 		}
 
-		/* Hide horizontal scrollbar and style vertical scrollbar */
-		html {
+		main {
 			overflow-x: hidden;
 			font-size: 15px;
 		}
@@ -56,38 +55,25 @@
 		}
 
 		[data-theme="dark"] {
-			/* Dark mode */
-			--bg-primary: #0a0e27;
-			--bg-secondary: #1a1f3a;
-			--bg-tertiary: #2a2f4a;
-			--accent-primary: #00d9ff;
-			--accent-secondary: #6c5ce7;
-			--text-primary: #ffffff;
-			--text-secondary: #b8c5d6;
-			--glass-bg: rgba(255, 255, 255, 0.05);
-			--glass-border: rgba(255, 255, 255, 0.1);
-			--gradient-from: #0a0e27;
-			--gradient-mid: #1a1f3a;
-			--gradient-to: #2a1f4a;
-			--footer-bg: rgba(200, 200, 200, 0.08);
-		}
+			--bg-primary: #0e1117;
+			--bg-secondary: #161b22;
+			--bg-tertiary: #1f2633;
 
-		body::before {
-			content: '';
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			background: 
-				radial-gradient(circle at 20% 50%, 
-					var(--accent-primary) 0%, 
-					transparent 50%) opacity(0.1),
-				radial-gradient(circle at 80% 80%, 
-					var(--accent-secondary) 0%, 
-					transparent 50%) opacity(0.1);
-			pointer-events: none;
-			z-index: -1;
+			/* Softer, warmer accent instead of neon blue */
+			--accent-primary: #7dd3fc;   /* soft sky / ice blue */
+			--accent-secondary: #7dd3fc; /* muted violet */
+
+			--text-primary: #e6edf3;
+			--text-secondary: #9aa4b2;
+
+			--glass-bg: rgba(255, 255, 255, 0.04);
+			--glass-border: rgba(255, 255, 255, 0.08);
+
+			--gradient-from: #0e1117;
+			--gradient-mid: #161b22;
+			--gradient-to: #1f2633;
+
+			--footer-bg: rgba(255, 255, 255, 0.04);
 		}
 
 		#card-scroll-wrapper {
@@ -119,10 +105,10 @@
 		}
 
 		.marketplace-card:hover {
-			background: var(--accent-primary) opacity(0.08);
-			border-color: var(--accent-primary) opacity(0.3);
-			transform: translateY(-8px);
-			box-shadow: 0 15px 40px var(--accent-primary) opacity(0.2);
+			background: rgba(255, 255, 255, 0.06);
+			border-color: var(--glass-border);
+			transform: translateY(-6px);
+			box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
 		}
 
 		.marketplace-card h2 {
@@ -160,14 +146,7 @@
 		}
 
 		main h1 {
-			font-size: clamp(34px, 4.5vw, 42px);
-			margin-bottom: 12px;
-			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
-			font-weight: 700;
-			letter-spacing: -1px;
+			color: var(--text-primary)
 		}
 
 		main > p {
@@ -184,7 +163,7 @@
 			font-weight: 600;
 		}
 
-		main > button {
+		main button {
 			background: var(--glass-bg);
 			backdrop-filter: blur(10px);
 			border: 1.5px solid var(--glass-border);
@@ -199,7 +178,7 @@
 			overflow: hidden;
 		}
 
-		main > button::before {
+		main button::before {
 			content: '';
 			position: absolute;
 			top: 0;
@@ -210,18 +189,18 @@
 			transition: left 0.5s ease;
 		}
 
-		main > button:hover::before {
+		main button:hover::before {
 			left: 100%;
 		}
 
-		main > button:hover {
+		main button:hover {
 			background: var(--accent-primary) opacity(0.1);
 			border-color: var(--accent-primary);
 			box-shadow: 0 0 20px var(--accent-primary) opacity(0.3);
 			transform: translateY(-2px);
 		}
 
-		main > button:active {
+		main button:active {
 			transform: translateY(0);
 		}
 
@@ -426,7 +405,7 @@
 			overflow: hidden;
 		}
 
-		mainbutton:hover {
+		#mainbutton:hover {
 			background: var(--accent-primary) opacity(0.1) !important;
 			border-color: var(--accent-primary) !important;
 			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
@@ -502,10 +481,7 @@
 		.lightning-section h2 {
 			font-size: 30px;
 			margin-bottom: 12px;
-			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
+			color: var(--text-primary);
 			font-weight: 700;
 		}
 
@@ -516,8 +492,7 @@
 			margin-bottom: 16px;
 		}
 
-		/* Make everything smaller without changing layout rules */
-		html {
+		main {
 			font-size: 13px; 
 		}
 
@@ -531,23 +506,23 @@
 		}
 
 		.lightning-btn {
-			background: linear-gradient(135deg, var(--accent-primary) opacity(0.2), var(--accent-secondary) opacity(0.2));
-			border: 2px solid var(--accent-primary);
-			color: var(--accent-primary);
-			padding: 12px 28px;
-			border-radius: 12px;
-			cursor: pointer;
-			transition: all 0.3s ease;
-			font-size: 15px;
-			font-weight: 600;
-			position: relative;
-			overflow: hidden;
+			background: linear-gradient(
+				135deg,
+				rgba(125, 211, 252, 0.15),
+				rgba(192, 132, 252, 0.15)
+			);
+			border: 1.5px solid rgba(255, 255, 255, 0.18);
+			color: var(--text-primary);
+			box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
 		}
 
 		.lightning-btn:hover {
-			background: linear-gradient(135deg, var(--accent-primary) opacity(0.3), var(--accent-secondary) opacity(0.3));
-			box-shadow: 0 0 25px var(--accent-primary) opacity(0.4);
-			transform: translateY(-2px);
+			background: linear-gradient(
+				135deg,
+				rgba(125, 211, 252, 0.25),
+				rgba(192, 132, 252, 0.25)
+			);
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 		}
 
 		.lightning-models-grid {
@@ -567,10 +542,10 @@
 		}
 
 		.lightning-model-card:hover {
-			background: var(--accent-primary) opacity(0.06);
-			border-color: var(--accent-primary) opacity(0.4);
+			background: rgba(255, 255, 255, 0.05);
+			border-color: var(--glass-border);
 			transform: translateY(-4px);
-			box-shadow: 0 10px 30px var(--accent-primary) opacity(0.15);
+			box-shadow: 0 14px 35px rgba(0, 0, 0, 0.3);
 		}
 
 		.lightning-model-card h3 {
@@ -613,11 +588,8 @@
 		}
 
 		@media (max-width: 768px) {
-			html {
-				font-size: 14px;
-			}
-
 			main {
+				font-size: 14px;
 				padding: 28px 16px !important;
 			}
 
@@ -646,7 +618,13 @@
 		<h1>Welcome to InferencePortAI</h1>
 		<p>Your gateway to seamless AI model management and interaction.</p>
 		<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'" style="width: 100%; height: 78px; font-size: 18px;">Chat Now</button>
-
+		<div class="lightning-section">
+			<h2>🎉 Now introducing</h2>
+			<div class="tagline">Experimental Music and Video generation</div>
+			<p>We now offer currently free experimental music, sfx, and video generation with ElevenLabs Music and Grok Video</p>
+			<button class="lightning-btn" id="trylight">Try it Now</button>
+			
+		</div>
 		<div class="lightning-section">
 			<h2>⚡ Lightning Models Are Here</h2>
 			<div class="tagline">Up to 1000 Words / Second</div>
@@ -810,8 +788,6 @@
 
 	<footer class="copyright-footer">
 		<p>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</p>
-	</footer>
-	<footer>
 		<p>By using this app, you agree to the <a
 				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
 				Service</a> and <a
