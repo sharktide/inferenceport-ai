@@ -745,10 +745,24 @@ select {
 	display: flex;
 	gap: 8px;
 	align-items: center;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	padding-left: 18px;
 	padding-bottom: 12px;
 	margin-top: 0;
+}
+
+#experimental-feature-notice {
+	display: none;
+	width: 98.4%;
+	font-size: 12px;
+	line-height: 1.4;
+	color: #17b000;
+	padding: 6px 12px;
+	border-radius: 10px;
+	background: rgba(26, 176, 0, 0.08);
+	order: 4;
+	align-self: center;
+	margin-inline: auto;
 }
 
 .typing-bar.empty .feature-btns,
@@ -786,7 +800,7 @@ select {
 
 	text-align: left;
 	box-sizing: border-box;
-	order: 4;
+	order: 5;
 
 	align-self: center;
 	margin-inline: auto;

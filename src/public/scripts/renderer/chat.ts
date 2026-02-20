@@ -16,6 +16,7 @@ limitations under the License.
 
 //@ts-nocheck
 
+import { emitWarning } from "node:process";
 import { showNotification } from "../helper/notification.js";
 import {
 	mergeLocalAndRemoteSessions,
@@ -42,8 +43,12 @@ const newSessionBtn = document.getElementById(
 	"new-session-btn",
 ) as HTMLButtonElement;
 const chatPanel = document.querySelector(".chat-panel") as HTMLElement | null;
-const welcomeHero = document.getElementById("welcome-hero") as HTMLDivElement | null;
-const welcomeCards = document.getElementById("welcome-cards") as HTMLDivElement | null;
+const welcomeHero = document.getElementById(
+	"welcome-hero",
+) as HTMLDivElement | null;
+const welcomeCards = document.getElementById(
+	"welcome-cards",
+) as HTMLDivElement | null;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
@@ -52,13 +57,20 @@ const remoteHostAlias = document.getElementById(
 ) as HTMLInputElement | null;
 const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
 const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
+const videoBtn = document.getElementById("video-btn") as HTMLButtonElement;
+const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement;
 const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
 const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
+const videoLabel = document.getElementById("video-text") as HTMLSpanElement;
+const audioLabel = document.getElementById("audio-text") as HTMLSpanElement;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
+const experimentalFeatureNotice = document.getElementById(
+	"experimental-feature-notice",
+) as HTMLParagraphElement | null;
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -77,6 +89,8 @@ const lightningStatus = document.getElementById(
 let modal: declarations["iInstance"]["iModal"];
 let searchEnabled = false;
 let imgEnabled = false;
+let videoEnabled = false;
+let audioEnabled = false;
 let sessions = {};
 let currentSessionId = null;
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
@@ -84,6 +98,7 @@ const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
 let lightningEnabled = readLightningSetting();
+const assetObjectUrlCache = new Map<string, string>();
 
 type ToggleSwitchElement = HTMLElement & {
 	checked: boolean;
@@ -95,6 +110,28 @@ function readLightningSetting(): boolean {
 	} catch (e) {
 		return false;
 	}
+}
+
+function collectUsedAssetIds(sessions: any): Set<string> {
+	const used = new Set<string>();
+
+	for (const session of Object.values(sessions)) {
+		if (!session?.history) continue;
+
+		for (const msg of session.history) {
+			if (!msg?.content) continue;
+
+			if (
+				(msg.role === "video" || msg.role === "audio") &&
+				typeof msg.content === "string" &&
+				!msg.content.startsWith("data:")
+			) {
+				used.add(msg.content);
+			}
+		}
+	}
+
+	return used;
 }
 
 function syncLightningToggles(enabled: boolean): void {
@@ -130,12 +167,20 @@ function setLightningEnabled(enabled: boolean): void {
 }
 
 function initLightningToggleEvents(): void {
-	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach((toggle) => {
-		toggle?.addEventListener("change", () => {
-			setLightningEnabled(Boolean(toggle.checked));
-		});
-	});
+	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
+		(toggle) => {
+			toggle?.addEventListener("change", () => {
+				setLightningEnabled(Boolean(toggle.checked));
+			});
+		},
+	);
 	applyLightningState();
+}
+
+function updateExperimentalFeatureNotice(): void {
+	if (!experimentalFeatureNotice) return;
+	experimentalFeatureNotice.style.display =
+		videoEnabled || audioEnabled ? "block" : "none";
 }
 
 function setWelcomeMode(enabled: boolean): void {
@@ -171,6 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	modal = new window.ic.iModal("global-modal");
 	initWelcomeCards();
 	initLightningToggleEvents();
+	updateExperimentalFeatureNotice();
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -223,7 +269,7 @@ function showSessionProgress(): void {
 	loader.classList.remove("hidden", "fading");
 	loaderVisible = true;
 }
-	   
+
 function setSessionProgress(value: number): void {
 	const bar = document.getElementById(
 		"session-progress-bar",
@@ -261,16 +307,18 @@ async function hideSessionProgress(): void {
 }
 
 function openManageHostsDialog() {
-    const remotes: RemoteHost[] = JSON.parse(
-        localStorage.getItem("remote_hosts") || "[]",
-    );
+	const remotes: RemoteHost[] = JSON.parse(
+		localStorage.getItem("remote_hosts") || "[]",
+	);
 
-    let listHtml = "";
+	let listHtml = "";
 
-    if (remotes.length === 0) {
-        listHtml = `<p style="opacity:.7">No remote hosts added.</p>`;
-    } else {
-        listHtml = remotes.map((host, index) => `
+	if (remotes.length === 0) {
+		listHtml = `<p style="opacity:.7">No remote hosts added.</p>`;
+	} else {
+		listHtml = remotes
+			.map(
+				(host, index) => `
             <div style="
                 display:flex;
                 justify-content:space-between;
@@ -288,40 +336,44 @@ function openManageHostsDialog() {
                     Remove
                 </button>
             </div>
-        `).join("");
-    }
+        `,
+			)
+			.join("");
+	}
 
-    modal.open({
-        html: `
+	modal.open({
+		html: `
             <h3>Manage Remote Hosts</h3>
             <div style="margin-top:12px">${listHtml}</div>
             <div style="margin-top:16px; display:flex; gap:8px;">
                 <button id="add-host-btn">Add Host</button>
                 <button id="close-hosts-btn">Close</button>
             </div>
-        `
-    });
+        `,
+	});
 
-    document.querySelectorAll("[data-remove]").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            const index = Number((e.target as HTMLElement).dataset.remove);
-            remotes.splice(index, 1);
-            localStorage.setItem("remote_hosts", JSON.stringify(remotes));
-            updateHostSelectOptions();
-            openManageHostsDialog();
-        });
-    });
+	document.querySelectorAll("[data-remove]").forEach((btn) => {
+		btn.addEventListener("click", (e) => {
+			const index = Number((e.target as HTMLElement).dataset.remove);
+			remotes.splice(index, 1);
+			localStorage.setItem("remote_hosts", JSON.stringify(remotes));
+			updateHostSelectOptions();
+			openManageHostsDialog();
+		});
+	});
 
-    document.getElementById("add-host-btn")?.addEventListener("click", () => {
-        modal.close();
-        openAddHostDialog();
-    });
+	document.getElementById("add-host-btn")?.addEventListener("click", () => {
+		modal.close();
+		openAddHostDialog();
+	});
 
-    document.getElementById("close-hosts-btn")?.addEventListener("click", () => {
-        modal.close();
-		hostSelect.value = "local";
-        localStorage.setItem("host_select", "local");
-    });
+	document
+		.getElementById("close-hosts-btn")
+		?.addEventListener("click", () => {
+			modal.close();
+			hostSelect.value = "local";
+			localStorage.setItem("host_select", "local");
+		});
 }
 
 function updateHostSelectOptions() {
@@ -331,21 +383,21 @@ function updateHostSelectOptions() {
 		if (opt.value.startsWith("remote:")) opt.remove();
 	});
 
-	if (![...hostSelect.options].some(o => o.value === "local")) {
+	if (![...hostSelect.options].some((o) => o.value === "local")) {
 		const localOpt = document.createElement("option");
 		localOpt.value = "local";
 		localOpt.textContent = "Local";
 		hostSelect.appendChild(localOpt);
 	}
 
-	if (![...hostSelect.options].some(o => o.value === "add_remote")) {
+	if (![...hostSelect.options].some((o) => o.value === "add_remote")) {
 		const addOpt = document.createElement("option");
 		addOpt.value = "add_remote";
 		addOpt.textContent = "Add Remote Host";
 		hostSelect.appendChild(addOpt);
 	}
 
-	if (![...hostSelect.options].some(o => o.value === "manage_hosts")) {
+	if (![...hostSelect.options].some((o) => o.value === "manage_hosts")) {
 		const manageOpt = document.createElement("option");
 		manageOpt.value = "manage_hosts";
 		manageOpt.textContent = "Manage Remote Hosts";
@@ -357,7 +409,7 @@ function updateHostSelectOptions() {
 	);
 
 	const addRemoteOpt = hostSelect.querySelector('option[value="add_remote"]');
-	
+
 	remotes.forEach((host) => {
 		const opt = document.createElement("option");
 		opt.value = `remote:${host.url}`;
@@ -469,7 +521,7 @@ async function loadOptions() {
 		} catch (e) {
 			modelsSupportsTools = [];
 			toolNotice =
-				"Could not fetch model capabilities. Web search and image generation may not work as expected.";
+				"Could not fetch model capabilities. Tool features may not work as expected.";
 			showNotification({
 				message: toolNotice,
 				type: "warning",
@@ -484,7 +536,9 @@ async function loadOptions() {
 			models.forEach((model, i) => {
 				const option = document.createElement("option");
 				option.value = model.name;
-				option.textContent = model.name.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-gguf72/, "");;
+				option.textContent = model.name
+					.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+					.replace(/-gguf72/, "");
 				modelSelect.appendChild(option);
 
 				setSessionProgress(20 + (25 * (i + 1)) / total);
@@ -550,6 +604,15 @@ async function loadOptions() {
 			}
 		}
 
+		const assetsOnDisk = await window.utils.listAssets();
+		const usedAssets = collectUsedAssetIds(sessions);
+
+		for (const assetId of assetsOnDisk) {
+			if (!usedAssets.has(assetId)) {
+				await window.utils.rmAsset(assetId);
+			}
+		}
+
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		renderChat();
@@ -594,10 +657,9 @@ function generateSessionId() {
 async function reloadModelsForHost(hostValue: string) {
 	modelSelect.innerHTML = `<option disabled>Loading models…</option>`;
 
-	const clientUrl =
-		hostValue.startsWith("remote:")
-			? hostValue.replace("remote:", "")
-			: undefined;
+	const clientUrl = hostValue.startsWith("remote:")
+		? hostValue.replace("remote:", "")
+		: undefined;
 
 	try {
 		const models = await window.ollama.listModels(clientUrl);
@@ -607,7 +669,9 @@ async function reloadModelsForHost(hostValue: string) {
 		for (const model of models) {
 			const opt = document.createElement("option");
 			opt.value = model.name;
-			opt.textContent = model.name.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "").replace(/-gguf72/, "");
+			opt.textContent = model.name
+				.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+				.replace(/-gguf72/, "");
 			modelSelect.appendChild(opt);
 		}
 
@@ -617,7 +681,9 @@ async function reloadModelsForHost(hostValue: string) {
 			 <option value="manage-models">✏️ Manage models...</option>`,
 		);
 
-		if (![...modelSelect.options].some(o => o.value === modelSelect.value)) {
+		if (
+			![...modelSelect.options].some((o) => o.value === modelSelect.value)
+		) {
 			modelSelect.selectedIndex = 0;
 		}
 	} catch (err: any) {
@@ -626,8 +692,7 @@ async function reloadModelsForHost(hostValue: string) {
 		modelSelect.innerHTML = "";
 
 		if (err?.code === "UNAUTHORIZED") {
-			modelSelect.innerHTML =
-				`<option disabled>🔒 Unauthorized</option>`;
+			modelSelect.innerHTML = `<option disabled>🔒 Unauthorized</option>`;
 
 			showNotification({
 				message:
@@ -641,12 +706,10 @@ async function reloadModelsForHost(hostValue: string) {
 				],
 			});
 		} else {
-			modelSelect.innerHTML =
-				`<option disabled>Error loading models</option>`;
+			modelSelect.innerHTML = `<option disabled>Error loading models</option>`;
 
 			showNotification({
-				message:
-					"Failed to fetch models from the selected host.",
+				message: "Failed to fetch models from the selected host.",
 				type: "error",
 			});
 		}
@@ -670,32 +733,32 @@ function showContextMenu(x, y, sessionId, sessionName) {
 					title: "Delete All Sessions",
 					html: `<p><strong>This cannot be undone.</strong></p>`,
 					actions: [
-							{
-								id: "cancel-delete-all",
-								label: "Cancel",
-								onClick: () => modal.close(),
+						{
+							id: "cancel-delete-all",
+							label: "Cancel",
+							onClick: () => modal.close(),
+						},
+						{
+							id: "confirm-delete-all",
+							label: "Delete All",
+							onClick: async () => {
+								sessions = {};
+								currentSessionId = null;
+								modal.close();
+
+								await window.ollama.save(sessions);
+
+								const auth = await window.auth.getSession();
+								if (isSyncEnabled() && auth?.session?.user) {
+									await safeCallRemote(() =>
+										window.sync.saveAllSessions(sessions),
+									);
+								}
+
+								location.reload();
 							},
-							{
-								id: "confirm-delete-all",
-								label: "Delete All",
-								onClick: async () => {
-									sessions = {};
-									currentSessionId = null;
-									modal.close();
-
-									await window.ollama.save(sessions);
-
-									const auth = await window.auth.getSession();
-									if (isSyncEnabled() && auth?.session?.user) {
-										await safeCallRemote(() =>
-											window.sync.saveAllSessions(sessions),
-										);
-									}
-
-									location.reload();
-								},
-							},
-						],
+						},
+					],
 				});
 
 				break;
@@ -982,6 +1045,30 @@ imgBtn.addEventListener("click", () => {
 	console.log("imgEnabled", imgEnabled);
 });
 
+videoBtn.addEventListener("click", () => {
+	if (videoEnabled) {
+		videoEnabled = false;
+		videoLabel.style.color = "";
+	} else {
+		videoEnabled = true;
+		Object.assign(videoLabel.style, { color: "#f9d400ff" });
+	}
+	console.log("videoEnabled", videoEnabled);
+	updateExperimentalFeatureNotice();
+});
+
+audioBtn.addEventListener("click", () => {
+	if (audioEnabled) {
+		audioEnabled = false;
+		audioLabel.style.color = "";
+	} else {
+		audioEnabled = true;
+		Object.assign(audioLabel.style, { color: "#f9d400ff" });
+	}
+	console.log("audioEnabled", audioEnabled);
+	updateExperimentalFeatureNotice();
+});
+
 let attachedFiles = [];
 
 attachBtn.addEventListener("click", () => fileInput.click());
@@ -1192,9 +1279,11 @@ form.addEventListener("submit", async (e) => {
 		console.log(
 			"[form.submit] First prompt for session, calling autoNameSession...",
 		);
-		autoNameSession(model, prompt, currentSessionId, clientUrl).catch((err) => {
-			console.error("[form.submit] autoNameSession error:", err);
-		});
+		autoNameSession(model, prompt, currentSessionId, clientUrl).catch(
+			(err) => {
+				console.error("[form.submit] autoNameSession error:", err);
+			},
+		);
 	}
 	const session = sessions[currentSessionId];
 	session.model = model;
@@ -1222,8 +1311,12 @@ form.addEventListener("submit", async (e) => {
 	window.ollama.streamPrompt(
 		model,
 		fullPrompt,
-		searchEnabled,
-		imgEnabled,
+		{
+			search: searchEnabled,
+			imageGen: imgEnabled,
+			videoGen: videoEnabled,
+			audioGen: audioEnabled,
+		},
 		clientUrl,
 	);
 
@@ -1463,11 +1556,21 @@ function openFilePreview(file) {
 }
 
 async function setTitle() {
-	const titleModel = lightningEnabled ? LIGHTNING_MODEL_DISPLAY : modelSelect.value;
+	const titleModel = lightningEnabled
+		? LIGHTNING_MODEL_DISPLAY
+		: modelSelect.value;
 	document.title = titleModel + " - Chat - InferencePortAI";
 }
 
 function renderChat() {
+	for (const url of assetObjectUrlCache.values()) {
+		try {
+			URL.revokeObjectURL(url);
+		} catch (err: any) {
+			console.warn(err.toString())
+		}
+	}
+	assetObjectUrlCache.clear();
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) {
 		console.warn("renderChat aborted: chatBox not found");
@@ -1480,7 +1583,6 @@ function renderChat() {
 
 	const session = sessions[currentSessionId];
 	chatBox.innerHTML = "";
-
 	if (!session || !session.history || session.history.length === 0) {
 		setWelcomeMode(true);
 		return;
@@ -1574,39 +1676,17 @@ function renderChat() {
 		}
 
 		if (msg.role === "image") {
-			const botContainer = document.createElement(
-				"div",
-			) as HTMLDivElement;
-			botContainer.className = "chat-bubble image-bubble";
+			chatBox.appendChild(createImageAssetBubble(msg.content));
+			return;
+		}
 
-			const imageWrapper = document.createElement(
-				"div",
-			) as HTMLDivElement;
-			imageWrapper.className = "image-wrapper";
+		if (msg.role === "video") {
+			renderMediaAssetFromContent("video", msg.content, chatBox);
+			return;
+		}
 
-			const img = document.createElement("img") as HTMLImageElement;
-			img.src = msg.content;
-			img.alt = "Generated image";
-
-			const downloadBtn = document.createElement("button");
-			downloadBtn.className = "image-download-btn";
-			downloadBtn.title = "Download image";
-			downloadBtn.innerText = "Download";
-
-			downloadBtn.onclick = (e) => {
-				e.stopPropagation();
-				const a = document.createElement("a") as HTMLLinkElement;
-				a.href = msg.content;
-				a.download = `image-${Date.now()}.png`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-			};
-
-			imageWrapper.appendChild(img);
-			imageWrapper.appendChild(downloadBtn);
-			botContainer.appendChild(imageWrapper);
-			chatBox.appendChild(botContainer);
+		if (msg.role === "audio") {
+			renderMediaAssetFromContent("audio", msg.content, chatBox);
 			return;
 		}
 
@@ -1618,7 +1698,12 @@ function renderChat() {
 			const header = document.createElement("div");
 			header.className = "tool-header";
 			if (msg.name == "generate_image") {
-				header.textContent = "⚡Generated an Image with Lightning-Image Turbo";
+				header.textContent =
+					"⚡Generated an Image with Lightning-Image Turbo";
+			} else if (msg.name == "generate_video") {
+				header.textContent = "Generated video";
+			} else if (msg.name == "generate_audio_or_sfx") {
+				header.textContent = "Generated audio/SFX";
 			} else header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
 
 			toolBubble.appendChild(header);
@@ -1646,10 +1731,7 @@ function renderChat() {
 	}
 }
 
-function renderImageAsset(dataUrl: string) {
-	const chatBox = document.getElementById("chat-box");
-	if (!chatBox) return;
-
+function createImageAssetBubble(dataUrl: string): HTMLDivElement {
 	const botContainer = document.createElement("div");
 	botContainer.className = "chat-bubble image-bubble";
 
@@ -1675,8 +1757,128 @@ function renderImageAsset(dataUrl: string) {
 	imageWrapper.appendChild(img);
 	imageWrapper.appendChild(downloadBtn);
 	botContainer.appendChild(imageWrapper);
+	return botContainer;
+}
 
-	chatBox.appendChild(botContainer);
+function createVideoAssetBubble(dataUrl: string): HTMLDivElement {
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const video = document.createElement("video");
+	video.controls = true;
+	video.src = dataUrl;
+	video.preload = "metadata";
+	video.style.width = "100%";
+	video.style.borderRadius = "8px";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `video-${Date.now()}.mp4`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	botContainer.appendChild(video);
+	botContainer.appendChild(downloadBtn);
+	return botContainer;
+}
+
+function createAudioAssetBubble(dataUrl: string): HTMLDivElement {
+	const botContainer = document.createElement("div");
+	botContainer.className = "chat-bubble image-bubble";
+
+	const audio = document.createElement("audio");
+	audio.controls = true;
+	audio.src = dataUrl;
+	audio.preload = "metadata";
+	audio.style.width = "100%";
+
+	const downloadBtn = document.createElement("button");
+	downloadBtn.className = "image-download-btn";
+	downloadBtn.textContent = "Download";
+	downloadBtn.onclick = () => {
+		const a = document.createElement("a");
+		a.href = dataUrl;
+		a.download = `audio-${Date.now()}.mp3`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	};
+
+	botContainer.appendChild(audio);
+	botContainer.appendChild(downloadBtn);
+	return botContainer;
+}
+
+async function getAssetObjectUrl(
+	assetId: string,
+	mimeType: string,
+): Promise<string> {
+	const cacheKey = `${mimeType}:${assetId}`;
+	if (assetObjectUrlCache.has(cacheKey)) {
+		return assetObjectUrlCache.get(cacheKey)!;
+	}
+
+	const rawBuffer = await window.utils.getAsset(assetId);
+
+	const uint8 =
+		rawBuffer instanceof Uint8Array ? rawBuffer : new Uint8Array(rawBuffer);
+
+	const typedBlob = new Blob([uint8], { type: mimeType });
+
+	const objectUrl = URL.createObjectURL(typedBlob);
+	assetObjectUrlCache.set(cacheKey, objectUrl);
+	return objectUrl;
+}
+
+function renderMediaAssetFromContent(
+	role: "video" | "audio",
+	content: string,
+	chatBox: HTMLDivElement,
+): void {
+	if (content.startsWith("data:") || content.startsWith("blob:")) {
+		chatBox.appendChild(
+			role === "video"
+				? createVideoAssetBubble(content)
+				: createAudioAssetBubble(content),
+		);
+		return;
+	}
+
+	const loadingBubble = document.createElement("div");
+	loadingBubble.className = "chat-bubble tool-bubble";
+	loadingBubble.textContent = `Loading ${role} asset...`;
+	chatBox.appendChild(loadingBubble);
+
+	const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
+	void getAssetObjectUrl(content, mimeType)
+		.then((objectUrl) => {
+			const mediaBubble =
+				role === "video"
+					? createVideoAssetBubble(objectUrl)
+					: createAudioAssetBubble(objectUrl);
+			loadingBubble.replaceWith(mediaBubble);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+		})
+		.catch((err) => {
+			loadingBubble.textContent = `Failed to load ${role} asset: ${String(err)}`;
+		});
+}
+
+function renderAsset(role: "image" | "video" | "audio", content: string) {
+	const chatBox = document.getElementById("chat-box");
+	if (!chatBox) return;
+
+	if (role === "image") {
+		chatBox.appendChild(createImageAssetBubble(content));
+	} else {
+		renderMediaAssetFromContent(role, content, chatBox);
+	}
 
 	if (autoScroll) {
 		chatBox.scrollTop = chatBox.scrollHeight;
@@ -1695,20 +1897,24 @@ window.ollama.onNewAsset((msg) => {
 	if (last?.role === msg.role && last?.content === msg.content) return;
 	window.ollama.save(sessions);
 
-	const dataUrl = msg.content.startsWith("data:")
-		? msg.content
-		: `data:image/png;base64,${msg.content}`;
+	const content =
+		msg.role === "image" && !msg.content.startsWith("data:")
+			? `data:image/png;base64,${msg.content}`
+			: msg.content;
 
-	if (last?.role === "image" && last.content === dataUrl) {
+	if (
+		["image", "video", "audio"].includes(last?.role) &&
+		last.content === content
+	) {
 		return;
 	}
 
 	session.history.push({
-		role: "image",
-		content: dataUrl,
+		role: msg.role,
+		content,
 	});
 
-	renderImageAsset(dataUrl);
+	renderAsset(msg.role, content);
 });
 
 window.ollama.onToolCall((call) => {
@@ -1751,46 +1957,59 @@ function openAddHostDialog() {
 				<button id="confirm-add-host">Add</button>
 				<button id="cancel-add-host">Cancel</button>
 			</div>
-		`
+		`,
 	});
 
-	document.getElementById("cancel-add-host")?.addEventListener("click", () => {
-		modal.close();
-		if (hostSelect) {
-			hostSelect.value = "local";
-			localStorage.setItem("host_select", "local");
-			reloadModelsForHost("local");
-		}
-	});
+	document
+		.getElementById("cancel-add-host")
+		?.addEventListener("click", () => {
+			modal.close();
+			if (hostSelect) {
+				hostSelect.value = "local";
+				localStorage.setItem("host_select", "local");
+				reloadModelsForHost("local");
+			}
+		});
 
-	document.getElementById("confirm-add-host")?.addEventListener("click", () => {
-		let url = (document.getElementById("new-host-url") as HTMLInputElement).value.trim();
-		const alias = (document.getElementById("new-host-alias") as HTMLInputElement).value.trim().substring(0, 20);
+	document
+		.getElementById("confirm-add-host")
+		?.addEventListener("click", () => {
+			let url = (
+				document.getElementById("new-host-url") as HTMLInputElement
+			).value.trim();
+			const alias = (
+				document.getElementById("new-host-alias") as HTMLInputElement
+			).value
+				.trim()
+				.substring(0, 20);
 
-		if (!url) return;
+			if (!url) return;
 
-		if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
-		if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
-		url = url.replace(/\/+$/, "");
+			if (!/^https?:\/\//i.test(url)) url = `http://${url}`;
+			if (!/:\d+\/?$/.test(url)) url = url.replace(/\/+$/, "") + ":52458";
+			url = url.replace(/\/+$/, "");
 
-        const remotesStored: RemoteHost[] = JSON.parse(
-            localStorage.getItem("remote_hosts") || "[]",
-        );
+			const remotesStored: RemoteHost[] = JSON.parse(
+				localStorage.getItem("remote_hosts") || "[]",
+			);
 
-        if (!remotesStored.some(r => r.url === url)) {
-            remotesStored.push({ url, alias });
-            localStorage.setItem("remote_hosts", JSON.stringify(remotesStored));
-        }
+			if (!remotesStored.some((r) => r.url === url)) {
+				remotesStored.push({ url, alias });
+				localStorage.setItem(
+					"remote_hosts",
+					JSON.stringify(remotesStored),
+				);
+			}
 
-        updateHostSelectOptions();
+			updateHostSelectOptions();
 
-        const sel = `remote:${url}`;
-        hostSelect!.value = sel;
-        localStorage.setItem("host_select", sel);
+			const sel = `remote:${url}`;
+			hostSelect!.value = sel;
+			localStorage.setItem("host_select", sel);
 
-        modal.close();
-        reloadModelsForHost(sel);
-    });
+			modal.close();
+			reloadModelsForHost(sel);
+		});
 }
 
 modelSelect.addEventListener("change", setToolSupport);

@@ -17,6 +17,7 @@ limitations under the License.
 const { contextBridge, ipcRenderer } = require("electron");
 
 import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
@@ -41,16 +42,14 @@ contextBridge.exposeInMainWorld("ollama", {
 	streamPrompt: (
 		model: string,
 		prompt: string,
-		searchEnabled: boolean,
-		imgEnabled: boolean,
+		toolList: ToolList,
 		clientUrl?: string
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
-			searchEnabled,
-			imgEnabled,
+			toolList,
 			clientUrl
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
@@ -110,6 +109,9 @@ contextBridge.exposeInMainWorld("ollama", {
 
 // ===== Utilities =====
 contextBridge.exposeInMainWorld("utils", {
+	getAsset: (assetId: string): Promise<Blob> => ipcRenderer.invoke("utils:getAsset", assetId),
+	rmAsset: (assetId: string): Promise<void> => ipcRenderer.invoke("utils:rmAsset", assetId),
+	listAssets: (): Promise<Array<string>> => ipcRenderer.invoke("utils:listAssets"),
 	web_open: (url: string) => ipcRenderer.invoke("utils:web_open", url),
 	markdown_parse_and_purify: (markdown: string): string =>
 		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),

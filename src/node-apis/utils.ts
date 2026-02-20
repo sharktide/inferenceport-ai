@@ -18,18 +18,80 @@ import sanitizeHtml from "sanitize-html";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
 import fs from "fs";
+import { constants } from "fs";
 import path from "path";
 import { shell, app, ipcMain } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
+import type { UUID } from "crypto";
 
-function is52458(url: string): boolean {
+const dataDir: string = app.getPath("userData");
+
+export function is52458(url: string): boolean {
 	try {
 		const u = new URL(url);
 		return u.port === "52458";
 	} catch {
 		return false;
 	}
+}
+
+export async function save_stream(response: Blob): Promise<UUID> {
+    const asset_id = crypto.randomUUID();
+    const assetsDir = path.join(dataDir, "assets");
+    const file_path = path.join(assetsDir, `${asset_id}.blob`);
+
+    await fs.promises.mkdir(assetsDir, { recursive: true });
+
+    const fd = await fs.promises.open(
+        file_path,
+        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+        0o600
+    );
+
+    try {
+        for await (const chunk of response.stream()) {
+            await fd.write(chunk);
+        }
+    } catch (err) {
+        await fd.close().catch(() => {});
+        await fs.promises.unlink(file_path).catch(() => {});
+        throw err;
+    }
+
+    await fd.close();
+    return asset_id;
+}
+
+export async function load_blob(asset_id: UUID): Promise<Buffer> {
+    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+    return await fs.promises.readFile(file_path);
+}
+
+export async function delete_blob(asset_id: UUID): Promise<void> {
+    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	try {
+    	await fs.promises.unlink(file_path);
+	} catch (err: Error | any) {
+		if (err.code != "ENOENT") throw err;
+	}
+}
+
+export async function listAssets(): Promise<Array<string>> {
+    const assetsDir = path.join(dataDir, "assets");
+
+    try {
+        const files = await fs.promises.readdir(assetsDir, { withFileTypes: true });
+
+        return files
+            .filter(f => f.isFile() && f.name.endsWith(".blob"))
+            .map(f => f.name.replace(/\.blob$/, ""));
+    } catch (err: any) {
+        if (err.code === "ENOENT") {
+            return [];
+        }
+        throw err;
+    }
 }
 
 function detailsBlock(md: any): void {
@@ -123,9 +185,17 @@ function resetFirstLaunch(): void {
 
 export default function register() {
 	initHardwareInfo();
-
+	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
+		return await load_blob(assetId);
+	});
+	ipcMain.handle("utils:rmAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<void> => {
+		return await delete_blob(assetId)
+	});
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
+	});
+	ipcMain.handle("utils:listAssets", async (): Promise<Array<string>> => {
+		return await listAssets()
 	});
 
 	ipcMain.handle("utils:reset-first-launch", () => {
