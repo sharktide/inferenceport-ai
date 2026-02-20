@@ -16,7 +16,6 @@ limitations under the License.
 
 //@ts-nocheck
 
-import { emitWarning } from "node:process";
 import { showNotification } from "../helper/notification.js";
 import {
 	mergeLocalAndRemoteSessions,
