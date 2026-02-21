@@ -14,7 +14,6 @@
 			box-sizing: border-box;
 		}
 
-		/* Hide horizontal scrollbar and style vertical scrollbar */
 		html {
 			overflow-x: hidden;
 			font-size: 15px;
@@ -38,40 +37,6 @@
 			background: rgba(120, 120, 120, 0.5);
 		}
 
-		:root {
-			/* Light mode defaults */
-			--bg-primary: #ffffff;
-			--bg-secondary: #f5f7fa;
-			--bg-tertiary: #e8ecf1;
-			--accent-primary: #0066cc;
-			--accent-secondary: #5b4cdb;
-			--text-primary: #1a1a1a;
-			--text-secondary: #4a5568;
-			--glass-bg: rgba(0, 0, 0, 0.03);
-			--glass-border: rgba(0, 0, 0, 0.1);
-			--gradient-from: #ffffff;
-			--gradient-mid: #f5f7fa;
-			--gradient-to: #e8ecf1;
-			--footer-bg: rgba(100, 100, 100, 0.06);
-		}
-
-		[data-theme="dark"] {
-			/* Dark mode */
-			--bg-primary: #0a0e27;
-			--bg-secondary: #1a1f3a;
-			--bg-tertiary: #2a2f4a;
-			--accent-primary: #00d9ff;
-			--accent-secondary: #6c5ce7;
-			--text-primary: #ffffff;
-			--text-secondary: #b8c5d6;
-			--glass-bg: rgba(255, 255, 255, 0.05);
-			--glass-border: rgba(255, 255, 255, 0.1);
-			--gradient-from: #0a0e27;
-			--gradient-mid: #1a1f3a;
-			--gradient-to: #2a1f4a;
-			--footer-bg: rgba(200, 200, 200, 0.08);
-		}
-
 		body::before {
 			content: '';
 			position: fixed;
@@ -79,12 +44,12 @@
 			left: 0;
 			width: 100%;
 			height: 100%;
-			background: 
-				radial-gradient(circle at 20% 50%, 
-					var(--accent-primary) 0%, 
+			background:
+				radial-gradient(circle at 20% 50%,
+					var(--accent-primary) 0%,
 					transparent 50%) opacity(0.1),
-				radial-gradient(circle at 80% 80%, 
-					var(--accent-secondary) 0%, 
+				radial-gradient(circle at 80% 80%,
+					var(--accent-secondary) 0%,
 					transparent 50%) opacity(0.1);
 			pointer-events: none;
 			z-index: -1;
@@ -117,7 +82,7 @@
 			background: var(--accent-primary) opacity(0.08);
 			border-color: var(--accent-primary) opacity(0.3);
 			transform: translateY(-8px);
-			box-shadow: 0 15px 40px var(--accent-primary) opacity(0.2);
+			box-shadow: 0 15px 20px var(--accent-primary) opacity(0.2);
 		}
 
 		.marketplace-card h2 {
@@ -134,10 +99,9 @@
 			font-size: 13px;
 		}
 
-
 		main {
-			padding: 40px 28px !important;
-			max-width: 1240px;
+			padding: 10px 18px !important;
+			max-width: 1640px;
 			margin: 0 auto;
 			position: relative;
 			z-index: 1;
@@ -156,7 +120,7 @@
 			letter-spacing: -1px;
 		}
 
-		main > p {
+		main>p {
 			font-size: 16px;
 			color: var(--text-secondary);
 			margin-bottom: 24px;
@@ -170,7 +134,7 @@
 			font-weight: 600;
 		}
 
-		main > button {
+		main>button {
 			background: var(--glass-bg);
 			backdrop-filter: blur(10px);
 			border: 1.5px solid var(--glass-border);
@@ -185,7 +149,7 @@
 			overflow: hidden;
 		}
 
-		main > button::before {
+		main>button::before {
 			content: '';
 			position: absolute;
 			top: 0;
@@ -196,18 +160,18 @@
 			transition: left 0.5s ease;
 		}
 
-		main > button:hover::before {
+		main>button:hover::before {
 			left: 100%;
 		}
 
-		main > button:hover {
+		main>button:hover {
 			background: var(--accent-primary) opacity(0.1);
 			border-color: var(--accent-primary);
 			box-shadow: 0 0 20px var(--accent-primary) opacity(0.3);
 			transform: translateY(-2px);
 		}
 
-		main > button:active {
+		main>button:active {
 			transform: translateY(0);
 		}
 
@@ -216,7 +180,7 @@
 			backdrop-filter: blur(10px);
 			border: 1.5px solid var(--glass-border);
 			color: var(--text-primary);
-			padding: 10px 18px;
+			padding: 10px 25px;
 			border-radius: 8px;
 			cursor: pointer;
 			transition: all 0.3s ease;
@@ -284,56 +248,6 @@
 			border-bottom-color: var(--accent-primary);
 		}
 
-		footer {
-			text-align: center;
-			padding: 0 40px;
-			color: var(--text-secondary);
-			font-size: 12px;
-			border-top: 1px solid var(--glass-border);
-			margin-top: 0;
-			width: 100vw;
-			margin-left: calc(-50vw + 50%);
-			line-height: 1.8;
-			min-height: 64px;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			position: relative;
-		}
-
-		footer::before {
-			content: '';
-			position: absolute;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			background-color: var(--footer-bg);
-			border-top: 1px solid var(--glass-border);
-			z-index: 0;
-			opacity: 1;
-		}
-
-		footer > * {
-			position: relative;
-			z-index: 1;
-		}
-
-		footer p {
-			margin: 0;
-		}
-
-		footer a {
-			color: var(--accent-primary);
-			text-decoration: none;
-			transition: all 0.2s ease;
-			border-bottom: 1px solid transparent;
-		}
-
-		footer a:hover {
-			border-bottom-color: var(--accent-primary);
-		}
-
 		.model-description {
 			color: var(--text-secondary) !important;
 		}
@@ -344,7 +258,6 @@
 			cursor: pointer;
 		}
 
-		/* Base modal styling */
 		.info-modal {
 			display: none;
 			position: fixed;
@@ -359,7 +272,6 @@
 			transition: opacity 0.3s ease;
 		}
 
-		/* Modal content box */
 		.info-content {
 			margin: 15% auto;
 			padding: 24px;
@@ -373,7 +285,6 @@
 			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 		}
 
-		/* Active state (when shown) */
 		.info-modal.show {
 			display: block;
 			opacity: 1;
@@ -383,7 +294,6 @@
 			transform: scale(1);
 		}
 
-		/* Closing animation */
 		.info-modal.hide {
 			opacity: 0;
 		}
@@ -392,7 +302,6 @@
 			transform: scale(0.9);
 		}
 
-		/* Scroll animation smooth */
 		@media (prefers-reduced-motion: no-preference) {
 			html {
 				scroll-behavior: smooth;
@@ -412,7 +321,7 @@
 			overflow: hidden;
 		}
 
-		mainbutton:hover {
+		main button:hover {
 			background: var(--accent-primary) opacity(0.1) !important;
 			border-color: var(--accent-primary) !important;
 			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
@@ -444,15 +353,13 @@
 			bottom: -3px;
 			border-radius: 14px;
 			border: 3px solid transparent;
-			background: linear-gradient(
-				270deg,
-				#ff0000,
-				#ff9900,
-				#33cc33,
-				#3399ff,
-				#9900cc,
-				#ff0000
-			);
+			background: linear-gradient(270deg,
+					#ff0000,
+					#ff9900,
+					#33cc33,
+					#3399ff,
+					#9900cc,
+					#ff0000);
 			background-size: 300% 300%;
 			animation: rainbow-border 8s ease-in-out forwards;
 			mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -467,9 +374,11 @@
 			0% {
 				background-position: 300% 50%;
 			}
+
 			85% {
 				background-position: 0% 50%;
 			}
+
 			100% {
 				background-position: 0% 50%;
 			}
@@ -544,9 +453,8 @@
 			margin-bottom: 16px;
 		}
 
-		/* Make everything smaller without changing layout rules */
-		html {
-			font-size: 13px; 
+		main {
+			font-size: 13px;
 		}
 
 		.lightning-section p {
@@ -641,12 +549,9 @@
 		}
 
 		@media (max-width: 768px) {
-			html {
-				font-size: 14px;
-			}
-
 			main {
 				padding: 28px 16px !important;
+				font-size: 14px;
 			}
 
 			main h1 {
@@ -665,6 +570,81 @@
 				font-size: 26px;
 			}
 		}
+
+		body::before {
+			content: '';
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background:
+				radial-gradient(circle at 20% 50%,
+					var(--accent-primary) 0%,
+					transparent 50%) opacity(0.1),
+				radial-gradient(circle at 80% 80%,
+					var(--accent-secondary) 0%,
+					transparent 50%) opacity(0.1);
+			pointer-events: none;
+			z-index: -1;
+		}
+
+		footer {
+			text-align: center;
+			padding: 0 40px;
+			color: var(--text-secondary);
+			font-size: 12px;
+			border-top: 1px solid var(--glass-border);
+			margin-top: 0;
+			width: 100vw;
+			margin-left: calc(-50vw + 50%);
+			line-height: 1.8;
+			min-height: 64px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			position: relative;
+		}
+
+		footer::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: var(--footer-bg);
+			border-top: 1px solid var(--glass-border);
+			z-index: 0;
+			opacity: 1;
+		}
+
+		footer>* {
+			position: relative;
+			z-index: 1;
+		}
+
+		footer p {
+			margin: 0;
+		}
+
+		footer a {
+			color: var(--accent-primary);
+			text-decoration: none;
+			transition: all 0.2s ease;
+			border-bottom: 1px solid transparent;
+		}
+
+		footer a:hover {
+			border-bottom-color: var(--accent-primary);
+		}
+
+		main>p {
+			font-size: 16px;
+			color: var(--text-secondary);
+			margin-bottom: 24px;
+			font-weight: 300;
+		}
 	</style>
 </head>
 
@@ -673,70 +653,80 @@
 	<main>
 		<h1>Welcome to InferencePortAI</h1>
 		<p>Your gateway to seamless AI model management and interaction.</p>
-		<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'" style="width: 100%; height: 78px; font-size: 18px;">Chat Now</button>
+		<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'"
+			style="width: 100%; height: 78px; font-size: 18px;">Chat Now</button>
 
 		<div class="lightning-section" id="adCarousel">
 			<div class="ad-carousel-viewport">
-			<div class="ad-carousel-track" id="adCarouselTrack">
+				<div class="ad-carousel-track" id="adCarouselTrack">
 
-				<div class="ad-carousel-slide">
-					<h2>⚡ Lightning Models Are Here</h2>
-					<div class="tagline">Up to 1000 Words / Second</div>
-					<p>Lightning Text v2 and Lightning Image Turbo deliver incredible speed and quality, free for everyone right now.</p>
-					<button class="lightning-btn" id="trylight">Try Lightning Now</button>
-					<div class="lightning-models-grid">
-						<div class="lightning-model-card">
-							<h3>⚡ Lightning Text v2</h3>
-							<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses instantly for chat, coding, or long-form writing.</p>
-							<ul>
-								<li>Up to 1000 words per second</li>
-								<li>Low-latency streaming output</li>
-								<li>Optimized decoding and caching</li>
-								<li>Perfect for chatbots, code assistants, and document generation</li>
-							</ul>
-						</div>
-						<div class="lightning-model-card">
-							<h3>⚡ Lightning Image Turbo (New Default)</h3>
-							<p>Lightning Image Turbo produces ultra-realistic images with exceptional detail and stunning sci-fi or cinematic visuals.</p>
-							<ul>
-								<li>Ultra-realistic rendering</li>
-								<li>Exceptional sci-fi environments</li>
-								<li>Sharper detail &amp; lighting effects</li>
-								<li>Faster generation than ever before</li>
-							</ul>
+					<div class="ad-carousel-slide">
+						<h2>⚡ Lightning Models Are Here</h2>
+						<div class="tagline">Up to 1000 Words / Second</div>
+						<p>Lightning Text v2 and Lightning Image Turbo deliver incredible speed and quality, free for
+							everyone right now.</p>
+						<button class="lightning-btn" id="trylight">Try it Now</button>
+						<div class="lightning-models-grid">
+							<div class="lightning-model-card">
+								<h3>⚡ Lightning Text v2</h3>
+								<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses
+									instantly for chat, coding, or long-form writing.</p>
+								<ul>
+									<li>Up to 1000 words per second</li>
+									<li>Low-latency streaming output</li>
+									<li>Optimized decoding and caching</li>
+									<li>Perfect for chatbots, code assistants, and document generation</li>
+								</ul>
+							</div>
+							<div class="lightning-model-card">
+								<h3>⚡ Lightning Image Turbo (New Default)</h3>
+								<p>Lightning Image Turbo produces ultra-realistic images with exceptional detail and
+									stunning sci-fi or cinematic visuals.</p>
+								<ul>
+									<li>Ultra-realistic rendering</li>
+									<li>Exceptional sci-fi environments</li>
+									<li>Sharper detail &amp; lighting effects</li>
+									<li>Faster generation than ever before</li>
+								</ul>
+							</div>
 						</div>
 					</div>
-				</div>
 
-				<div class="ad-carousel-slide">
-					<h2>🎬 Music &amp; Video Generation</h2>
-					<div class="tagline">Create. Generate. Produce.</div>
-					<p>Generate original music with ElevenLabs and produce stunning video clips — all from within InferencePortAI.</p>
-					<div class="lightning-models-grid">
-						<div class="lightning-model-card">
-							<h3>🎵 Music/SFX Generation</h3>
-							<p>Create original, high-quality music and sound effects from a simple text prompt. From cinematic scores to lo-fi beats, bring your audio ideas to life.</p>
-							<ul>
-								<li>Powered by ElevenLabs Music</li>
-								<li>Full tracks &amp; sound effects</li>
-								<li>Multiple genres and styles</li>
-								<li>Studio quality audio outputs</li>
-							</ul>
-						</div>
-						<div class="lightning-model-card">
-							<h3>🎞️ Video Generation</h3>
-							<p>Turn text prompts or images into fluid, high-quality video clips. Perfect for short-form content, product showcases, and cinematic visualizations.</p>
-							<ul>
-								<li>Text-to-video</li>
-								<li>Cinematic &amp; custom visual styles</li>
-								<li>Smooth, high-fidelity output</li>
-								<li>Fast generation pipeline</li>
-							</ul>
+					<div class="ad-carousel-slide">
+						<h2>🎬 Music &amp; Video Generation</h2>
+						<div class="tagline">Create. Generate. Produce.</div>
+						<p>Experimental: Generate original music powered by ElevenLabs and produce stunning video clips
+							— all from
+							within InferencePortAI. Free for a limited time.</p>
+						<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'">Try it
+							Now</button>
+						<div class="lightning-models-grid">
+							<div class="lightning-model-card">
+								<h3>🎵 Music/SFX Generation</h3>
+								<p>Create original, high-quality music and sound effects from a simple text prompt. From
+									cinematic scores to lo-fi beats, bring your audio ideas to life.</p>
+								<ul>
+									<li>Powered by ElevenLabs Music</li>
+									<li>Full tracks &amp; sound effects</li>
+									<li>Multiple genres and styles</li>
+									<li>Studio quality audio outputs</li>
+								</ul>
+							</div>
+							<div class="lightning-model-card">
+								<h3>🎞️ Video Generation</h3>
+								<p>Turn text prompts or images into fluid, high-quality video clips. Perfect for
+									short-form content, product showcases, and cinematic visualizations.</p>
+								<ul>
+									<li>Text-to-video</li>
+									<li>Cinematic &amp; custom visual styles</li>
+									<li>Smooth, high-fidelity output</li>
+									<li>Fast generation pipeline</li>
+								</ul>
+							</div>
 						</div>
 					</div>
-				</div>
 
-			</div><!-- end track -->
+				</div><!-- end track -->
 			</div><!-- end viewport -->
 			<div class="ad-carousel-dots">
 				<button class="ad-carousel-dot active" data-index="0"></button>
@@ -756,20 +746,24 @@
 						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details
+								→</a>
 						</div>
 						<a href="./marketplace/ollama.html#gpt-oss">
-							<button class="marketplace-btn">View in Marketplace</button>						</a>					</div>
+							<button class="marketplace-btn">View in Marketplace</button> </a>
+					</div>
 					<div class="marketplace-card">
-					<h2>🧠 deepseek-r1</h2>
+						<h2>🧠 deepseek-r1</h2>
 						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance
 							approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
 						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span>
 							<span class="model-tag">8b</span> <span class="model-tag">14b</span> <span
 								class="model-tag">32b</span> <span class="model-tag">70b</span> <span
-								class="model-tag">671b</span></div>
+								class="model-tag">671b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More
+								details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#deepseek-r1">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -780,9 +774,11 @@
 						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in
 							8B, 70B and 405B parameter sizes.</p>
 						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span>
-							<span class="model-tag">405b</span></div>
+							<span class="model-tag">405b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More
+								details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#llama3.1">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -793,9 +789,11 @@
 						<p class="model-description">SmolLM2 is a family of compact language models available in three
 							size: 135M, 360M, and 1.7B parameters.</p>
 						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span>
-							<span class="model-tag">1.7b</span></div>
+							<span class="model-tag">1.7b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details
+								→</a>
 						</div>
 						<a href="./marketplace/ollama.html#smollm2">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -808,7 +806,8 @@
 						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More details
+								→</a>
 						</div>
 						<a href="./marketplace/ollama.html#phi3">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -823,7 +822,8 @@
 						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span>
 						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details
+								→</a>
 						</div>
 						<a href="./marketplace/ollama.html#gpt-oss">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -837,9 +837,11 @@
 						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span>
 							<span class="model-tag">8b</span> <span class="model-tag">14b</span> <span
 								class="model-tag">32b</span> <span class="model-tag">70b</span> <span
-								class="model-tag">671b</span></div>
+								class="model-tag">671b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More
+								details →</a>
 						</div>
 						<a href="./marketplace/ollama.html#deepseek-r1">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -850,9 +852,11 @@
 						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in
 							8B, 70B and 405B parameter sizes.</p>
 						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span>
-							<span class="model-tag">405b</span></div>
+							<span class="model-tag">405b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More
+								details →</a>
 						</div>
 						<a href="./marketplace/ollama.html">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -863,9 +867,11 @@
 						<p class="model-description">SmolLM2 is a family of compact language models available in three
 							size: 135M, 360M, and 1.7B parameters.</p>
 						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span>
-							<span class="model-tag">1.7b</span></div>
+							<span class="model-tag">1.7b</span>
+						</div>
 						<div class="model-meta">
-							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details →</a>
+							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details
+								→</a>
 						</div>
 						<a href="./marketplace/ollama.html#smollm2">
 							<button class="marketplace-btn">View in Marketplace</button>
@@ -873,10 +879,14 @@
 					</div>
 					<div class="marketplace-card">
 						<h2>🎯 phi3</h2>
-						<p class="model-description">Phi-3 is a family of lightweight 3B (Mini) and 14B (Medium) state-of-the-art open models by Microsoft.</p>
-						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span></div>
-						<div class="model-meta"><a href="https://ollama.com/library/phi3" target="_blank" class="model-link">More details →</a></div>
-						<a href="./marketplace/ollama.html#phi3"><button class="marketplace-btn">View in Marketplace</button></a>
+						<p class="model-description">Phi-3 is a family of lightweight 3B (Mini) and 14B (Medium)
+							state-of-the-art open models by Microsoft.</p>
+						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span>
+						</div>
+						<div class="model-meta"><a href="https://ollama.com/library/phi3" target="_blank"
+								class="model-link">More details →</a></div>
+						<a href="./marketplace/ollama.html#phi3"><button class="marketplace-btn">View in
+								Marketplace</button></a>
 					</div>
 				</div>
 			</div>
@@ -884,7 +894,7 @@
 		</div>
 	</main>
 
-	<footer class="copyright-footer">
+	<footer>
 		<p>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</p>
 		<p>By using this app, you agree to the <a
 				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
@@ -931,7 +941,7 @@
 	</div>
 	<script>
 		// Marketplace infinite scroll
-		(function() {
+		(function () {
 			const wrapper = document.getElementById('card-scroll-wrapper');
 			const grid = wrapper.querySelector('.card-grid');
 			const cards = Array.from(grid.children);
@@ -963,7 +973,7 @@
 		})();
 
 		// Ad carousel
-		(function() {
+		(function () {
 			const carousel = document.getElementById('adCarousel');
 			const track = document.getElementById('adCarouselTrack');
 			const dots = document.querySelectorAll('.ad-carousel-dot');
@@ -979,7 +989,7 @@
 
 			function startInterval() {
 				clearInterval(interval);
-				interval = setInterval(() => goTo(current + 1), 5000);
+				interval = setInterval(() => goTo(current + 1), 3000);
 			}
 
 			dots.forEach(dot => {
@@ -999,16 +1009,12 @@
 		})();
 	</script>
 	<script>
-		// Try Lightning Now button
-		(function() {
+		(function () {
 			const tryBtn = document.getElementById('trylight');
 			if (!tryBtn) return;
 
 			tryBtn.addEventListener('click', () => {
-				// Set localStorage flag
 				localStorage.setItem('lightning_enabled', 'true');
-
-				// Go to chat page
 				window.location.href = 'renderer/chat.html';
 			});
 		})();
