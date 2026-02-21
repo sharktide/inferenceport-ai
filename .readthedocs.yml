@@ -5,6 +5,9 @@ build:
   tools:
     python: "3.13"
 
-mkdocs:
-   configuration: mkdocs.yml
+sphinx:
+   configuration: docs/source/conf.py
         
+python:
+    install:
+    - requirements: docs/requirements.txt
