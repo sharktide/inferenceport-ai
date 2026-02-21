@@ -7,6 +7,7 @@
 !.vscode/tasks.json
 !?*.[Cc]ache/
 !Directory.Build.rsp
+docs/build/
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
 # (https://github.com/github/gitignore/pull/3736)
