@@ -27,9 +27,6 @@ html_theme_options = {
     "source_repository": "https://github.com/sharktide/inferenceport-ai/",
     "source_branch": "main",
     "source_directory": "docs/source/",
-}
-
-html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 4,
 }

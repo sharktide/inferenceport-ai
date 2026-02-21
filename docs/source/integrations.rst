@@ -35,4 +35,4 @@ InferencePort AI can integrate with various tools and platforms to enhance your 
 
 16. **Community support**: InferencePort AI has an active community of users and developers, providing support, sharing models, and contributing to the ongoing development of the app.
 
-17. **Lightning**: InferencePort AI has just introduced a two new models called Lightning Text v2 and Lightning Image Turbo, which provide execllent speed and realistic images all with zero data collection. (See the `privacy policy <https://inference.js.org/security.html#privacy>`_ for details on data collection and usage).
+17. **Lightning**: InferencePort AI has just introduced two new models called Lightning Text v2 and Lightning Image Turbo, which provide excellent speed and realistic images, all with zero data collection. (See the `privacy policy <https://inference.js.org/security.html#privacy>`_ for details on data collection and usage).

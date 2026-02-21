@@ -32,7 +32,7 @@ Possible causes:
 
 * Active stream was aborted.
 * Model backend became unavailable.
-* Tool call failed due network/service issue.
+* Tool call failed due to network/service issues.
 
 Actions:
 
