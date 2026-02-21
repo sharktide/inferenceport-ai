@@ -1689,7 +1689,6 @@ function renderChat() {
 			return;
 		}
 
-		/* ---------------- TOOL ---------------- */
 		if (msg.role === "tool") {
 			const toolBubble = document.createElement("div");
 			toolBubble.className = "chat-bubble tool-bubble";
@@ -1701,8 +1700,8 @@ function renderChat() {
 					"⚡Generated an Image with Lightning-Image Turbo";
 			} else if (msg.name == "generate_video") {
 				header.textContent = "Generated video";
-			} else if (msg.name == "generate_audio_or_sfx") {
-				header.textContent = "Generated audio/SFX";
+			} else if (msg.name == "generate_audio") {
+				header.textContent = "Generated Audio";
 			} else header.textContent = `🔧 Tool: ${msg.name ?? "unknown"}`;
 
 			toolBubble.appendChild(header);
