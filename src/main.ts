@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
 import ollamaHandlers, {
@@ -329,6 +329,63 @@ app.whenReady().then(async () => {
 	spaces();
 	createWindow();
 
+	(async function checkForUpdate() {
+		try {
+			const res = await fetch("https://sharktide-lightning.hf.space/status");
+			if (!res.ok) return;
+			const data = await res.json();
+			const latest = data.latest;
+			if (typeof latest === "string" && isNewerVersion(latest, getAppVersion())) {
+				const skipKey = `skip-update-${latest}`;
+				const storePath = path.join(app.getPath("userData"), "update-skips.json");
+				let skipData: Record<string, boolean> = {};
+				if (fs.existsSync(storePath)) {
+					try { skipData = JSON.parse(fs.readFileSync(storePath, "utf8")); } catch { skipData = {}; }
+				}
+				if (skipData[skipKey]) return;
+				const result = await dialog.showMessageBox(mainWindow, {
+					type: "info",
+					buttons: ["Open Link", "Cancel", "Skip This Release"],
+					defaultId: 0,
+					cancelId: 1,
+					title: "Update Available",
+					message: `A new version (${latest}) is available!\nDownload it at https://inference.js.org/install.html`,
+					detail: "You can skip this release to not be notified again."
+				});
+				if (result.response === 0) {
+					await shell.openExternal("https://inference.js.org/install.html");
+				} else if (result.response === 2) {
+					skipData[skipKey] = true;
+					fs.writeFileSync(storePath, JSON.stringify(skipData));
+				}
+				if (mainWindow) {
+					mainWindow.focus();
+				}
+			}
+		} catch (e) {
+			void 0
+		}
+	})();
+
+	function getAppVersion(): string {
+		try {
+			const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
+			return pkg.version || "0.0.0";
+		} catch {
+			return "0.0.0";
+		}
+	}
+
+	function isNewerVersion(b: string, a: string): boolean {
+		const pa = a.split(".").map(Number);
+		const pb = b.split(".").map(Number);
+		let res: boolean = false;
+		for (let i = 0; i < 3; ++i) {
+			if ((pb[i] || 0) > (pa[i] || 0)) res = true;
+			if ((pb[i] || 0) < (pa[i] || 0)) res = false;
+		}
+		return res;
+	}
 	if (pendingDeepLink) {
 		const handled = await handleAuthCallback(pendingDeepLink);
 		if (!handled) {
