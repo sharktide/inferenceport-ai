@@ -86,6 +86,8 @@ const lightningStatus = document.getElementById(
 	"lightning-status",
 ) as HTMLDivElement | null;
 let modal: declarations["iInstance"]["iModal"];
+let editModal: declarations["iInstance"]["iModal"];
+
 let searchEnabled = false;
 let imgEnabled = false;
 let videoEnabled = false;
@@ -212,7 +214,8 @@ function initWelcomeCards(): void {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-	modal = new window.ic.iModal("global-modal");
+	modal = new window.ic.iModal("global-modal", undefined, undefined, false, false);
+	editModal = new window.ic.iModal("edit-modal", undefined, undefined, false, false );
 	initWelcomeCards();
 	initLightningToggleEvents();
 	updateExperimentalFeatureNotice();
@@ -1561,6 +1564,186 @@ async function setTitle() {
 	document.title = titleModel + " - Chat - InferencePortAI";
 }
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+async function persistSessionsAndSync(): Promise<void> {
+	await window.ollama.save(sessions);
+	const auth = await window.auth.getSession();
+	if (isSyncEnabled() && auth?.session?.user) {
+		await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+	}
+}
+
+function getCurrentSessionMessages(): any[] | null {
+	if (!currentSessionId || !sessions[currentSessionId]) {
+		return null;
+	}
+
+	const history = sessions[currentSessionId].history;
+	return Array.isArray(history) ? history : null;
+}
+
+function createMessageActionButton(
+	label: string,
+	title: string,
+	onClick: () => void | Promise<void>,
+): HTMLButtonElement {
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "chat-message-action-btn";
+	button.setAttribute("aria-label", title);
+	button.title = title;
+	button.textContent = label;
+	button.addEventListener("click", (event) => {
+		event.stopPropagation();
+		void onClick();
+	});
+	return button;
+}
+
+function openEditMessageDialog(messageIndex: number): void {
+	const history = getCurrentSessionMessages();
+	const message = history?.[messageIndex];
+	if (!message || typeof message.content !== "string") {
+		return;
+	}
+
+	editModal.open({
+		title: "Edit Message",
+		html: `
+			<textarea
+				id="edit-message-input"
+				class="modal-input"
+				rows="8"
+				style="width:100%; resize:vertical;"
+			>${escapeHtml(message.content)}</textarea>
+		`,
+		actions: [
+			{
+				id: "cancel-edit-message",
+				label: "Cancel",
+				onClick: () => editModal.close(),
+			},
+			{
+				id: "save-edit-message",
+				label: "Save",
+				onClick: async () => {
+					const input = document.getElementById(
+						"edit-message-input",
+					) as HTMLTextAreaElement;
+					if (!input) {
+						return;
+					}
+
+					const updated = input.value;
+					if (!updated.trim()) {
+						showNotification({
+							message: "Message cannot be empty.",
+							type: "warning",
+						});
+						return;
+					}
+
+					const latestHistory = getCurrentSessionMessages();
+					if (!latestHistory?.[messageIndex]) {
+						modal.close();
+						return;
+					}
+
+					latestHistory[messageIndex].content = updated;
+					await persistSessionsAndSync();
+					renderChat();
+					editModal.close();
+				},
+			},
+		],
+	});
+}
+
+function openDeleteMessageDialog(messageIndex: number): void {
+	editModal.open({
+		title: "Delete Message",
+		html: `<p>This message will be permanently deleted.</p>`,
+		actions: [
+			{
+				id: "cancel-delete-message",
+				label: "Cancel",
+				onClick: () => editModal.close(),
+			},
+			{
+				id: "confirm-delete-message",
+				label: "Delete",
+				onClick: async () => {
+					const history = getCurrentSessionMessages();
+					if (!history?.[messageIndex]) {
+						editModal.close();
+						return;
+					}
+
+					history.splice(messageIndex, 1);
+					await persistSessionsAndSync();
+					renderChat();
+					editModal.close();
+				},
+			},
+		],
+	});
+}
+
+function buildMessageActions(
+	msg: any,
+	messageIndex: number,
+): HTMLDivElement | null {
+	if (!["user", "assistant"].includes(msg?.role)) {
+		return null;
+	}
+
+	const actions = document.createElement("div");
+	actions.className = "chat-message-actions";
+
+	const canEdit = typeof msg.content === "string" && msg.content.length > 0;
+	if (canEdit) {
+		actions.appendChild(
+			createMessageActionButton("Edit", "Edit message", () =>
+				openEditMessageDialog(messageIndex),
+			),
+		);
+	}
+
+	actions.appendChild(
+		createMessageActionButton("Delete", "Delete message", () =>
+			openDeleteMessageDialog(messageIndex),
+		),
+	);
+
+	actions.appendChild(
+		createMessageActionButton("Copy", "Copy message", async () => {
+			const content = typeof msg.content === "string" ? msg.content : "";
+			try {
+				await navigator.clipboard.writeText(content);
+				showNotification({
+					message: "Message copied.",
+					type: "success",
+				});
+			} catch (err) {
+				showNotification({
+					message: "Failed to copy message.",
+					type: "error",
+				});
+			}
+		}),
+	);
+
+	return actions;
+}
+
 function renderChat() {
 	for (const url of assetObjectUrlCache.values()) {
 		try {
@@ -1589,15 +1772,19 @@ function renderChat() {
 
 	setWelcomeMode(false);
 
-	session.history.forEach((msg) => {
+	session.history.forEach((msg, messageIndex) => {
 		/* ---------------- USER ---------------- */
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
-			bubble.className = "chat-bubble user-bubble";
+			bubble.className = "chat-bubble user-bubble has-message-actions";
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = window.utils.markdown_parse_and_purify(
 				msg.content || "",
 			);
+			const actions = buildMessageActions(msg, messageIndex);
+			if (actions) {
+				bubble.appendChild(actions);
+			}
 			chatBox.appendChild(bubble);
 			return;
 		}
@@ -1612,7 +1799,7 @@ function renderChat() {
 			temp.innerHTML = html;
 
 			const botContainer = document.createElement("div");
-			botContainer.className = "chat-bubble bot-bubble";
+			botContainer.className = "chat-bubble bot-bubble has-message-actions";
 
 			Array.from(temp.childNodes).forEach((node) => {
 				const el = node as HTMLElement;
@@ -1669,6 +1856,11 @@ function renderChat() {
 					botContainer.appendChild(node.cloneNode(true));
 				}
 			});
+
+			const actions = buildMessageActions(msg, messageIndex);
+			if (actions) {
+				botContainer.appendChild(actions);
+			}
 
 			chatBox.appendChild(botContainer);
 			return;
