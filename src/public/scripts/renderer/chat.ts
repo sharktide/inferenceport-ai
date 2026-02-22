@@ -1653,7 +1653,7 @@ function openEditMessageDialog(messageIndex: number): void {
 
 					const latestHistory = getCurrentSessionMessages();
 					if (!latestHistory?.[messageIndex]) {
-						modal.close();
+						editModal.close();
 						return;
 					}
 
