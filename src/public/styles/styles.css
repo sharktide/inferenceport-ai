@@ -31,7 +31,6 @@ limitations under the License.
 @import "./components/highlight.css";
 @import "./components/switch.css";
 
-@import "./components/app-notification-banner.css";
 /** Page-Specific Styles **/
 @import "./pages/auth.css";
 @import "./pages/marketplace.css";
