@@ -34,6 +34,14 @@ Copyright 2025 Rihaan Meher
   border-left: 4px solid var(--error);
 }
 
+.notification.warning {
+  border-left: 4px solid var(--warning);
+}
+
+.notification.info {
+  border-left: 4px solid var(--blue);
+}
+
 .notification .close-btn {
   position: absolute;
   top: 8px;

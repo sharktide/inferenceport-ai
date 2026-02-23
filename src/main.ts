@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { app, BrowserWindow, ipcMain, screen, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
 import ollamaHandlers, {
@@ -257,6 +257,24 @@ function openFromDeepLink(url: string) {
 	}
 }
 
+function safeWriteJSONAtomic(filePath: string, data: any) {
+    const json = JSON.stringify(data, null, 2);
+
+    const fd = fs.openSync(
+        filePath,
+        fs.constants.O_CREAT |
+        fs.constants.O_TRUNC |
+        fs.constants.O_WRONLY,
+        0o600
+    );
+
+    try {
+        fs.writeFileSync(fd, json);
+    } finally {
+        fs.closeSync(fd);
+    }
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
@@ -328,6 +346,61 @@ app.whenReady().then(async () => {
 	authHandlers();
 	spaces();
 	createWindow();
+
+	(async function checkForUpdate() {
+		try {
+			const res = await fetch("https://sharktide-lightning.hf.space/status");
+			if (!res.ok) return;
+			const data = await res.json();
+			const latest = data.latest;
+			if (typeof latest === "string" && isNewerVersion(latest, app.getVersion())) {
+				const skipKey = `skip-update-${latest}`;
+				const storePath = path.join(app.getPath("userData"), "update-skips.json");
+				let skipData: Record<string, boolean> = {};
+				if (fs.existsSync(storePath)) {
+					try { skipData = JSON.parse(fs.readFileSync(storePath, "utf8")); } catch { skipData = {}; }
+				}
+				if (skipData[skipKey]) return;
+				const result = await dialog.showMessageBox(mainWindow, {
+					type: "info",
+					buttons: (process.platform !== "win32")
+						? ["Open Link", "Cancel", "Skip This Release"]
+						: ["Open Link", "Microsoft Store", "Cancel", "Skip This Release"],
+					defaultId: 0,
+					cancelId: 1,
+					title: "Update Available",
+					message: `A new version (${latest}) is available!\nDownload it from our website\n${process.platform === "win32" ? "or from the Microsoft Store" : ""}`,
+					detail: "Link: https://inference.js.org/install.html\nYou can skip this release to not be notified again."
+				});
+				if (result.response === 0) {
+					await shell.openExternal("https://inference.js.org/install.html");
+				} else if ((process.platform !== "win32" && result.response === 2) || (process.platform === "win32" && result.response === 3)) {
+					skipData[skipKey] = true;
+					safeWriteJSONAtomic(storePath, skipData);
+				} else if (process.platform === "win32" && result.response === 1 ) {
+					await shell.openExternal("https://apps.microsoft.com/detail/9p5d3xx84l28")
+				}
+				if (mainWindow) {
+					mainWindow.focus();
+				}
+			}
+		} catch (e) {
+			void 0
+		}
+	})();
+
+	function isNewerVersion(b: string, a: string): boolean {
+		const pa = a.split(".").map(Number);
+		const pb = b.split(".").map(Number);
+
+		for (let i = 0; i < 3; ++i) {
+			const av = pa[i] || 0;
+			const bv = pb[i] || 0;
+			if (bv > av) return true;
+			if (bv < av) return false;
+		}
+		return false;
+	}
 
 	if (pendingDeepLink) {
 		const handled = await handleAuthCallback(pendingDeepLink);

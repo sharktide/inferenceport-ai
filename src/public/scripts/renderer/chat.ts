@@ -645,9 +645,46 @@ async function loadOptions() {
 		if (await isOffline()) {
 			showNotification({
 				message:
-					"⚠️ No internet connection — Using offline sessions only.",
+					"⚠️ No internet connection — Using offline sessions only. Tool requests will fail",
 				type: "warning",
 			});
+		} else {
+			try {
+				const res = await fetch(
+					"https://sharktide-lightning.hf.space/status",
+				);
+
+				if (!res.ok) {
+					showNotification({
+						message: `⚠️ Lightning service unreachable (HTTP ${res.status})`,
+						type: "error",
+					});
+					return;
+				}
+
+				const data = await res.json();
+
+				Object.entries(data.services).forEach(([name, svc]) => {
+					if (svc.state == "ok") {
+						void 0;
+					} else if (svc.state == "degraded") {
+						showNotification({
+							message: svc.message,
+							type: "warning",
+						});
+					} else if (svc.state == "offline") {
+						showNotification({
+							message: svc.message,
+							type: "error",
+						});
+					}
+				});
+			} catch (err) {
+				showNotification({
+					message: "⚠️ Could not reach Lightning status endpoint.",
+					type: "error",
+				});
+			}
 		}
 	}
 }
@@ -1749,7 +1786,7 @@ function renderChat() {
 		try {
 			URL.revokeObjectURL(url);
 		} catch (err: any) {
-			console.warn(err.toString())
+			console.warn(err.toString());
 		}
 	}
 	assetObjectUrlCache.clear();

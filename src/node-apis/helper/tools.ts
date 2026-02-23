@@ -1,38 +1,49 @@
 import { LOG, LOG_ERR } from "./log.js";
 
-async function fetchWithRetry500(
+async function fetchWithRetry(
     trace: string,
     url: string,
     options: RequestInit,
+    maxRetries: number = 5,
+    baseDelay: number = 1000
 ): Promise<Response> {
-    const attempt = async (n: number): Promise<Response> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const res = await fetch(url, options);
 
-            if (res.status === 500) {
-                LOG_ERR(trace, `500 ERROR ON ATTEMPT ${n}`, {
+            if (res.status === 500 || res.status === 429) {
+                LOG_ERR(trace, `${res.status} ERROR ON ATTEMPT ${attempt}`, {
                     status: res.status,
                     statusText: res.statusText,
                 });
 
-                if (n === 1) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    return attempt(2);
+                if (attempt < maxRetries) {
+                    const delay = baseDelay * attempt;
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
                 }
 
-                throw new Error(`Fetch failed twice with 500`);
+                throw new Error(
+                    `Fetch failed after ${maxRetries} attempts with ${res.status}`
+                );
             }
 
             return res;
+
         } catch (err) {
-            if (n === 1) {
-                LOG_ERR(trace, "FETCH THREW", err);
+            LOG_ERR(trace, `FETCH THREW ON ATTEMPT ${attempt}`, err);
+
+            if (attempt < maxRetries) {
+                const delay = baseDelay * attempt;
+                await new Promise(r => setTimeout(r, delay));
+                continue;
             }
+
             throw err;
         }
-    };
+    }
 
-    return attempt(1);
+    throw new Error("Unreachable");
 }
 
 export async function GenerateImage(prompt: string): Promise<{ dataUrl: string }> {
@@ -146,11 +157,11 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
 
 	let response: Response;
 	try {
-		response = await fetchWithRetry500(trace, url, {
+		response = await fetchWithRetry(trace, url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ prompt: prompt }),
-		});
+		}, 6);
 		LOG(trace, "FETCH RESOLVED", {
 			ok: response.ok,
 			status: response.status,
@@ -203,11 +214,11 @@ export async function generateVideo(prompt: string): Promise<ArrayBuffer> {
 
 	let response: Response;
 	try {
-		response = await fetchWithRetry500(trace, url, {
+		response = await fetchWithRetry(trace, url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ prompt: prompt }),
-		});
+		}, 6);
 		LOG(trace, "FETCH RESOLVED", {
 			ok: response.ok,
 			status: response.status,
