@@ -1,64 +1,142 @@
 User Guide
 ==========
 
-This guide explains common tasks inside the app.
+This guide covers all major user features in InferencePort AI.
 
-Quick daily flow
-----------------
+Everyday Workflow
+-----------------
 
-1. Choose a model and host (local or remote).
-2. Start chatting.
-3. Save and reopen sessions.
-4. Manage models as needed.
+1. Open ``Chat``.
+2. Select a ``Host`` and ``Model``.
+3. Send prompts and review streamed output.
+4. Reopen older sessions from the sidebar when needed.
 
-Start your first chat
----------------------
+Chat Basics
+-----------
 
-1. Open the Chat page.
-2. Select a model from the model dropdown.
-3. Type a prompt and press Enter.
-4. Wait for streamed response output.
+1. Go to ``Chat``.
+2. Choose your host (local or remote).
+3. Choose a model.
+4. Type a prompt and press Enter.
 
-If no models appear, go to Marketplace first and install one.
+Helpful chat controls:
 
-Download or remove models
--------------------------
+* ``+ New chat`` starts a fresh session.
+* ``Stop`` aborts an in-progress response.
+* ``Reset`` clears chat state for the current run.
+* Right-click a session for rename/delete actions.
 
-1. Open Marketplace.
-2. Find a model and select a version/size.
-3. Start download/pull.
-4. Return to Chat and select it.
+Lightning Mode
+--------------
 
-To remove a model, use the delete action from Installed/Marketplace views.
+Chat includes a Lightning toggle in the sidebar.
+
+* Turn Lightning on to use Lightning model flow.
+* Turn it off to use your normal host/model selections.
 
 Sessions
 --------
 
-* Chats are saved and can be reopened from the session list.
-* You can rename, favorite, and continue previous sessions.
-* Sessions are local by default.
+* Sessions are saved locally by default.
+* You can continue, rename, favorite, or delete sessions.
+* ``Delete All Sessions`` is available from the session context menu.
 
-Sign in and sync (optional)
----------------------------
+Marketplace Overview
+--------------------
 
-* Sign in from the Auth screen (email/password, GitHub, or Google).
-* Enable sync in Settings if you want remote backup/sync.
-* You can still use local chat without signing in.
+Marketplace includes:
 
-Spaces and websites
+* ``Local Chat`` (Ollama models)
+* ``Hugging Face`` chatbot discovery/import
+* ``Import Model`` for ``.gguf``/``Modelfile``
+* ``Hugging Face Spaces`` demos
+* ``Websites`` cards
+* ``Import .import File`` for supported cards/imports
+
+Local Models (Ollama)
+---------------------
+
+1. Open ``Marketplace`` -> ``Local Chat``.
+2. Browse recommended or all available models.
+3. Download a model.
+4. Open ``Chat`` and select the model.
+
+You can also:
+
+* Search installed and available models.
+* Remove models you no longer need.
+* Add/manage remote hosts from host controls.
+
+Import GGUF / Modelfile
+-----------------------
+
+1. Open ``Marketplace``.
+2. Select ``Import Model``.
+3. Drop ``.gguf`` and/or ``Modelfile``.
+4. Start import and wait for completion.
+
+If your Modelfile references a GGUF, provide both files together.
+
+Installed Page
+--------------
+
+The ``Installed`` page helps you manage what you already added:
+
+* Installed chat models
+* Saved Hugging Face Spaces
+* Saved website cards
+
+Use launch/delete actions per card as needed.
+
+Spaces and Websites
 -------------------
 
-* Open marketplace cards to launch supported Spaces/websites.
-* Delete cards you no longer need.
-* Export/import supported cards using ``.import`` files.
+* Launch Spaces from ``Marketplace`` to use hosted demos.
+* Save useful Spaces/websites for quick access.
+* Remove saved cards when you do not need them.
+* Some sites may open externally if embedding is blocked.
 
-Advanced options
-----------------
+Account (Optional)
+------------------
 
-Settings includes advanced features such as:
+You can use the app without an account.
 
-* Remote host configuration
-* Hosting/proxy controls
-* Server logs and diagnostics
+If needed, sign in from ``Auth`` using:
 
-If you only need personal local usage, you can ignore these.
+* Email + password
+* GitHub
+* Google
+
+Settings includes account actions such as username change and account deletion.
+
+Sync (Optional)
+---------------
+
+1. Sign in.
+2. Open ``Settings``.
+3. Enable ``chat sync``.
+
+Notes:
+
+* Sync is off by default.
+* Local usage works without sync.
+
+Remote Host and Hosting (Advanced)
+----------------------------------
+
+Two separate advanced features are available:
+
+* ``Remote host``: connect this app to a model host running elsewhere.
+* ``Host (Proxy)`` in Settings: run a local proxy server for allowed users.
+
+For hosting/proxy mode you can:
+
+* Set port and allowed emails
+* Start/stop hosting
+* View server logs
+
+Troubleshooting
+---------------
+
+If you hit issues with install, model pulls, streaming, auth, or sync, use
+:doc:`troubleshooting`.
