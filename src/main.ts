@@ -257,6 +257,24 @@ function openFromDeepLink(url: string) {
 	}
 }
 
+function safeWriteJSONAtomic(filePath: string, data: any) {
+    const json = JSON.stringify(data, null, 2);
+
+    const fd = fs.openSync(
+        filePath,
+        fs.constants.O_CREAT |
+        fs.constants.O_TRUNC |
+        fs.constants.O_WRONLY,
+        0o600
+    );
+
+    try {
+        fs.writeFileSync(fd, json);
+    } finally {
+        fs.closeSync(fd);
+    }
+}
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
 	app.quit();
@@ -356,7 +374,7 @@ app.whenReady().then(async () => {
 					await shell.openExternal("https://inference.js.org/install.html");
 				} else if (result.response === 2) {
 					skipData[skipKey] = true;
-					fs.writeFileSync(storePath, JSON.stringify(skipData));
+					safeWriteJSONAtomic(storePath, skipData);
 				}
 				if (mainWindow) {
 					mainWindow.focus();
