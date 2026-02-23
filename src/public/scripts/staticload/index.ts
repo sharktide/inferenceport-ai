@@ -39,9 +39,8 @@ async function checkAndShowNotificationBanner() {
         if (data && typeof data.notifications === "string" && data.notifications.trim() !== "") {
             showAppWideBanner(data.notifications);
         }
-        showAppWideBanner("hi")
     } catch (e) {
-        void 0
+        console.warn(e)
     }
 }
 
