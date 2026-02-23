@@ -4,37 +4,45 @@ InferencePort AI Help
 .. image:: _static/banner.png
    :target: _static/banner.png
 
-This documentation is designed for people who download InferencePort AI from
-``https://inference.js.org`` and want to quickly choose the right installer and
-start using the app.
+Welcome to the beginner docs for InferencePort AI.
 
-InferencePort AI is a desktop app that helps you run and manage AI models on
-your own computer. You can install it from ``https://inference.js.org`` and
-use it without setting up a coding environment.
+InferencePort AI is a desktop app for local AI usage. You can chat with
+models, download or remove models, save sessions, browse Spaces/websites, and
+optionally sign in for account and sync features.
 
-What the app does
------------------
+Start Here (5 Minutes)
+----------------------
 
-* Chat with models using a desktop interface.
-* Download and remove models from the built-in marketplace.
-* Save conversations and reopen them later.
-* Launch Hugging Face Spaces and website cards.
-* Optional sign-in features for sync and account tools.
+1. Use :doc:`download-guide` to pick the right installer for your OS.
+2. Follow :doc:`getting-started` for install and first launch.
+3. Open :doc:`user-guide` for full feature-by-feature usage.
 
-Who this is for
----------------
+Quick Help
+----------
 
-* End users who want a local AI desktop app.
-* Power users who want remote host support and advanced model imports.
-* Developers who want to build from source (see :doc:`developer/index`).
+If you need one answer quickly, start here:
 
-Read this first
----------------
+* I want my first working chat: :doc:`getting-started`
+* I want to download or remove models: :doc:`user-guide`
+* I want to import ``.gguf`` or ``Modelfile`` models: :doc:`user-guide`
+* I want to use Hugging Face Spaces or websites: :doc:`user-guide`
+* I want optional sign-in and sync: :doc:`user-guide`
+* I want remote host or hosting/proxy setup: :doc:`user-guide`
+* Something is broken: :doc:`troubleshooting`
 
-1. :doc:`download-guide` to choose the right installer/build.
-2. :doc:`getting-started` for installation and first launch.
-3. :doc:`user-guide` for day-to-day usage.
-4. :doc:`troubleshooting` if you run into issues.
+What You Can Do In The App
+--------------------------
+
+* Local chat with streaming responses
+* Model management (download, run, remove)
+* Session management (continue, rename, delete, favorites)
+* Lightning mode support
+* GGUF/Modelfile imports
+* Hugging Face Spaces and website cards
+* Optional account features (email, Google, GitHub)
+* Optional chat sync
+* Remote host and local hosting/proxy controls
+* Logs and diagnostics
 
 Complete Documentation
 ----------------------

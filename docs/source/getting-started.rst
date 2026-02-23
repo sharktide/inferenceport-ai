@@ -1,42 +1,49 @@
 Getting Started
 ===============
 
-This page is for regular users installing InferencePort AI from
+This guide is for first-time users installing InferencePort AI from
 ``https://inference.js.org``.
 
-Before you install
+Before You Install
 ------------------
 
-* Confirm your operating system (Windows, macOS, or Linux).
-* Decide whether you need standard install or accelerator-specific build.
-* If you want local model inference, install Ollama if it is not already
-  available on your machine.
+* Confirm your OS: Windows, macOS, or Linux.
+* If you are unsure which download to choose, use :doc:`download-guide`.
+* If you plan to run local models, make sure Ollama is available.
 
-Use :doc:`download-guide` if you are not sure which file to download.
+Install InferencePort AI
+------------------------
 
-Install steps
--------------
-
-1. Open ``https://inference.js.org``.
+1. Open ``https://inference.js.org/install.html``.
 2. Download the installer/package that matches your OS.
 3. Run the installer (or open the package) and complete setup.
-4. Launch InferencePort AI from your Applications/Start menu.
+4. Open InferencePort AI from Start Menu/Applications.
 
-First launch checklist
-----------------------
+First Launch (Simple Path)
+--------------------------
 
-When the app opens:
+Use this quick path to confirm everything works:
 
-1. Go to Marketplace and confirm you can browse models.
-2. Download a model (if you do not have one installed yet).
-3. Open Chat and send a test prompt.
-4. Open Settings and review optional sign-in/sync features.
+1. Open ``Marketplace``.
+2. Open ``Local Chat`` (Ollama models) and download one model.
+3. Go to ``Chat``, select host and model, then send a test prompt.
+4. Confirm you receive a streaming response.
 
-Optional sign-in
-----------------
+Optional Setup
+--------------
 
-You can use the app locally without signing in. Sign-in is optional and mainly
-used for account features and sync.
+You can skip this section and come back later.
+
+* Sign in (optional): required only for account features and sync.
+* Enable sync (optional): off by default.
+* Add remote hosts (optional): if you use model servers on another machine.
+* Import models (optional): ``.gguf``/``Modelfile`` from Marketplace.
+
+What To Learn Next
+------------------
+
+* :doc:`user-guide` for all app features
+* :doc:`troubleshooting` if something fails
 
 Need source build instructions?
 -------------------------------
