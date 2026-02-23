@@ -56,7 +56,7 @@ googleButton?.addEventListener("click", async () => {
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
     const returnBtn = document.getElementById("return-home-btn")!;
-    modal.style.display = "flex";
+    modal.classList.remove("hidden")
 
     returnBtn.onclick = () => {
         modal.style.display = "none";
