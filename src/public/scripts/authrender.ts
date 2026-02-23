@@ -59,7 +59,7 @@ function showSignInSuccessModal() {
     modal.classList.remove("hidden")
 
     returnBtn.onclick = () => {
-        modal.style.display = "none";
+        modal.classList.remove("hidden");
         window.location.href = "index.html";
     };
 }
