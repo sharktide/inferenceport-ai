@@ -363,18 +363,22 @@ app.whenReady().then(async () => {
 				if (skipData[skipKey]) return;
 				const result = await dialog.showMessageBox(mainWindow, {
 					type: "info",
-					buttons: ["Open Link", "Cancel", "Skip This Release"],
+					buttons: (process.platform !== "win32")
+						? ["Open Link", "Cancel", "Skip This Release"]
+						: ["Open Link", "Microsoft Store", "Cancel", "Skip This Release"],
 					defaultId: 0,
 					cancelId: 1,
 					title: "Update Available",
-					message: `A new version (${latest}) is available!\nDownload it at https://inference.js.org/install.html`,
-					detail: "You can skip this release to not be notified again."
+					message: `A new version (${latest}) is available!\nDownload it from our website\n${process.platform === "win32" ? "or from the Microsoft Store" : ""}`,
+					detail: "Link: https://inference.js.org/install.html\nYou can skip this release to not be notified again."
 				});
 				if (result.response === 0) {
 					await shell.openExternal("https://inference.js.org/install.html");
-				} else if (result.response === 2) {
+				} else if ((process.platform !== "win32" && result.response === 2) || (process.platform === "win32" && result.response === 3)) {
 					skipData[skipKey] = true;
 					safeWriteJSONAtomic(storePath, skipData);
+				} else if (process.platform === "win32" && result.response === 1 ) {
+					await shell.openExternal("https://apps.microsoft.com/detail/9p5d3xx84l28")
 				}
 				if (mainWindow) {
 					mainWindow.focus();
@@ -386,24 +390,22 @@ app.whenReady().then(async () => {
 	})();
 
 	function getAppVersion(): string {
-		try {
-			const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
-			return pkg.version || "0.0.0";
-		} catch {
-			return "0.0.0";
-		}
+		return process.version;
 	}
 
 	function isNewerVersion(b: string, a: string): boolean {
 		const pa = a.split(".").map(Number);
 		const pb = b.split(".").map(Number);
-		let res: boolean = false;
+
 		for (let i = 0; i < 3; ++i) {
-			if ((pb[i] || 0) > (pa[i] || 0)) res = true;
-			if ((pb[i] || 0) < (pa[i] || 0)) res = false;
+			const av = pa[i] || 0;
+			const bv = pb[i] || 0;
+			if (bv > av) return true;
+			if (bv < av) return false;
 		}
-		return res;
+		return false;
 	}
+
 	if (pendingDeepLink) {
 		const handled = await handleAuthCallback(pendingDeepLink);
 		if (!handled) {
