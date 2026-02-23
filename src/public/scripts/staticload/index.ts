@@ -39,6 +39,7 @@ async function checkAndShowNotificationBanner() {
         if (data && typeof data.notifications === "string" && data.notifications.trim() !== "") {
             showAppWideBanner(data.notifications);
         }
+        showAppWideBanner("hi")
     } catch (e) {
         void 0
     }
@@ -46,28 +47,51 @@ async function checkAndShowNotificationBanner() {
 
 function showAppWideBanner(message: string) {
     if (document.getElementById("app-notification-banner")) return;
+
     const banner = document.createElement("div");
     banner.id = "app-notification-banner";
     banner.textContent = message;
-    banner.style.position = "fixed";
-    banner.style.top = "0";
-    banner.style.left = "0";
-    banner.style.width = "100%";
-    banner.style.background = "#0d78cf";
-    banner.style.color = "var(--text-dark, #222)";
-    banner.style.padding = "14px 0";
-    banner.style.textAlign = "center";
-    banner.style.fontSize = "17px";
-    banner.style.zIndex = "2000";
-    banner.style.boxShadow = "0 2px 8px rgba(0,0,0,0.07)";
-    banner.style.letterSpacing = "0.01em";
-    banner.style.cursor = "pointer";
+
+    Object.assign(banner.style, {
+        position: "fixed",
+        top: "0",
+        left: "0",
+        width: "100%",
+        background: "#0d78cf",
+        color: "var(--text-dark, #222)",
+        padding: "14px 0",
+        textAlign: "center",
+        fontSize: "17px",
+        zIndex: "2000",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+        letterSpacing: "0.01em",
+        cursor: "pointer",
+        transition: "opacity 0.3s ease, transform 0.3s ease",
+        opacity: "0",
+        transform: "translateY(-20px)"
+    });
+
     banner.title = "Click to dismiss";
-    banner.onclick = () => banner.remove();
+
+    document.body.style.transition = "padding-top 0.3s ease";
+
+    banner.onclick = () => {
+        banner.style.opacity = "0";
+        banner.style.transform = "translateY(-20px)";
+        document.body.style.paddingTop = "0";
+    };
+
     document.body.prepend(banner);
-    document.body.style.paddingTop = "48px";
-    banner.addEventListener("transitionend", () => {
-        if (!document.body.contains(banner)) {
+
+    requestAnimationFrame(() => {
+        banner.style.opacity = "1";
+        banner.style.transform = "translateY(0)";
+        document.body.style.paddingTop = "48px";
+    });
+
+    banner.addEventListener("transitionend", (e) => {
+        if (e.propertyName === "opacity" && banner.style.opacity === "0") {
+            banner.remove();
             document.body.style.paddingTop = "";
         }
     });
