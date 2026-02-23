@@ -353,7 +353,7 @@ app.whenReady().then(async () => {
 			if (!res.ok) return;
 			const data = await res.json();
 			const latest = data.latest;
-			if (typeof latest === "string" && isNewerVersion(latest, getAppVersion())) {
+			if (typeof latest === "string" && isNewerVersion(latest, app.getVersion())) {
 				const skipKey = `skip-update-${latest}`;
 				const storePath = path.join(app.getPath("userData"), "update-skips.json");
 				let skipData: Record<string, boolean> = {};
@@ -388,10 +388,6 @@ app.whenReady().then(async () => {
 			void 0
 		}
 	})();
-
-	function getAppVersion(): string {
-		return process.version;
-	}
 
 	function isNewerVersion(b: string, a: string): boolean {
 		const pa = a.split(".").map(Number);
