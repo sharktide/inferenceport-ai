@@ -35,8 +35,8 @@ contextBridge.exposeInMainWorld("ollama", {
 			(_e: Electron.IpcRendererEvent, data: PullProgress) => cb(data)
 		);
 	},
-	onToolCall: (cb: (calls: any[]) => void) =>
-		ipcRenderer.on("ollama:new_tool_call", (_: Electron.IpcRendererEvent, calls: any[]) => cb(calls)),
+	onToolCall: (cb: (call: any) => void) =>
+		ipcRenderer.on("ollama:new_tool_call", (_: Electron.IpcRendererEvent, call: any) => cb(call)),
 	isAvailable: (): Promise<boolean> => ipcRenderer.invoke("ollama:available"),
 
 	streamPrompt: (
@@ -53,6 +53,15 @@ contextBridge.exposeInMainWorld("ollama", {
 			clientUrl
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
+	resolveVideoToolCall: (
+		toolCallId: string,
+		payload: Record<string, unknown> | null,
+	): Promise<boolean> =>
+		ipcRenderer.invoke(
+			"ollama:resolve-video-tool-call",
+			toolCallId,
+			payload,
+		),
 
 	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
 		ipcRenderer.on(

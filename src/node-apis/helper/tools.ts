@@ -205,19 +205,40 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
     return arrayBuffer;
 }
 
-export async function generateVideo(prompt: string): Promise<ArrayBuffer> {
+export type VideoGenerateRequest = {
+	prompt: string;
+	ratio?: "3:2" | "2:3" | "1:1";
+	mode?: "normal" | "fun";
+	duration?: number;
+	image_urls?: string[];
+};
+
+export async function generateVideo(
+	request: VideoGenerateRequest,
+): Promise<ArrayBuffer> {
     const trace = `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    	LOG(trace, "ENTER GenerateVideo", { prompt });
+    	LOG(trace, "ENTER GenerateVideo", request);
 	
 	const url =
 		`https://sharktide-lightning.hf.space/gen/video`
+
+	const body: Record<string, unknown> = {
+		prompt: request.prompt,
+	};
+
+	if (request.ratio) body.ratio = request.ratio;
+	if (request.mode) body.mode = request.mode;
+	if (typeof request.duration === "number") body.duration = request.duration;
+	if (Array.isArray(request.image_urls) && request.image_urls.length > 0) {
+		body.image_urls = request.image_urls;
+	}
 
 	let response: Response;
 	try {
 		response = await fetchWithRetry(trace, url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ prompt: prompt }),
+			body: JSON.stringify(body),
 		}, 6);
 		LOG(trace, "FETCH RESOLVED", {
 			ok: response.ok,
