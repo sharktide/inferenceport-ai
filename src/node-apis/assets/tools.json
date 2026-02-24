@@ -20,13 +20,18 @@
     "type": "function",
     "function": {
       "name": "generate_image",
-      "description": "Generate an image from a prompt and resolution",
+      "description": "Generate an image from a prompt and mode",
       "parameters": {
         "type": "object",
         "properties": {
           "prompt": {
             "type": "string",
             "description": "Describe the image you want in great detail (10-30 words)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["auto", "fantasy", "realistic"],
+            "description": "Image style mode. Default is auto."
           }
         },
         "required": ["prompt"]

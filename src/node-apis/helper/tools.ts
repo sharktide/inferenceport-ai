@@ -46,10 +46,17 @@ async function fetchWithRetry(
     throw new Error("Unreachable");
 }
 
-export async function GenerateImage(prompt: string): Promise<{ dataUrl: string }> {
+export type ImageGenerateRequest = {
+	prompt: string;
+	mode?: "auto" | "fantasy" | "realistic";
+};
+
+export async function GenerateImage(
+	request: ImageGenerateRequest,
+): Promise<{ dataUrl: string }> {
 	const trace = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-	LOG(trace, "ENTER GenerateImage", { prompt });
+	LOG(trace, "ENTER GenerateImage", request);
 	
 	const url =
 		`https://sharktide-lightning.hf.space/gen/image`
@@ -58,11 +65,14 @@ export async function GenerateImage(prompt: string): Promise<{ dataUrl: string }
 
 	let response: Response;
 	try {
+		const body: Record<string, unknown> = { prompt: request.prompt };
+		if (request.mode) body.mode = request.mode;
+
 		response = await fetch(url,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt: prompt }),
+                body: JSON.stringify(body),
             }
         );
 		LOG(trace, "FETCH RESOLVED", {

@@ -62,6 +62,24 @@ contextBridge.exposeInMainWorld("ollama", {
 			toolCallId,
 			payload,
 		),
+	resolveImageToolCall: (
+		toolCallId: string,
+		payload: Record<string, unknown> | null,
+	): Promise<boolean> =>
+		ipcRenderer.invoke(
+			"ollama:resolve-image-tool-call",
+			toolCallId,
+			payload,
+		),
+	resolveAudioToolCall: (
+		toolCallId: string,
+		payload: Record<string, unknown> | null,
+	): Promise<boolean> =>
+		ipcRenderer.invoke(
+			"ollama:resolve-audio-tool-call",
+			toolCallId,
+			payload,
+		),
 
 	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
 		ipcRenderer.on(
