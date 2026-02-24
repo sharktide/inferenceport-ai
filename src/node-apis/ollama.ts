@@ -941,7 +941,7 @@ Keep it under 5 words.
 				let assistantMessage = "";
 				const toolCallBuffer = new Map<
 					number,
-					{ name?: string; arguments: string }
+					{ id?: string; name?: string; arguments: string }
 				>();
 
 				for await (const chunk of stream) {
@@ -962,6 +962,7 @@ Keep it under 5 words.
 								arguments: "",
 							};
 
+							if (call.id) entry.id = call.id;
 							if (call.function?.name)
 								entry.name = call.function.name;
 							if (call.function?.arguments)
@@ -975,8 +976,11 @@ Keep it under 5 words.
 				abortIfNeeded();
 
 				const finalizedToolCalls = [...toolCallBuffer.entries()].map(
-					([index, data]) => ({
-						id: `call_${index}`,
+					([_index, data]) => ({
+						id:
+							data.id && data.id.trim()
+								? data.id
+								: `call_${crypto.randomUUID()}`,
 						type: "function",
 						function: {
 							name: data.name!,
