@@ -94,6 +94,7 @@ let videoEnabled = false;
 let audioEnabled = false;
 let sessions = {};
 let currentSessionId = null;
+let activeToolSessionId: string | null = null;
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
@@ -219,8 +220,20 @@ function initWelcomeCards(): void {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-	modal = new window.ic.iModal("global-modal", undefined, undefined, false, false);
-	editModal = new window.ic.iModal("edit-modal", undefined, undefined, false, false );
+	modal = new window.ic.iModal(
+		"global-modal",
+		undefined,
+		undefined,
+		false,
+		false,
+	);
+	editModal = new window.ic.iModal(
+		"edit-modal",
+		undefined,
+		undefined,
+		false,
+		false,
+	);
 	initWelcomeCards();
 	initLightningToggleEvents();
 	updateExperimentalFeatureNotice();
@@ -1330,6 +1343,7 @@ form.addEventListener("submit", async (e) => {
 		);
 	}
 	const session = sessions[currentSessionId];
+	activeToolSessionId = currentSessionId;
 	session.model = model;
 	const fileBlock = formatAttachedFiles(attachedFiles);
 	const fullPrompt = prompt + "\n\n" + fileBlock;
@@ -1530,6 +1544,7 @@ function updateActionButton() {
 
 function endStreaming() {
 	isStreaming = false;
+	activeToolSessionId = null;
 	updateActionButton();
 }
 
@@ -1842,7 +1857,8 @@ function renderChat() {
 			temp.innerHTML = html;
 
 			const botContainer = document.createElement("div");
-			botContainer.className = "chat-bubble bot-bubble has-message-actions";
+			botContainer.className =
+				"chat-bubble bot-bubble has-message-actions";
 
 			Array.from(temp.childNodes).forEach((node) => {
 				const el = node as HTMLElement;
@@ -1975,7 +1991,7 @@ function renderChat() {
 				const options = getImageOptionsFromToolMessage(msg);
 				if (options) {
 					toolBubble.appendChild(
-						createOptionSummaryElement([
+						createToolSummaryElement([
 							["Prompt", options.prompt || "(none)"],
 							["Mode", options.mode || IMAGE_MODE_OPTIONS[0]],
 						]),
@@ -1986,22 +2002,30 @@ function renderChat() {
 			if (msg.name === "generate_video") {
 				const options = getVideoOptionsFromToolMessage(msg);
 				if (options) {
-					toolBubble.appendChild(
-						createOptionSummaryElement([
-							["Prompt", options.prompt || "(none)"],
-							["Ratio", options.ratio || VIDEO_RATIO_OPTIONS[0]],
-							["Mode", options.mode || VIDEO_MODE_OPTIONS[0]],
-							["Duration", `${options.duration ?? DEFAULT_VIDEO_DURATION}s`],
-							[
-								"Images",
-								options.image_urls?.length
-									? options.image_urls
-											.map((item, i) => `Image ${i + 1}: ${item}`)
-											.join("\n")
-									: "None",
-							],
-						]),
-					);
+					const summary = createToolSummaryElement([
+						["Prompt", options.prompt || "(none)"],
+						["Ratio", options.ratio || VIDEO_RATIO_OPTIONS[0]],
+						["Mode", options.mode || VIDEO_MODE_OPTIONS[0]],
+						[
+							"Duration",
+							`${options.duration ?? DEFAULT_VIDEO_DURATION}s`,
+						],
+					]);
+
+					if (options.image_urls?.length) {
+						options.image_urls.forEach((item, i) => {
+							summary.appendChild(
+								createToolSummaryRow(
+									`Image ${i + 1}`,
+									createCopyableToolValueElement(item, 100),
+								),
+							);
+						});
+					} else {
+						summary.appendChild(createToolSummaryRow("Images", "None"));
+					}
+
+					toolBubble.appendChild(summary);
 				}
 			}
 
@@ -2009,7 +2033,7 @@ function renderChat() {
 				const options = getAudioOptionsFromToolMessage(msg);
 				if (options) {
 					toolBubble.appendChild(
-						createOptionSummaryElement([
+						createToolSummaryElement([
 							["Prompt", options.prompt || "(none)"],
 						]),
 					);
@@ -2213,6 +2237,88 @@ function fileToDataUri(file: File): Promise<string> {
 	});
 }
 
+function attachAutoImageUpload(
+	fieldWrapper: HTMLLabelElement,
+	targetInput: HTMLInputElement,
+): void {
+	const hiddenFileInput = document.createElement("input");
+	hiddenFileInput.type = "file";
+	hiddenFileInput.accept = "image/*";
+	hiddenFileInput.className = "tool-hidden-file-input";
+
+	const hint = document.createElement("div");
+	hint.className = "video-tool-upload-hint";
+	const renderDefaultHint = () => {
+		hint.textContent = "Paste URL/data URI or ";
+		const link = document.createElement("a");
+		link.href = "#";
+		link.className = "video-tool-upload-link";
+		link.textContent = "click here to upload";
+		link.addEventListener("click", (event) => {
+			event.preventDefault();
+			if (targetInput.disabled || hiddenFileInput.disabled) return;
+			hiddenFileInput.click();
+		});
+		hint.appendChild(link);
+	};
+	renderDefaultHint();
+
+	const setFromFile = async (file: File): Promise<void> => {
+		if (!file.type.startsWith("image/")) {
+			hint.textContent = "Only image files are supported.";
+			return;
+		}
+
+		hint.textContent = "Converting image...";
+		try {
+			targetInput.value = await fileToDataUri(file);
+			hint.textContent = `Uploaded: ${file.name}`;
+		} catch (err: any) {
+			hint.textContent = `Upload failed: ${String(err)}`;
+		}
+	};
+
+	fieldWrapper.appendChild(hiddenFileInput);
+	fieldWrapper.appendChild(hint);
+
+	hiddenFileInput.addEventListener("change", async () => {
+		const file = hiddenFileInput.files?.[0];
+		if (!file) return;
+		await setFromFile(file);
+		hiddenFileInput.value = "";
+	});
+
+	targetInput.addEventListener("input", () => {
+		if (targetInput.value.trim().length) {
+			hint.textContent = "Using provided URL/data URI.";
+			return;
+		}
+		renderDefaultHint();
+	});
+
+	targetInput.addEventListener("paste", async (event: ClipboardEvent) => {
+		const items = Array.from(event.clipboardData?.items ?? []);
+		const imageItem = items.find(
+			(item) => item.kind === "file" && item.type.startsWith("image/"),
+		);
+		const file = imageItem?.getAsFile();
+		if (!file) return;
+		event.preventDefault();
+		await setFromFile(file);
+	});
+
+	targetInput.addEventListener("dragover", (event) => {
+		event.preventDefault();
+	});
+
+	targetInput.addEventListener("drop", async (event: DragEvent) => {
+		event.preventDefault();
+		const file = event.dataTransfer?.files?.[0];
+		if (!file) return;
+		await setFromFile(file);
+	});
+}
+
 function normalizeImageOptions(raw: unknown) {
 	const obj = raw && typeof raw === "object" ? raw : {};
 	const prompt = typeof obj.prompt === "string" ? obj.prompt.trim() : "";
@@ -2230,8 +2336,7 @@ function normalizeAudioOptions(raw: unknown) {
 
 function normalizeVideoOptions(raw: unknown, source: "model" | "user") {
 	const obj = raw && typeof raw === "object" ? raw : {};
-	const prompt =
-		typeof obj.prompt === "string" ? obj.prompt.trim() : "";
+	const prompt = typeof obj.prompt === "string" ? obj.prompt.trim() : "";
 	const ratio = VIDEO_RATIO_OPTIONS.includes(obj.ratio)
 		? obj.ratio
 		: VIDEO_RATIO_OPTIONS[0];
@@ -2274,8 +2379,7 @@ function getVideoOptionsFromToolCall(call: any) {
 	if (toolOptions.prompt) return toolOptions;
 
 	const parsedArgs = safeParseJSON(call?.arguments);
-	const source =
-		call?.state === "awaiting_input" ? "model" : "user";
+	const source = call?.state === "awaiting_input" ? "model" : "user";
 	const normalized = normalizeVideoOptions(parsedArgs, source);
 	if (source === "model") normalized.image_urls = [];
 	return normalized;
@@ -2296,8 +2400,7 @@ function getAudioOptionsFromToolCall(call: any) {
 function getVideoOptionsFromToolMessage(msg: any) {
 	const payload = safeParseJSON(msg?.content);
 	if (payload && typeof payload === "object" && payload.options) {
-		const source =
-			payload.status === "resolved" ? "user" : "model";
+		const source = payload.status === "resolved" ? "user" : "model";
 		return normalizeVideoOptions(payload.options, source);
 	}
 	return null;
@@ -2311,15 +2414,11 @@ function getImageOptionsFromToolMessage(msg: any) {
 	return null;
 }
 
-function getAudioOptionsFromToolMessage(msg: any) {
-	const payload = safeParseJSON(msg?.content);
-	if (payload && typeof payload === "object" && payload.options) {
-		return normalizeAudioOptions(payload.options);
-	}
-	return null;
-}
-
-function upsertToolHistoryEntry(session: any, call: any, content: string): void {
+function upsertToolHistoryEntry(
+	session: any,
+	call: any,
+	content: string,
+): void {
 	if (!Array.isArray(session.history)) {
 		session.history = [];
 	}
@@ -2351,21 +2450,18 @@ function setVideoBubbleControlsDisabled(
 	bubble: HTMLDivElement,
 	disabled: boolean,
 ): void {
-	bubble
-		.querySelectorAll("textarea,select,input,button")
-		.forEach((el) => {
-			(el as
+	bubble.querySelectorAll("textarea,select,input,button").forEach((el) => {
+		(
+			el as
 				| HTMLButtonElement
 				| HTMLInputElement
 				| HTMLTextAreaElement
-				| HTMLSelectElement).disabled = disabled;
-		});
+				| HTMLSelectElement
+		).disabled = disabled;
+	});
 }
 
-function applyVideoOptionsToBubble(
-	bubble: HTMLDivElement,
-	options: any,
-): void {
+function applyVideoOptionsToBubble(bubble: HTMLDivElement, options: any): void {
 	const promptEl = bubble.querySelector(
 		'[data-video-field="prompt"]',
 	) as HTMLTextAreaElement | null;
@@ -2388,7 +2484,8 @@ function applyVideoOptionsToBubble(
 	if (promptEl) promptEl.value = options.prompt || "";
 	if (ratioEl) ratioEl.value = options.ratio || VIDEO_RATIO_OPTIONS[0];
 	if (modeEl) modeEl.value = options.mode || VIDEO_MODE_OPTIONS[0];
-	if (durationEl) durationEl.value = String(options.duration ?? DEFAULT_VIDEO_DURATION);
+	if (durationEl)
+		durationEl.value = String(options.duration ?? DEFAULT_VIDEO_DURATION);
 	if (image1El) image1El.value = options.image_urls?.[0] || "";
 	if (image2El) image2El.value = options.image_urls?.[1] || "";
 }
@@ -2427,10 +2524,7 @@ function collectVideoOptionsFromBubble(bubble: HTMLDivElement) {
 	return options;
 }
 
-function applyImageOptionsToBubble(
-	bubble: HTMLDivElement,
-	options: any,
-): void {
+function applyImageOptionsToBubble(bubble: HTMLDivElement, options: any): void {
 	const promptEl = bubble.querySelector(
 		'[data-image-field="prompt"]',
 	) as HTMLTextAreaElement | null;
@@ -2454,10 +2548,7 @@ function collectImageOptionsFromBubble(bubble: HTMLDivElement) {
 	});
 }
 
-function applyAudioOptionsToBubble(
-	bubble: HTMLDivElement,
-	options: any,
-): void {
+function applyAudioOptionsToBubble(bubble: HTMLDivElement, options: any): void {
 	const promptEl = bubble.querySelector(
 		'[data-audio-field="prompt"]',
 	) as HTMLTextAreaElement | null;
@@ -2486,16 +2577,32 @@ function setVideoBubbleStatus(
 	statusEl.classList.toggle("error", isError);
 }
 
-function setLiveVideoBubbleState(
+function setLiveToolBubbleState(
 	toolCallId: string,
+	toolName: string,
 	state: string,
 	result?: string,
 ): void {
 	const bubble = liveToolBubbles.get(toolCallId);
 	if (!bubble) return;
 
+	const label =
+		toolName === "generate_image"
+			? "Image"
+			: toolName === "generate_audio"
+				? "Music/SFX"
+				: "Video";
+
 	if (state === "awaiting_input") {
 		setVideoBubbleControlsDisabled(bubble, false);
+		if (toolName === "generate_image") {
+			setVideoBubbleStatus(bubble, "Review prompt and mode, then generate.");
+			return;
+		}
+		if (toolName === "generate_audio") {
+			setVideoBubbleStatus(bubble, "Review prompt, then generate.");
+			return;
+		}
 		setVideoBubbleStatus(
 			bubble,
 			"Review options, optionally upload images, then generate.",
@@ -2505,33 +2612,27 @@ function setLiveVideoBubbleState(
 
 	if (state === "pending") {
 		setVideoBubbleControlsDisabled(bubble, true);
-		setVideoBubbleStatus(bubble, "Generating video...");
+		setVideoBubbleStatus(bubble, `Generating ${label.toLowerCase()}...`);
 		return;
 	}
 
 	if (state === "resolved") {
 		setVideoBubbleControlsDisabled(bubble, true);
-		setVideoBubbleStatus(bubble, result || "Video generated.");
+		setVideoBubbleStatus(bubble, result || `${label} generated.`);
 		return;
 	}
 
 	if (state === "canceled") {
 		setVideoBubbleControlsDisabled(bubble, true);
-		setVideoBubbleStatus(
-			bubble,
-			result || "Video generation canceled.",
-		);
+		setVideoBubbleStatus(bubble, result || `${label} generation canceled.`);
 		return;
 	}
 
 	setVideoBubbleControlsDisabled(bubble, true);
-	setVideoBubbleStatus(
-		bubble,
-		result || "Video tool request finished.",
-	);
+	setVideoBubbleStatus(bubble, result || `${label} tool request finished.`);
 }
 
-function createVideoSummaryElement(options: any): HTMLDivElement {
+function createOptionSummaryElement(options: any): HTMLDivElement {
 	const summary = document.createElement("div");
 	summary.className = "video-tool-summary";
 
@@ -2542,9 +2643,7 @@ function createVideoSummaryElement(options: any): HTMLDivElement {
 		["Duration", `${options.duration ?? DEFAULT_VIDEO_DURATION}s`],
 		[
 			"Image URLs",
-			options.image_urls?.length
-				? options.image_urls.join("\n")
-				: "None",
+			options.image_urls?.length ? options.image_urls.join("\n") : "None",
 		],
 	];
 
@@ -2569,29 +2668,82 @@ function createVideoSummaryElement(options: any): HTMLDivElement {
 }
 
 function createToolSummaryElement(
-	rows: Array<[string, string]>,
+	rows: Array<[string, string | HTMLElement]>,
 ): HTMLDivElement {
 	const summary = document.createElement("div");
 	summary.className = "video-tool-summary";
 
 	for (const [label, value] of rows) {
-		const row = document.createElement("div");
-		row.className = "video-tool-summary-row";
-
-		const labelEl = document.createElement("span");
-		labelEl.className = "video-tool-label";
-		labelEl.textContent = label;
-
-		const valueEl = document.createElement("span");
-		valueEl.className = "video-tool-value";
-		valueEl.textContent = value;
-
-		row.appendChild(labelEl);
-		row.appendChild(valueEl);
-		summary.appendChild(row);
+		summary.appendChild(createToolSummaryRow(label, value));
 	}
 
 	return summary;
+}
+
+function createToolSummaryRow(
+	label: string,
+	value: string | HTMLElement,
+): HTMLDivElement {
+	const row = document.createElement("div");
+	row.className = "video-tool-summary-row";
+
+	const labelEl = document.createElement("span");
+	labelEl.className = "video-tool-label";
+	labelEl.textContent = label;
+
+	const valueEl = document.createElement("span");
+	valueEl.className = "video-tool-value";
+	if (typeof value === "string") {
+		valueEl.textContent = value;
+	} else {
+		valueEl.appendChild(value);
+	}
+
+	row.appendChild(labelEl);
+	row.appendChild(valueEl);
+	return row;
+}
+
+function truncateToolValue(value: string, maxChars = 100): string {
+	if (value.length <= maxChars) return value;
+	return `${value.slice(0, maxChars)}...`;
+}
+
+function createCopyableToolValueElement(
+	value: string,
+	maxChars = 100,
+): HTMLDivElement {
+	const wrapper = document.createElement("div");
+	wrapper.className = "video-tool-copyable";
+
+	const text = document.createElement("span");
+	text.className = "video-tool-copyable-text";
+	text.textContent = truncateToolValue(value, maxChars);
+	text.title = value;
+
+	const copyBtn = document.createElement("button");
+	copyBtn.type = "button";
+	copyBtn.className = "video-tool-copy-btn";
+	copyBtn.textContent = "Copy";
+
+	copyBtn.addEventListener("click", async () => {
+		try {
+			await navigator.clipboard.writeText(value);
+			copyBtn.textContent = "Copied";
+			setTimeout(() => {
+				copyBtn.textContent = "Copy";
+			}, 1200);
+		} catch {
+			copyBtn.textContent = "Error";
+			setTimeout(() => {
+				copyBtn.textContent = "Copy";
+			}, 1200);
+		}
+	});
+
+	wrapper.appendChild(text);
+	wrapper.appendChild(copyBtn);
+	return wrapper;
 }
 
 function createLiveVideoToolBubble(
@@ -2678,40 +2830,8 @@ function createLiveVideoToolBubble(
 	image1Input.type = "text";
 	image1Input.placeholder = "https://... or data URI";
 	image1Input.setAttribute("data-video-field", "image-1");
-
-	const image1File = document.createElement("input");
-	image1File.type = "file";
-	image1File.accept = "image/*";
-	image1File.className = "tool-hidden-file-input";
-
-	const image1Row = document.createElement("div");
-	image1Row.className = "tool-upload-row";
-	const image1UploadBtn = document.createElement("button");
-	image1UploadBtn.type = "button";
-	image1UploadBtn.className = "video-tool-btn";
-	image1UploadBtn.textContent = "Upload";
-	const image1Note = document.createElement("div");
-	image1Note.className = "tool-upload-note";
-	image1Note.textContent = "Optional";
-
-	image1UploadBtn.addEventListener("click", () => image1File.click());
-	image1File.addEventListener("change", async () => {
-		const file = image1File.files?.[0];
-		if (!file) return;
-		image1Note.textContent = "Converting...";
-		try {
-			image1Input.value = await fileToDataUri(file);
-			image1Note.textContent = `Uploaded: ${file.name}`;
-		} catch (err: any) {
-			image1Note.textContent = `Failed: ${String(err)}`;
-		}
-	});
-
 	image1Wrap.appendChild(image1Input);
-	image1Wrap.appendChild(image1File);
-	image1Row.appendChild(image1UploadBtn);
-	image1Row.appendChild(image1Note);
-	image1Wrap.appendChild(image1Row);
+	attachAutoImageUpload(image1Wrap, image1Input);
 
 	const image2Wrap = document.createElement("label");
 	image2Wrap.className = "video-tool-field";
@@ -2721,40 +2841,8 @@ function createLiveVideoToolBubble(
 	image2Input.type = "text";
 	image2Input.placeholder = "https://... or data URI";
 	image2Input.setAttribute("data-video-field", "image-2");
-
-	const image2File = document.createElement("input");
-	image2File.type = "file";
-	image2File.accept = "image/*";
-	image2File.className = "tool-hidden-file-input";
-
-	const image2Row = document.createElement("div");
-	image2Row.className = "tool-upload-row";
-	const image2UploadBtn = document.createElement("button");
-	image2UploadBtn.type = "button";
-	image2UploadBtn.className = "video-tool-btn";
-	image2UploadBtn.textContent = "Upload";
-	const image2Note = document.createElement("div");
-	image2Note.className = "tool-upload-note";
-	image2Note.textContent = "Optional";
-
-	image2UploadBtn.addEventListener("click", () => image2File.click());
-	image2File.addEventListener("change", async () => {
-		const file = image2File.files?.[0];
-		if (!file) return;
-		image2Note.textContent = "Converting...";
-		try {
-			image2Input.value = await fileToDataUri(file);
-			image2Note.textContent = `Uploaded: ${file.name}`;
-		} catch (err: any) {
-			image2Note.textContent = `Failed: ${String(err)}`;
-		}
-	});
-
 	image2Wrap.appendChild(image2Input);
-	image2Wrap.appendChild(image2File);
-	image2Row.appendChild(image2UploadBtn);
-	image2Row.appendChild(image2Note);
-	image2Wrap.appendChild(image2Row);
+	attachAutoImageUpload(image2Wrap, image2Input);
 
 	imageGrid.appendChild(image1Wrap);
 	imageGrid.appendChild(image2Wrap);
@@ -3083,19 +3171,20 @@ function createLiveAudioToolBubble(
 window.ollama.onNewAsset((msg) => {
 	console.log("Received new asset:", msg);
 
-	if (!currentSessionId || !sessions[currentSessionId]) return;
-	console.log("Current session ID:", currentSessionId);
+	const targetSessionId = activeToolSessionId || currentSessionId;
+	if (!targetSessionId || !sessions[targetSessionId]) return;
+	const shouldRender = targetSessionId === currentSessionId;
+	console.log("Current session ID:", targetSessionId);
 
-	const session = sessions[currentSessionId];
+	const session = sessions[targetSessionId];
 	const last = session.history.at(-1);
-
-	if (last?.role === msg.role && last?.content === msg.content) return;
-	window.ollama.save(sessions);
 
 	const content =
 		msg.role === "image" && !msg.content.startsWith("data:")
 			? `data:image/png;base64,${msg.content}`
 			: msg.content;
+
+	if (last?.role === msg.role && last?.content === content) return;
 
 	if (
 		["image", "video", "audio"].includes(last?.role) &&
@@ -3109,13 +3198,17 @@ window.ollama.onNewAsset((msg) => {
 		content,
 	});
 
-	renderAsset(msg.role, content);
+	void window.ollama.save(sessions);
+	if (shouldRender) {
+		renderAsset(msg.role, content);
+	}
 });
 
 window.ollama.onToolCall((call) => {
-	if (!currentSessionId || !sessions[currentSessionId]) return;
-
-	const session = sessions[currentSessionId];
+	const targetSessionId = activeToolSessionId || currentSessionId;
+	if (!targetSessionId || !sessions[targetSessionId]) return;
+	const shouldRender = targetSessionId === currentSessionId;
+	const session = sessions[targetSessionId];
 
 	if (call.name === "generate_video") {
 		const options = getVideoOptionsFromToolCall(call);
@@ -3128,38 +3221,94 @@ window.ollama.onToolCall((call) => {
 		}
 
 		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
-
-		if (call.state === "awaiting_input") {
+		if (shouldRender) {
 			let bubble = liveToolBubbles.get(call.id);
 			if (!bubble) {
 				bubble = createLiveVideoToolBubble(call.id, options);
 				liveToolBubbles.set(call.id, bubble);
 				chatBox.appendChild(bubble);
-			} else {
-				applyVideoOptionsToBubble(bubble, options);
 			}
-
-			setLiveVideoBubbleState(call.id, "awaiting_input");
-			if (autoScroll) {
-				chatBox.scrollTop = chatBox.scrollHeight;
-			}
-			return;
-		}
-
-		const bubble = liveToolBubbles.get(call.id);
-		if (bubble) {
 			applyVideoOptionsToBubble(bubble, options);
+			setLiveToolBubbleState(
+				call.id,
+				call.name,
+				call.state,
+				typeof call.result === "string" ? call.result : undefined,
+			);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
 		}
-		setLiveVideoBubbleState(
-			call.id,
-			call.state,
-			typeof call.result === "string" ? call.result : undefined,
-		);
+
+		void window.ollama.save(sessions);
+		return;
+	}
+
+	if (call.name === "generate_image") {
+		const options = getImageOptionsFromToolCall(call);
+		const payload = {
+			status: call.state,
+			options,
+		};
+		if (typeof call.result === "string" && call.result.length > 0) {
+			payload.message = call.result;
+		}
+
+		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
+		if (shouldRender) {
+			let bubble = liveToolBubbles.get(call.id);
+			if (!bubble) {
+				bubble = createLiveImageToolBubble(call.id, options);
+				liveToolBubbles.set(call.id, bubble);
+				chatBox.appendChild(bubble);
+			}
+			applyImageOptionsToBubble(bubble, options);
+			setLiveToolBubbleState(
+				call.id,
+				call.name,
+				call.state,
+				typeof call.result === "string" ? call.result : undefined,
+			);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+		}
+
+		void window.ollama.save(sessions);
+		return;
+	}
+
+	if (call.name === "generate_audio") {
+		const options = getAudioOptionsFromToolCall(call);
+		const payload = {
+			status: call.state,
+			options,
+		};
+		if (typeof call.result === "string" && call.result.length > 0) {
+			payload.message = call.result;
+		}
+		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
+
+		if (shouldRender) {
+			let bubble = liveToolBubbles.get(call.id);
+			if (!bubble) {
+				bubble = createLiveAudioToolBubble(call.id, options);
+				liveToolBubbles.set(call.id, bubble);
+				chatBox.appendChild(bubble);
+			}
+			applyAudioOptionsToBubble(bubble, options);
+			setLiveToolBubbleState(
+				call.id,
+				call.name,
+				call.state,
+				typeof call.result === "string" ? call.result : undefined,
+			);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+		}
+
+		void window.ollama.save(sessions);
 		return;
 	}
 
 	if (call.state === "pending") {
 		upsertToolHistoryEntry(session, call, "⏳ Running…");
+		void window.ollama.save(sessions);
 		return;
 	}
 
@@ -3169,6 +3318,7 @@ window.ollama.onToolCall((call) => {
 			call,
 			typeof call.result === "string" ? call.result : "✅ Done",
 		);
+		void window.ollama.save(sessions);
 		return;
 	}
 
@@ -3180,6 +3330,7 @@ window.ollama.onToolCall((call) => {
 				? call.result
 				: "Tool request canceled.",
 		);
+		void window.ollama.save(sessions);
 	}
 });
 

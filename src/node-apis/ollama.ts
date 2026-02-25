@@ -118,15 +118,19 @@ function normalizeImageMode(value: unknown): ImageMode {
 	return DEFAULT_IMAGE_MODE;
 }
 
-function normalizePrompt(value: unknown, errorMessage: string): string {
+function normalizePrompt(
+	value: unknown,
+	errorMessage: string,
+	source: "model" | "user",
+): string {
 	const prompt = typeof value === "string" ? value.trim() : "";
-	if (!prompt) throw new Error(errorMessage);
+	if (!prompt && source === "user") throw new Error(errorMessage);
 	return prompt;
 }
 
 function normalizeImageRequest(
 	args: unknown,
-	_source: "model" | "user",
+	source: "model" | "user",
 ): NormalizedImageRequest {
 	const obj =
 		args && typeof args === "object"
@@ -134,7 +138,7 @@ function normalizeImageRequest(
 			: {};
 
 	return {
-		prompt: normalizePrompt(obj.prompt, "Image prompt is required"),
+		prompt: normalizePrompt(obj.prompt, "Image prompt is required", source),
 		mode: normalizeImageMode(obj.mode),
 	};
 }
@@ -188,7 +192,7 @@ function normalizeVideoRequest(
 			: {};
 
 	return {
-		prompt: normalizePrompt(obj.prompt, "Video prompt is required"),
+		prompt: normalizePrompt(obj.prompt, "Video prompt is required", source),
 		ratio: normalizeVideoRatio(obj.ratio),
 		mode: normalizeVideoMode(obj.mode),
 		duration: normalizeVideoDuration(obj.duration),
@@ -199,7 +203,7 @@ function normalizeVideoRequest(
 
 function normalizeAudioRequest(
 	args: unknown,
-	_source: "model" | "user",
+	source: "model" | "user",
 ): NormalizedAudioRequest {
 	const obj =
 		args && typeof args === "object"
@@ -207,7 +211,7 @@ function normalizeAudioRequest(
 			: {};
 
 	return {
-		prompt: normalizePrompt(obj.prompt, "Audio prompt is required"),
+		prompt: normalizePrompt(obj.prompt, "Audio prompt is required", source),
 	};
 }
 
@@ -1173,13 +1177,9 @@ Keep it under 5 words.
 
 						let toolResult: any;
 						let toolState: "resolved" | "canceled" = "resolved";
-						let resolvedImageRequest:
+						let resolvedToolOptions:
 							| NormalizedImageRequest
-							| undefined;
-						let resolvedVideoRequest:
 							| NormalizedVideoRequest
-							| undefined;
-						let resolvedAudioRequest:
 							| NormalizedAudioRequest
 							| undefined;
 
@@ -1203,6 +1203,7 @@ Keep it under 5 words.
 								args,
 								"model",
 							);
+							resolvedToolOptions = suggestedImageRequest;
 
 							event.sender.send("ollama:new_tool_call", {
 								id: toolCall.id,
@@ -1227,8 +1228,12 @@ Keep it under 5 words.
 								toolState = "canceled";
 								toolResult =
 									"Image generation was canceled before execution.";
+							} else if (!selectedImageRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Image generation was canceled because a prompt was not provided.";
 							} else {
-								resolvedImageRequest = selectedImageRequest;
+								resolvedToolOptions = selectedImageRequest;
 								event.sender.send("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
@@ -1258,6 +1263,7 @@ Keep it under 5 words.
 								args,
 								"model",
 							);
+							resolvedToolOptions = suggestedVideoRequest;
 
 							event.sender.send("ollama:new_tool_call", {
 								id: toolCall.id,
@@ -1281,8 +1287,12 @@ Keep it under 5 words.
 								toolState = "canceled";
 								toolResult =
 									"Video generation was canceled before execution.";
+							} else if (!selectedVideoRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Video generation was canceled because a prompt was not provided.";
 							} else {
-								resolvedVideoRequest = selectedVideoRequest;
+								resolvedToolOptions = selectedVideoRequest;
 								event.sender.send("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
@@ -1314,6 +1324,7 @@ Keep it under 5 words.
 								args,
 								"model",
 							);
+							resolvedToolOptions = suggestedAudioRequest;
 
 							event.sender.send("ollama:new_tool_call", {
 								id: toolCall.id,
@@ -1338,8 +1349,12 @@ Keep it under 5 words.
 								toolState = "canceled";
 								toolResult =
 									"Audio generation was canceled before execution.";
+							} else if (!selectedAudioRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Audio generation was canceled because a prompt was not provided.";
 							} else {
-								resolvedAudioRequest = selectedAudioRequest;
+								resolvedToolOptions = selectedAudioRequest;
 								event.sender.send("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
@@ -1382,19 +1397,12 @@ Keep it under 5 words.
 							name: toolCall.function.name,
 							result: toolResult,
 							state: toolState,
-							...((resolvedImageRequest ||
-								resolvedVideoRequest ||
-								resolvedAudioRequest)
+							...(resolvedToolOptions
 								? {
 										arguments: JSON.stringify(
-											resolvedImageRequest ||
-												resolvedVideoRequest ||
-												resolvedAudioRequest,
+											resolvedToolOptions,
 										),
-										tool_options:
-											resolvedImageRequest ||
-											resolvedVideoRequest ||
-											resolvedAudioRequest,
+										tool_options: resolvedToolOptions,
 									}
 								: {}),
 						});
