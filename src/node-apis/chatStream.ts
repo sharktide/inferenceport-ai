@@ -789,7 +789,6 @@ export default function registerChatStream() {
 					event.sender.send("ollama:chat-error", String(err));
 				}
 			} finally {
-				/* ---- Clean up any pending resolvers (e.g. user closed the window) ---- */
 				const allPending = [
 					...pendingImageToolResolvers.values(),
 					...pendingVideoToolResolvers.values(),
@@ -803,9 +802,8 @@ export default function registerChatStream() {
 					pending.reject(new DOMException("Chat ended", "AbortError"));
 				}
 
-				// clear the global abort controller reference
-				if ((globalThis as any).chatAbortController === abortController) {
-					(globalThis as any).chatAbortController = null;
+				if (chatAbortController === abortController) {
+					chatAbortController = null;
 				}
 			}
 		},
