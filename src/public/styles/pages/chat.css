@@ -287,50 +287,75 @@
 
 .ai-code-bubble {
 	position: relative;
+	overflow: hidden;
 }
 
 .ai-copy-btn:hover {
 	background: #525d6d;
 }
 
-.ai-code-bubble pre,
-.ai-code-bubble code {
+.ai-code-bubble pre {
 	background: transparent;
 	color: var(--text-dark);
 	border-radius: 0 0 var(--border-radius) var(--border-radius);
 	margin: 0;
 	padding: 16px 18px 16px 18px;
 	font-size: 15px;
-	overflow-x: auto;
+	overflow: auto;
 	white-space: pre;
 	max-width: 100%;
+	max-height: 420px;
 	font-family: "Fira Mono", "Consolas", "Menlo", monospace;
 	box-shadow: none;
 }
 
-.chat-bubble pre,
-.chat-bubble code {
+.ai-code-bubble pre code {
+	display: block;
 	white-space: pre;
-	overflow-x: auto;
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
+	padding: 0;
+	min-width: max-content;
+	background: transparent;
+	color: inherit;
+	border-radius: 0;
+}
+
+.chat-bubble pre {
+	margin: 8px 0;
+	padding: 12px 14px;
+	max-width: 100%;
+	overflow: auto;
+	white-space: pre;
 	background: #353f4d;
 	color: #fff;
-	font-size: 13px;
-	font-family: monospace;
-	border-top-left-radius: var(--border-radius);
-	border-top-right-radius: var(--border-radius);
-	padding: 6px 12px;
-	min-height: 28px;
-	width: 100%;
-	min-width: 0;
-	gap: 0;
+	border-radius: 8px;
+	font-family: "Fira Mono", "Consolas", "Menlo", monospace;
+}
+
+.chat-bubble pre code {
+	display: block;
 	padding: 0;
-	width: 100%;
-	max-width: 100%;
+	background: transparent;
+	color: inherit;
+	border-radius: 0;
+	white-space: pre;
+}
+
+.chat-bubble :not(pre) > code {
+	display: inline;
+	background: color-mix(in srgb, var(--text-dark) 10%, transparent);
+	color: var(--text-dark);
+	border-radius: 6px;
+	padding: 1px 6px;
+	font-size: 0.95em;
+	font-family: "Fira Mono", "Consolas", "Menlo", monospace;
+	white-space: break-spaces;
 	word-break: break-word;
-	overflow-x: auto;
+	overflow-wrap: anywhere;
+}
+
+[data-theme="dark"] .chat-bubble :not(pre) > code {
+	background: color-mix(in srgb, #fff 16%, transparent);
+	color: #f4f7fa;
 }
 
 .session-name-wrapper {
@@ -1026,6 +1051,174 @@ select {
 	white-space: pre-wrap;
 	margin: 0;
 	font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.video-tool-bubble {
+	max-width: min(560px, 94%);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.video-tool-status {
+	font-size: 12px;
+	color: color-mix(in srgb, var(--text-dark) 78%, transparent);
+}
+
+.video-tool-status.error {
+	color: #c84545;
+}
+
+.video-tool-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	text-transform: uppercase;
+	color: color-mix(in srgb, var(--text-dark) 72%, transparent);
+}
+
+.tool-hidden-file-input {
+	display: none;
+}
+
+.video-tool-upload-hint {
+	font-size: 11px;
+	font-weight: 500;
+	text-transform: none;
+	letter-spacing: 0;
+	color: color-mix(in srgb, var(--text-dark) 62%, transparent);
+}
+
+.video-tool-upload-link {
+	color: var(--blue);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.video-tool-upload-link:hover {
+	opacity: 0.85;
+}
+
+.video-tool-input {
+	width: 100%;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 18%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+	color: var(--text-dark);
+	border-radius: 8px;
+	padding: 8px 9px;
+	font-size: 12px;
+	font-weight: 500;
+	box-sizing: border-box;
+}
+
+.video-tool-input:focus {
+	outline: none;
+	border-color: color-mix(in srgb, var(--blue) 55%, transparent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 20%, transparent);
+}
+
+.video-tool-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.video-tool-grid.video-tool-images {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.video-tool-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.video-tool-btn {
+	border: 1px solid color-mix(in srgb, var(--text-dark) 20%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 85%, transparent);
+	color: var(--text-dark);
+	border-radius: 999px;
+	padding: 7px 12px;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.video-tool-btn.primary {
+	background: color-mix(in srgb, var(--blue) 78%, transparent);
+	border-color: color-mix(in srgb, var(--blue) 82%, transparent);
+	color: #fff;
+}
+
+.video-tool-btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.video-tool-summary {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 6px;
+	margin-top: 2px;
+}
+
+.video-tool-summary-row {
+	display: grid;
+	grid-template-columns: 100px 1fr;
+	gap: 8px;
+	align-items: flex-start;
+	font-size: 12px;
+}
+
+.video-tool-label {
+	opacity: 0.72;
+	font-weight: 600;
+}
+
+.video-tool-value {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.video-tool-copyable {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+}
+
+.video-tool-copyable-text {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.video-tool-copy-btn {
+	border: 1px solid color-mix(in srgb, var(--text-dark) 20%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 85%, transparent);
+	color: var(--text-dark);
+	border-radius: 999px;
+	padding: 3px 8px;
+	font-size: 11px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+@media (max-width: 760px) {
+	.video-tool-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.video-tool-grid.video-tool-images {
+		grid-template-columns: 1fr;
+	}
+
+	.video-tool-summary-row {
+		grid-template-columns: 1fr;
+		gap: 2px;
+	}
 }
 
 .sidebar {

@@ -47,6 +47,8 @@ declare global {
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
 			onDone: (cb: () => void) => void;
+			onAbort: (cb: () => void) => void;
+			onToolCall: (cb: (call: any) => void) => void;
 			load: () => Promise<Sessions>;
 			save: (sessions: Sessions) => Promise<void>;
 			getPath: () => Promise<string>;
@@ -61,6 +63,9 @@ declare global {
 			getServerLogs: () => Promise<string>;
 			importGGUF: (fileName: string, data: Uint8Array | null, isModelFile: boolean, clientUrl?: string) => Promise<string>;
 			importGGUFMulti: (modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string) => Promise<string>;
+			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 		};
 
 		utils: {

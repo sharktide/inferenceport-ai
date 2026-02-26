@@ -20,13 +20,18 @@
     "type": "function",
     "function": {
       "name": "generate_image",
-      "description": "Generate an image from a prompt and resolution",
+      "description": "Generate an image from a prompt and mode",
       "parameters": {
         "type": "object",
         "properties": {
           "prompt": {
             "type": "string",
             "description": "Describe the image you want in great detail (10-30 words)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["auto", "fantasy", "realistic"],
+            "description": "Image style mode. Default is auto."
           }
         },
         "required": ["prompt"]
@@ -61,6 +66,29 @@
           "prompt": {
             "type": "string",
             "description": "Describe the video you want in great detail (10-30 words)"
+          },
+          "ratio": {
+            "type": "string",
+            "enum": ["3:2", "2:3", "1:1"],
+            "description": "Aspect ratio for the output video. Default is 3:2."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["normal", "fun"],
+            "description": "Generation style. Default is normal."
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Video duration in seconds. Default is 5."
+          },
+          "image_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "description": "Optional conditioning image URLs. Only include if the user explicitly provided real URLs; never invent URLs."
           }
         },
         "required": ["prompt"]

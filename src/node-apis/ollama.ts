@@ -48,14 +48,256 @@ import toolSchema from "./assets/tools.json" with { type: "json" };
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import OpenAI from "openai";
 import { getSession } from "./auth.js";
-import { GenerateImage, duckDuckGoSearch, generateVideo, generateAudioOrSFX } from "./helper/tools.js";
+import {
+	GenerateImage,
+	duckDuckGoSearch,
+	generateVideo,
+	generateAudioOrSFX,
+	type ImageGenerateRequest,
+	type VideoGenerateRequest,
+} from "./helper/tools.js";
 
 const logDir: string = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
 const execFileAsync = promisify(execFile);
 const availableTools = toolSchema as ToolDefinition[];
 const systemPrompt =
-	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate images, they are automatically displayed to the user, so do not include URLs in your responses. Do not be technical with the user unless they ask for it.";
+	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. Do not be technical with the user unless they ask for it.";
+
+const IMAGE_MODE_VALUES = ["auto", "fantasy", "realistic"] as const;
+const VIDEO_RATIO_VALUES = ["3:2", "2:3", "1:1"] as const;
+const VIDEO_MODE_VALUES = ["normal", "fun"] as const;
+const DEFAULT_IMAGE_MODE = "auto";
+const DEFAULT_VIDEO_DURATION = 5;
+
+type ImageMode = (typeof IMAGE_MODE_VALUES)[number];
+type VideoRatio = (typeof VIDEO_RATIO_VALUES)[number];
+type VideoMode = (typeof VIDEO_MODE_VALUES)[number];
+type AudioGenerateRequest = { prompt: string };
+
+type NormalizedImageRequest = ImageGenerateRequest & {
+	prompt: string;
+	mode: ImageMode;
+};
+
+type NormalizedVideoRequest = VideoGenerateRequest & {
+	prompt: string;
+	ratio: VideoRatio;
+	mode: VideoMode;
+	duration: number;
+	image_urls: string[];
+};
+
+type NormalizedAudioRequest = AudioGenerateRequest & {
+	prompt: string;
+};
+
+type PendingToolResolver<T> = {
+	resolve: (value: T | null) => void;
+	reject: (reason?: unknown) => void;
+};
+
+const pendingImageToolResolvers = new Map<
+	string,
+	PendingToolResolver<NormalizedImageRequest>
+>();
+const pendingVideoToolResolvers = new Map<
+	string,
+	PendingToolResolver<NormalizedVideoRequest>
+>();
+const pendingAudioToolResolvers = new Map<
+	string,
+	PendingToolResolver<NormalizedAudioRequest>
+>();
+
+function normalizeImageMode(value: unknown): ImageMode {
+	if (typeof value === "string") {
+		const mode = value.trim() as ImageMode;
+		if (IMAGE_MODE_VALUES.includes(mode)) return mode;
+	}
+	return DEFAULT_IMAGE_MODE;
+}
+
+function normalizePrompt(
+	value: unknown,
+	errorMessage: string,
+	source: "model" | "user",
+): string {
+	const prompt = typeof value === "string" ? value.trim() : "";
+	if (!prompt && source === "user") throw new Error(errorMessage);
+	return prompt;
+}
+
+function normalizeImageRequest(
+	args: unknown,
+	source: "model" | "user",
+): NormalizedImageRequest {
+	const obj =
+		args && typeof args === "object"
+			? (args as Record<string, unknown>)
+			: {};
+
+	return {
+		prompt: normalizePrompt(obj.prompt, "Image prompt is required", source),
+		mode: normalizeImageMode(obj.mode),
+	};
+}
+
+function normalizeVideoRatio(value: unknown): VideoRatio {
+	if (typeof value === "string") {
+		const ratio = value.trim() as VideoRatio;
+		if (VIDEO_RATIO_VALUES.includes(ratio)) return ratio;
+	}
+	return "3:2";
+}
+
+function normalizeVideoMode(value: unknown): VideoMode {
+	if (typeof value === "string") {
+		const mode = value.trim() as VideoMode;
+		if (VIDEO_MODE_VALUES.includes(mode)) return mode;
+	}
+	return "normal";
+}
+
+function normalizeVideoDuration(value: unknown): number {
+	let parsed = DEFAULT_VIDEO_DURATION;
+	if (typeof value === "number" && Number.isFinite(value)) {
+		parsed = Math.round(value);
+	} else if (
+		typeof value === "string" &&
+		value.trim().length > 0 &&
+		!Number.isNaN(Number(value))
+	) {
+		parsed = Math.round(Number(value));
+	}
+	return Math.min(30, Math.max(1, parsed));
+}
+
+function normalizeImageUrls(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+	return value
+		.filter((item): item is string => typeof item === "string")
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0)
+		.slice(0, 2);
+}
+
+function normalizeVideoRequest(
+	args: unknown,
+	source: "model" | "user",
+): NormalizedVideoRequest {
+	const obj =
+		args && typeof args === "object"
+			? (args as Record<string, unknown>)
+			: {};
+
+	return {
+		prompt: normalizePrompt(obj.prompt, "Video prompt is required", source),
+		ratio: normalizeVideoRatio(obj.ratio),
+		mode: normalizeVideoMode(obj.mode),
+		duration: normalizeVideoDuration(obj.duration),
+		image_urls:
+			source === "user" ? normalizeImageUrls(obj.image_urls) : [],
+	};
+}
+
+function normalizeAudioRequest(
+	args: unknown,
+	source: "model" | "user",
+): NormalizedAudioRequest {
+	const obj =
+		args && typeof args === "object"
+			? (args as Record<string, unknown>)
+			: {};
+
+	return {
+		prompt: normalizePrompt(obj.prompt, "Audio prompt is required", source),
+	};
+}
+
+function waitForToolRequestInput<T>(
+	resolverMap: Map<string, PendingToolResolver<T>>,
+	toolCallId: string,
+	fallback: T,
+	abortSignal: AbortSignal,
+	timeoutMs = 90000,
+): Promise<T | null> {
+	return new Promise((resolve, reject) => {
+		const cleanup = () => {
+			clearTimeout(timer);
+			resolverMap.delete(toolCallId);
+			abortSignal.removeEventListener("abort", onAbort);
+		};
+
+		const onAbort = () => {
+			cleanup();
+			reject(new DOMException("Chat aborted", "AbortError"));
+		};
+
+		const timer = setTimeout(() => {
+			cleanup();
+			resolve(fallback);
+		}, timeoutMs);
+
+		resolverMap.set(toolCallId, {
+			resolve: (value) => {
+				cleanup();
+				resolve(value);
+			},
+			reject: (reason) => {
+				cleanup();
+				reject(reason);
+			},
+		});
+
+		abortSignal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
+function waitForImageRequestInput(
+	toolCallId: string,
+	fallback: NormalizedImageRequest,
+	abortSignal: AbortSignal,
+	timeoutMs = 90000,
+): Promise<NormalizedImageRequest | null> {
+	return waitForToolRequestInput(
+		pendingImageToolResolvers,
+		toolCallId,
+		fallback,
+		abortSignal,
+		timeoutMs,
+	);
+}
+
+function waitForVideoRequestInput(
+	toolCallId: string,
+	fallback: NormalizedVideoRequest,
+	abortSignal: AbortSignal,
+	timeoutMs = 90000,
+): Promise<NormalizedVideoRequest | null> {
+	return waitForToolRequestInput(
+		pendingVideoToolResolvers,
+		toolCallId,
+		fallback,
+		abortSignal,
+		timeoutMs,
+	);
+}
+
+function waitForAudioRequestInput(
+	toolCallId: string,
+	fallback: NormalizedAudioRequest,
+	abortSignal: AbortSignal,
+	timeoutMs = 90000,
+): Promise<NormalizedAudioRequest | null> {
+	return waitForToolRequestInput(
+		pendingAudioToolResolvers,
+		toolCallId,
+		fallback,
+		abortSignal,
+		timeoutMs,
+	);
+}
 
 const isDev = !app.isPackaged;
 
@@ -674,6 +916,72 @@ Keep it under 5 words.
 	});
 
 	ipcMain.handle(
+		"ollama:resolve-image-tool-call",
+		async (
+			_event: IpcMainInvokeEvent,
+			toolCallId: string,
+			payload: unknown,
+		): Promise<boolean> => {
+			if (!toolCallId || typeof toolCallId !== "string") return false;
+			const pending = pendingImageToolResolvers.get(toolCallId);
+			if (!pending) return false;
+
+			if (payload === null) {
+				pending.resolve(null);
+				return true;
+			}
+
+			const normalized = normalizeImageRequest(payload, "user");
+			pending.resolve(normalized);
+			return true;
+		},
+	);
+
+	ipcMain.handle(
+		"ollama:resolve-video-tool-call",
+		async (
+			_event: IpcMainInvokeEvent,
+			toolCallId: string,
+			payload: unknown,
+		): Promise<boolean> => {
+			if (!toolCallId || typeof toolCallId !== "string") return false;
+			const pending = pendingVideoToolResolvers.get(toolCallId);
+			if (!pending) return false;
+
+			if (payload === null) {
+				pending.resolve(null);
+				return true;
+			}
+
+			const normalized = normalizeVideoRequest(payload, "user");
+			pending.resolve(normalized);
+			return true;
+		},
+	);
+
+	ipcMain.handle(
+		"ollama:resolve-audio-tool-call",
+		async (
+			_event: IpcMainInvokeEvent,
+			toolCallId: string,
+			payload: unknown,
+		): Promise<boolean> => {
+			if (!toolCallId || typeof toolCallId !== "string") return false;
+			const pending = pendingAudioToolResolvers.get(toolCallId);
+			if (!pending) return false;
+
+			if (payload === null) {
+				pending.resolve(null);
+				return true;
+			}
+
+			const normalized = normalizeAudioRequest(payload, "user");
+			pending.resolve(normalized);
+			return true;
+		},
+	);
+
+	ipcMain.handle(
 		"ollama:run",
 		async (
 			_event: IpcMainInvokeEvent,
@@ -789,7 +1097,7 @@ Keep it under 5 words.
 				let assistantMessage = "";
 				const toolCallBuffer = new Map<
 					number,
-					{ name?: string; arguments: string }
+					{ id?: string; name?: string; arguments: string }
 				>();
 
 				for await (const chunk of stream) {
@@ -810,6 +1118,7 @@ Keep it under 5 words.
 								arguments: "",
 							};
 
+							if (call.id) entry.id = call.id;
 							if (call.function?.name)
 								entry.name = call.function.name;
 							if (call.function?.arguments)
@@ -823,8 +1132,11 @@ Keep it under 5 words.
 				abortIfNeeded();
 
 				const finalizedToolCalls = [...toolCallBuffer.entries()].map(
-					([index, data]) => ({
-						id: `call_${index}`,
+					([_index, data]) => ({
+						id:
+							data.id && data.id.trim()
+								? data.id
+								: `call_${crypto.randomUUID()}`,
 						type: "function",
 						function: {
 							name: data.name!,
@@ -849,54 +1161,229 @@ Keep it under 5 words.
 
 					for (const toolCall of finalizedToolCalls) {
 						abortIfNeeded();
+						let parsedArgs: unknown = {};
+						try {
+							parsedArgs = JSON.parse(
+								toolCall.function.arguments || "{}",
+							);
+						} catch {
+							parsedArgs = {};
+						}
 
-						event.sender.send("ollama:new_tool_call", {
-							id: toolCall.id,
-							name: toolCall.function.name,
-							arguments: toolCall.function.arguments,
-							state: "pending",
-						});
+						const args =
+							parsedArgs && typeof parsedArgs === "object"
+								? (parsedArgs as Record<string, unknown>)
+								: {};
 
-						const args = JSON.parse(toolCall.function.arguments);
 						let toolResult: any;
+						let toolState: "resolved" | "canceled" = "resolved";
+						let resolvedToolOptions:
+							| NormalizedImageRequest
+							| NormalizedVideoRequest
+							| NormalizedAudioRequest
+							| undefined;
 
 						if (toolCall.function.name === "duckduckgo_search") {
-							toolResult = await duckDuckGoSearch(args.query);
+							event.sender.send("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "pending",
+							});
+							const query =
+								typeof args.query === "string"
+									? args.query.trim()
+									: "";
+							if (!query) throw new Error("Search query is required");
+							toolResult = await duckDuckGoSearch(query);
 						}
 
 						if (toolCall.function.name === "generate_image") {
-							const { dataUrl } = await GenerateImage(
-								args.prompt,
+							const suggestedImageRequest = normalizeImageRequest(
+								args,
+								"model",
 							);
+							resolvedToolOptions = suggestedImageRequest;
 
-							event.sender.send("ollama:new-asset", {
-								role: "image",
-								content: dataUrl,
+							event.sender.send("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: JSON.stringify(
+									suggestedImageRequest,
+								),
+								tool_options: suggestedImageRequest,
+								state: "awaiting_input",
 							});
 
-							toolResult = "Image generated successfully and shown to the user.";
+							const selectedImageRequest =
+								await waitForImageRequestInput(
+									toolCall.id,
+									suggestedImageRequest,
+									abortController.signal,
+								);
+
+							abortIfNeeded();
+
+							if (!selectedImageRequest) {
+								toolState = "canceled";
+								toolResult =
+									"Image generation was canceled before execution.";
+							} else if (!selectedImageRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Image generation was canceled because a prompt was not provided.";
+							} else {
+								resolvedToolOptions = selectedImageRequest;
+								event.sender.send("ollama:new_tool_call", {
+									id: toolCall.id,
+									name: toolCall.function.name,
+									arguments: JSON.stringify(
+										selectedImageRequest,
+									),
+									tool_options: selectedImageRequest,
+									state: "pending",
+								});
+
+								const { dataUrl } = await GenerateImage(
+									selectedImageRequest,
+								);
+
+								event.sender.send("ollama:new-asset", {
+									role: "image",
+									content: dataUrl,
+								});
+
+								toolResult =
+									"Image generated successfully and shown to the user.";
+							}
 						}
-						
+
 						if (toolCall.function.name === "generate_video") {
-							const video: ArrayBuffer = await generateVideo(args.prompt);
-							const videoBlob = new Blob([video], { type: "video/mp4" });
-							const assetID = await save_stream(videoBlob);
-							event.sender.send("ollama:new-asset", {
-								role: "video",
-								content: assetID,
+							const suggestedVideoRequest = normalizeVideoRequest(
+								args,
+								"model",
+							);
+							resolvedToolOptions = suggestedVideoRequest;
+
+							event.sender.send("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments:
+									JSON.stringify(suggestedVideoRequest),
+								tool_options: suggestedVideoRequest,
+								state: "awaiting_input",
 							});
-							toolResult = "Video generated successfully and shown to the user.";
+
+							const selectedVideoRequest =
+								await waitForVideoRequestInput(
+									toolCall.id,
+									suggestedVideoRequest,
+									abortController.signal,
+								);
+
+							abortIfNeeded();
+
+							if (!selectedVideoRequest) {
+								toolState = "canceled";
+								toolResult =
+									"Video generation was canceled before execution.";
+							} else if (!selectedVideoRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Video generation was canceled because a prompt was not provided.";
+							} else {
+								resolvedToolOptions = selectedVideoRequest;
+								event.sender.send("ollama:new_tool_call", {
+									id: toolCall.id,
+									name: toolCall.function.name,
+									arguments: JSON.stringify(
+										selectedVideoRequest,
+									),
+									tool_options: selectedVideoRequest,
+									state: "pending",
+								});
+
+								const video: ArrayBuffer = await generateVideo(
+									selectedVideoRequest,
+								);
+								const videoBlob = new Blob([video], {
+									type: "video/mp4",
+								});
+								const assetID = await save_stream(videoBlob);
+								event.sender.send("ollama:new-asset", {
+									role: "video",
+									content: assetID,
+								});
+								toolResult =
+									"Video generated successfully and shown to the user.";
+							}
 						}
 
 						if (toolCall.function.name === "generate_audio") {
-							const audio: ArrayBuffer = await generateAudioOrSFX(args.prompt);
-							const audioBlob = new Blob([audio], { type: "audio/mpeg" });
-							const assetID = await save_stream(audioBlob);
-							event.sender.send("ollama:new-asset", {
-								role: "audio",
-								content: assetID,
+							const suggestedAudioRequest = normalizeAudioRequest(
+								args,
+								"model",
+							);
+							resolvedToolOptions = suggestedAudioRequest;
+
+							event.sender.send("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: JSON.stringify(
+									suggestedAudioRequest,
+								),
+								tool_options: suggestedAudioRequest,
+								state: "awaiting_input",
 							});
-							toolResult = "Audio generated successfully and shown to the user.";
+
+							const selectedAudioRequest =
+								await waitForAudioRequestInput(
+									toolCall.id,
+									suggestedAudioRequest,
+									abortController.signal,
+								);
+
+							abortIfNeeded();
+
+							if (!selectedAudioRequest) {
+								toolState = "canceled";
+								toolResult =
+									"Audio generation was canceled before execution.";
+							} else if (!selectedAudioRequest.prompt) {
+								toolState = "canceled";
+								toolResult =
+									"Audio generation was canceled because a prompt was not provided.";
+							} else {
+								resolvedToolOptions = selectedAudioRequest;
+								event.sender.send("ollama:new_tool_call", {
+									id: toolCall.id,
+									name: toolCall.function.name,
+									arguments: JSON.stringify(
+										selectedAudioRequest,
+									),
+									tool_options: selectedAudioRequest,
+									state: "pending",
+								});
+
+								const audio: ArrayBuffer =
+									await generateAudioOrSFX(
+										selectedAudioRequest.prompt,
+									);
+								const audioBlob = new Blob([audio], {
+									type: "audio/mpeg",
+								});
+								const assetID = await save_stream(audioBlob);
+								event.sender.send("ollama:new-asset", {
+									role: "audio",
+									content: assetID,
+								});
+								toolResult =
+									"Audio generated successfully and shown to the user.";
+							}
+						}
+
+						if (typeof toolResult === "undefined") {
+							toolResult = "Tool completed.";
 						}
 
 						chatHistory.push({
@@ -909,7 +1396,15 @@ Keep it under 5 words.
 							id: toolCall.id,
 							name: toolCall.function.name,
 							result: toolResult,
-							state: "resolved",
+							state: toolState,
+							...(resolvedToolOptions
+								? {
+										arguments: JSON.stringify(
+											resolvedToolOptions,
+										),
+										tool_options: resolvedToolOptions,
+									}
+								: {}),
 						});
 					}
 
@@ -961,6 +1456,20 @@ Keep it under 5 words.
 					event.sender.send("ollama:chat-error", String(err));
 				}
 			} finally {
+				const pendingResolvers = [
+					...pendingImageToolResolvers.values(),
+					...pendingVideoToolResolvers.values(),
+					...pendingAudioToolResolvers.values(),
+				];
+				pendingImageToolResolvers.clear();
+				pendingVideoToolResolvers.clear();
+				pendingAudioToolResolvers.clear();
+				for (const pending of pendingResolvers) {
+					pending.reject(
+						new DOMException("Chat ended", "AbortError"),
+					);
+				}
+
 				if (chatAbortController === abortController) {
 					chatAbortController = null;
 				}
