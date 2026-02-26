@@ -31,8 +31,6 @@ import {
 	stopProxyServer,
 	getServerLogs,
 } from "./helper/server.js";
-import registerChatStream from "./helper/chatStream.js";
-import { issueProxyToken } from "./auth.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
 import { cache, fetchSupportedTools } from "./helper/tools.js";
 const execFileAsync = promisify(execFile);
@@ -106,7 +104,6 @@ export default function register(): void {
 	} catch {
 		void 0;
 	}
-	registerChatStream()
 	ipcMain.handle("ollama:get-server-logs", async (): Promise<string> => {
 		return await getServerLogs();
 	});
@@ -155,7 +152,7 @@ export default function register(): void {
 			_event: IpcMainInvokeEvent,
 			clientUrl?: string,
 		): Promise<ModelInfo[]> => {
-			return await listModels()
+			return await listModels(clientUrl);
 		},
 	);
 

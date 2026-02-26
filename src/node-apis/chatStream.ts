@@ -1,10 +1,10 @@
 import { ipcMain } from "electron";
-import type { ToolList, ToolDefinition, ChatHistoryEntry } from "../types/index.types.d.ts";
+import type { ToolList, ToolDefinition, ChatHistoryEntry } from "./types/index.types.d.ts";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import crypto from "crypto";
-import toolSchema from "../assets/tools.json" with { type: "json" };
+import toolSchema from "./assets/tools.json" with { type: "json" };
 import {
     GenerateImage,
     duckDuckGoSearch,
@@ -12,15 +12,15 @@ import {
     generateAudioOrSFX,
     type ImageGenerateRequest,
     type VideoGenerateRequest,
-} from "../helper/tools.js";
+} from "./helper/tools.js";
 
 import {
 	save_stream, is52458,
-} from "../utils.js";
+} from "./utils.js";
 
 import {
     issueProxyToken
-} from "../auth.js"
+} from "./auth.js"
 let chatHistory: ChatHistoryEntry[] = [];
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
