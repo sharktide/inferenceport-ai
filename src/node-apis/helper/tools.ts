@@ -303,54 +303,66 @@ async function ensureDir() {
 	await fs.promises.mkdir(path.dirname(path.join(app.getPath("userData"), "chat-sessions")), { recursive: true });
 }
 
-export async function fetchSupportedTools(): Promise<{
-	supportsTools: string[];
-}> {
-	const response = await fetch(
-		"https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json",
-	);
+export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
+    const response = await fetch(
+        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json"
+    );
 
-	if (!response.ok) {
-		throw new Error(
-			`Failed to fetch tool-supporting models: ${response.statusText}`,
-		);
-	}
+    if (!response.ok) {
+        throw new Error(`Failed to fetch tool-supporting models: ${response.statusText}`);
+    }
 
-	let data: unknown;
-	try {
-		data = await response.json();
-	} catch {
-		throw new Error("Failed to parse tool-supporting models JSON");
-	}
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (contentLength > 50_000) {
+        throw new Error("Payload too large — rejecting for safety");
+    }
 
-	let supportsTools: string[];
-	if (Array.isArray(data) && data.every((name) => typeof name === "string")) {
-		supportsTools = data;
-	} else if (
-		data &&
-		typeof data === "object" &&
-		"supportsTools" in data &&
-		Array.isArray((data as any).supportsTools) &&
-		(data as any).supportsTools.every(
-			(name: any) => typeof name === "string",
-		)
-	) {
-		supportsTools = (data as { supportsTools: string[] }).supportsTools;
-	} else {
-		throw new Error("Invalid tool-supporting models JSON shape");
-	}
+    let data: unknown;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error("Failed to parse JSON");
+    }
 
-	cache.cachedSupportsTools = supportsTools;
+    if (!Array.isArray(data)) {
+        throw new Error("Invalid JSON: expected a string[]");
+    }
 
-	await ensureDir();
-	const writeTask = fs.promises.writeFile(
-		path.join(app.getPath("userData"), "chat-sessions", "supportsTools.json"),
-		JSON.stringify({ supportsTools }, null, 2),
-		"utf-8",
-	);
-	cache.writeInProgress = writeTask;
-	await writeTask;
-	cache.writeInProgress = null;
+    for (const item of data) {
+        if (typeof item !== "string") {
+            throw new Error("Invalid JSON: all items must be strings");
+        }
 
-	return { supportsTools };
+        if (/[\u0000-\u001F]/.test(item)) {
+            throw new Error("Invalid JSON: contains control characters");
+        }
+
+        if (/[<>]/.test(item)) {
+            throw new Error("Invalid JSON: contains HTML-like characters");
+        }
+
+        if (item.length > 200) {
+            throw new Error("Invalid JSON: string too long");
+        }
+    }
+
+    if (data.length > 2000) {
+        throw new Error("Invalid JSON: too many entries");
+    }
+
+    const supportsTools = data as string[];
+
+    cache.cachedSupportsTools = supportsTools;
+
+    await ensureDir();
+    const writeTask = fs.promises.writeFile(
+        path.join(app.getPath("userData"), "chat-sessions", "supportsTools.json"),
+        JSON.stringify({ supportsTools }, null, 2),
+        "utf-8"
+    );
+    cache.writeInProgress = writeTask;
+    await writeTask;
+    cache.writeInProgress = null;
+
+    return { supportsTools };
 }
