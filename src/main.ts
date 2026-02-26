@@ -19,8 +19,8 @@ import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
 import ollamaHandlers, {
 	serve,
-	fetchSupportedTools,
 } from "./node-apis/ollama.js";
+import { fetchSupportedTools } from "./node-apis/helper/tools.js";
 import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import spaces from "./node-apis/spaces.js";

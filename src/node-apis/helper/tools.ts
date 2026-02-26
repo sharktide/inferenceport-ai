@@ -1,5 +1,11 @@
 import { LOG, LOG_ERR } from "./log.js";
-
+import fs from "fs";
+import path from "path"
+export const cache ={
+ 	cachedSupportsTools: null as string[] | null,
+	writeInProgress: null as Promise<void> | null
+}
+import { app } from "electron"
 async function fetchWithRetry(
     trace: string,
     url: string,
@@ -91,7 +97,7 @@ export async function GenerateImage(
 			status: response.status,
 			statusText: response.statusText,
 		});
-		throw new Error(`Image fetch failed: ${response.status}`);
+		throw new Error(`Image fetch failed: ${response.status} ${await response.text()}`);
 	}
 
 	const contentType = response.headers.get("content-type");
@@ -291,4 +297,60 @@ export async function generateVideo(
 	LOG(trace, "EXIT GenerateVideo OK");
 
     return arrayBuffer;
+}
+
+async function ensureDir() {
+	await fs.promises.mkdir(path.dirname(path.join(app.getPath("userData"), "chat-sessions")), { recursive: true });
+}
+
+export async function fetchSupportedTools(): Promise<{
+	supportsTools: string[];
+}> {
+	const response = await fetch(
+		"https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json",
+	);
+
+	if (!response.ok) {
+		throw new Error(
+			`Failed to fetch tool-supporting models: ${response.statusText}`,
+		);
+	}
+
+	let data: unknown;
+	try {
+		data = await response.json();
+	} catch {
+		throw new Error("Failed to parse tool-supporting models JSON");
+	}
+
+	let supportsTools: string[];
+	if (Array.isArray(data) && data.every((name) => typeof name === "string")) {
+		supportsTools = data;
+	} else if (
+		data &&
+		typeof data === "object" &&
+		"supportsTools" in data &&
+		Array.isArray((data as any).supportsTools) &&
+		(data as any).supportsTools.every(
+			(name: any) => typeof name === "string",
+		)
+	) {
+		supportsTools = (data as { supportsTools: string[] }).supportsTools;
+	} else {
+		throw new Error("Invalid tool-supporting models JSON shape");
+	}
+
+	cache.cachedSupportsTools = supportsTools;
+
+	await ensureDir();
+	const writeTask = fs.promises.writeFile(
+		path.join(app.getPath("userData"), "chat-sessions"),
+		JSON.stringify({ supportsTools }, null, 2),
+		"utf-8",
+	);
+	cache.writeInProgress = writeTask;
+	await writeTask;
+	cache.writeInProgress = null;
+
+	return { supportsTools };
 }

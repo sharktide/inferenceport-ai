@@ -7,7 +7,6 @@
 !.vscode/tasks.json
 !?*.[Cc]ache/
 !Directory.Build.rsp
-docs/build/
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
 # (https://github.com/github/gitignore/pull/3736)
@@ -857,6 +856,7 @@ dist\win-unpacked\resources\app\public\scripts\staticload\theme.d.ts.map
 dist\win-unpacked\resources\app\public\scripts\staticload\theme.js
 dist\win-unpacked\resources\app\public\scripts\staticload\theme.js.map
 dlldata.c
+docs/build/
 ecf/
 global.d.d.ts
 global.d.d.ts.map
@@ -934,6 +934,22 @@ node-apis\getApiKey.d.d.ts
 node-apis\getApiKey.d.d.ts.map
 node-apis\getApiKey.d.js
 node-apis\getApiKey.d.js.map
+node-apis\helper\chatStream.d.d.ts
+node-apis\helper\chatStream.d.d.ts.map
+node-apis\helper\chatStream.d.js
+node-apis\helper\chatStream.d.js.map
+node-apis\helper\chatStream.d.ts
+node-apis\helper\chatStream.d.ts.map
+node-apis\helper\chatStream.js
+node-apis\helper\chatStream.js.map
+node-apis\helper\createModel.d.d.ts
+node-apis\helper\createModel.d.d.ts.map
+node-apis\helper\createModel.d.js
+node-apis\helper\createModel.d.js.map
+node-apis\helper\createModel.d.ts
+node-apis\helper\createModel.d.ts.map
+node-apis\helper\createModel.js
+node-apis\helper\createModel.js.map
 node-apis\helper\log.d.d.ts
 node-apis\helper\log.d.d.ts.map
 node-apis\helper\log.d.js
@@ -942,6 +958,14 @@ node-apis\helper\log.d.ts
 node-apis\helper\log.d.ts.map
 node-apis\helper\log.js
 node-apis\helper\log.js.map
+node-apis\helper\ollamaFSops.d.d.ts
+node-apis\helper\ollamaFSops.d.d.ts.map
+node-apis\helper\ollamaFSops.d.js
+node-apis\helper\ollamaFSops.d.js.map
+node-apis\helper\ollamaFSops.d.ts
+node-apis\helper\ollamaFSops.d.ts.map
+node-apis\helper\ollamaFSops.js
+node-apis\helper\ollamaFSops.js.map
 node-apis\helper\server.d.d.ts
 node-apis\helper\server.d.d.ts.map
 node-apis\helper\server.d.js
