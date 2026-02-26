@@ -3,10 +3,12 @@ import type {
 	PullSection,
 	PullChunk,
 	PullProgress,
-} from "../types/chat.types.js";
+	ModelInfo,
+} from "../types/index.types.js";
 import { BrowserWindow } from "electron";
 import { issueProxyToken } from "../auth.js";
 import { is52458 } from "../utils.js";
+
 function renderBar(completed = 0, total = 0, width = 20): string {
 	if (!total) return "[                  ]";
 	const ratio = Math.min(completed / total, 1);
