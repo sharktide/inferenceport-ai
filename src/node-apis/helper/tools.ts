@@ -344,7 +344,7 @@ export async function fetchSupportedTools(): Promise<{
 
 	await ensureDir();
 	const writeTask = fs.promises.writeFile(
-		path.join(app.getPath("userData"), "chat-sessions"),
+		path.join(app.getPath("userData"), "chat-sessions", "supportsTools.json"),
 		JSON.stringify({ supportsTools }, null, 2),
 		"utf-8",
 	);
