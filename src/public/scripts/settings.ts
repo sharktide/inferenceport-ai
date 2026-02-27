@@ -19,6 +19,9 @@ const HOST_USERS_KEY = "host_users_v1";
 
 const syncCheckbox = document.getElementById('sync-chats') as HTMLInputElement | null;
 const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDetailsElement | null;
+const startupRunAtLoginCheckbox = document.getElementById("startup-run-at-login") as HTMLInputElement | null;
+const startupAutoProxyCheckbox = document.getElementById("startup-auto-proxy") as HTMLInputElement | null;
+const startupStatus = document.getElementById("startup-status") as HTMLParagraphElement | null;
 let emails: string[] = [];
 
 let hostConfigModal: declarations["iInstance"]["iModal"];
@@ -64,6 +67,59 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn('Could not initialize sync setting', e);
     }
 })();
+
+async function initStartupSettings() {
+	if (!startupRunAtLoginCheckbox || !startupAutoProxyCheckbox) return;
+	try {
+		const startup = await window.startup.getSettings();
+		startupRunAtLoginCheckbox.checked = Boolean(startup.runAtLogin);
+		startupAutoProxyCheckbox.checked = Boolean(startup.autoStartProxy);
+		if (startupStatus) {
+			startupStatus.textContent = startup.runAtLogin
+				? "Background startup is enabled."
+				: "Background startup is disabled.";
+		}
+	} catch (err) {
+		console.warn("Could not load startup settings", err);
+	}
+}
+
+startupRunAtLoginCheckbox?.addEventListener("change", async () => {
+	try {
+		const updated = await window.startup.updateSettings({
+			runAtLogin: startupRunAtLoginCheckbox.checked,
+		});
+		if (startupStatus) {
+			startupStatus.textContent = updated.runAtLogin
+				? "Background startup is enabled."
+				: "Background startup is disabled.";
+		}
+	} catch (err) {
+		console.warn("Could not update run-at-login setting", err);
+	}
+});
+
+startupAutoProxyCheckbox?.addEventListener("change", async () => {
+	try {
+		const existingUsersRaw = localStorage.getItem(HOST_USERS_KEY);
+		let existingUsers: { email: string; role: string }[] = [];
+		try {
+			existingUsers = existingUsersRaw ? JSON.parse(existingUsersRaw) : [];
+		} catch {
+			existingUsers = [];
+		}
+
+		await window.startup.updateSettings({
+			autoStartProxy: startupAutoProxyCheckbox.checked,
+			proxyPort: 52458,
+			proxyUsers: existingUsers,
+		});
+	} catch (err) {
+		console.warn("Could not update auto proxy startup setting", err);
+	}
+});
+
+void initStartupSettings();
 
 function isValidEmail(email: string) {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -321,6 +377,10 @@ hostStartBtn?.addEventListener('click', async () => {
 						await window.ollama.startServer(port, users);
 						localStorage.setItem(HOST_USERS_KEY, JSON.stringify(users));
 						localStorage.setItem('host_emails', hostEmailsInput?.value || '');
+						await window.startup.updateSettings({
+							proxyPort: port,
+							proxyUsers: users,
+						});
 						setHostingUIRunning(true, port);
 					} catch (e: any) {
 						if (hostStatus) hostStatus.textContent = `Error: ${e?.message || e}`;

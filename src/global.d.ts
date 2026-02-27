@@ -135,6 +135,14 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
+			setSessionFromTokens: (
+				accessToken: string,
+				refreshToken: string,
+			) => Promise<{
+				session?: any;
+				profile?: any;
+				error?: string;
+			}>;
 			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 
@@ -159,6 +167,26 @@ declare global {
 					value?: string;
 				}) => void,
 			) => void;
+		};
+
+		startup: {
+			getSettings: () => Promise<{
+				runAtLogin: boolean;
+				autoStartProxy: boolean;
+				proxyPort: number;
+				proxyUsers: { email: string; role: string }[];
+			}>;
+			updateSettings: (patch: {
+				runAtLogin?: boolean;
+				autoStartProxy?: boolean;
+				proxyPort?: number;
+				proxyUsers?: { email: string; role: string }[];
+			}) => Promise<{
+				runAtLogin: boolean;
+				autoStartProxy: boolean;
+				proxyPort: number;
+				proxyUsers: { email: string; role: string }[];
+			}>;
 		};
 	}
 

@@ -127,6 +127,37 @@ export default function register() {
 	});
 
 	ipcMain.handle(
+		"auth:setSessionTokens",
+		async (_event, accessToken: string, refreshToken: string) => {
+			if (!accessToken || !refreshToken) {
+				return { error: "Missing access or refresh token" };
+			}
+
+			const { data: setData, error: setError } =
+				await supabase.auth.setSession({
+					access_token: accessToken,
+					refresh_token: refreshToken,
+				});
+
+			if (setError) return { error: setError.message };
+
+			const session = setData.session;
+			let profile = null;
+
+			if (session?.user?.id) {
+				const { data: profileData } = await supabase
+					.from("profiles")
+					.select("username")
+					.eq("id", session.user.id)
+					.maybeSingle();
+				profile = profileData || null;
+			}
+
+			return { session, profile };
+		},
+	);
+
+	ipcMain.handle(
 		"auth:setUsername",
 		async (_event, userId: string, username: string) => {
 			if (!userId || !username)

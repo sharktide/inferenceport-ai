@@ -187,6 +187,8 @@ contextBridge.exposeInMainWorld("auth", {
 	deleteAccount: () => ipcRenderer.invoke("auth:delete-account"),
 	setUsername: (userId: string, username: string) =>
 		ipcRenderer.invoke("auth:setUsername", userId, username),
+	setSessionFromTokens: (accessToken: string, refreshToken: string) =>
+		ipcRenderer.invoke("auth:setSessionTokens", accessToken, refreshToken),
 });
 
 // ===== Sync =====
@@ -219,4 +221,14 @@ contextBridge.exposeInMainWorld("storageSync", {
 			}) => callback(change),
 		);
 	},
+});
+
+contextBridge.exposeInMainWorld("startup", {
+	getSettings: () => ipcRenderer.invoke("startup:get-settings"),
+	updateSettings: (patch: {
+		runAtLogin?: boolean;
+		autoStartProxy?: boolean;
+		proxyPort?: number;
+		proxyUsers?: { email: string; role: string }[];
+	}) => ipcRenderer.invoke("startup:update-settings", patch),
 });

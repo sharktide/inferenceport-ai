@@ -29,6 +29,8 @@ import spacesHandlers from "./node-apis/spaces.js";
 import { initIpcWebSocketBridge } from "./node-apis/helper/ipcBridge.js";
 import storageSyncHandlers from "./node-apis/storageSync.js";
 import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
+import startupHandlers, { getStartupSettings } from "./node-apis/startup.js";
+import { startProxyServer } from "./node-apis/helper/server.js";
 
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
@@ -42,6 +44,7 @@ const supabase = supabaseClient;
 
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
+const backgroundServerMode = process.argv.includes("--background-server");
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
@@ -295,7 +298,15 @@ if (deeplinkArg) {
 
 app.on("second-instance", async (_event, argv) => {
     const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
-    if (!urlArg) return;
+    if (!urlArg) {
+		if (!mainWindow) createWindow();
+		else {
+			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.show();
+			mainWindow.focus();
+		}
+		return;
+	}
 
     if (await handleAuthCallback(urlArg)) {
         if (mainWindow) {
@@ -306,12 +317,13 @@ app.on("second-instance", async (_event, argv) => {
         return;
     }
 
+    if (!mainWindow) createWindow();
     if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.show();
-        mainWindow.focus();
-        openFromDeepLink(urlArg);
-    }
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+		openFromDeepLink(urlArg);
+	}
 });
 
 
@@ -355,8 +367,27 @@ app.whenReady().then(async () => {
 	utilsHandlers();
 	spacesHandlers();
 	storageSyncHandlers();
+	startupHandlers();
 
-	createWindow();
+	const startupSettings = getStartupSettings();
+	if (
+		startupSettings.autoStartProxy &&
+		startupSettings.proxyUsers.length > 0
+	) {
+		try {
+			startProxyServer(
+				startupSettings.proxyPort || 52458,
+				startupSettings.proxyUsers,
+			);
+			console.info("Auto-started proxy server from startup settings");
+		} catch (err) {
+			console.warn("Failed to auto-start proxy server", err);
+		}
+	}
+
+	if (!backgroundServerMode) {
+		createWindow();
+	}
 
 	(async function checkForUpdate() {
 		try {
@@ -416,6 +447,7 @@ app.whenReady().then(async () => {
 	if (pendingDeepLink) {
 		const handled = await handleAuthCallback(pendingDeepLink);
 		if (!handled) {
+			if (!mainWindow) createWindow();
 			openFromDeepLink(pendingDeepLink);
 		}
 		pendingDeepLink = null;
@@ -427,6 +459,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+	if (backgroundServerMode) return;
 	stopWebUiServer();
 	app.quit();
 });

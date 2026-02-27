@@ -1,0 +1,141 @@
+import { app, ipcMain } from "electron";
+import fs from "fs";
+import path from "path";
+
+export type StartupProxyUser = {
+	email: string;
+	role: string;
+};
+
+export type StartupSettings = {
+	runAtLogin: boolean;
+	autoStartProxy: boolean;
+	proxyPort: number;
+	proxyUsers: StartupProxyUser[];
+};
+
+const settingsFilePath = path.join(
+	app.getPath("userData"),
+	"startup-settings.json",
+);
+
+const defaultSettings: StartupSettings = {
+	runAtLogin: false,
+	autoStartProxy: false,
+	proxyPort: 52458,
+	proxyUsers: [],
+};
+
+function sanitizeUsers(users: unknown): StartupProxyUser[] {
+	if (!Array.isArray(users)) return [];
+	return users
+		.filter(
+			(entry): entry is { email: unknown; role: unknown } =>
+				!!entry && typeof entry === "object",
+		)
+		.map((entry) => ({
+			email: typeof entry.email === "string" ? entry.email.trim() : "",
+			role:
+				typeof entry.role === "string" && entry.role.trim().length > 0
+					? entry.role.trim()
+					: "member",
+		}))
+		.filter((entry) => entry.email.length > 0);
+}
+
+function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
+	return {
+		runAtLogin: Boolean(raw.runAtLogin),
+		autoStartProxy: Boolean(raw.autoStartProxy),
+		proxyPort:
+			typeof raw.proxyPort === "number" &&
+			Number.isFinite(raw.proxyPort) &&
+			raw.proxyPort > 0
+				? Math.round(raw.proxyPort)
+				: defaultSettings.proxyPort,
+		proxyUsers: sanitizeUsers(raw.proxyUsers),
+	};
+}
+
+function readSettingsFile(): StartupSettings {
+	try {
+		if (!fs.existsSync(settingsFilePath)) return defaultSettings;
+		const raw = fs.readFileSync(settingsFilePath, "utf-8");
+		const parsed = JSON.parse(raw) as Partial<StartupSettings>;
+		return sanitizeSettings({ ...defaultSettings, ...parsed });
+	} catch {
+		return defaultSettings;
+	}
+}
+
+function writeSettingsFile(settings: StartupSettings): void {
+	const dir = path.dirname(settingsFilePath);
+	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+	const tmp = `${settingsFilePath}.tmp-${process.pid}`;
+	fs.writeFileSync(tmp, JSON.stringify(settings, null, 2), { mode: 0o600 });
+	fs.renameSync(tmp, settingsFilePath);
+}
+
+function setOpenAtLogin(enabled: boolean): void {
+	try {
+		app.setLoginItemSettings({
+			openAtLogin: enabled,
+			openAsHidden: true,
+			args: ["--background-server"],
+		});
+	} catch (err) {
+		console.warn("Failed to update open-at-login setting", err);
+	}
+}
+
+function readOpenAtLogin(): boolean {
+	try {
+		return app.getLoginItemSettings({
+			args: ["--background-server"],
+		}).openAtLogin;
+	} catch {
+		try {
+			return app.getLoginItemSettings().openAtLogin;
+		} catch {
+			return false;
+		}
+	}
+}
+
+export function getStartupSettings(): StartupSettings {
+	const fileSettings = readSettingsFile();
+	return {
+		...fileSettings,
+		runAtLogin: readOpenAtLogin() || fileSettings.runAtLogin,
+	};
+}
+
+export function updateStartupSettings(
+	patch: Partial<StartupSettings>,
+): StartupSettings {
+	const current = readSettingsFile();
+	const merged = sanitizeSettings({
+		...current,
+		...patch,
+	});
+	writeSettingsFile(merged);
+
+	if ("runAtLogin" in patch) {
+		setOpenAtLogin(Boolean(merged.runAtLogin));
+	}
+
+	return getStartupSettings();
+}
+
+export default function registerStartupHandlers(): void {
+	ipcMain.handle("startup:get-settings", () => {
+		return getStartupSettings();
+	});
+
+	ipcMain.handle(
+		"startup:update-settings",
+		(_event, patch: Partial<StartupSettings>) => {
+			return updateStartupSettings(patch || {});
+		},
+	);
+}

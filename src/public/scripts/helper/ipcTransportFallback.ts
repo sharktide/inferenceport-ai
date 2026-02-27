@@ -360,6 +360,44 @@ function writeFallbackSessions(sessions: Sessions): void {
 	}
 }
 
+function getBrowserAuthSessionKey(): string {
+	return "inferenceport.browser.auth.session";
+}
+
+function readBrowserAuthSession(): any | null {
+	try {
+		const raw = localStorage.getItem(getBrowserAuthSessionKey());
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!parsed || typeof parsed !== "object") return null;
+		return parsed;
+	} catch {
+		return null;
+	}
+}
+
+function writeBrowserAuthSession(session: any | null): void {
+	try {
+		if (!session) {
+			localStorage.removeItem(getBrowserAuthSessionKey());
+			return;
+		}
+		localStorage.setItem(getBrowserAuthSessionKey(), JSON.stringify(session));
+	} catch {
+		void 0;
+	}
+}
+
+function buildProviderAuthUrl(provider: "github" | "google"): string {
+	const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
+	const redirectTo = `${window.location.origin}/auth.html`;
+	const params = new URLSearchParams({
+		provider,
+		redirect_to: redirectTo,
+	});
+	return `${supabaseUrl}/auth/v1/authorize?${params.toString()}`;
+}
+
 function getClientBase(clientUrl?: string): string {
 	if (clientUrl && clientUrl.trim() && clientUrl.trim() !== "lightning") {
 		return clientUrl.replace(/\/$/, "");
@@ -789,10 +827,10 @@ export function installWebSocketTransportFallback(): void {
 				() => ({ error: "Auth unavailable in browser-only mode" }),
 			),
 		signInWithGitHub: async () => {
-			await invokeOrDefault("auth:signInWithGitHub", [], () => true);
+			window.location.assign(buildProviderAuthUrl("github"));
 		},
 		signInWithGoogle: async () => {
-			await invokeOrDefault("auth:signInWithGoogle", [], () => true);
+			window.location.assign(buildProviderAuthUrl("google"));
 		},
 		signUpWithEmail: async (email: string, password: string) =>
 			invokeOrDefault(
@@ -806,13 +844,20 @@ export function installWebSocketTransportFallback(): void {
 				[userId, username],
 				() => ({ error: "Auth unavailable in browser-only mode" }),
 			),
-		signOut: async () =>
-			invokeOrDefault("auth:signOut", [], () => ({ success: true })),
+		signOut: async () => {
+			writeBrowserAuthSession(null);
+			events.emit("auth:stateChanged", null);
+			return await invokeOrDefault("auth:signOut", [], () => ({ success: true }));
+		},
 		getSession: async () =>
-			invokeOrDefault("auth:getSession", [], () => ({ session: null })),
+			invokeOrDefault("auth:getSession", [], () => ({
+				session: readBrowserAuthSession(),
+				profile: null,
+			})),
 		onAuthStateChange: (callback: (session: any) => void) => {
 			events.on("auth:stateChanged", (session) => callback(session));
 			void client.invoke("auth:onAuthStateChange").catch(() => void 0);
+			callback(readBrowserAuthSession());
 		},
 		resetPassword: async (email: string) =>
 			invokeOrDefault(
@@ -832,6 +877,19 @@ export function installWebSocketTransportFallback(): void {
 				[],
 				() => ({ success: false, error: "Unavailable in browser-only mode" }),
 			),
+		setSessionFromTokens: async (accessToken: string, refreshToken: string) => {
+			const localSession = {
+				access_token: accessToken,
+				refresh_token: refreshToken,
+			};
+			writeBrowserAuthSession(localSession);
+			events.emit("auth:stateChanged", localSession);
+			return await invokeOrDefault(
+				"auth:setSessionTokens",
+				[accessToken, refreshToken],
+				() => ({ session: localSession, profile: null }),
+			);
+		},
 		autoNameSession: async (
 			model: string,
 			prompt: string,
@@ -874,5 +932,32 @@ export function installWebSocketTransportFallback(): void {
 		onChange: (callback: (change: StorageChange) => void) => {
 			events.on("storage:changed", (change) => callback(change as StorageChange));
 		},
+	};
+
+	window.startup = {
+		getSettings: async () =>
+			invokeOrDefault(
+				"startup:get-settings",
+				[],
+				() => ({
+					runAtLogin: false,
+					autoStartProxy: false,
+					proxyPort: 52458,
+					proxyUsers: [],
+				}),
+			),
+		updateSettings: async (patch) =>
+			invokeOrDefault(
+				"startup:update-settings",
+				[patch],
+				() => ({
+					runAtLogin: Boolean(patch?.runAtLogin),
+					autoStartProxy: Boolean(patch?.autoStartProxy),
+					proxyPort: Number(patch?.proxyPort || 52458),
+					proxyUsers: Array.isArray(patch?.proxyUsers)
+						? patch.proxyUsers
+						: [],
+				}),
+			),
 	};
 }

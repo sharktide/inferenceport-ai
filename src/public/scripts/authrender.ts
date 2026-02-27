@@ -11,6 +11,31 @@ type AuthSessionResult = {
     error?: string;
 };
 
+async function completeOAuthRedirectIfPresent() {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+
+    const accessToken =
+        hashParams.get("access_token") || queryParams.get("access_token");
+    const refreshToken =
+        hashParams.get("refresh_token") || queryParams.get("refresh_token");
+
+    if (!accessToken || !refreshToken) return;
+
+    updateStatus("Completing sign-in...");
+    const result = await window.auth.setSessionFromTokens(accessToken, refreshToken);
+    if ((result as any)?.error) {
+        updateStatus(`OAuth sign-in failed: ${(result as any).error}`);
+        return;
+    }
+
+    const cleanUrl = `${window.location.pathname}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+    showSignInSuccessModal();
+}
+
+void completeOAuthRedirectIfPresent();
+
 loginButton.addEventListener('click', async () => {
     if ((window as any).mode === 0) {
         const email = emailInput.value.trim();
