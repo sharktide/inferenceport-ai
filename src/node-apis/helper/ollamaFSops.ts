@@ -5,7 +5,6 @@ import type {
 	PullProgress,
 	ModelInfo,
 } from "../types/index.types.js";
-import { BrowserWindow } from "electron";
 import { issueProxyToken } from "../auth.js";
 import { is52458 } from "../utils.js";
 
@@ -83,7 +82,7 @@ function renderProgress(sections: Map<string, PullSection>): string {
 	return lines.join("\n");
 }
 export function pullModel(
-	_event: IpcMainInvokeEvent,
+	event: IpcMainInvokeEvent,
 	modelName: string,
 	clientUrl?: string,
 ): Promise<string> {
@@ -131,7 +130,6 @@ export function pullModel(
 			if (res.body) {
 				const reader = res.body.getReader();
 				const decoder = new TextDecoder();
-				const win = BrowserWindow.getAllWindows()[0];
 
 				try {
 					while (true) {
@@ -184,12 +182,7 @@ export function pullModel(
 								output: renderProgress(sections),
 							};
 
-							if (win) {
-								win.webContents.send(
-									"ollama:pull-progress",
-									payload,
-								);
-							}
+							event.sender.send("ollama:pull-progress", payload);
 						}
 					}
 				} catch (e) {

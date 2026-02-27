@@ -239,6 +239,12 @@ export function startProxyServer(
 	}
 
 	server = http.createServer((req, res) => {
+		const reqOrigin = req.headers.origin;
+		if (reqOrigin === "http://localhost:52458" || reqOrigin === "https://inference.js.org") {
+			res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+			res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+			res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+		}
 		const ip = req.socket.remoteAddress ?? "unknown";
 
 		if (req.method === "GET" && req.url === "/__health") {

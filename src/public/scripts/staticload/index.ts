@@ -2,6 +2,8 @@ import ThemeManager from "./Managers/ThemeManager.js";
 import AuthManager from "./Managers/AuthManager.js";
 
 import iModal from "./Utility/classes/modal.js";
+import { installWebSocketTransportFallback } from "../helper/ipcTransportFallback.js";
+import { installLocalStorageSync } from "../helper/localStorageSync.js";
 
 import { sanitizeFilename, saveImport } from "./Utility/functions/imports.js";
 
@@ -23,6 +25,9 @@ const ifc: iFunctions = {
     sanitizeFilename: sanitizeFilename,
     saveImport: saveImport,
 }
+
+installWebSocketTransportFallback();
+installLocalStorageSync();
 
 new ThemeManager();
 new AuthManager();
@@ -97,3 +102,14 @@ function showAppWideBanner(message: string) {
 }
 
 window.addEventListener("DOMContentLoaded", checkAndShowNotificationBanner);
+
+if (
+	"serviceWorker" in navigator &&
+	(window.location.protocol === "http:" || window.location.protocol === "https:")
+) {
+	window.addEventListener("load", () => {
+		void navigator.serviceWorker.register("/sw.js").catch((err) => {
+			console.warn("Service worker registration failed", err);
+		});
+	});
+}

@@ -195,3 +195,28 @@ contextBridge.exposeInMainWorld("sync", {
 	saveAllSessions: (sessions: Record<string, Sessions>) =>
 		ipcRenderer.invoke("sync:saveAllSessions", sessions),
 });
+
+contextBridge.exposeInMainWorld("storageSync", {
+	getAll: () =>
+		ipcRenderer.invoke("storage:get-all") as Promise<Record<string, string>>,
+	setItem: (key: string, value: string) =>
+		ipcRenderer.invoke("storage:set-item", key, value),
+	removeItem: (key: string) => ipcRenderer.invoke("storage:remove-item", key),
+	clear: () => ipcRenderer.invoke("storage:clear"),
+	onChange: (
+		callback: (change: {
+			type: "set" | "remove" | "clear";
+			key?: string;
+			value?: string;
+		}) => void,
+	) => {
+		ipcRenderer.on(
+			"storage:changed",
+			(_: Electron.IpcRendererEvent, change: {
+				type: "set" | "remove" | "clear";
+				key?: string;
+				value?: string;
+			}) => callback(change),
+		);
+	},
+});

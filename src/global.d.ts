@@ -53,8 +53,8 @@ declare global {
 			save: (sessions: Sessions) => Promise<void>;
 			getPath: () => Promise<string>;
 			removeAllListeners: () => void;
-			isAvailable: () => boolean;
-			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
+			isAvailable: () => Promise<boolean>;
+			onNewAsset: (cb: (msg: any) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
@@ -69,10 +69,12 @@ declare global {
 		};
 
 		utils: {
-			getAsset: (assetId: string) => Promise<Buffer>;
+			getAsset: (assetId: string) => Promise<Uint8Array>;
 			rmAsset: (assetId: string) => Promise<void>;
+			listAssets: () => Promise<Array<string>>;
 			web_open: (url: string) => Promise<void>;
 			markdown_parse_and_purify: (markdown: string) => string;
+			DOMPurify: (html: string) => string;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
 			getWarning: (modelSize: string, clientUrl?: string) => Promise<{
@@ -90,11 +92,11 @@ declare global {
 		};
 
 		hfspaces: {
-			get_cards: () => string;
-			delete: (username: string, repo: string) => void;
-			share: (username: string, repo: string) => void;
-			get_website_cards: () => string;
-			delete_website: (url: string) => boolean;
+			get_cards: () => Promise<string>;
+			delete: (username: string, repo: string) => Promise<void>;
+			share: (username: string, repo: string) => Promise<void>;
+			get_website_cards: () => Promise<string>;
+			delete_website: (url: string) => Promise<boolean>;
 			share_website: (url: string, title: string) => Promise<void>;
 		};
 
@@ -143,6 +145,20 @@ declare global {
 			saveAllSessions: (
 				sessions: Record<string, Sessions>
 			) => Promise<string | { error: string }>;
+		};
+
+		storageSync: {
+			getAll: () => Promise<Record<string, string>>;
+			setItem: (key: string, value: string) => Promise<boolean>;
+			removeItem: (key: string) => Promise<boolean>;
+			clear: () => Promise<boolean>;
+			onChange: (
+				callback: (change: {
+					type: "set" | "remove" | "clear";
+					key?: string;
+					value?: string;
+				}) => void,
+			) => void;
 		};
 	}
 

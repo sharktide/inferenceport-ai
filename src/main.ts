@@ -26,6 +26,9 @@ import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
+import { initIpcWebSocketBridge } from "./node-apis/helper/ipcBridge.js";
+import storageSyncHandlers from "./node-apis/storageSync.js";
+import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
 
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
@@ -328,6 +331,7 @@ app.on("open-url", async (event, url) => {
 
 app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
+	initIpcWebSocketBridge();
 
 	try {
 		if (process.defaultApp) {
@@ -350,6 +354,7 @@ app.whenReady().then(async () => {
 	ollamaHandlers();
 	utilsHandlers();
 	spacesHandlers();
+	storageSyncHandlers();
 
 	createWindow();
 
@@ -417,9 +422,11 @@ app.whenReady().then(async () => {
 	}
 
 	fireAndForget(serve(), "serve");
+	fireAndForget(startWebUiServer(), "startWebUiServer");
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
 });
 
 app.on("window-all-closed", () => {
+	stopWebUiServer();
 	app.quit();
 });

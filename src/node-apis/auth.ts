@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
-import { app, ipcMain, BrowserWindow, session } from "electron";
+import { app, ipcMain, session } from "electron";
 
 import fs from "fs";
 import path from "path";
@@ -165,11 +165,10 @@ export default function register() {
 		}
 	);
 
-	ipcMain.handle("auth:onAuthStateChange", () => {
-		const win = BrowserWindow.getFocusedWindow();
+	ipcMain.handle("auth:onAuthStateChange", (event) => {
 		const { data: listener } = supabase.auth.onAuthStateChange(
 			(_eventType, session) => {
-				win?.webContents.send("auth:stateChanged", session);
+				event.sender.send("auth:stateChanged", session);
 			}
 		);
 		return { success: true };
