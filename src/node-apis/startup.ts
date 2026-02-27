@@ -78,11 +78,15 @@ function writeSettingsFile(settings: StartupSettings): void {
 
 function setOpenAtLogin(enabled: boolean): void {
 	try {
-		app.setLoginItemSettings({
-			openAtLogin: enabled,
-			openAsHidden: true,
-			args: ["--background-server"],
-		});
+		if (app.isPackaged) {
+			app.setLoginItemSettings({
+				openAtLogin: enabled,
+				openAsHidden: true,
+				args: ["--background-server"],
+			});
+		} else {
+			throw new Error("Skipping open-at-login update in development mode");
+		}
 	} catch (err) {
 		console.warn("Failed to update open-at-login setting", err);
 	}
@@ -139,3 +143,19 @@ export default function registerStartupHandlers(): void {
 		},
 	);
 }
+
+app.whenReady().then(() => {
+	if (!app.isPackaged) return;
+
+	const login = app.getLoginItemSettings({
+		args: ["--background-server"],
+	});
+
+	if (login.openAtLogin) {
+		app.setLoginItemSettings({
+			openAtLogin: true,
+			openAsHidden: true,
+			args: ["--background-server"],
+		});
+	}
+});
