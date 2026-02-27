@@ -534,8 +534,6 @@ export function installWebSocketTransportFallback(): void {
 			events.clear("ollama:chat-error");
 			events.clear("ollama:chat-done");
 			events.clear("ollama:chat-aborted");
-			events.clear("ollama:new_tool_call");
-			events.clear("ollama:new-asset");
 		},
 		isAvailable: async () =>
 			invokeOrDefault<boolean>("ollama:available", []),
