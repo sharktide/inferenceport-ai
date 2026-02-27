@@ -1,5 +1,11 @@
 import { LOG, LOG_ERR } from "./log.js";
-
+import fs from "fs";
+import path from "path"
+export const cache ={
+ 	cachedSupportsTools: null as string[] | null,
+	writeInProgress: null as Promise<void> | null
+}
+import { app } from "electron"
 async function fetchWithRetry(
     trace: string,
     url: string,
@@ -91,7 +97,7 @@ export async function GenerateImage(
 			status: response.status,
 			statusText: response.statusText,
 		});
-		throw new Error(`Image fetch failed: ${response.status}`);
+		throw new Error(`Image fetch failed: ${response.status} ${await response.text()}`);
 	}
 
 	const contentType = response.headers.get("content-type");
@@ -291,4 +297,72 @@ export async function generateVideo(
 	LOG(trace, "EXIT GenerateVideo OK");
 
     return arrayBuffer;
+}
+
+async function ensureDir() {
+	await fs.promises.mkdir(path.dirname(path.join(app.getPath("userData"), "chat-sessions")), { recursive: true });
+}
+
+export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }> {
+    const response = await fetch(
+        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/toolSupportingModels.json"
+    );
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch tool-supporting models: ${response.statusText}`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (contentLength > 50_000) {
+        throw new Error("Payload too large — rejecting for safety");
+    }
+
+    let data: unknown;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error("Failed to parse JSON");
+    }
+
+    if (!Array.isArray(data)) {
+        throw new Error("Invalid JSON: expected a string[]");
+    }
+
+    for (const item of data) {
+        if (typeof item !== "string") {
+            throw new Error("Invalid JSON: all items must be strings");
+        }
+
+        if (/[\u0000-\u001F]/.test(item)) {
+            throw new Error("Invalid JSON: contains control characters");
+        }
+
+        if (/[<>]/.test(item)) {
+            throw new Error("Invalid JSON: contains HTML-like characters");
+        }
+
+        if (item.length > 200) {
+            throw new Error("Invalid JSON: string too long");
+        }
+    }
+
+    if (data.length > 2000) {
+        throw new Error("Invalid JSON: too many entries");
+    }
+
+    const supportsTools = data as string[];
+
+    cache.cachedSupportsTools = supportsTools;
+
+    await ensureDir();
+    const writeTask = fs.promises.writeFile(
+        path.join(app.getPath("userData"), "chat-sessions", "supportsTools.json"),
+        JSON.stringify({ supportsTools }, null, 2),
+        "utf-8"
+    );
+    cache.writeInProgress = writeTask;
+    await writeTask;
+    cache.writeInProgress = null;
+
+    return { supportsTools };
 }

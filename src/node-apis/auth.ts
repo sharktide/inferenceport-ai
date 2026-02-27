@@ -25,6 +25,32 @@ async function restoreSession() {
 	}
 }
 
+export async function issueProxyToken(): Promise<string> {
+	console.log("Issuing Proxy Token");
+	const session = await getSession();
+	const jwt = session.access_token;
+
+	const res = await fetch(
+		"https://dpixehhdbtzsbckfektd.supabase.co/functions/v1/issue-token",
+		{
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${jwt}`,
+				"Content-Type": "application/json",
+			},
+		},
+	);
+
+	if (!res.ok) {
+		throw new Error(`Token issue failed: ${res.statusText}`);
+	}
+
+	const { token } = await res.json();
+	if (!token) throw new Error("No token returned");
+
+	return token;
+}
+
 supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
 	if (session) {
 		fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));

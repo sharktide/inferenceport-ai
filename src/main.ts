@@ -17,13 +17,16 @@ limitations under the License.
 import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
+
 import ollamaHandlers, {
 	serve,
-	fetchSupportedTools,
 } from "./node-apis/ollama.js";
+import { fetchSupportedTools } from "./node-apis/helper/tools.js";
 import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
-import spaces from "./node-apis/spaces.js";
+import chatStreamHandlers from "./node-apis/chatStream.js";
+import spacesHandlers from "./node-apis/spaces.js";
+
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -341,10 +344,13 @@ app.whenReady().then(async () => {
 	}
 
 	ipcMain.handle("session:getPath", () => chatDir);
+
+	authHandlers();
+	chatStreamHandlers();
 	ollamaHandlers();
 	utilsHandlers();
-	authHandlers();
-	spaces();
+	spacesHandlers();
+
 	createWindow();
 
 	(async function checkForUpdate() {

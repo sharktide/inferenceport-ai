@@ -22,8 +22,6 @@ import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 contextBridge.exposeInMainWorld("ollama", {
 	// ===== Models =====
 	listModels: (clientUrl?: string): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list", clientUrl),
-	runModel: (name: string): Promise<string> =>
-		ipcRenderer.invoke("ollama:run", name),
 	deleteModel: (name: string, clientUrl?: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:delete", name, clientUrl),
 	resetChat: (): Promise<void> => ipcRenderer.invoke("ollama:reset"),
