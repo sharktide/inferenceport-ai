@@ -1,10 +1,16 @@
 import { BrowserWindow, ipcMain } from "electron";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
 
 type InvokeHandler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 type OnHandler = (event: IpcMainEvent, ...args: unknown[]) => unknown;
 
+type IpcContext = {
+	ws: WebSocket;
+};
+
+const ipcContext = new AsyncLocalStorage<IpcContext>();
 type EncodedBuffer = {
 	__ipcType: "bytes";
 	base64: string;
@@ -167,49 +173,61 @@ function createSender(ws: WebSocket): { send: (channel: string, ...args: unknown
 	};
 }
 
-async function dispatchInvoke(msg: WsInvokeRequest, ws: WebSocket): Promise<unknown> {
-	const handler = invokeHandlers.get(msg.channel);
-	if (handler) {
+async function dispatchInvoke(
+	msg: WsInvokeRequest,
+	ws: WebSocket,
+): Promise<unknown> {
+	return ipcContext.run({ ws }, async () => {
+		const handler = invokeHandlers.get(msg.channel);
+		if (handler) {
+			const event = {
+				sender: createSender(ws),
+			} as unknown as IpcMainInvokeEvent;
+
+			return await handler(event, ...decodeArgs(msg.args));
+		}
+
+		const listeners = onHandlers.get(msg.channel);
+		if (!listeners || listeners.size === 0) {
+			throw new Error(
+				`No IPC handler registered for channel '${msg.channel}'`,
+			);
+		}
+
 		const event = {
 			sender: createSender(ws),
-		} as unknown as IpcMainInvokeEvent;
+			returnValue: undefined as unknown,
+		} as unknown as IpcMainEvent;
 
-		return await handler(event, ...decodeArgs(msg.args));
-	}
+		for (const listener of listeners) {
+			await Promise.resolve(listener(event, ...decodeArgs(msg.args)));
+		}
 
-	const listeners = onHandlers.get(msg.channel);
-	if (!listeners || listeners.size === 0) {
-		throw new Error(`No IPC handler registered for channel '${msg.channel}'`);
-	}
-
-	const event = {
-		sender: createSender(ws),
-		returnValue: undefined as unknown,
-	} as unknown as IpcMainEvent;
-
-	for (const listener of listeners) {
-		await Promise.resolve(listener(event, ...decodeArgs(msg.args)));
-	}
-
-	return (event as { returnValue?: unknown }).returnValue;
+		return (event as { returnValue?: unknown }).returnValue;
+	});
 }
 
-async function dispatchSend(msg: WsSendRequest, ws: WebSocket): Promise<unknown> {
-	const listeners = onHandlers.get(msg.channel);
-	if (!listeners || listeners.size === 0) {
-		return undefined;
-	}
+async function dispatchSend(
+	msg: WsSendRequest,
+	ws: WebSocket,
+): Promise<unknown> {
+	return ipcContext.run({ ws }, async () => {
+		const listeners = onHandlers.get(msg.channel);
+		if (!listeners || listeners.size === 0) {
+			return undefined;
+		}
 
-	const event = {
-		sender: createSender(ws),
-		returnValue: undefined as unknown,
-	} as unknown as IpcMainEvent;
+		const event = {
+			sender: createSender(ws),
+			returnValue: undefined as unknown,
+		} as unknown as IpcMainEvent;
 
-	for (const listener of listeners) {
-		await Promise.resolve(listener(event, ...decodeArgs(msg.args)));
-	}
+		for (const listener of listeners) {
+			await Promise.resolve(listener(event, ...decodeArgs(msg.args)));
+		}
 
-	return (event as { returnValue?: unknown }).returnValue;
+		return (event as { returnValue?: unknown }).returnValue;
+	});
 }
 
 function trackIpcChannels(): void {
@@ -239,6 +257,7 @@ function trackIpcChannels(): void {
 }
 
 export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
+	console.log("Broadcasting IPC event", channel, args);
 	for (const win of BrowserWindow.getAllWindows()) {
 		try {
 			win.webContents.send(channel, ...args);
@@ -247,7 +266,25 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 		}
 	}
 
-	sendWsEventToAll(channel, args);
+	const store = ipcContext.getStore();
+
+	const payload: WsEvent = {
+		type: "event",
+		channel,
+		args: args.map((entry) => encodeValue(entry)),
+	};
+
+	if (store?.ws) {
+		console.log("Broadcasting IPC event", channel, args);
+		sendWs(store.ws, payload);
+		return;
+	}
+
+	for (const ws of wsClients) {
+		console.log("Broadcasting IPC event over websocket", channel, args);
+		sendWs(ws, payload);
+		console.log("Broadcasted IPC event over websocket", channel, args);
+	}
 }
 
 export function initIpcWebSocketBridge(): void {

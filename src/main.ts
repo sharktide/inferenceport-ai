@@ -284,10 +284,13 @@ function safeWriteJSONAtomic(filePath: string, data: any) {
     }
 }
 
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-	app.quit();
+if (!backgroundServerMode) {
+	const gotLock = app.requestSingleInstanceLock();
+	if (!gotLock) {
+		app.quit();
+	}
 }
+
 const deeplinkArg = process.argv.find(arg =>
 	arg.startsWith("inferenceport-ai://"),
 );
@@ -297,6 +300,7 @@ if (deeplinkArg) {
 }
 
 app.on("second-instance", async (_event, argv) => {
+	if (backgroundServerMode) return;
     const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
     if (!urlArg) {
 		if (!mainWindow) createWindow();

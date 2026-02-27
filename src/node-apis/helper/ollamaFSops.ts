@@ -7,7 +7,7 @@ import type {
 } from "../types/index.types.js";
 import { issueProxyToken } from "../auth.js";
 import { is52458 } from "../utils.js";
-
+import { broadcastIpcEvent } from "./ipcBridge.js";
 function renderBar(completed = 0, total = 0, width = 20): string {
 	if (!total) return "[                  ]";
 	const ratio = Math.min(completed / total, 1);
@@ -182,7 +182,7 @@ export function pullModel(
 								output: renderProgress(sections),
 							};
 
-							event.sender.send("ollama:pull-progress", payload);
+							broadcastIpcEvent("ollama:pull-progress", payload);
 						}
 					}
 				} catch (e) {

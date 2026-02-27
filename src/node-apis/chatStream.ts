@@ -21,6 +21,7 @@ import {
 import {
     issueProxyToken
 } from "./auth.js"
+import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 let chatHistory: ChatHistoryEntry[] = [];
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
@@ -506,7 +507,7 @@ export default function registerChatStream() {
 
 					if (delta.content) {
 						assistantMessage += delta.content;
-						event.sender.send("ollama:chat-token", delta.content);
+						broadcastIpcEvent("ollama:chat-token", delta.content);
 					}
 
 					if (delta.tool_calls) {
@@ -571,7 +572,7 @@ export default function registerChatStream() {
 
 						/* ---- DuckDuckGo search --------------------------------------------------- */
 						if (toolCall.function.name === "duckduckgo_search") {
-							event.sender.send("ollama:new_tool_call", {
+							broadcastIpcEvent("ollama:new_tool_call", {
 								id: toolCall.id,
 								name: toolCall.function.name,
 								arguments: toolCall.function.arguments,
@@ -587,7 +588,7 @@ export default function registerChatStream() {
 							const suggested = normalizeImageRequest(args, "model");
 							resolvedToolOptions = suggested;
 
-							event.sender.send("ollama:new_tool_call", {
+							broadcastIpcEvent("ollama:new_tool_call", {
 								id: toolCall.id,
 								name: toolCall.function.name,
 								arguments: JSON.stringify(suggested),
@@ -611,7 +612,7 @@ export default function registerChatStream() {
 								toolResult = "Image generation was canceled because a prompt was not provided.";
 							} else {
 								resolvedToolOptions = selected;
-								event.sender.send("ollama:new_tool_call", {
+								broadcastIpcEvent("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
 									arguments: JSON.stringify(selected),
@@ -620,7 +621,7 @@ export default function registerChatStream() {
 								});
 
 								const { dataUrl } = await GenerateImage(selected);
-								event.sender.send("ollama:new-asset", {
+								broadcastIpcEvent("ollama:new-asset", {
 									role: "image",
 									content: dataUrl,
 								});
@@ -628,12 +629,11 @@ export default function registerChatStream() {
 							}
 						}
 
-						/* ---- Video generation ---------------------------------------------------- */
 						if (toolCall.function.name === "generate_video") {
 							const suggested = normalizeVideoRequest(args, "model");
 							resolvedToolOptions = suggested;
 
-							event.sender.send("ollama:new_tool_call", {
+							broadcastIpcEvent("ollama:new_tool_call", {
 								id: toolCall.id,
 								name: toolCall.function.name,
 								arguments: JSON.stringify(suggested),
@@ -657,7 +657,7 @@ export default function registerChatStream() {
 								toolResult = "Video generation was canceled because a prompt was not provided.";
 							} else {
 								resolvedToolOptions = selected;
-								event.sender.send("ollama:new_tool_call", {
+								broadcastIpcEvent("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
 									arguments: JSON.stringify(selected),
@@ -668,7 +668,7 @@ export default function registerChatStream() {
 								const video = await generateVideo(selected);
 								const videoBlob = new Blob([video], { type: "video/mp4" });
 								const assetID = await save_stream(videoBlob);
-								event.sender.send("ollama:new-asset", {
+								broadcastIpcEvent("ollama:new-asset", {
 									role: "video",
 									content: assetID,
 								});
@@ -681,7 +681,7 @@ export default function registerChatStream() {
 							const suggested = normalizeAudioRequest(args, "model");
 							resolvedToolOptions = suggested;
 
-							event.sender.send("ollama:new_tool_call", {
+							broadcastIpcEvent("ollama:new_tool_call", {
 								id: toolCall.id,
 								name: toolCall.function.name,
 								arguments: JSON.stringify(suggested),
@@ -705,7 +705,7 @@ export default function registerChatStream() {
 								toolResult = "Audio generation was canceled because a prompt was not provided.";
 							} else {
 								resolvedToolOptions = selected;
-								event.sender.send("ollama:new_tool_call", {
+								broadcastIpcEvent("ollama:new_tool_call", {
 									id: toolCall.id,
 									name: toolCall.function.name,
 									arguments: JSON.stringify(selected),
@@ -716,7 +716,7 @@ export default function registerChatStream() {
 								const audio = await generateAudioOrSFX(selected.prompt);
 								const audioBlob = new Blob([audio], { type: "audio/mpeg" });
 								const assetID = await save_stream(audioBlob);
-								event.sender.send("ollama:new-asset", {
+								broadcastIpcEvent("ollama:new-asset", {
 									role: "audio",
 									content: assetID,
 								});
@@ -734,7 +734,7 @@ export default function registerChatStream() {
 							tool_call_id: toolCall.id,
 						});
 
-						event.sender.send("ollama:new_tool_call", {
+						broadcastIpcEvent("ollama:new_tool_call", {
 							id: toolCall.id,
 							name: toolCall.function.name,
 							result: toolResult,
@@ -770,7 +770,7 @@ export default function registerChatStream() {
 						const delta = chunk.choices?.[0]?.delta;
 						if (delta?.content) {
 							assistantMessage += delta.content;
-							event.sender.send("ollama:chat-token", delta.content);
+							broadcastIpcEvent("ollama:chat-token", delta.content);
 						}
 					}
 					if (assistantMessage.trim()) {
@@ -781,12 +781,12 @@ export default function registerChatStream() {
 					}
 				}
 
-				event.sender.send("ollama:chat-done");
+				broadcastIpcEvent("ollama:chat-done");
 			} catch (err: any) {
 				if (err instanceof DOMException && err.name === "AbortError") {
-					event.sender.send("ollama:chat-aborted");
+					broadcastIpcEvent("ollama:chat-aborted");
 				} else {
-					event.sender.send("ollama:chat-error", String(err));
+					broadcastIpcEvent("ollama:chat-error", String(err));
 				}
 			} finally {
 				const allPending = [

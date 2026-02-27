@@ -134,6 +134,7 @@ class WsIpcClient {
 	}
 
 	private onServerMessage(raw: unknown): void {
+		console.log("Received IPC message", raw);
 		if (typeof raw !== "string") return;
 
 		let message: WsServerMessage;
@@ -191,6 +192,7 @@ class WsIpcClient {
 			});
 
 			socket.addEventListener("message", (event) => {
+				console.log("received msg", event.data)
 				this.onServerMessage(event.data);
 			});
 
@@ -446,97 +448,8 @@ export function installWebSocketTransportFallback(): void {
 	const invokeOrDefault = async <T>(
 		channel: string,
 		args: unknown[],
-		fallback: () => Promise<T> | T,
 	): Promise<T> => {
-		try {
-			return (await client.invoke(channel, ...args)) as T;
-		} catch {
-			return await fallback();
-		}
-	};
-
-	const localStreamPrompt = async (
-		model: string,
-		prompt: string,
-		clientUrl?: string,
-	): Promise<void> => {
-		chatAbortController?.abort();
-		chatAbortController = new AbortController();
-		const signal = chatAbortController.signal;
-
-		try {
-			const baseURL =
-				clientUrl === "lightning"
-					? "https://sharktide-lightning.hf.space/gen"
-					: getClientBase(clientUrl);
-			const response = await fetch(`${baseURL}/v1/chat/completions`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					model,
-					stream: true,
-					messages: [{ role: "user", content: prompt }],
-				}),
-				signal,
-			});
-
-			if (!response.ok || !response.body) {
-				events.emit(
-					"ollama:chat-error",
-					`Request failed (${response.status} ${response.statusText})`,
-				);
-				events.emit("ollama:chat-done");
-				return;
-			}
-
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = "";
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				buffer += decoder.decode(value, { stream: true });
-
-				let newlineIndex = buffer.indexOf("\n");
-				while (newlineIndex !== -1) {
-					const line = buffer.slice(0, newlineIndex).trim();
-					buffer = buffer.slice(newlineIndex + 1);
-					if (line.startsWith("data:")) {
-						const data = line.slice(5).trim();
-						if (data === "[DONE]") {
-							events.emit("ollama:chat-done");
-							return;
-						}
-
-						try {
-							const parsed = JSON.parse(data) as {
-								choices?: Array<{ delta?: { content?: string } }>;
-							};
-							const token =
-								parsed.choices?.[0]?.delta?.content || "";
-							if (token) events.emit("ollama:chat-token", token);
-						} catch {
-							void 0;
-						}
-					}
-					newlineIndex = buffer.indexOf("\n");
-				}
-			}
-
-			events.emit("ollama:chat-done");
-		} catch (err) {
-			if (signal.aborted) {
-				events.emit("ollama:chat-aborted");
-				return;
-			}
-			events.emit(
-				"ollama:chat-error",
-				err instanceof Error ? err.message : String(err),
-			);
-		}
+		return (await client.invoke(channel, ...args)) as T;
 	};
 
 	client.on("ollama:chat-token", (token) => events.emit("ollama:chat-token", token));
@@ -556,61 +469,24 @@ export function installWebSocketTransportFallback(): void {
 		listModels: async (clientUrl?: string) =>
 			invokeOrDefault<ModelInfo[]>(
 				"ollama:list",
-				[clientUrl],
-				async () => {
-					const base = getClientBase(clientUrl);
-					const res = await fetch(`${base}/api/tags`);
-					if (!res.ok) return [];
-					const data = await res.json();
-					const models = Array.isArray(data.models) ? data.models : [];
-					return models.map((m: any) => ({
-						name: String(m.name || "unknown"),
-						id: String(m.digest || "local"),
-						size: formatModelSize(Number(m.size || 0)),
-						modified: String(m.modified_at || "Unknown"),
-					}));
-				},
+				[clientUrl]
 			),
 		runModel: async (name: string) => String(name),
 		deleteModel: async (name: string, clientUrl?: string) =>
-			invokeOrDefault<string>("ollama:delete", [name, clientUrl], async () => {
-				const base = getClientBase(clientUrl);
-				const res = await fetch(`${base}/api/delete`, {
-					method: "DELETE",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ model: name }),
-				});
-				if (!res.ok) throw new Error(await res.text());
-				return `${name} deleted`;
-			}),
+			invokeOrDefault<string>("ollama:delete", [name, clientUrl]),
+		autoNameSession: async (model: string, prompt: string, clientUrl?: string | undefined) => {
+			return await invokeOrDefault<string>("ollama:auto-name-session", [model, prompt, clientUrl]);
+		},
 		resetChat: async () => {
-			await invokeOrDefault("ollama:reset", [], () => true);
+			await invokeOrDefault("ollama:reset", []);
 		},
 		stop: () => {
-			chatAbortController?.abort();
 			void client.send("ollama:stop").catch(() => {
 				events.emit("ollama:chat-aborted");
 			});
 		},
 		pullModel: async (name: string, clientUrl?: string) =>
-			invokeOrDefault<string>("ollama:pull", [name, clientUrl], async () => {
-				events.emit("ollama:pull-progress", {
-					model: name,
-					output: "Pulling model...",
-				} as PullProgress);
-				const base = getClientBase(clientUrl);
-				const res = await fetch(`${base}/api/pull`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ name }),
-				});
-				if (!res.ok) throw new Error(await res.text());
-				events.emit("ollama:pull-progress", {
-					model: name,
-					output: "Pull complete",
-				} as PullProgress);
-				return `${name} pulled`;
-			}),
+			invokeOrDefault<string>("ollama:pull", [name, clientUrl]),
 		onPullProgress: (cb: (data: PullProgress) => void) => {
 			events.on("ollama:pull-progress", (data) => cb(data as PullProgress));
 		},
@@ -627,7 +503,6 @@ export function installWebSocketTransportFallback(): void {
 		) => {
 			void client
 				.send("ollama:chat-stream", model, prompt, toolList, clientUrl)
-				.catch(() => localStreamPrompt(model, prompt, clientUrl));
 		},
 		onResponse: (cb: (token: string) => void) => {
 			events.on("ollama:chat-token", (token) => cb(String(token)));
@@ -645,18 +520,15 @@ export function installWebSocketTransportFallback(): void {
 			events.on("ollama:new_tool_call", (call) => cb(call));
 		},
 		load: async () =>
-			invokeOrDefault<Sessions>("sessions:load", [], () => readFallbackSessions()),
+			invokeOrDefault<Sessions>("sessions:load", []),
 		save: async (sessions: Sessions) => {
 			await invokeOrDefault(
 				"sessions:save",
 				[sessions],
-				() => writeFallbackSessions(sessions),
 			);
 		},
 		getPath: async () =>
-			invokeOrDefault<string>("session:getPath", [], () =>
-				"inferenceport-browser-storage",
-			),
+			invokeOrDefault<string>("session:getPath", []),
 		removeAllListeners: () => {
 			events.clear("ollama:chat-token");
 			events.clear("ollama:chat-error");
@@ -666,15 +538,7 @@ export function installWebSocketTransportFallback(): void {
 			events.clear("ollama:new-asset");
 		},
 		isAvailable: async () =>
-			invokeOrDefault<boolean>("ollama:available", [], async () => {
-				try {
-					const base = getClientBase();
-					const res = await fetch(`${base}/api/tags`);
-					return res.ok;
-				} catch {
-					return false;
-				}
-			}),
+			invokeOrDefault<boolean>("ollama:available", []),
 		onNewAsset: (cb: (msg: any) => void) => {
 			events.on("ollama:new-asset", (msg) => cb(msg));
 		},
@@ -682,28 +546,26 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<{ supportsTools: string[] }>(
 				"ollama:get-tool-models",
 				[],
-				() => ({ supportsTools: [] }),
 			),
 		fetchToolSupportingModels: async () =>
 			invokeOrDefault<{ supportsTools: string[] }>(
 				"ollama:fetch-tool-models",
 				[],
-				() => ({ supportsTools: [] }),
 			),
 		startServer: async (
 			port: number,
 			allowedUsers: { email: string; role: string }[],
 		) => {
-			await invokeOrDefault("ollama:start-proxy-server", [port, allowedUsers], () => true);
+			await invokeOrDefault("ollama:start-proxy-server", [port, allowedUsers]);
 		},
 		stopServer: async () => {
-			await invokeOrDefault("ollama:stop-proxy-server", [], () => true);
+			await invokeOrDefault("ollama:stop-proxy-server", []);
 		},
 		onLogAppend: (callback: (chunk: string) => void) => {
 			events.on("ollama:logs-append", (chunk) => callback(String(chunk)));
 		},
 		getServerLogs: async () =>
-			invokeOrDefault<string>("ollama:get-server-logs", [], () => ""),
+			invokeOrDefault<string>("ollama:get-server-logs", []),
 		importGGUF: async (
 			fileName: string,
 			data: Uint8Array | null,
@@ -713,7 +575,6 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<string>(
 				"ollama:import-gguf",
 				[fileName, data, isModelFile, clientUrl],
-				() => "Import is unavailable in browser-only mode",
 			),
 		importGGUFMulti: async (
 			modelfileData: Uint8Array | null,
@@ -724,7 +585,6 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<string>(
 				"ollama:import-gguf-multi",
 				[modelfileData, ggufName, ggufData, clientUrl],
-				() => "Import is unavailable in browser-only mode",
 			),
 		resolveVideoToolCall: async (
 			toolCallId: string,
@@ -733,7 +593,6 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<boolean>(
 				"ollama:resolve-video-tool-call",
 				[toolCallId, payload],
-				() => false,
 			),
 		resolveImageToolCall: async (
 			toolCallId: string,
@@ -742,7 +601,6 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<boolean>(
 				"ollama:resolve-image-tool-call",
 				[toolCallId, payload],
-				() => false,
 			),
 		resolveAudioToolCall: async (
 			toolCallId: string,
@@ -751,18 +609,17 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<boolean>(
 				"ollama:resolve-audio-tool-call",
 				[toolCallId, payload],
-				() => false,
 			),
 	};
 
 	window.utils = {
 		getAsset: async (assetId: string) =>
-			invokeOrDefault<Uint8Array>("utils:getAsset", [assetId], () => new Uint8Array(0)),
+			invokeOrDefault<Uint8Array>("utils:getAsset", [assetId]),
 		rmAsset: async (assetId: string) => {
-			await invokeOrDefault("utils:rmAsset", [assetId], () => true);
+			await invokeOrDefault("utils:rmAsset", [assetId]);
 		},
 		listAssets: async () =>
-			invokeOrDefault<Array<string>>("utils:listAssets", [], () => []),
+			invokeOrDefault<Array<string>>("utils:listAssets", []),
 		web_open: async (url: string) => {
 			try {
 				await client.invoke("utils:web_open", url);
@@ -774,48 +631,36 @@ export function installWebSocketTransportFallback(): void {
 			basicMarkdownParse(markdown),
 		DOMPurify: (html: string): string => basicSanitize(html),
 		saveFile: async (filePath: string, content: string) => {
-			await invokeOrDefault("utils:saveFile", [filePath, content], () => true);
+			await invokeOrDefault("utils:saveFile", [filePath, content]);
 		},
 		getPath: async (): Promise<string> =>
-			invokeOrDefault<string>("utils:getPath", [], () =>
-				"inferenceport-browser-storage",
-			),
+			invokeOrDefault<string>("utils:getPath", []),
 		getWarning: async (modelSize: string, clientUrl?: string) =>
 			invokeOrDefault(
 				"utils:get-hardware-performance-warning",
 				[modelSize, clientUrl],
-				() => ({
-					modelSizeRaw: modelSize,
-					modelSizeB: 0,
-					cpu: "Browser",
-					cores: navigator.hardwareConcurrency || 0,
-					ramGB: "Unknown",
-					avx2: false,
-					avx512: false,
-					warning: "",
-				}),
 			),
 		isFirstLaunch: async () =>
-			invokeOrDefault<boolean>("utils:is-first-launch", [], () => false),
+			invokeOrDefault<boolean>("utils:is-first-launch", []),
 		resetFirstLaunch: async () =>
-			invokeOrDefault<boolean>("utils:reset-first-launch", [], () => true),
+			invokeOrDefault<boolean>("utils:reset-first-launch", []),
 	};
 
 	window.hfspaces = {
 		get_cards: async () =>
-			invokeOrDefault<string>("hfspaces:get-cards", [], () => ""),
+			invokeOrDefault<string>("hfspaces:get-cards", []),
 		delete: async (username: string, repo: string) => {
-			await invokeOrDefault("hfspaces:delete", [username, repo], () => true);
+			await invokeOrDefault("hfspaces:delete", [username, repo]);
 		},
 		share: async (username: string, repo: string) => {
-			await invokeOrDefault("hfspaces:share", [username, repo], () => true);
+			await invokeOrDefault("hfspaces:share", [username, repo]);
 		},
 		get_website_cards: async () =>
-			invokeOrDefault<string>("hfspaces:get-website-cards", [], () => ""),
+			invokeOrDefault<string>("hfspaces:get-website-cards", []),
 		delete_website: async (url: string) =>
-			invokeOrDefault<boolean>("hfspaces:delete-website", [url], () => false),
+			invokeOrDefault<boolean>("hfspaces:delete-website", [url]),
 		share_website: async (url: string, title: string) => {
-			await invokeOrDefault("hfspaces:share-website", [url, title], () => true);
+			await invokeOrDefault("hfspaces:share-website", [url, title]);
 		},
 	};
 
@@ -824,7 +669,6 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault(
 				"auth:signInWithEmail",
 				[email, password],
-				() => ({ error: "Auth unavailable in browser-only mode" }),
 			),
 		signInWithGitHub: async () => {
 			window.location.assign(buildProviderAuthUrl("github"));
@@ -836,24 +680,19 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault(
 				"auth:signUpWithEmail",
 				[email, password],
-				() => ({ error: "Auth unavailable in browser-only mode" }),
 			),
 		setUsername: async (userId: string, username: string) =>
 			invokeOrDefault(
 				"auth:setUsername",
 				[userId, username],
-				() => ({ error: "Auth unavailable in browser-only mode" }),
 			),
 		signOut: async () => {
 			writeBrowserAuthSession(null);
 			events.emit("auth:stateChanged", null);
-			return await invokeOrDefault("auth:signOut", [], () => ({ success: true }));
+			return await invokeOrDefault("auth:signOut", []);
 		},
 		getSession: async () =>
-			invokeOrDefault("auth:getSession", [], () => ({
-				session: readBrowserAuthSession(),
-				profile: null,
-			})),
+			invokeOrDefault("auth:getSession", []),
 		onAuthStateChange: (callback: (session: any) => void) => {
 			events.on("auth:stateChanged", (session) => callback(session));
 			void client.invoke("auth:onAuthStateChange").catch(() => void 0);
@@ -863,19 +702,16 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault(
 				"auth:resetPassword",
 				[email],
-				() => ({ status: false, error: "Unavailable in browser-only mode" }),
 			),
 		verifyPassword: async (password: string) =>
 			invokeOrDefault(
 				"auth:verify-password",
 				[{ password }],
-				() => ({ success: false, error: "Unavailable in browser-only mode" }),
 			),
 		deleteAccount: async () =>
 			invokeOrDefault(
 				"auth:delete-account",
 				[],
-				() => ({ success: false, error: "Unavailable in browser-only mode" }),
 			),
 		setSessionFromTokens: async (accessToken: string, refreshToken: string) => {
 			const localSession = {
@@ -886,22 +722,8 @@ export function installWebSocketTransportFallback(): void {
 			events.emit("auth:stateChanged", localSession);
 			return await invokeOrDefault(
 				"auth:setSessionTokens",
-				[accessToken, refreshToken],
-				() => ({ session: localSession, profile: null }),
+				[accessToken, refreshToken]
 			);
-		},
-		autoNameSession: async (
-			model: string,
-			prompt: string,
-			clientUrl?: string,
-		): Promise<string> =>
-			invokeOrDefault<string>(
-				"ollama:auto-name-session",
-				[model, prompt, clientUrl],
-				() => prompt.trim().slice(0, 48) || "New chat",
-			),
-		onToolCall: (_cb: (calls: any[]) => void): void => {
-			void 0;
 		},
 	};
 
@@ -910,25 +732,23 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<Record<string, Session>>(
 				"sync:getRemoteSessions",
 				[],
-				() => ({}),
 			),
 		saveAllSessions: async (sessions: Record<string, Sessions>) =>
 			invokeOrDefault<string | { error: string }>(
 				"sync:saveAllSessions",
-				[sessions],
-				() => ({ error: "Sync unavailable in browser-only mode" }),
+				[sessions]
 			),
 	};
 
 	window.storageSync = {
 		getAll: async () =>
-			invokeOrDefault<Record<string, string>>("storage:get-all", [], () => ({})),
+			invokeOrDefault<Record<string, string>>("storage:get-all", []),
 		setItem: async (key: string, value: string) =>
-			invokeOrDefault<boolean>("storage:set-item", [key, value], () => false),
+			invokeOrDefault<boolean>("storage:set-item", [key, value]),
 		removeItem: async (key: string) =>
-			invokeOrDefault<boolean>("storage:remove-item", [key], () => false),
+			invokeOrDefault<boolean>("storage:remove-item", [key]),
 		clear: async () =>
-			invokeOrDefault<boolean>("storage:clear", [], () => false),
+			invokeOrDefault<boolean>("storage:clear", []),
 		onChange: (callback: (change: StorageChange) => void) => {
 			events.on("storage:changed", (change) => callback(change as StorageChange));
 		},
@@ -938,26 +758,12 @@ export function installWebSocketTransportFallback(): void {
 		getSettings: async () =>
 			invokeOrDefault(
 				"startup:get-settings",
-				[],
-				() => ({
-					runAtLogin: false,
-					autoStartProxy: false,
-					proxyPort: 52458,
-					proxyUsers: [],
-				}),
+				[]
 			),
 		updateSettings: async (patch) =>
 			invokeOrDefault(
 				"startup:update-settings",
-				[patch],
-				() => ({
-					runAtLogin: Boolean(patch?.runAtLogin),
-					autoStartProxy: Boolean(patch?.autoStartProxy),
-					proxyPort: Number(patch?.proxyPort || 52458),
-					proxyUsers: Array.isArray(patch?.proxyUsers)
-						? patch.proxyUsers
-						: [],
-				}),
+				[patch]
 			),
 	};
 }

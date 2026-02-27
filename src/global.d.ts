@@ -26,6 +26,8 @@ declare global {
 		ic: iConstructor;
 		ifc: iFunctions;
 		ollama: {
+			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
+
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
 			deleteModel: (name: string, clientUrl?: string) => Promise<string>;
@@ -66,6 +68,7 @@ declare global {
 			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			onToolCall: (cb: (calls: any[]) => void) => void;
 		};
 
 		utils: {
@@ -143,9 +146,6 @@ declare global {
 				profile?: any;
 				error?: string;
 			}>;
-			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
-			onToolCall: (cb: (calls: any[]) => void) => void;
-
 		};
 
 		sync: {
