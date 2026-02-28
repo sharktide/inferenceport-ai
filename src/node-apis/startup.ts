@@ -12,7 +12,11 @@ export type StartupSettings = {
 	autoStartProxy: boolean;
 	proxyPort: number;
 	proxyUsers: StartupProxyUser[];
+	uiPort: number;
 };
+
+const RESERVED_PORT_MIN = 52440;
+const RESERVED_PORT_MAX = 52459;
 
 const settingsFilePath = path.join(
 	app.getPath("userData"),
@@ -24,6 +28,7 @@ const defaultSettings: StartupSettings = {
 	autoStartProxy: false,
 	proxyPort: 52458,
 	proxyUsers: [],
+	uiPort: 52459,
 };
 
 function sanitizeUsers(users: unknown): StartupProxyUser[] {
@@ -54,6 +59,12 @@ function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
 				? Math.round(raw.proxyPort)
 				: defaultSettings.proxyPort,
 		proxyUsers: sanitizeUsers(raw.proxyUsers),
+		uiPort:
+			typeof raw.uiPort === "number" &&
+			Number.isFinite(raw.uiPort) &&
+			raw.uiPort > 0
+				? Math.round(raw.uiPort)
+				: defaultSettings.uiPort,
 	};
 }
 
@@ -118,6 +129,18 @@ export function updateStartupSettings(
 	patch: Partial<StartupSettings>,
 ): StartupSettings {
 	const current = readSettingsFile();
+
+	if (
+		typeof patch.uiPort === "number" &&
+		patch.uiPort !== current.uiPort &&
+		patch.uiPort >= RESERVED_PORT_MIN &&
+		patch.uiPort <= RESERVED_PORT_MAX
+	) {
+		throw new Error(
+			`UI port ${patch.uiPort} is reserved (${RESERVED_PORT_MIN}-${RESERVED_PORT_MAX})`,
+		);
+	}
+
 	const merged = sanitizeSettings({
 		...current,
 		...patch,

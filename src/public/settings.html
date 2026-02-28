@@ -102,6 +102,23 @@
 							Auto-start hosting proxy (uses saved host users)
 						</label>
 					</p>
+					<p>
+						<label for="startup-ui-port">Web UI port</label><br />
+						<input
+							type="number"
+							id="startup-ui-port"
+							min="1"
+							max="65535"
+							step="1"
+							style="max-width:180px"
+						/>
+						<button id="startup-ui-port-save" class="theme-toggle" style="margin-left:8px">
+							Save UI Port
+						</button>
+					</p>
+					<p id="startup-ui-port-status" class="muted">
+						Reserved ports: 52440-52459.
+					</p>
 					<p id="startup-status" class="muted"></p>
 				</details>
 				<p> </p>

@@ -53,6 +53,11 @@ const wsClients = new Set<WebSocket>();
 let wsServer: WebSocketServer | null = null;
 let isPatched = false;
 
+type IpcBridgeOptions = {
+	port?: number;
+	host?: string;
+};
+
 function isObject(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -287,13 +292,18 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 	}
 }
 
-export function initIpcWebSocketBridge(): void {
+export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	trackIpcChannels();
 
 	if (wsServer) return;
 
-	const wsPort = Number(process.env.INFERENCEPORT_IPC_WS_PORT || 52459);
-	const wsHost = process.env.INFERENCEPORT_IPC_WS_HOST || "127.0.0.1";
+	const wsPort = Number(
+		options.port ?? process.env.INFERENCEPORT_IPC_WS_PORT ?? 52459,
+	);
+	const wsHost =
+		options.host ??
+		process.env.INFERENCEPORT_IPC_WS_HOST ??
+		"127.0.0.1";
 
 	wsServer = new WebSocketServer({
 		port: wsPort,
@@ -378,4 +388,19 @@ export function initIpcWebSocketBridge(): void {
 	wsServer.on("error", (err) => {
 		console.error("IPC websocket bridge error", err);
 	});
+}
+
+export function stopIpcWebSocketBridge(): void {
+	if (!wsServer) return;
+
+	for (const ws of wsClients) {
+		try {
+			ws.close();
+		} catch {
+			void 0;
+		}
+	}
+	wsClients.clear();
+	wsServer.close();
+	wsServer = null;
 }

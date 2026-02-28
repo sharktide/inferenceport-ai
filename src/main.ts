@@ -26,7 +26,10 @@ import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
-import { initIpcWebSocketBridge } from "./node-apis/helper/ipcBridge.js";
+import {
+	initIpcWebSocketBridge,
+	stopIpcWebSocketBridge,
+} from "./node-apis/helper/ipcBridge.js";
 import storageSyncHandlers from "./node-apis/storageSync.js";
 import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
 import startupHandlers, { getStartupSettings } from "./node-apis/startup.js";
@@ -41,6 +44,9 @@ const __dirname = dirname(__filename);
 
 fixPath();
 const supabase = supabaseClient;
+const IPC_WS_PORT_HEADLESS = 52456;
+const IPC_WS_PORT_FOREGROUND = 52457;
+const DEFAULT_WEB_UI_PORT = 52459;
 
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
@@ -347,7 +353,11 @@ app.on("open-url", async (event, url) => {
 
 app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
-	initIpcWebSocketBridge();
+	const startupSettings = getStartupSettings();
+	const wsPort = backgroundServerMode
+		? IPC_WS_PORT_HEADLESS
+		: IPC_WS_PORT_FOREGROUND;
+	initIpcWebSocketBridge({ port: wsPort });
 
 	try {
 		if (process.defaultApp) {
@@ -373,7 +383,6 @@ app.whenReady().then(async () => {
 	storageSyncHandlers();
 	startupHandlers();
 
-	const startupSettings = getStartupSettings();
 	if (
 		startupSettings.autoStartProxy &&
 		startupSettings.proxyUsers.length > 0
@@ -458,12 +467,21 @@ app.whenReady().then(async () => {
 	}
 
 	fireAndForget(serve(), "serve");
-	fireAndForget(startWebUiServer(), "startWebUiServer");
+	fireAndForget(
+		startWebUiServer(startupSettings.uiPort || DEFAULT_WEB_UI_PORT),
+		"startWebUiServer",
+	);
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
+});
+
+app.on("before-quit", () => {
+	stopWebUiServer();
+	stopIpcWebSocketBridge();
 });
 
 app.on("window-all-closed", () => {
 	if (backgroundServerMode) return;
 	stopWebUiServer();
+	stopIpcWebSocketBridge();
 	app.quit();
 });

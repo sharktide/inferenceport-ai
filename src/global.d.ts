@@ -175,17 +175,20 @@ declare global {
 				autoStartProxy: boolean;
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
+				uiPort: number;
 			}>;
 			updateSettings: (patch: {
 				runAtLogin?: boolean;
 				autoStartProxy?: boolean;
 				proxyPort?: number;
+				uiPort?: number;
 				proxyUsers?: { email: string; role: string }[];
 			}) => Promise<{
 				runAtLogin: boolean;
 				autoStartProxy: boolean;
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
+				uiPort: number;
 			}>;
 		};
 	}

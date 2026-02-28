@@ -229,6 +229,7 @@ contextBridge.exposeInMainWorld("startup", {
 		runAtLogin?: boolean;
 		autoStartProxy?: boolean;
 		proxyPort?: number;
+		uiPort?: number;
 		proxyUsers?: { email: string; role: string }[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),
 });

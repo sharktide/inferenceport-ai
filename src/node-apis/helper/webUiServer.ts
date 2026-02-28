@@ -53,7 +53,7 @@ function tryResolvePublicPath(rawPath: string): string | null {
 }
 
 export async function startWebUiServer(
-	port = 52457,
+	port = 52459,
 	host = "127.0.0.1",
 ): Promise<string> {
 	if (server) return `http://${host}:${port}`;

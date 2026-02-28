@@ -21,8 +21,13 @@ const syncCheckbox = document.getElementById('sync-chats') as HTMLInputElement |
 const syncSection = document.querySelector('details:has(#sync-chats)') as HTMLDetailsElement | null;
 const startupRunAtLoginCheckbox = document.getElementById("startup-run-at-login") as HTMLInputElement | null;
 const startupAutoProxyCheckbox = document.getElementById("startup-auto-proxy") as HTMLInputElement | null;
+const startupUiPortInput = document.getElementById("startup-ui-port") as HTMLInputElement | null;
+const startupUiPortSaveBtn = document.getElementById("startup-ui-port-save") as HTMLButtonElement | null;
+const startupUiPortStatus = document.getElementById("startup-ui-port-status") as HTMLParagraphElement | null;
 const startupStatus = document.getElementById("startup-status") as HTMLParagraphElement | null;
 let emails: string[] = [];
+const RESERVED_PORT_MIN = 52440;
+const RESERVED_PORT_MAX = 52459;
 
 let hostConfigModal: declarations["iInstance"]["iModal"];
 let renameModal: declarations["iInstance"]["iModal"];
@@ -74,6 +79,12 @@ async function initStartupSettings() {
 		const startup = await window.startup.getSettings();
 		startupRunAtLoginCheckbox.checked = Boolean(startup.runAtLogin);
 		startupAutoProxyCheckbox.checked = Boolean(startup.autoStartProxy);
+		if (startupUiPortInput) {
+			startupUiPortInput.value = String(startup.uiPort);
+		}
+		if (startupUiPortStatus) {
+			startupUiPortStatus.textContent = `Reserved ports: ${RESERVED_PORT_MIN}-${RESERVED_PORT_MAX}.`;
+		}
 		if (startupStatus) {
 			startupStatus.textContent = startup.runAtLogin
 				? "Background startup is enabled."
@@ -83,6 +94,57 @@ async function initStartupSettings() {
 		console.warn("Could not load startup settings", err);
 	}
 }
+
+function parseUiPort(raw: string): number | null {
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed)) return null;
+	const port = Math.round(parsed);
+	if (port < 1 || port > 65535) return null;
+	return port;
+}
+
+function isReservedPort(port: number): boolean {
+	return port >= RESERVED_PORT_MIN && port <= RESERVED_PORT_MAX;
+}
+
+startupUiPortSaveBtn?.addEventListener("click", async () => {
+	if (!startupUiPortInput) return;
+	const port = parseUiPort(startupUiPortInput.value.trim());
+
+	if (port === null) {
+		if (startupUiPortStatus) {
+			startupUiPortStatus.textContent = "Enter a valid UI port between 1 and 65535.";
+		}
+		return;
+	}
+
+	if (isReservedPort(port)) {
+		if (startupUiPortStatus) {
+			startupUiPortStatus.textContent =
+				`Port ${port} is reserved. Use a port outside ${RESERVED_PORT_MIN}-${RESERVED_PORT_MAX}.`;
+		}
+		return;
+	}
+
+	try {
+		const updated = await window.startup.updateSettings({ uiPort: port });
+		startupUiPortInput.value = String(updated.uiPort);
+		if (startupUiPortStatus) {
+			startupUiPortStatus.textContent = `UI port saved: ${updated.uiPort}. Restart app to fully apply.`;
+		}
+	} catch (err: any) {
+		if (startupUiPortStatus) {
+			startupUiPortStatus.textContent = `Could not save UI port: ${err?.message || err}`;
+		}
+	}
+});
+
+startupUiPortInput?.addEventListener("keydown", (event: KeyboardEvent) => {
+	if (event.key === "Enter") {
+		event.preventDefault();
+		startupUiPortSaveBtn?.click();
+	}
+});
 
 startupRunAtLoginCheckbox?.addEventListener("change", async () => {
 	try {

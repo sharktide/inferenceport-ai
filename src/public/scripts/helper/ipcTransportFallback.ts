@@ -118,8 +118,14 @@ class WsIpcClient {
 	private pending = new Map<string, PendingRequest>();
 	private listeners = new Map<string, Set<ChannelListener>>();
 	private nextRequestId = 0;
+	private readonly urls: string[];
 
-	constructor(private readonly url: string) {}
+	constructor(urls: string[]) {
+		const normalized = urls
+			.map((url) => url.trim())
+			.filter((url) => url.length > 0);
+		this.urls = [...new Set(normalized)];
+	}
 
 	private buildRequestId(): string {
 		this.nextRequestId += 1;
@@ -174,6 +180,79 @@ class WsIpcClient {
 		}
 	}
 
+	private getCandidateSummary(): string {
+		return this.urls.join(", ");
+	}
+
+	private installSocketHandlers(socket: WebSocket, url: string): void {
+		socket.addEventListener("message", (event) => {
+			this.onServerMessage(event.data);
+		});
+
+		socket.addEventListener("close", () => {
+			if (this.socket === socket) {
+				this.socket = null;
+			}
+			this.rejectAllPending("Websocket bridge disconnected");
+		});
+
+		socket.addEventListener("error", () => {
+			if (socket.readyState === WebSocket.OPEN) {
+				console.warn(`Websocket bridge error at ${url}`);
+			}
+		});
+	}
+
+	private async connectSingle(url: string, timeoutMs = 1200): Promise<WebSocket> {
+		return await new Promise((resolve, reject) => {
+			const socket = new WebSocket(url);
+			let settled = false;
+
+			const cleanup = () => {
+				clearTimeout(timerId);
+				socket.removeEventListener("open", onOpen);
+				socket.removeEventListener("error", onError);
+				socket.removeEventListener("close", onClose);
+			};
+
+			const fail = (reason: Error) => {
+				if (settled) return;
+				settled = true;
+				cleanup();
+				try {
+					socket.close();
+				} catch {
+					void 0;
+				}
+				reject(reason);
+			};
+
+			const onOpen = () => {
+				if (settled) return;
+				settled = true;
+				cleanup();
+				this.installSocketHandlers(socket, url);
+				resolve(socket);
+			};
+
+			const onError = () => {
+				fail(new Error(`Unable to connect to websocket bridge at ${url}`));
+			};
+
+			const onClose = () => {
+				fail(new Error(`Websocket bridge closed during connect at ${url}`));
+			};
+
+			const timerId = setTimeout(() => {
+				fail(new Error(`Timed out connecting to websocket bridge at ${url}`));
+			}, timeoutMs);
+
+			socket.addEventListener("open", onOpen);
+			socket.addEventListener("error", onError);
+			socket.addEventListener("close", onClose);
+		});
+	}
+
 	private async connect(): Promise<void> {
 		if (this.socket && this.socket.readyState === WebSocket.OPEN) {
 			return;
@@ -183,31 +262,20 @@ class WsIpcClient {
 			return this.connectPromise;
 		}
 
-		this.connectPromise = new Promise((resolve, reject) => {
-			const socket = new WebSocket(this.url);
-
-			socket.addEventListener("open", () => {
-				this.socket = socket;
-				resolve();
-			});
-
-			socket.addEventListener("message", (event) => {
-				console.log("received msg", event.data)
-				this.onServerMessage(event.data);
-			});
-
-			socket.addEventListener("error", () => {
-				if (socket.readyState !== WebSocket.OPEN) {
-					reject(new Error(`Unable to connect to websocket bridge at ${this.url}`));
+		this.connectPromise = (async () => {
+			for (const candidate of this.urls) {
+				try {
+					const socket = await this.connectSingle(candidate);
+					this.socket = socket;
+					return;
+				} catch {
+					void 0;
 				}
-			});
-
-			socket.addEventListener("close", () => {
-				this.socket = null;
-				this.connectPromise = null;
-				this.rejectAllPending("Websocket bridge disconnected");
-			});
-		});
+			}
+			throw new Error(
+				`Unable to connect to websocket bridge. Tried: ${this.getCandidateSummary()}.`,
+			);
+		})();
 
 		try {
 			await this.connectPromise;
@@ -224,7 +292,9 @@ class WsIpcClient {
 	): Promise<unknown> {
 		await this.connect();
 		if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-			throw new Error("Websocket is not connected");
+			throw new Error(
+				`Websocket is not connected. Tried: ${this.getCandidateSummary()}`,
+			);
 		}
 
 		const payload: Record<string, unknown> = {
@@ -266,35 +336,35 @@ class WsIpcClient {
 	}
 }
 
-function resolveWsUrl(): string {
+function resolveWsCandidates(): string[] {
 	const globalUrl = (window as { __INFERENCEPORT_WS_URL__?: unknown })
 		.__INFERENCEPORT_WS_URL__;
 	if (typeof globalUrl === "string" && globalUrl.trim()) {
-		return globalUrl.trim();
+		return [globalUrl.trim()];
 	}
 
 	const params = new URLSearchParams(window.location.search);
 	const queryUrl = params.get("ipc_ws") || params.get("ws");
 	if (queryUrl && queryUrl.trim()) {
-		return queryUrl.trim();
+		return [queryUrl.trim()];
 	}
 
 	try {
 		const localStorageUrl = localStorage.getItem("inferenceport_ws_url");
 		if (localStorageUrl && localStorageUrl.trim()) {
-			return localStorageUrl.trim();
+			return [localStorageUrl.trim()];
 		}
 	} catch {
 		void 0;
 	}
 
 	if (window.location.protocol === "file:") {
-		return "ws://127.0.0.1:52459";
+		return ["ws://127.0.0.1:52457", "ws://127.0.0.1:52456"];
 	}
 
 	const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 	const host = window.location.hostname || "127.0.0.1";
-	return `${protocol}://${host}:52459`;
+	return [`${protocol}://${host}:52457`, `${protocol}://${host}:52456`];
 }
 
 function escapeHtml(input: string): string {
@@ -441,7 +511,7 @@ function createEventHub() {
 export function installWebSocketTransportFallback(): void {
 	if (hasElectronIpc()) return;
 
-	const client = new WsIpcClient(resolveWsUrl());
+	const client = new WsIpcClient(resolveWsCandidates());
 	const events = createEventHub();
 	let chatAbortController: AbortController | null = null;
 
@@ -503,6 +573,15 @@ export function installWebSocketTransportFallback(): void {
 		) => {
 			void client
 				.send("ollama:chat-stream", model, prompt, toolList, clientUrl)
+				.catch((err) => {
+					queueMicrotask(() => {
+						const detail = err instanceof Error ? err.message : String(err);
+						events.emit(
+							"ollama:chat-error",
+							`Unable to reach local websocket bridge (ports 52457 then 52456). ${detail}`,
+						);
+					});
+				});
 		},
 		onResponse: (cb: (token: string) => void) => {
 			events.on("ollama:chat-token", (token) => cb(String(token)));
