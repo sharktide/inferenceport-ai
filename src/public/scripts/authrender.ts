@@ -6,8 +6,8 @@ const statusText = document.getElementById('status') as HTMLParagraphElement;
 (window as any).mode = 0;
 
 type AuthSessionResult = {
-    session: any;
-    profile: { username: string } | null;
+    session: AuthSessionView;
+    profile: AuthProfileView;
     error?: string;
 };
 
@@ -90,7 +90,7 @@ function showSignInSuccessModal() {
 }
 
 window.auth.onAuthStateChange((session) => {
-    if (session?.user) {
+    if (session?.isAuthenticated) {
         if (window.location.pathname.includes("auth")) {
             showSignInSuccessModal();
         }

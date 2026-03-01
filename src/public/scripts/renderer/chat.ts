@@ -585,7 +585,7 @@ async function loadOptions() {
 		const auth = await window.auth.getSession();
 		setSessionProgress(55);
 
-		if (isSyncEnabled() && auth?.session?.user) {
+		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			const remoteResponse = await safeCallRemote(
 				() => window.sync.getRemoteSessions(),
 				{ sessions: null },
@@ -593,7 +593,7 @@ async function loadOptions() {
 			setSessionProgress(65);
 
 			if (!remoteResponse?.error && remoteResponse?.sessions) {
-				const userId = auth.session.user.id;
+				const userId = auth.session.user?.id;
 				const ids = Object.keys(sessions);
 				const total = Math.max(ids.length, 1);
 
@@ -616,7 +616,7 @@ async function loadOptions() {
 				setSessionProgress(90);
 
 				const freshAuth = await window.auth.getSession();
-				if (freshAuth?.session?.user) {
+				if (freshAuth?.session?.isAuthenticated) {
 					await safeCallRemote(() =>
 						window.sync.saveAllSessions(sessions),
 					);
@@ -806,7 +806,7 @@ function showContextMenu(x, y, sessionId, sessionName) {
 								await window.ollama.save(sessions);
 
 								const auth = await window.auth.getSession();
-								if (isSyncEnabled() && auth?.session?.user) {
+								if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 									await safeCallRemote(() =>
 										window.sync.saveAllSessions(sessions),
 									);
@@ -864,7 +864,7 @@ function deleteSession(sessionId) {
 					await window.ollama.save(sessions);
 
 					const auth = await window.auth.getSession();
-					if (isSyncEnabled() && auth?.session?.user) {
+					if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 						await safeCallRemote(() =>
 							window.sync.saveAllSessions(sessions),
 						);
@@ -911,7 +911,7 @@ function openRenameDialog(sessionId, currentName) {
 					await window.ollama.save(sessions);
 
 					const auth = await window.auth.getSession();
-					if (isSyncEnabled() && auth?.session?.user) {
+					if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 						await safeCallRemote(() =>
 							window.sync.saveAllSessions(sessions),
 						);
@@ -956,7 +956,7 @@ function createNewSession(): void {
 	window.ollama.save(sessions);
 
 	window.auth.getSession().then(async (auth) => {
-		if (isSyncEnabled() && auth?.session?.user) {
+		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
 		renderSessionList();
@@ -1015,7 +1015,7 @@ function renderSessionList(): void {
 			window.ollama.save(sessions);
 
 			window.auth.getSession().then(async (auth) => {
-				if (isSyncEnabled() && auth?.session?.user) {
+				if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 					await safeCallRemote(() =>
 						window.sync.saveAllSessions(sessions),
 					);
@@ -1249,7 +1249,7 @@ async function autoNameSession(
 	window.ollama.save(sessions);
 
 	window.auth.getSession().then(async (auth) => {
-		if (isSyncEnabled() && auth?.session?.user) {
+		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
 		renderSessionList();
@@ -1432,7 +1432,7 @@ form.addEventListener("submit", async (e) => {
 
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (isSyncEnabled() && auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 				await safeCallRemote(() =>
 					window.sync.saveAllSessions(sessions),
 				);
@@ -1456,7 +1456,7 @@ form.addEventListener("submit", async (e) => {
 		botBubble.appendChild(status);
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (isSyncEnabled() && auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 				await safeCallRemote(() =>
 					window.sync.saveAllSessions(sessions),
 				);
@@ -1480,7 +1480,7 @@ form.addEventListener("submit", async (e) => {
 		botBubble.appendChild(status);
 		window.ollama.save(sessions);
 		window.auth.getSession().then(async (auth) => {
-			if (isSyncEnabled() && auth?.session?.user) {
+			if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 				await safeCallRemote(() =>
 					window.sync.saveAllSessions(sessions),
 				);
@@ -1633,7 +1633,7 @@ function escapeHtml(value: string): string {
 async function persistSessionsAndSync(): Promise<void> {
 	await window.ollama.save(sessions);
 	const auth = await window.auth.getSession();
-	if (isSyncEnabled() && auth?.session?.user) {
+	if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 		await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 	}
 }

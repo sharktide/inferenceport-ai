@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
 (async () => {
     try {
         const { session } = await window.auth.getSession?.() ?? { session: null };
-        const isLoggedIn = !!session?.user;
+        const isLoggedIn = !!session?.isAuthenticated;
 
         if (syncCheckbox) {
             if (!isLoggedIn) {
@@ -263,7 +263,7 @@ emailInput.addEventListener("blur", () => {
 
 window.addEventListener("DOMContentLoaded", async () => {
     const { session } = await window.auth.getSession();
-    if (session) return;
+    if (session?.isAuthenticated) return;
     const shouldDisable = true;
 
     const details = document.getElementById("account-settings");
@@ -556,9 +556,9 @@ hostStopBtn.addEventListener('click', async () => {
 
 async function handleDeleteFlow() {
 	const { session } = await window.auth.getSession();
-	if (!session?.user) return;
+	if (!session?.isAuthenticated || !session.user) return;
 
-	if (session.user.app_metadata?.provider === "email") {
+	if (session.user.provider === "email") {
 		deletePasswordModal.open({
 			html: `
 				<div style="text-align:left">

@@ -107,6 +107,7 @@ type WsAuthMessage = {
 type IpcBridgeOptions = {
 	port?: number;
 	host?: string;
+	allowedOrigins?: string[];
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -219,6 +220,12 @@ function serializeError(err: unknown): string {
 
 function generateChallenge(): string {
 	return randomBytes(32).toString("base64url");
+}
+
+export function signWsAuthChallenge(challenge: string): string {
+	return createHmac("sha256", WS_AUTH_TOKEN)
+		.update(challenge)
+		.digest("base64url");
 }
 
 function verifyHmac(token: string, challenge: string, signature: string): boolean {
@@ -364,6 +371,11 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		options.host ??
 		process.env.INFERENCEPORT_IPC_WS_HOST ??
 		"127.0.0.1";
+	const allowedOrigins = new Set(
+		(options.allowedOrigins || [])
+			.map((origin) => origin.trim().toLowerCase())
+			.filter((origin) => origin.length > 0),
+	);
 
 	wsServer = new WebSocketServer({
 		port: wsPort,
@@ -371,8 +383,20 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		perMessageDeflate: false,
 	});
 
-	wsServer.on("connection", (ws) => {
-		// Step 1: Send authentication challenge
+	wsServer.on("connection", (ws, req) => {
+		const originHeader =
+			typeof req.headers.origin === "string"
+				? req.headers.origin.trim().toLowerCase()
+				: "";
+		if (allowedOrigins.size > 0 && !allowedOrigins.has(originHeader)) {
+			try {
+				ws.close(1008, "Origin not allowed");
+			} catch {
+				void 0;
+			}
+			return;
+		}
+
 		const challenge = generateChallenge();
 		const authMessage: WsAuthMessage = {
 			type: "auth_challenge",
@@ -380,7 +404,6 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		};
 		sendWs(ws, authMessage as unknown as WsEvent);
 
-		// Step 2: Wait for auth response before accepting other messages
 		let authenticated = false;
 
 		const onAuthMessage = async (raw: unknown) => {
@@ -494,10 +517,6 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	wsServer.on("error", (err) => {
 		console.error("IPC websocket bridge error", err);
 	});
-}
-
-export function getWsAuthToken(): string {
-	return WS_AUTH_TOKEN;
 }
 
 export function stopIpcWebSocketBridge(): void {

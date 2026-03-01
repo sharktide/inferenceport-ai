@@ -18,6 +18,27 @@ export {};
 import type { iConstructor, iInstance, iFunctions } from "./public/scripts/staticload/index.ts";
 
 declare global {
+	type AuthUserView = {
+		id: string;
+		provider: string | null;
+	};
+
+	type AuthSessionView = {
+		isAuthenticated: boolean;
+		user: AuthUserView | null;
+		expiresAt: string | null;
+	};
+
+	type AuthProfileView = {
+		username: string;
+	} | null;
+
+	type AuthSessionResponse = {
+		session: AuthSessionView;
+		profile: AuthProfileView;
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -107,18 +128,15 @@ declare global {
 			signInWithEmail: (
 				email: string,
 				password: string
-			) => Promise<{
-				session?: any;
-				user?: any;
-				error?: string;
-			}>;
+			) => Promise<AuthSessionResponse>;
 			signInWithGitHub: () => Promise<void>;
 			signInWithGoogle: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string
 			) => Promise<{
-				user?: any;
+				success?: boolean;
+				userId?: string | null;
 				error?: string;
 			}>;
 			setUsername: (
@@ -126,8 +144,8 @@ declare global {
 				username: string
 			) => Promise<{ success?: boolean; profile?: any; error?: string }>;
 			signOut: () => Promise<{ success?: boolean; error?: string }>;
-			getSession: () => Promise<{ session?: any; error?: string }>;
-			onAuthStateChange: (callback: (session: any) => void) => void;
+			getSession: () => Promise<AuthSessionResponse>;
+			onAuthStateChange: (callback: (session: AuthSessionView) => void) => void;
 			resetPassword: (
 				email: string
 			) => Promise<{ status: boolean; error: any }>;
@@ -141,11 +159,7 @@ declare global {
 			setSessionFromTokens: (
 				accessToken: string,
 				refreshToken: string,
-			) => Promise<{
-				session?: any;
-				profile?: any;
-				error?: string;
-			}>;
+			) => Promise<AuthSessionResponse>;
 		};
 
 		sync: {
@@ -190,10 +204,6 @@ declare global {
 				proxyUsers: { email: string; role: string }[];
 				uiPort: number;
 			}>;
-		};
-
-		electronAPI: {
-			getWsAuthToken: () => Promise<string>;
 		};
 	}
 

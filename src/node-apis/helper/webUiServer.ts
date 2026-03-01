@@ -2,11 +2,14 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getWsAuthToken } from "./ipcBridge.js";
+import { signWsAuthChallenge } from "./ipcBridge.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, "..", "..", "public");
+const INTERNAL_ROUTE_WINDOW_MS = 60_000;
+const INTERNAL_ROUTE_MAX_REQUESTS = 120;
+const internalRouteHits = new Map<string, { count: number; resetAt: number }>();
 
 let server: http.Server | null = null;
 
@@ -61,16 +64,125 @@ function getRequestHost(req: http.IncomingMessage, fallbackHost: string): string
 	return hostHeader.split(":")[0] || fallbackHost;
 }
 
-function injectRuntimeBridgeConfig(
-	html: string,
-	wsUrl: string,
-	authToken: string,
-): string {
-	const script = `<script>window.__INFERENCEPORT_WS_URL__=${JSON.stringify(wsUrl)};window.__INFERENCEPORT_WS_AUTH_TOKEN__=${JSON.stringify(authToken)};</script>`;
-	if (html.includes("</head>")) {
-		return html.replace("</head>", `${script}</head>`);
+function sendJson(
+	res: http.ServerResponse,
+	statusCode: number,
+	body: Record<string, unknown>,
+): void {
+	res.writeHead(statusCode, {
+		"Content-Type": "application/json; charset=utf-8",
+		"Cache-Control": "no-store",
+		"X-Content-Type-Options": "nosniff",
+	});
+	res.end(JSON.stringify(body));
+}
+
+function getAllowedOrigins(port: number): Set<string> {
+	return new Set([
+		`http://127.0.0.1:${port}`,
+		`http://localhost:${port}`,
+	]);
+}
+
+function getOriginFromReferer(referer: string): string {
+	try {
+		return new URL(referer).origin.toLowerCase();
+	} catch {
+		return "";
 	}
-	return `${script}${html}`;
+}
+
+function isFetchMetadataAllowed(req: http.IncomingMessage): boolean {
+	const secFetchSite =
+		typeof req.headers["sec-fetch-site"] === "string"
+			? req.headers["sec-fetch-site"].trim().toLowerCase()
+			: "";
+	if (secFetchSite && secFetchSite !== "same-origin") {
+		return false;
+	}
+
+	const secFetchMode =
+		typeof req.headers["sec-fetch-mode"] === "string"
+			? req.headers["sec-fetch-mode"].trim().toLowerCase()
+			: "";
+	if (
+		secFetchMode &&
+		secFetchMode !== "cors" &&
+		secFetchMode !== "same-origin"
+	) {
+		return false;
+	}
+
+	return true;
+}
+
+function isAllowedWebUiRequest(req: http.IncomingMessage, port: number): boolean {
+	if (!isFetchMetadataAllowed(req)) return false;
+
+	const allowedOrigins = getAllowedOrigins(port);
+
+	const origin =
+		typeof req.headers.origin === "string"
+			? req.headers.origin.trim().toLowerCase()
+			: "";
+	const referer =
+		typeof req.headers.referer === "string"
+			? req.headers.referer.trim()
+			: "";
+	const refererOrigin = referer ? getOriginFromReferer(referer) : "";
+	const effectiveOrigin = origin || refererOrigin;
+	if (!effectiveOrigin || !allowedOrigins.has(effectiveOrigin)) {
+		return false;
+	}
+
+	if (refererOrigin && refererOrigin !== effectiveOrigin) {
+		return false;
+	}
+
+	return true;
+}
+
+function readBody(req: http.IncomingMessage, maxBytes = 16 * 1024): Promise<string> {
+	return new Promise((resolve, reject) => {
+		let total = 0;
+		const chunks: Buffer[] = [];
+		req.on("data", (chunk: Buffer) => {
+			total += chunk.length;
+			if (total > maxBytes) {
+				reject(new Error("Request body too large"));
+				return;
+			}
+			chunks.push(chunk);
+		});
+		req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+		req.on("error", reject);
+	});
+}
+
+function getRateLimitKey(req: http.IncomingMessage): string {
+	const forwarded =
+		typeof req.headers["x-forwarded-for"] === "string"
+			? req.headers["x-forwarded-for"].split(",")[0]?.trim()
+			: "";
+	const remote = req.socket.remoteAddress?.trim() || "";
+	return (forwarded || remote || "unknown").toLowerCase();
+}
+
+function checkAndBumpInternalRateLimit(req: http.IncomingMessage): boolean {
+	const now = Date.now();
+	const key = getRateLimitKey(req);
+	const current = internalRouteHits.get(key);
+	if (!current || now >= current.resetAt) {
+		internalRouteHits.set(key, {
+			count: 1,
+			resetAt: now + INTERNAL_ROUTE_WINDOW_MS,
+		});
+		return false;
+	}
+
+	current.count += 1;
+	if (current.count > INTERNAL_ROUTE_MAX_REQUESTS) return true;
+	return false;
 }
 
 export async function startWebUiServer(
@@ -78,10 +190,64 @@ export async function startWebUiServer(
 	host = "127.0.0.1",
 	wsPort = 52457,
 ): Promise<string> {
-	if (server) return `http://${host}:${port}`;
+	const launchUrl = `http://${host}:${port}`;
+	if (server) return launchUrl;
 
 	server = http.createServer((req, res) => {
-		const filePath = tryResolvePublicPath(req.url || "/");
+		const reqPath = req.url || "/";
+		const pathname = decodeURIComponent(reqPath.split("?")[0] || "/");
+
+		if (pathname.startsWith("/__inferenceport/")) {
+			if (checkAndBumpInternalRateLimit(req)) {
+				sendJson(res, 429, { error: "Too many requests" });
+				return;
+			}
+		}
+
+		if (pathname === "/__inferenceport/ipc-config") {
+			if (req.method !== "GET") {
+				sendJson(res, 405, { error: "Method not allowed" });
+				return;
+			}
+			if (!isAllowedWebUiRequest(req, port)) {
+				sendJson(res, 403, { error: "Origin not allowed" });
+				return;
+			}
+			const requestHost = getRequestHost(req, host);
+			const wsUrl = `ws://${requestHost}:${wsPort}/`;
+			sendJson(res, 200, { wsUrl });
+			return;
+		}
+
+		if (pathname === "/__inferenceport/ws-sign") {
+			if (req.method !== "POST") {
+				sendJson(res, 405, { error: "Method not allowed" });
+				return;
+			}
+			if (!isAllowedWebUiRequest(req, port)) {
+				sendJson(res, 403, { error: "Origin not allowed" });
+				return;
+			}
+			void readBody(req)
+				.then((raw) => {
+					const parsed = JSON.parse(raw || "{}") as { challenge?: unknown };
+					if (
+						typeof parsed.challenge !== "string" ||
+						parsed.challenge.trim().length === 0
+					) {
+						sendJson(res, 400, { error: "Missing challenge" });
+						return;
+					}
+					const signature = signWsAuthChallenge(parsed.challenge);
+					sendJson(res, 200, { signature });
+				})
+				.catch(() => {
+					sendJson(res, 400, { error: "Invalid request body" });
+				});
+			return;
+		}
+
+		const filePath = tryResolvePublicPath(reqPath);
 		if (!filePath) {
 			res.writeHead(404, {
 				"Content-Type": "text/plain; charset=utf-8",
@@ -91,25 +257,10 @@ export async function startWebUiServer(
 			return;
 		}
 
-		if (path.extname(filePath).toLowerCase() === ".html") {
-			const requestHost = getRequestHost(req, host);
-			const wsUrl = `ws://${requestHost}:${wsPort}`;
-			const authToken = getWsAuthToken();
-			const html = fs.readFileSync(filePath, "utf-8");
-			const payload = injectRuntimeBridgeConfig(html, wsUrl, authToken);
-			res.writeHead(200, {
-				"Content-Type": "text/html; charset=utf-8",
-				"Cache-Control": "no-cache",
-				"Access-Control-Allow-Origin": "*",
-			});
-			res.end(payload);
-			return;
-		}
-
 		res.writeHead(200, {
 			"Content-Type": getMimeType(filePath),
 			"Cache-Control": "no-cache",
-			"Access-Control-Allow-Origin": "*",
+			"X-Content-Type-Options": "nosniff",
 		});
 		fs.createReadStream(filePath).pipe(res);
 	});
@@ -119,9 +270,8 @@ export async function startWebUiServer(
 		server!.listen(port, host, () => resolve());
 	});
 
-	const url = `http://${host}:${port}`;
-	console.info(`Web UI server listening on ${url}`);
-	return url;
+	console.info(`Web UI server listening on ${launchUrl}`);
+	return launchUrl;
 }
 
 export function stopWebUiServer(): void {

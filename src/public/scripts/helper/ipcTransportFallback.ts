@@ -40,8 +40,13 @@ type StorageChange = {
 
 type BridgeWindowGlobals = {
 	__INFERENCEPORT_WS_URL__?: unknown;
-	__INFERENCEPORT_WS_AUTH_TOKEN__?: unknown;
 };
+
+type BridgeRuntimeConfig = {
+	wsUrl: string;
+};
+
+let bridgeRuntimeConfigPromise: Promise<BridgeRuntimeConfig | null> | null = null;
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === "object" && !Array.isArray(value);
@@ -229,15 +234,12 @@ class WsIpcClient {
 
 	private async authenticateSocket(socket: WebSocket): Promise<void> {
 		return new Promise((resolve, reject) => {
-			void resolveWsAuthToken()
-				.then((authToken) => this.completeAuth(socket, authToken, resolve, reject))
-				.catch((err) => reject(err));
+			this.completeAuth(socket, resolve, reject);
 		});
 	}
 
 	private completeAuth(
 		socket: WebSocket,
-		authToken: string,
 		resolve: () => void,
 		reject: (error: unknown) => void,
 	): void {
@@ -265,7 +267,7 @@ class WsIpcClient {
 
 			if (message.type === "auth_challenge" && typeof message.challenge === "string") {
 				try {
-					const signature = await signChallenge(authToken, message.challenge);
+					const signature = await resolveChallengeSignature(message.challenge);
 					socket.send(
 						JSON.stringify({
 							type: "auth_response",
@@ -477,57 +479,75 @@ function resolveWsCandidates(): string[] {
 	return [`${protocol}://${host}:52457`, `${protocol}://${host}:52456`];
 }
 
-function readAuthTokenFromSearchParams(): string | null {
-	const params = new URLSearchParams(window.location.search);
-	const queryToken =
-		params.get("ipc_ws_token") ||
-		params.get("ipc_token") ||
-		params.get("ws_token") ||
-		params.get("token");
-	if (queryToken && queryToken.trim()) return queryToken.trim();
-	return null;
-}
+async function fetchBridgeRuntimeConfig(): Promise<BridgeRuntimeConfig | null> {
+	if (window.location.protocol === "file:") return null;
 
-function readAuthTokenFromStorage(): string | null {
-	try {
-		const token =
-			localStorage.getItem("inferenceport_ws_auth_token") ||
-			localStorage.getItem("inferenceport_ws_token");
-		if (token && token.trim()) return token.trim();
-	} catch {
-		void 0;
-	}
-	return null;
-}
+	if (!bridgeRuntimeConfigPromise) {
+		bridgeRuntimeConfigPromise = (async () => {
+			try {
+				const response = await fetch("/__inferenceport/ipc-config", {
+					method: "GET",
+					cache: "no-store",
+					credentials: "omit",
+				});
+				if (!response.ok) return null;
+				const payload = (await response.json()) as {
+					wsUrl?: unknown;
+				};
+				if (
+					typeof payload.wsUrl !== "string" ||
+					!payload.wsUrl.trim()
+				) {
+					return null;
+				}
 
-async function resolveWsAuthToken(): Promise<string> {
-	const globalToken = (window as BridgeWindowGlobals).__INFERENCEPORT_WS_AUTH_TOKEN__;
-	if (typeof globalToken === "string" && globalToken.trim().length > 0) {
-		return globalToken.trim();
-	}
+				try {
+					localStorage.setItem("inferenceport_ws_url", payload.wsUrl.trim());
+				} catch {
+					void 0;
+				}
 
-	const queryToken = readAuthTokenFromSearchParams();
-	if (queryToken) return queryToken;
-
-	const storageToken = readAuthTokenFromStorage();
-	if (storageToken) return storageToken;
-
-	const provider = (window as any).electronAPI?.getWsAuthToken;
-	if (typeof provider === "function") {
-		const value = provider();
-		if (typeof value === "string" && value.trim()) {
-			return value.trim();
-		}
-		if (value instanceof Promise) {
-			const resolved = await value;
-			if (typeof resolved === "string" && resolved.trim()) {
-				return resolved.trim();
+				return {
+					wsUrl: payload.wsUrl.trim(),
+				};
+			} catch {
+				return null;
 			}
-		}
+		})();
 	}
+
+	return await bridgeRuntimeConfigPromise;
+}
+
+async function signChallengeWithServer(challenge: string): Promise<string | null> {
+	if (window.location.protocol === "file:") return null;
+	try {
+		const response = await fetch("/__inferenceport/ws-sign", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			cache: "no-store",
+			credentials: "omit",
+			body: JSON.stringify({ challenge }),
+		});
+		if (!response.ok) return null;
+		const payload = (await response.json()) as { signature?: unknown };
+		if (typeof payload.signature !== "string" || !payload.signature.trim()) {
+			return null;
+		}
+		return payload.signature.trim();
+	} catch {
+		return null;
+	}
+}
+
+async function resolveChallengeSignature(challenge: string): Promise<string> {
+	const serverSignature = await signChallengeWithServer(challenge);
+	if (serverSignature) return serverSignature;
 
 	throw new Error(
-		"Auth token not available. Provide __INFERENCEPORT_WS_AUTH_TOKEN__, ?ipc_ws_token=..., or localStorage inferenceport_ws_auth_token.",
+		"Unable to sign websocket challenge. Ensure the Web UI is served by this app and /__inferenceport/ws-sign is reachable.",
 	);
 }
 
@@ -560,29 +580,6 @@ function basicMarkdownParse(markdown: string): string {
 		.replace(/`([^`]+)`/g, "<code>$1</code>");
 
 	return basicSanitize(withInline).replace(/\n/g, "<br>");
-}
-
-async function signChallenge(token: string, challenge: string): Promise<string> {
-	const encoder = new TextEncoder();
-	const key = await crypto.subtle.importKey(
-		"raw",
-		encoder.encode(token),
-		{ name: "HMAC", hash: "SHA-256" },
-		false,
-		["sign"],
-	);
-	const signature = await crypto.subtle.sign(
-		"HMAC",
-		key,
-		encoder.encode(challenge),
-	);
-	const bytes = new Uint8Array(signature);
-	let binary = "";
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-	const base64 = btoa(binary);
-	return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function hasElectronIpc(): boolean {
@@ -623,19 +620,49 @@ function getBrowserAuthSessionKey(): string {
 	return "inferenceport.browser.auth.session";
 }
 
-function readBrowserAuthSession(): any | null {
+function getDefaultAuthSession(): AuthSessionView {
+	return {
+		isAuthenticated: false,
+		user: null,
+		expiresAt: null,
+	};
+}
+
+function normalizeAuthSessionView(value: unknown): AuthSessionView {
+	if (!isObject(value)) return getDefaultAuthSession();
+
+	const rawUser = isObject(value.user) ? value.user : null;
+	const user =
+		rawUser && typeof rawUser.id === "string"
+			? {
+				id: rawUser.id,
+				provider:
+					typeof rawUser.provider === "string" ? rawUser.provider : null,
+			}
+			: null;
+
+	return {
+		isAuthenticated:
+			typeof value.isAuthenticated === "boolean"
+				? value.isAuthenticated
+				: false,
+		user,
+		expiresAt:
+			typeof value.expiresAt === "string" ? value.expiresAt : null,
+	};
+}
+
+function readBrowserAuthSession(): AuthSessionView {
 	try {
 		const raw = localStorage.getItem(getBrowserAuthSessionKey());
-		if (!raw) return null;
-		const parsed = JSON.parse(raw);
-		if (!parsed || typeof parsed !== "object") return null;
-		return parsed;
+		if (!raw) return getDefaultAuthSession();
+		return normalizeAuthSessionView(JSON.parse(raw));
 	} catch {
-		return null;
+		return getDefaultAuthSession();
 	}
 }
 
-function writeBrowserAuthSession(session: any | null): void {
+function writeBrowserAuthSession(session: AuthSessionView | null): void {
 	try {
 		if (!session) {
 			localStorage.removeItem(getBrowserAuthSessionKey());
@@ -698,6 +725,8 @@ function createEventHub() {
 export function installWebSocketTransportFallback(): void {
 	if (hasElectronIpc()) return;
 
+	void fetchBridgeRuntimeConfig();
+
 	const client = new WsIpcClient(resolveWsCandidates());
 	const events = createEventHub();
 	let chatAbortController: AbortController | null = null;
@@ -719,7 +748,11 @@ export function installWebSocketTransportFallback(): void {
 		events.emit("ollama:pull-progress", progress),
 	);
 	client.on("ollama:logs-append", (chunk) => events.emit("ollama:logs-append", chunk));
-	client.on("auth:stateChanged", (session) => events.emit("auth:stateChanged", session));
+	client.on("auth:stateChanged", (session) => {
+		const safeSession = normalizeAuthSessionView(session);
+		writeBrowserAuthSession(safeSession);
+		events.emit("auth:stateChanged", safeSession);
+	});
 	client.on("storage:changed", (change) => events.emit("storage:changed", change));
 
 	window.ollama = {
@@ -952,13 +985,20 @@ export function installWebSocketTransportFallback(): void {
 			),
 		signOut: async () => {
 			writeBrowserAuthSession(null);
-			events.emit("auth:stateChanged", null);
+			events.emit("auth:stateChanged", getDefaultAuthSession());
 			return await invokeOrDefault("auth:signOut", []);
 		},
-		getSession: async () =>
-			invokeOrDefault("auth:getSession", []),
-		onAuthStateChange: (callback: (session: any) => void) => {
-			events.on("auth:stateChanged", (session) => callback(session));
+		getSession: async () => {
+			const result = await invokeOrDefault<AuthSessionResponse>("auth:getSession", []);
+			if (result?.session) {
+				writeBrowserAuthSession(normalizeAuthSessionView(result.session));
+			}
+			return result;
+		},
+		onAuthStateChange: (callback: (session: AuthSessionView) => void) => {
+			events.on("auth:stateChanged", (session) =>
+				callback(normalizeAuthSessionView(session)),
+			);
 			void client.invoke("auth:onAuthStateChange").catch(() => void 0);
 			callback(readBrowserAuthSession());
 		},
@@ -978,16 +1018,16 @@ export function installWebSocketTransportFallback(): void {
 				[],
 			),
 		setSessionFromTokens: async (accessToken: string, refreshToken: string) => {
-			const localSession = {
-				access_token: accessToken,
-				refresh_token: refreshToken,
-			};
-			writeBrowserAuthSession(localSession);
-			events.emit("auth:stateChanged", localSession);
-			return await invokeOrDefault(
+			const result = await invokeOrDefault<AuthSessionResponse>(
 				"auth:setSessionTokens",
 				[accessToken, refreshToken]
 			);
+			if (result?.session) {
+				const safeSession = normalizeAuthSessionView(result.session);
+				writeBrowserAuthSession(safeSession);
+				events.emit("auth:stateChanged", safeSession);
+			}
+			return result;
 		},
 	};
 

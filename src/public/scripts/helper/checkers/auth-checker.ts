@@ -2,7 +2,7 @@ export async function isLoggedIn(root: number = 0): Promise<boolean> {
   try {
     const result = await window.auth.getSession();
 
-    const loggedIn = !!result.session?.access_token;
+    const loggedIn = !!result.session?.isAuthenticated;
 
     if (!loggedIn) {
       if (root === 0) {

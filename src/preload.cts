@@ -16,7 +16,7 @@ limitations under the License.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Sessions } from "./node-apis/types/index.types.d.ts";
 import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
@@ -176,9 +176,9 @@ contextBridge.exposeInMainWorld("auth", {
 		ipcRenderer.invoke("auth:signUpWithEmail", email, password),
 	signOut: () => ipcRenderer.invoke("auth:signOut"),
 	getSession: () => ipcRenderer.invoke("auth:getSession"),
-	onAuthStateChange: (callback: (session: Session) => void) => {
+	onAuthStateChange: (callback: (session: AuthSessionView) => void) => {
 		ipcRenderer.invoke("auth:onAuthStateChange");
-		ipcRenderer.on("auth:stateChanged", (_e: any, session: Session) => callback(session));
+		ipcRenderer.on("auth:stateChanged", (_e: any, session: AuthSessionView) => callback(session));
 	},
 	resetPassword: (email: string) =>
 		ipcRenderer.invoke("auth:resetPassword", email),
@@ -232,8 +232,4 @@ contextBridge.exposeInMainWorld("startup", {
 		uiPort?: number;
 		proxyUsers?: { email: string; role: string }[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),
-});
-
-contextBridge.exposeInMainWorld("electronAPI", {
-	getWsAuthToken: () => ipcRenderer.invoke("get-ws-auth-token"),
 });

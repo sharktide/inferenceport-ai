@@ -103,13 +103,36 @@ function showAppWideBanner(message: string) {
 
 window.addEventListener("DOMContentLoaded", checkAndShowNotificationBanner);
 
-if (
-	"serviceWorker" in navigator &&
-	(window.location.protocol === "http:" || window.location.protocol === "https:")
-) {
-	window.addEventListener("load", () => {
-		void navigator.serviceWorker.register("/sw.js").catch((err) => {
-			console.warn("Service worker registration failed", err);
-		});
-	});
+async function disableWebUiServiceWorker(): Promise<void> {
+	if (!("serviceWorker" in navigator)) return;
+	if (!(window.location.protocol === "http:" || window.location.protocol === "https:")) {
+		return;
+	}
+
+	try {
+		const regs = await navigator.serviceWorker.getRegistrations();
+		for (const reg of regs) {
+			const scope = reg.scope || "";
+			if (scope.includes(window.location.origin)) {
+				await reg.unregister();
+			}
+		}
+	} catch (err) {
+		console.warn("Service worker cleanup failed", err);
+	}
+
+	try {
+		const keys = await caches.keys();
+		for (const key of keys) {
+			if (key.startsWith("inferenceport-webui-")) {
+				await caches.delete(key);
+			}
+		}
+	} catch {
+		void 0;
+	}
 }
+
+window.addEventListener("load", () => {
+	void disableWebUiServiceWorker();
+});

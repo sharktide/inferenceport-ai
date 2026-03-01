@@ -84,8 +84,8 @@ class AuthManager {
             const session = (res as any)?.session;
             const profile = (res as any)?.profile;
 
-            if (session && session.user) {
-                const name = profile?.username || session.user?.email || "Account";
+            if (session?.isAuthenticated && session.user) {
+                const name = profile?.username || "Account";
                 const link = document.createElement("a");
                 link.href = this.resolveSettings();
                 link.textContent = String(name);

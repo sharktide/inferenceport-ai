@@ -29,7 +29,6 @@ import spacesHandlers from "./node-apis/spaces.js";
 import {
 	initIpcWebSocketBridge,
 	stopIpcWebSocketBridge,
-	getWsAuthToken,
 } from "./node-apis/helper/ipcBridge.js";
 import storageSyncHandlers from "./node-apis/storageSync.js";
 import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
@@ -355,10 +354,17 @@ app.on("open-url", async (event, url) => {
 app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
 	const startupSettings = getStartupSettings();
+	const uiPort = startupSettings.uiPort || DEFAULT_WEB_UI_PORT;
 	const wsPort = backgroundServerMode
 		? IPC_WS_PORT_HEADLESS
 		: IPC_WS_PORT_FOREGROUND;
-	initIpcWebSocketBridge({ port: wsPort });
+	initIpcWebSocketBridge({
+		port: wsPort,
+		allowedOrigins: [
+			`http://127.0.0.1:${uiPort}`,
+			`http://localhost:${uiPort}`,
+		],
+	});
 
 	try {
 		if (process.defaultApp) {
@@ -375,7 +381,6 @@ app.whenReady().then(async () => {
 	}
 
 	ipcMain.handle("session:getPath", () => chatDir);
-	ipcMain.handle("get-ws-auth-token", () => getWsAuthToken());
 
 	authHandlers();
 	chatStreamHandlers();
@@ -470,7 +475,7 @@ app.whenReady().then(async () => {
 
 	fireAndForget(serve(), "serve");
 	fireAndForget(
-		startWebUiServer(startupSettings.uiPort || DEFAULT_WEB_UI_PORT, "127.0.0.1", wsPort),
+		startWebUiServer(uiPort, "127.0.0.1", wsPort),
 		"startWebUiServer",
 	);
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
