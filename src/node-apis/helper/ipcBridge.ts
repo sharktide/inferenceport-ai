@@ -1,7 +1,10 @@
-import { BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomBytes, createHmac } from "node:crypto";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
+import fs from "fs";
+import path from "path";
 
 type InvokeHandler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 type OnHandler = (event: IpcMainEvent, ...args: unknown[]) => unknown;
@@ -52,6 +55,54 @@ const wsClients = new Set<WebSocket>();
 
 let wsServer: WebSocketServer | null = null;
 let isPatched = false;
+
+const WS_AUTH_TOKEN_FILE = "ipc-ws-auth-token";
+
+function loadOrCreateWsAuthToken(): string {
+	const envToken = process.env.INFERENCEPORT_IPC_WS_AUTH_TOKEN?.trim();
+	if (envToken) return envToken;
+
+	const generated = randomBytes(32).toString("base64url");
+
+	try {
+		const userDataDir = app.getPath("userData");
+		const tokenPath = path.join(userDataDir, WS_AUTH_TOKEN_FILE);
+		const existing = fs.existsSync(tokenPath)
+			? fs.readFileSync(tokenPath, "utf-8").trim()
+			: "";
+		if (existing) return existing;
+
+		fs.mkdirSync(path.dirname(tokenPath), { recursive: true });
+		try {
+			fs.writeFileSync(tokenPath, generated, {
+				encoding: "utf-8",
+				mode: 0o600,
+				flag: "wx",
+			});
+			return generated;
+		} catch (err) {
+			const code = (err as NodeJS.ErrnoException).code;
+			if (code !== "EEXIST") {
+				console.warn("Unable to persist websocket auth token", err);
+				return generated;
+			}
+			const fromRace = fs.readFileSync(tokenPath, "utf-8").trim();
+			return fromRace || generated;
+		}
+	} catch (err) {
+		console.warn("Unable to load websocket auth token from userData", err);
+		return generated;
+	}
+}
+
+const WS_AUTH_TOKEN = loadOrCreateWsAuthToken();
+
+type WsAuthMessage = {
+	type: "auth_challenge" | "auth_response" | "auth_ok" | "auth_error";
+	challenge?: string;
+	signature?: string;
+	error?: string;
+};
 
 type IpcBridgeOptions = {
 	port?: number;
@@ -164,6 +215,15 @@ function sendWsEventToAll(channel: string, args: unknown[]): void {
 function serializeError(err: unknown): string {
 	if (err instanceof Error) return err.stack || err.message;
 	return String(err);
+}
+
+function generateChallenge(): string {
+	return randomBytes(32).toString("base64url");
+}
+
+function verifyHmac(token: string, challenge: string, signature: string): boolean {
+	const expected = createHmac("sha256", token).update(challenge).digest("base64url");
+	return expected === signature;
 }
 
 function createSender(ws: WebSocket): { send: (channel: string, ...args: unknown[]) => void } {
@@ -312,9 +372,53 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	});
 
 	wsServer.on("connection", (ws) => {
-		wsClients.add(ws);
+		// Step 1: Send authentication challenge
+		const challenge = generateChallenge();
+		const authMessage: WsAuthMessage = {
+			type: "auth_challenge",
+			challenge,
+		};
+		sendWs(ws, authMessage as unknown as WsEvent);
 
-		ws.on("message", async (raw) => {
+		// Step 2: Wait for auth response before accepting other messages
+		let authenticated = false;
+
+		const onAuthMessage = async (raw: unknown) => {
+			let message: WsAuthMessage | WsRequest;
+			try {
+				message = JSON.parse(rawToString(raw)) as WsAuthMessage | WsRequest;
+			} catch {
+				return;
+			}
+
+			if (!message || typeof message !== "object") return;
+
+			if (!authenticated) {
+				// Handle authentication
+				if (
+					(message as WsAuthMessage).type === "auth_response" &&
+					typeof (message as WsAuthMessage).signature === "string"
+				) {
+					if (verifyHmac(WS_AUTH_TOKEN, challenge, (message as WsAuthMessage).signature!)) {
+						authenticated = true;
+						wsClients.add(ws);
+						sendWs(ws, { type: "auth_ok" } as unknown as WsEvent);
+						// Remove auth listener and attach normal message handler
+						ws.off("message", onAuthMessage);
+						ws.on("message", onNormalMessage);
+					} else {
+						sendWs(ws, { type: "auth_error", error: "Invalid signature" } as unknown as WsEvent);
+						ws.close();
+					}
+				} else {
+					sendWs(ws, { type: "auth_error", error: "Malformed auth response" } as unknown as WsEvent);
+					ws.close();
+				}
+				return;
+			}
+		};
+
+		const onNormalMessage = async (raw: unknown) => {
 			let message: WsRequest;
 			try {
 				message = JSON.parse(rawToString(raw)) as WsRequest;
@@ -372,7 +476,9 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 					});
 				}
 			}
-		});
+		};
+
+		ws.on("message", onAuthMessage);
 
 		ws.on("close", () => {
 			wsClients.delete(ws);
@@ -388,6 +494,10 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	wsServer.on("error", (err) => {
 		console.error("IPC websocket bridge error", err);
 	});
+}
+
+export function getWsAuthToken(): string {
+	return WS_AUTH_TOKEN;
 }
 
 export function stopIpcWebSocketBridge(): void {

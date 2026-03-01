@@ -5,131 +5,59 @@
 		<title>Settings - InferencePortAI</title>
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="Components.js"></script>
-		<style>
-			button:disabled {
-			    pointer-events: none;
-				opacity: 0.5;
-				cursor: not-allowed;
-			}
-			.email-input-wrapper textarea {
-				width: 100%;
-				box-sizing: border-box;
-				font-family: inherit;
-				font-size: 14px;
-				padding: 8px;
-				border: 1px solid #7abff8;
-				border-radius: 14px;
-				resize: vertical;
-				background-color: var(--input-bg);
-				color: var(--input-text);
-			}
-			.email-chip-input {
-				display: flex;
-				flex-wrap: wrap;
-				align-items: center;
-				gap: 6px;
-				padding: 8px 10px;
-				border: 1px solid #7abff8;
-				border-radius: 14px;
-				background: var(--input-bg);
-				max-width: 520px;
-				cursor: text;
-			}
-
-			.email-chip-input input {
-				border: none;
-				outline: none;
-				flex: 1;
-				min-width: 160px;
-				background: transparent;
-				color: var(--input-text);
-				font-size: 14px;
-				padding: 4px;
-			}
-
-			.chip {
-				display: inline-flex;
-				align-items: center;
-				gap: 6px;
-				padding: 4px 10px;
-				border-radius: 999px;
-				background: #3a82f7;
-				color: white;
-				font-size: 13px;
-			}
-
-			.chip button {
-				border: none;
-				background: transparent;
-				color: white;
-				cursor: pointer;
-				font-size: 14px;
-				line-height: 1;
-				padding: 0;
-			}
-
-			.chip.invalid {
-				background: #d9534f;
-			}
-
-		</style>
 		<script type="module" src="scripts/staticload/index.js"></script>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
-		<main style="padding: 40px">
+		<main class="settings-main">
 			<div class="settings-container">
 				<h1>Settings</h1>
-				
-				<details open><summary>General</summary>
-					<p> </p>
-					<div>
-						<button id="theme-toggle" class="theme-toggle">🌙 Dark Mode</button>
+
+				<details open class="settings-section">
+					<summary>General</summary>
+					<div class="settings-section-content">
+						<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
 					</div>
 				</details>
-				<p> </p>
-				<details open><summary>Startup</summary>
-					<p> </p>
-					<p>
-						<label>
+
+				<details open class="settings-section">
+					<summary>Startup</summary>
+					<div class="settings-section-content">
+						<label class="settings-checkbox">
 							<input type="checkbox" id="startup-run-at-login">
 							Start background server on device startup
 						</label>
-					</p>
-					<p>
-						<label>
+						<label class="settings-checkbox">
 							<input type="checkbox" id="startup-auto-proxy">
 							Auto-start hosting proxy (uses saved host users)
 						</label>
-					</p>
-					<p>
-						<label for="startup-ui-port">Web UI port</label><br />
+						<div class="settings-inline-row">
+							<label for="startup-ui-port">Web UI port</label>
 						<input
 							type="number"
 							id="startup-ui-port"
 							min="1"
 							max="65535"
 							step="1"
-							style="max-width:180px"
 						/>
-						<button id="startup-ui-port-save" class="theme-toggle" style="margin-left:8px">
+							<button id="startup-ui-port-save" class="theme-toggle">
 							Save UI Port
 						</button>
-					</p>
+						</div>
 					<p id="startup-ui-port-status" class="muted">
-						Reserved ports: 52440-52459.
+						Reserved ports: 52440-52458.
 					</p>
 					<p id="startup-status" class="muted"></p>
-				</details>
-				<p> </p>
-				<details open id="account-settings"><Summary>Account</Summary>
-					<p> </p>
-					<div>
-						<button id="open-rename" class="theme-toggle">Change Username</button>
 					</div>
-					<p> </p>
-					<div>
-						<button id="open-delete" class="theme-toggle red" style="color: red !important">Delete Account</button>
+				</details>
+
+				<details open id="account-settings" class="settings-section">
+					<summary>Account</summary>
+					<div class="settings-section-content">
+						<div class="settings-inline-row">
+						<button id="open-rename" class="theme-toggle">Change Username</button>
+							<button id="open-delete" class="theme-toggle">Delete Account</button>
+						</div>
 					</div>
 				</details>
 				<!--
@@ -141,23 +69,22 @@
 			</select>
 		</div>
 		-->
-					<p> </p>
-					<details open><summary>Syncing</summary>
-						<p> </p>
-						<p>
-							<label>
+					<details open class="settings-section"><summary>Syncing</summary>
+						<div class="settings-section-content">
+							<label class="settings-checkbox">
 								<input type="checkbox" id="sync-chats"> Enable chat sync
 							</label>
-						</p>
 						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
 						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
+						</div>
 					</details>
 
-					<details open><summary>Host (Proxy)</summary>
+					<details open class="settings-section"><summary>Host (Proxy)</summary>
+						<div class="settings-section-content">
 						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the comma-separated list of allowed emails, then click <strong>Start Hosting</strong>.</p>
-						<div style="display:flex;flex-direction:column;gap:8px;max-width:520px;">
+						<div class="settings-proxy-form">
 							<label>Port: 52458</label>
-							<label for="host-emails" class="field-label">
+							<label for="email-input" class="field-label">
 								Allowed emails
 								<span class="field-hint">(comma-separated)</span>
 							</label>
@@ -171,23 +98,25 @@
 									autocomplete="off"
 								/>
 							</div>
+							<textarea id="host-emails" hidden aria-hidden="true"></textarea>
 
 
-							<div class="modal-actions" style="padding:0">
-								<button id="host-start" style="max-width:200px">Start Hosting</button>
-								<button id="host-stop" disabled style="max-width:200px">Stop Hosting</button>
+							<div class="modal-actions settings-actions">
+								<button id="host-start">Start Hosting</button>
+								<button id="host-stop" disabled>Stop Hosting</button>
 							</div>
 							<p id="host-status" class="muted"></p>
 						</div>
 
-						<div id="server-logs-panel" style="margin-top:12px;display:none;max-width:720px;">
+						<div id="server-logs-panel" class="server-logs-panel">
 							<label>Server Logs &nbsp;&nbsp;&nbsp; <a id="logs-refresh" href="javascript:void(0)">Refresh</a></label>
-							<pre id="logs-output" style="background:var(--input-bg);color:var(--input-text);padding:12px;border-radius:8px;max-height:360px;overflow:auto;white-space:pre-wrap;word-break:break-word;border:1px solid #7abff8;"></pre>
+							<pre id="logs-output"></pre>
+						</div>
 						</div>
 					</details>
 			</div>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
+			<footer class="settings-footer">Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
+			<footer class="settings-footer"><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
 
 		</main>
 		<script type="module" src="scripts/settings.js"></script>

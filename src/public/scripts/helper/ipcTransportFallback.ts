@@ -17,7 +17,14 @@ type WsEventMessage = {
 	args?: unknown[];
 };
 
-type WsServerMessage = WsResultMessage | WsEventMessage;
+type WsAuthMessage = {
+	type: "auth_challenge" | "auth_response" | "auth_ok" | "auth_error";
+	challenge?: string;
+	signature?: string;
+	error?: string;
+};
+
+type WsServerMessage = WsResultMessage | WsEventMessage | WsAuthMessage;
 
 type PendingRequest = {
 	resolve: (value: unknown) => void;
@@ -29,6 +36,11 @@ type StorageChange = {
 	type: "set" | "remove" | "clear";
 	key?: string;
 	value?: string;
+};
+
+type BridgeWindowGlobals = {
+	__INFERENCEPORT_WS_URL__?: unknown;
+	__INFERENCEPORT_WS_AUTH_TOKEN__?: unknown;
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -119,6 +131,7 @@ class WsIpcClient {
 	private listeners = new Map<string, Set<ChannelListener>>();
 	private nextRequestId = 0;
 	private readonly urls: string[];
+	private authenticated = false;
 
 	constructor(urls: string[]) {
 		const normalized = urls
@@ -151,6 +164,16 @@ class WsIpcClient {
 		}
 
 		if (!message || typeof message !== "object") return;
+
+		// Skip non-auth messages if not authenticated
+		if (
+			message.type !== "auth_challenge" &&
+			message.type !== "auth_ok" &&
+			message.type !== "auth_error" &&
+			!this.authenticated
+		) {
+			return;
+		}
 
 		if (message.type === "result") {
 			const pending = this.pending.get(message.id);
@@ -192,6 +215,7 @@ class WsIpcClient {
 		socket.addEventListener("close", () => {
 			if (this.socket === socket) {
 				this.socket = null;
+				this.authenticated = false;
 			}
 			this.rejectAllPending("Websocket bridge disconnected");
 		});
@@ -201,6 +225,86 @@ class WsIpcClient {
 				console.warn(`Websocket bridge error at ${url}`);
 			}
 		});
+	}
+
+	private async authenticateSocket(socket: WebSocket): Promise<void> {
+		return new Promise((resolve, reject) => {
+			void resolveWsAuthToken()
+				.then((authToken) => this.completeAuth(socket, authToken, resolve, reject))
+				.catch((err) => reject(err));
+		});
+	}
+
+	private completeAuth(
+		socket: WebSocket,
+		authToken: string,
+		resolve: () => void,
+		reject: (error: unknown) => void,
+	): void {
+		let authSettled = false;
+		const authTimeout = setTimeout(() => {
+			if (!authSettled) {
+				authSettled = true;
+				handleAuthMessage.cleanup();
+				reject(new Error("Authentication handshake timed out"));
+			}
+		}, 5000);
+
+		const handleAuthMessage = async (event: Event) => {
+			if (!(event instanceof MessageEvent)) return;
+			if (typeof event.data !== "string") return;
+
+			let message: WsAuthMessage;
+			try {
+				message = JSON.parse(event.data);
+			} catch {
+				return;
+			}
+
+			if (!message || typeof message !== "object") return;
+
+			if (message.type === "auth_challenge" && typeof message.challenge === "string") {
+				try {
+					const signature = await signChallenge(authToken, message.challenge);
+					socket.send(
+						JSON.stringify({
+							type: "auth_response",
+							signature,
+						}),
+					);
+				} catch (err) {
+					if (!authSettled) {
+						authSettled = true;
+						handleAuthMessage.cleanup();
+						reject(new Error(`Failed to sign challenge: ${err}`));
+					}
+				}
+			} else if (message.type === "auth_ok") {
+				if (!authSettled) {
+					authSettled = true;
+					this.authenticated = true;
+					handleAuthMessage.cleanup();
+					resolve();
+				}
+			} else if (message.type === "auth_error") {
+				if (!authSettled) {
+					authSettled = true;
+					handleAuthMessage.cleanup();
+					reject(
+						new Error(
+							`Server auth error: ${message.error || "Unknown error"}`,
+						),
+					);
+				}
+			}
+		};
+
+		handleAuthMessage.cleanup = () => {
+			clearTimeout(authTimeout);
+			socket.removeEventListener("message", handleAuthMessage);
+		};
+
+		socket.addEventListener("message", handleAuthMessage);
 	}
 
 	private async connectSingle(url: string, timeoutMs = 1200): Promise<WebSocket> {
@@ -229,10 +333,16 @@ class WsIpcClient {
 
 			const onOpen = () => {
 				if (settled) return;
-				settled = true;
-				cleanup();
-				this.installSocketHandlers(socket, url);
-				resolve(socket);
+				// Start authentication before installing normal handlers
+				this.authenticateSocket(socket)
+					.then(() => {
+						if (settled) return;
+						settled = true;
+						cleanup();
+						this.installSocketHandlers(socket, url);
+						resolve(socket);
+					})
+					.catch((err) => fail(err as Error));
 			};
 
 			const onError = () => {
@@ -337,7 +447,7 @@ class WsIpcClient {
 }
 
 function resolveWsCandidates(): string[] {
-	const globalUrl = (window as { __INFERENCEPORT_WS_URL__?: unknown })
+	const globalUrl = (window as BridgeWindowGlobals)
 		.__INFERENCEPORT_WS_URL__;
 	if (typeof globalUrl === "string" && globalUrl.trim()) {
 		return [globalUrl.trim()];
@@ -365,6 +475,60 @@ function resolveWsCandidates(): string[] {
 	const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 	const host = window.location.hostname || "127.0.0.1";
 	return [`${protocol}://${host}:52457`, `${protocol}://${host}:52456`];
+}
+
+function readAuthTokenFromSearchParams(): string | null {
+	const params = new URLSearchParams(window.location.search);
+	const queryToken =
+		params.get("ipc_ws_token") ||
+		params.get("ipc_token") ||
+		params.get("ws_token") ||
+		params.get("token");
+	if (queryToken && queryToken.trim()) return queryToken.trim();
+	return null;
+}
+
+function readAuthTokenFromStorage(): string | null {
+	try {
+		const token =
+			localStorage.getItem("inferenceport_ws_auth_token") ||
+			localStorage.getItem("inferenceport_ws_token");
+		if (token && token.trim()) return token.trim();
+	} catch {
+		void 0;
+	}
+	return null;
+}
+
+async function resolveWsAuthToken(): Promise<string> {
+	const globalToken = (window as BridgeWindowGlobals).__INFERENCEPORT_WS_AUTH_TOKEN__;
+	if (typeof globalToken === "string" && globalToken.trim().length > 0) {
+		return globalToken.trim();
+	}
+
+	const queryToken = readAuthTokenFromSearchParams();
+	if (queryToken) return queryToken;
+
+	const storageToken = readAuthTokenFromStorage();
+	if (storageToken) return storageToken;
+
+	const provider = (window as any).electronAPI?.getWsAuthToken;
+	if (typeof provider === "function") {
+		const value = provider();
+		if (typeof value === "string" && value.trim()) {
+			return value.trim();
+		}
+		if (value instanceof Promise) {
+			const resolved = await value;
+			if (typeof resolved === "string" && resolved.trim()) {
+				return resolved.trim();
+			}
+		}
+	}
+
+	throw new Error(
+		"Auth token not available. Provide __INFERENCEPORT_WS_AUTH_TOKEN__, ?ipc_ws_token=..., or localStorage inferenceport_ws_auth_token.",
+	);
 }
 
 function escapeHtml(input: string): string {
@@ -396,6 +560,29 @@ function basicMarkdownParse(markdown: string): string {
 		.replace(/`([^`]+)`/g, "<code>$1</code>");
 
 	return basicSanitize(withInline).replace(/\n/g, "<br>");
+}
+
+async function signChallenge(token: string, challenge: string): Promise<string> {
+	const encoder = new TextEncoder();
+	const key = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(token),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		encoder.encode(challenge),
+	);
+	const bytes = new Uint8Array(signature);
+	let binary = "";
+	for (const byte of bytes) {
+		binary += String.fromCharCode(byte);
+	}
+	const base64 = btoa(binary);
+	return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function hasElectronIpc(): boolean {

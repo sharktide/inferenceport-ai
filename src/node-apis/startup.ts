@@ -16,7 +16,7 @@ export type StartupSettings = {
 };
 
 const RESERVED_PORT_MIN = 52440;
-const RESERVED_PORT_MAX = 52459;
+const RESERVED_PORT_MAX = 52458;
 
 const settingsFilePath = path.join(
 	app.getPath("userData"),

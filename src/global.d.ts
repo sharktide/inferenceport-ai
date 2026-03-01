@@ -191,6 +191,10 @@ declare global {
 				uiPort: number;
 			}>;
 		};
+
+		electronAPI: {
+			getWsAuthToken: () => Promise<string>;
+		};
 	}
 
 	type ModelInfo = {

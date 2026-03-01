@@ -27,7 +27,7 @@ const startupUiPortStatus = document.getElementById("startup-ui-port-status") as
 const startupStatus = document.getElementById("startup-status") as HTMLParagraphElement | null;
 let emails: string[] = [];
 const RESERVED_PORT_MIN = 52440;
-const RESERVED_PORT_MAX = 52459;
+const RESERVED_PORT_MAX = 52458;
 
 let hostConfigModal: declarations["iInstance"]["iModal"];
 let renameModal: declarations["iInstance"]["iModal"];

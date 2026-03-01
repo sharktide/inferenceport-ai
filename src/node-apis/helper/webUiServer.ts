@@ -2,6 +2,7 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getWsAuthToken } from "./ipcBridge.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,9 +53,30 @@ function tryResolvePublicPath(rawPath: string): string | null {
 	return null;
 }
 
+function getRequestHost(req: http.IncomingMessage, fallbackHost: string): string {
+	const hostHeader = req.headers.host;
+	if (typeof hostHeader !== "string" || hostHeader.trim().length === 0) {
+		return fallbackHost;
+	}
+	return hostHeader.split(":")[0] || fallbackHost;
+}
+
+function injectRuntimeBridgeConfig(
+	html: string,
+	wsUrl: string,
+	authToken: string,
+): string {
+	const script = `<script>window.__INFERENCEPORT_WS_URL__=${JSON.stringify(wsUrl)};window.__INFERENCEPORT_WS_AUTH_TOKEN__=${JSON.stringify(authToken)};</script>`;
+	if (html.includes("</head>")) {
+		return html.replace("</head>", `${script}</head>`);
+	}
+	return `${script}${html}`;
+}
+
 export async function startWebUiServer(
 	port = 52459,
 	host = "127.0.0.1",
+	wsPort = 52457,
 ): Promise<string> {
 	if (server) return `http://${host}:${port}`;
 
@@ -66,6 +88,21 @@ export async function startWebUiServer(
 				"Cache-Control": "no-store",
 			});
 			res.end("Not found");
+			return;
+		}
+
+		if (path.extname(filePath).toLowerCase() === ".html") {
+			const requestHost = getRequestHost(req, host);
+			const wsUrl = `ws://${requestHost}:${wsPort}`;
+			const authToken = getWsAuthToken();
+			const html = fs.readFileSync(filePath, "utf-8");
+			const payload = injectRuntimeBridgeConfig(html, wsUrl, authToken);
+			res.writeHead(200, {
+				"Content-Type": "text/html; charset=utf-8",
+				"Cache-Control": "no-cache",
+				"Access-Control-Allow-Origin": "*",
+			});
+			res.end(payload);
 			return;
 		}
 

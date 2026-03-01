@@ -29,6 +29,7 @@ import spacesHandlers from "./node-apis/spaces.js";
 import {
 	initIpcWebSocketBridge,
 	stopIpcWebSocketBridge,
+	getWsAuthToken,
 } from "./node-apis/helper/ipcBridge.js";
 import storageSyncHandlers from "./node-apis/storageSync.js";
 import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
@@ -374,6 +375,7 @@ app.whenReady().then(async () => {
 	}
 
 	ipcMain.handle("session:getPath", () => chatDir);
+	ipcMain.handle("get-ws-auth-token", () => getWsAuthToken());
 
 	authHandlers();
 	chatStreamHandlers();
@@ -468,7 +470,7 @@ app.whenReady().then(async () => {
 
 	fireAndForget(serve(), "serve");
 	fireAndForget(
-		startWebUiServer(startupSettings.uiPort || DEFAULT_WEB_UI_PORT),
+		startWebUiServer(startupSettings.uiPort || DEFAULT_WEB_UI_PORT, "127.0.0.1", wsPort),
 		"startWebUiServer",
 	);
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");

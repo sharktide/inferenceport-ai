@@ -233,3 +233,7 @@ contextBridge.exposeInMainWorld("startup", {
 		proxyUsers?: { email: string; role: string }[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),
 });
+
+contextBridge.exposeInMainWorld("electronAPI", {
+	getWsAuthToken: () => ipcRenderer.invoke("get-ws-auth-token"),
+});
