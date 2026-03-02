@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
+import type { Session, AuthChangeEvent, Subscription } from "@supabase/supabase-js";
 import { app, ipcMain, session } from "electron";
 
 import fs from "fs";
@@ -7,6 +7,7 @@ import path from "path";
 import { shell } from "electron";
 
 import type { Message, SessionType } from "./types/index.types.d.ts";
+import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
@@ -273,13 +274,27 @@ export default function register() {
 		}
 	);
 
+	let authStateChangeUnsubscribe: { subscription: Subscription } | null = null;
+
 	ipcMain.handle("auth:onAuthStateChange", (event) => {
-		const { data: listener } = supabase.auth.onAuthStateChange(
-			(_eventType, session) => {
-				event.sender.send("auth:stateChanged", toRendererSession(session));
+		if (authStateChangeUnsubscribe) {
+			authStateChangeUnsubscribe.subscription.unsubscribe();
+		}
+
+		authStateChangeUnsubscribe = supabase.auth.onAuthStateChange(
+			(_eventType: AuthChangeEvent, session: Session | null) => {
+				broadcastIpcEvent("auth:stateChanged", toRendererSession(session));
 			}
-		);
+		).data;
+
 		return { success: true };
+	});
+
+	ipcMain.on("destroy", () => {
+		if (authStateChangeUnsubscribe) {
+			authStateChangeUnsubscribe.subscription.unsubscribe();
+			authStateChangeUnsubscribe = null;
+		}
 	});
 
 	ipcMain.handle("auth:resetPassword", async (_event, email: string) => {
