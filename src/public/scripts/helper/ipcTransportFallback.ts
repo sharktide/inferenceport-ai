@@ -46,7 +46,8 @@ type BridgeRuntimeConfig = {
 	wsUrl: string;
 };
 
-let bridgeRuntimeConfigPromise: Promise<BridgeRuntimeConfig | null> | null = null;
+let bridgeRuntimeConfigPromise: Promise<BridgeRuntimeConfig | null> | null =
+	null;
 
 function isObject(value: unknown): value is Record<string, unknown> {
 	return !!value && typeof value === "object" && !Array.isArray(value);
@@ -96,8 +97,17 @@ function encodeValue(value: unknown): unknown {
 	}
 
 	if (isObject(value)) {
-		const out: Record<string, unknown> = {};
+		const out: Record<string, unknown> = Object.create(null) as Record<
+			string,
+			unknown
+		>;
 		for (const [key, entry] of Object.entries(value)) {
+			if (
+				key === "__proto__" ||
+				key === "constructor" ||
+				key === "prototype"
+			)
+				continue;
 			out[key] = encodeValue(entry);
 		}
 		return out;
@@ -112,15 +122,21 @@ function decodeValue(value: unknown): unknown {
 	}
 
 	if (isObject(value)) {
-		if (
-			value.__ipcType === "bytes" &&
-			typeof value.base64 === "string"
-		) {
+		if (value.__ipcType === "bytes" && typeof value.base64 === "string") {
 			return fromBase64(value.base64);
 		}
 
-		const out: Record<string, unknown> = {};
+		const out: Record<string, unknown> = Object.create(null) as Record<
+			string,
+			unknown
+		>;
 		for (const [key, entry] of Object.entries(value)) {
+			if (
+				key === "__proto__" ||
+				key === "constructor" ||
+				key === "prototype"
+			)
+				continue;
 			out[key] = decodeValue(entry);
 		}
 		return out;
@@ -158,7 +174,9 @@ class WsIpcClient {
 	}
 
 	private onServerMessage(raw: unknown): void {
-		const rawLog = String(raw).replace(/[\x00-\x1F\x7F]/g, " ").slice(0, 500);
+		const rawLog = String(raw)
+			.replace(/[\x00-\x1F\x7F]/g, " ")
+			.slice(0, 500);
 		console.log("Received IPC message", rawLog);
 		if (typeof raw !== "string") return;
 
@@ -198,16 +216,26 @@ class WsIpcClient {
 			const handlers = this.listeners.get(message.channel);
 			if (!handlers || handlers.size === 0) return;
 
-			const args = (message.args || []).map((entry) => decodeValue(entry));
+			const args = (message.args || []).map((entry) =>
+				decodeValue(entry),
+			);
 			for (const handler of handlers) {
 				try {
 					handler(...args);
 				} catch (err) {
 					const channelLog =
 						typeof message.channel === "string"
-							? message.channel.replace(/[\r\n]/g, " ").slice(0, 200)
-							: String(message.channel).replace(/[\r\n]/g, " ").slice(0, 200);
-					console.warn("IPC event listener failed for", channelLog, err);
+							? message.channel
+									.replace(/[\r\n]/g, " ")
+									.slice(0, 200)
+							: String(message.channel)
+									.replace(/[\r\n]/g, " ")
+									.slice(0, 200);
+					console.warn(
+						"IPC event listener failed for",
+						channelLog,
+						err,
+					);
 				}
 			}
 		}
@@ -270,9 +298,14 @@ class WsIpcClient {
 
 			if (!message || typeof message !== "object") return;
 
-			if (message.type === "auth_challenge" && typeof message.challenge === "string") {
+			if (
+				message.type === "auth_challenge" &&
+				typeof message.challenge === "string"
+			) {
 				try {
-					const signature = await resolveChallengeSignature(message.challenge);
+					const signature = await resolveChallengeSignature(
+						message.challenge,
+					);
 					socket.send(
 						JSON.stringify({
 							type: "auth_response",
@@ -314,7 +347,10 @@ class WsIpcClient {
 		socket.addEventListener("message", handleAuthMessage);
 	}
 
-	private async connectSingle(url: string, timeoutMs = 1200): Promise<WebSocket> {
+	private async connectSingle(
+		url: string,
+		timeoutMs = 1200,
+	): Promise<WebSocket> {
 		return await new Promise((resolve, reject) => {
 			const socket = new WebSocket(url);
 			let settled = false;
@@ -353,15 +389,27 @@ class WsIpcClient {
 			};
 
 			const onError = () => {
-				fail(new Error(`Unable to connect to websocket bridge at ${url}`));
+				fail(
+					new Error(
+						`Unable to connect to websocket bridge at ${url}`,
+					),
+				);
 			};
 
 			const onClose = () => {
-				fail(new Error(`Websocket bridge closed during connect at ${url}`));
+				fail(
+					new Error(
+						`Websocket bridge closed during connect at ${url}`,
+					),
+				);
 			};
 
 			const timerId = setTimeout(() => {
-				fail(new Error(`Timed out connecting to websocket bridge at ${url}`));
+				fail(
+					new Error(
+						`Timed out connecting to websocket bridge at ${url}`,
+					),
+				);
 			}, timeoutMs);
 
 			socket.addEventListener("open", onOpen);
@@ -454,8 +502,7 @@ class WsIpcClient {
 }
 
 function resolveWsCandidates(): string[] {
-	const globalUrl = (window as BridgeWindowGlobals)
-		.__INFERENCEPORT_WS_URL__;
+	const globalUrl = (window as BridgeWindowGlobals).__INFERENCEPORT_WS_URL__;
 	if (typeof globalUrl === "string" && globalUrl.trim()) {
 		return [globalUrl.trim()];
 	}
@@ -507,7 +554,10 @@ async function fetchBridgeRuntimeConfig(): Promise<BridgeRuntimeConfig | null> {
 				}
 
 				try {
-					localStorage.setItem("inferenceport_ws_url", payload.wsUrl.trim());
+					localStorage.setItem(
+						"inferenceport_ws_url",
+						payload.wsUrl.trim(),
+					);
 				} catch {
 					void 0;
 				}
@@ -524,7 +574,9 @@ async function fetchBridgeRuntimeConfig(): Promise<BridgeRuntimeConfig | null> {
 	return await bridgeRuntimeConfigPromise;
 }
 
-async function signChallengeWithServer(challenge: string): Promise<string | null> {
+async function signChallengeWithServer(
+	challenge: string,
+): Promise<string | null> {
 	if (window.location.protocol === "file:") return null;
 	try {
 		const response = await fetch("/__inferenceport/ws-sign", {
@@ -538,7 +590,10 @@ async function signChallengeWithServer(challenge: string): Promise<string | null
 		});
 		if (!response.ok) return null;
 		const payload = (await response.json()) as { signature?: unknown };
-		if (typeof payload.signature !== "string" || !payload.signature.trim()) {
+		if (
+			typeof payload.signature !== "string" ||
+			!payload.signature.trim()
+		) {
 			return null;
 		}
 		return payload.signature.trim();
@@ -564,7 +619,6 @@ function escapeHtml(input: string): string {
 		.replace(/"/g, "&quot;")
 		.replace(/'/g, "&#39;");
 }
-
 
 function hasElectronIpc(): boolean {
 	return (
@@ -592,10 +646,12 @@ function normalizeAuthSessionView(value: unknown): AuthSessionView {
 	const user =
 		rawUser && typeof rawUser.id === "string"
 			? {
-				id: rawUser.id,
-				provider:
-					typeof rawUser.provider === "string" ? rawUser.provider : null,
-			}
+					id: rawUser.id,
+					provider:
+						typeof rawUser.provider === "string"
+							? rawUser.provider
+							: null,
+				}
 			: null;
 
 	return {
@@ -604,8 +660,7 @@ function normalizeAuthSessionView(value: unknown): AuthSessionView {
 				? value.isAuthenticated
 				: false,
 		user,
-		expiresAt:
-			typeof value.expiresAt === "string" ? value.expiresAt : null,
+		expiresAt: typeof value.expiresAt === "string" ? value.expiresAt : null,
 	};
 }
 
@@ -625,7 +680,10 @@ function writeBrowserAuthSession(session: AuthSessionView | null): void {
 			localStorage.removeItem(getBrowserAuthSessionKey());
 			return;
 		}
-		localStorage.setItem(getBrowserAuthSessionKey(), JSON.stringify(session));
+		localStorage.setItem(
+			getBrowserAuthSessionKey(),
+			JSON.stringify(session),
+		);
 	} catch {
 		void 0;
 	}
@@ -645,7 +703,9 @@ function createEventHub() {
 	const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 	return {
 		on: (channel: string, cb: (...args: unknown[]) => void) => {
-			const set = listeners.get(channel) || new Set<(...args: unknown[]) => void>();
+			const set =
+				listeners.get(channel) ||
+				new Set<(...args: unknown[]) => void>();
 			set.add(cb);
 			listeners.set(channel, set);
 		},
@@ -676,34 +736,51 @@ export function installWebSocketTransportFallback(): void {
 		return (await client.invoke(channel, ...args)) as T;
 	};
 
-	client.on("ollama:chat-token", (token) => events.emit("ollama:chat-token", token));
-	client.on("ollama:chat-error", (err) => events.emit("ollama:chat-error", err));
+	client.on("ollama:chat-token", (token) =>
+		events.emit("ollama:chat-token", token),
+	);
+	client.on("ollama:chat-error", (err) =>
+		events.emit("ollama:chat-error", err),
+	);
 	client.on("ollama:chat-done", () => events.emit("ollama:chat-done"));
 	client.on("ollama:chat-aborted", () => events.emit("ollama:chat-aborted"));
-	client.on("ollama:new_tool_call", (call) => events.emit("ollama:new_tool_call", call));
-	client.on("ollama:new-asset", (asset) => events.emit("ollama:new-asset", asset));
+	client.on("ollama:new_tool_call", (call) =>
+		events.emit("ollama:new_tool_call", call),
+	);
+	client.on("ollama:new-asset", (asset) =>
+		events.emit("ollama:new-asset", asset),
+	);
 	client.on("ollama:pull-progress", (progress) =>
 		events.emit("ollama:pull-progress", progress),
 	);
-	client.on("ollama:logs-append", (chunk) => events.emit("ollama:logs-append", chunk));
+	client.on("ollama:logs-append", (chunk) =>
+		events.emit("ollama:logs-append", chunk),
+	);
 	client.on("auth:stateChanged", (session) => {
 		const safeSession = normalizeAuthSessionView(session);
 		writeBrowserAuthSession(safeSession);
 		events.emit("auth:stateChanged", safeSession);
 	});
-	client.on("storage:changed", (change) => events.emit("storage:changed", change));
+	client.on("storage:changed", (change) =>
+		events.emit("storage:changed", change),
+	);
 
 	window.ollama = {
 		listModels: async (clientUrl?: string) =>
-			invokeOrDefault<ModelInfo[]>(
-				"ollama:list",
-				[clientUrl]
-			),
+			invokeOrDefault<ModelInfo[]>("ollama:list", [clientUrl]),
 		runModel: async (name: string) => String(name),
 		deleteModel: async (name: string, clientUrl?: string) =>
 			invokeOrDefault<string>("ollama:delete", [name, clientUrl]),
-		autoNameSession: async (model: string, prompt: string, clientUrl?: string | undefined) => {
-			return await invokeOrDefault<string>("ollama:auto-name-session", [model, prompt, clientUrl]);
+		autoNameSession: async (
+			model: string,
+			prompt: string,
+			clientUrl?: string | undefined,
+		) => {
+			return await invokeOrDefault<string>("ollama:auto-name-session", [
+				model,
+				prompt,
+				clientUrl,
+			]);
 		},
 		resetChat: async () => {
 			await invokeOrDefault("ollama:reset", []);
@@ -716,7 +793,9 @@ export function installWebSocketTransportFallback(): void {
 		pullModel: async (name: string, clientUrl?: string) =>
 			invokeOrDefault<string>("ollama:pull", [name, clientUrl]),
 		onPullProgress: (cb: (data: PullProgress) => void) => {
-			events.on("ollama:pull-progress", (data) => cb(data as PullProgress));
+			events.on("ollama:pull-progress", (data) =>
+				cb(data as PullProgress),
+			);
 		},
 		streamPrompt: (
 			model: string,
@@ -733,7 +812,8 @@ export function installWebSocketTransportFallback(): void {
 				.send("ollama:chat-stream", model, prompt, toolList, clientUrl)
 				.catch((err) => {
 					queueMicrotask(() => {
-						const detail = err instanceof Error ? err.message : String(err);
+						const detail =
+							err instanceof Error ? err.message : String(err);
 						events.emit(
 							"ollama:chat-error",
 							`Unable to reach local websocket bridge (ports 52457 then 52456). ${detail}`,
@@ -756,16 +836,11 @@ export function installWebSocketTransportFallback(): void {
 		onToolCall: (cb: (call: any) => void) => {
 			events.on("ollama:new_tool_call", (call) => cb(call));
 		},
-		load: async () =>
-			invokeOrDefault<Sessions>("sessions:load", []),
+		load: async () => invokeOrDefault<Sessions>("sessions:load", []),
 		save: async (sessions: Sessions) => {
-			await invokeOrDefault(
-				"sessions:save",
-				[sessions],
-			);
+			await invokeOrDefault("sessions:save", [sessions]);
 		},
-		getPath: async () =>
-			invokeOrDefault<string>("session:getPath", []),
+		getPath: async () => invokeOrDefault<string>("session:getPath", []),
 		removeAllListeners: () => {
 			events.clear("ollama:chat-token");
 			events.clear("ollama:chat-error");
@@ -791,7 +866,10 @@ export function installWebSocketTransportFallback(): void {
 			port: number,
 			allowedUsers: { email: string; role: string }[],
 		) => {
-			await invokeOrDefault("ollama:start-proxy-server", [port, allowedUsers]);
+			await invokeOrDefault("ollama:start-proxy-server", [
+				port,
+				allowedUsers,
+			]);
 		},
 		stopServer: async () => {
 			await invokeOrDefault("ollama:stop-proxy-server", []);
@@ -807,44 +885,48 @@ export function installWebSocketTransportFallback(): void {
 			isModelFile: boolean,
 			clientUrl?: string,
 		) =>
-			invokeOrDefault<string>(
-				"ollama:import-gguf",
-				[fileName, data, isModelFile, clientUrl],
-			),
+			invokeOrDefault<string>("ollama:import-gguf", [
+				fileName,
+				data,
+				isModelFile,
+				clientUrl,
+			]),
 		importGGUFMulti: async (
 			modelfileData: Uint8Array | null,
 			ggufName: string,
 			ggufData: Uint8Array | null,
 			clientUrl?: string,
 		) =>
-			invokeOrDefault<string>(
-				"ollama:import-gguf-multi",
-				[modelfileData, ggufName, ggufData, clientUrl],
-			),
+			invokeOrDefault<string>("ollama:import-gguf-multi", [
+				modelfileData,
+				ggufName,
+				ggufData,
+				clientUrl,
+			]),
 		resolveVideoToolCall: async (
 			toolCallId: string,
 			payload: Record<string, unknown> | null,
 		) =>
-			invokeOrDefault<boolean>(
-				"ollama:resolve-video-tool-call",
-				[toolCallId, payload],
-			),
+			invokeOrDefault<boolean>("ollama:resolve-video-tool-call", [
+				toolCallId,
+				payload,
+			]),
 		resolveImageToolCall: async (
 			toolCallId: string,
 			payload: Record<string, unknown> | null,
 		) =>
-			invokeOrDefault<boolean>(
-				"ollama:resolve-image-tool-call",
-				[toolCallId, payload],
-			),
+			invokeOrDefault<boolean>("ollama:resolve-image-tool-call", [
+				toolCallId,
+				payload,
+			]),
 		resolveAudioToolCall: async (
 			toolCallId: string,
 			payload: Record<string, unknown> | null,
 		) =>
-			invokeOrDefault<boolean>(
-				"ollama:resolve-audio-tool-call",
-				[toolCallId, payload],
-			),
+			invokeOrDefault<boolean>("ollama:resolve-audio-tool-call", [
+				toolCallId,
+				payload,
+			]),
 	};
 
 	window.utils = {
@@ -862,8 +944,13 @@ export function installWebSocketTransportFallback(): void {
 				window.open(url, "_blank", "noopener,noreferrer");
 			}
 		},
-		markdown_parse_and_purify: async (markdown: string): Promise<string> => {
-			return client.invoke("utils:markdown_parse_and_purify", markdown) as Promise<string>;
+		markdown_parse_and_purify: async (
+			markdown: string,
+		): Promise<string> => {
+			return client.invoke(
+				"utils:markdown_parse_and_purify",
+				markdown,
+			) as Promise<string>;
 		},
 		DOMPurify: (html: string): Promise<string> => {
 			return client.invoke("utils:dompurify", html) as Promise<string>;
@@ -874,10 +961,10 @@ export function installWebSocketTransportFallback(): void {
 		getPath: async (): Promise<string> =>
 			invokeOrDefault<string>("utils:getPath", []),
 		getWarning: async (modelSize: string, clientUrl?: string) =>
-			invokeOrDefault(
-				"utils:get-hardware-performance-warning",
-				[modelSize, clientUrl],
-			),
+			invokeOrDefault("utils:get-hardware-performance-warning", [
+				modelSize,
+				clientUrl,
+			]),
 		isFirstLaunch: async () =>
 			invokeOrDefault<boolean>("utils:is-first-launch", []),
 		resetFirstLaunch: async () =>
@@ -904,10 +991,7 @@ export function installWebSocketTransportFallback(): void {
 
 	window.auth = {
 		signInWithEmail: async (email: string, password: string) =>
-			invokeOrDefault(
-				"auth:signInWithEmail",
-				[email, password],
-			),
+			invokeOrDefault("auth:signInWithEmail", [email, password]),
 		signInWithGitHub: async () => {
 			window.location.assign(buildProviderAuthUrl("github"));
 		},
@@ -915,24 +999,23 @@ export function installWebSocketTransportFallback(): void {
 			window.location.assign(buildProviderAuthUrl("google"));
 		},
 		signUpWithEmail: async (email: string, password: string) =>
-			invokeOrDefault(
-				"auth:signUpWithEmail",
-				[email, password],
-			),
+			invokeOrDefault("auth:signUpWithEmail", [email, password]),
 		setUsername: async (userId: string, username: string) =>
-			invokeOrDefault(
-				"auth:setUsername",
-				[userId, username],
-			),
+			invokeOrDefault("auth:setUsername", [userId, username]),
 		signOut: async () => {
 			writeBrowserAuthSession(null);
 			events.emit("auth:stateChanged", getDefaultAuthSession());
 			return await invokeOrDefault("auth:signOut", []);
 		},
 		getSession: async () => {
-			const result = await invokeOrDefault<AuthSessionResponse>("auth:getSession", []);
+			const result = await invokeOrDefault<AuthSessionResponse>(
+				"auth:getSession",
+				[],
+			);
 			if (result?.session) {
-				writeBrowserAuthSession(normalizeAuthSessionView(result.session));
+				writeBrowserAuthSession(
+					normalizeAuthSessionView(result.session),
+				);
 			}
 			return result;
 		},
@@ -944,24 +1027,17 @@ export function installWebSocketTransportFallback(): void {
 			callback(readBrowserAuthSession());
 		},
 		resetPassword: async (email: string) =>
-			invokeOrDefault(
-				"auth:resetPassword",
-				[email],
-			),
+			invokeOrDefault("auth:resetPassword", [email]),
 		verifyPassword: async (password: string) =>
-			invokeOrDefault(
-				"auth:verify-password",
-				[{ password }],
-			),
-		deleteAccount: async () =>
-			invokeOrDefault(
-				"auth:delete-account",
-				[],
-			),
-		setSessionFromTokens: async (accessToken: string, refreshToken: string) => {
+			invokeOrDefault("auth:verify-password", [{ password }]),
+		deleteAccount: async () => invokeOrDefault("auth:delete-account", []),
+		setSessionFromTokens: async (
+			accessToken: string,
+			refreshToken: string,
+		) => {
 			const result = await invokeOrDefault<AuthSessionResponse>(
 				"auth:setSessionTokens",
-				[accessToken, refreshToken]
+				[accessToken, refreshToken],
 			);
 			if (result?.session) {
 				const safeSession = normalizeAuthSessionView(result.session);
@@ -981,7 +1057,7 @@ export function installWebSocketTransportFallback(): void {
 		saveAllSessions: async (sessions: Record<string, Sessions>) =>
 			invokeOrDefault<string | { error: string }>(
 				"sync:saveAllSessions",
-				[sessions]
+				[sessions],
 			),
 	};
 
@@ -992,23 +1068,17 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<boolean>("storage:set-item", [key, value]),
 		removeItem: async (key: string) =>
 			invokeOrDefault<boolean>("storage:remove-item", [key]),
-		clear: async () =>
-			invokeOrDefault<boolean>("storage:clear", []),
+		clear: async () => invokeOrDefault<boolean>("storage:clear", []),
 		onChange: (callback: (change: StorageChange) => void) => {
-			events.on("storage:changed", (change) => callback(change as StorageChange));
+			events.on("storage:changed", (change) =>
+				callback(change as StorageChange),
+			);
 		},
 	};
 
 	window.startup = {
-		getSettings: async () =>
-			invokeOrDefault(
-				"startup:get-settings",
-				[]
-			),
+		getSettings: async () => invokeOrDefault("startup:get-settings", []),
 		updateSettings: async (patch) =>
-			invokeOrDefault(
-				"startup:update-settings",
-				[patch]
-			),
+			invokeOrDefault("startup:update-settings", [patch]),
 	};
 }
