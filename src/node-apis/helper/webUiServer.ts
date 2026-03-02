@@ -1,9 +1,11 @@
 import http from "http";
+import https from "https";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { signWsAuthChallenge } from "./ipcBridge.js";
-
+import type { TLSSocket } from "tls";
+import type { Socket } from "net"
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, "..", "..", "public");
@@ -77,10 +79,14 @@ function sendJson(
 	res.end(JSON.stringify(body));
 }
 
-function getAllowedOrigins(port: number): Set<string> {
-	return new Set([
+function getAllowedOrigins(port: number, protocol: string): Set<string> {
+	if (port === 80 && protocol === "http") return new Set(["http://127.0.0.1", "http://localhost", "http://127.0.0.1/", "http://localhost/"]);
+	else if (port === 443 && protocol === "https") return new Set(["https://127.0.0.1", "https://localhost", "http://127.0.0.1/", "http://localhost/"]);
+	else return new Set([
 		`http://127.0.0.1:${port}`,
 		`http://localhost:${port}`,
+		`http://127.0.0.1:${port}/`,
+		`http://localhost:${port}/`
 	]);
 }
 
@@ -116,11 +122,14 @@ function isFetchMetadataAllowed(req: http.IncomingMessage): boolean {
 	return true;
 }
 
+interface ExtendedSocket extends Socket {
+  encrypted: boolean | undefined;
+}
+
 function isAllowedWebUiRequest(req: http.IncomingMessage, port: number): boolean {
 	if (!isFetchMetadataAllowed(req)) return false;
-
-	const allowedOrigins = getAllowedOrigins(port);
-
+	const allowedOrigins = getAllowedOrigins(port, (req.socket as ExtendedSocket).encrypted ? "https" : "http")
+	console.log("allowedOrigins", allowedOrigins);
 	const origin =
 		typeof req.headers.origin === "string"
 			? req.headers.origin.trim().toLowerCase()

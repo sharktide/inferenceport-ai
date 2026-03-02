@@ -103,9 +103,11 @@ function loadOrCreateWsAuthToken(): string {
 
 			return existing || generated;
 		}
-
 	} catch (err) {
-		console.warn(sanitizeForLog("Unable to load websocket auth token from userData"), err);
+		console.warn(
+			sanitizeForLog("Unable to load websocket auth token from userData"),
+			err,
+		);
 		return generated;
 	}
 }
@@ -178,10 +180,7 @@ function decodeValue(value: unknown): unknown {
 	}
 
 	if (isObject(value)) {
-		if (
-			value.__ipcType === "bytes" &&
-			typeof value.base64 === "string"
-		) {
+		if (value.__ipcType === "bytes" && typeof value.base64 === "string") {
 			return Buffer.from(value.base64, "base64");
 		}
 
@@ -243,12 +242,20 @@ export function signWsAuthChallenge(challenge: string): string {
 		.digest("base64url");
 }
 
-function verifyHmac(token: string, challenge: string, signature: string): boolean {
-	const expected = createHmac("sha256", token).update(challenge).digest("base64url");
+function verifyHmac(
+	token: string,
+	challenge: string,
+	signature: string,
+): boolean {
+	const expected = createHmac("sha256", token)
+		.update(challenge)
+		.digest("base64url");
 	return expected === signature;
 }
 
-function createSender(ws: WebSocket): { send: (channel: string, ...args: unknown[]) => void } {
+function createSender(ws: WebSocket): {
+	send: (channel: string, ...args: unknown[]) => void;
+} {
 	return {
 		send: (channel: string, ...args: unknown[]) => {
 			sendWs(ws, {
@@ -348,7 +355,11 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 		try {
 			win.webContents.send(channel, ...args);
 		} catch (err) {
-			console.warn("Failed to broadcast IPC event", sanitizeForLog(channel), err);
+			console.warn(
+				"Failed to broadcast IPC event",
+				sanitizeForLog(channel),
+				err,
+			);
 		}
 	}
 
@@ -369,6 +380,27 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 		sendWs(ws, payload);
 	}
 }
+function normalizeOrigin(origin: string): string {
+	try {
+		const url = new URL(origin);
+		const protocol = url.protocol;
+		const hostname = url.hostname;
+		const port = url.port;
+
+		if (
+			(protocol === "http:" && port === "80") ||
+			(protocol === "https:" && port === "443")
+		) {
+			return `${protocol}//${hostname}`;
+		}
+
+		return port
+			? `${protocol}//${hostname}:${port}`
+			: `${protocol}//${hostname}`;
+	} catch {
+		return origin;
+	}
+}
 
 export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	trackIpcChannels();
@@ -379,13 +411,11 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		options.port ?? process.env.INFERENCEPORT_IPC_WS_PORT ?? 52459,
 	);
 	const wsHost =
-		options.host ??
-		process.env.INFERENCEPORT_IPC_WS_HOST ??
-		"127.0.0.1";
+		options.host ?? process.env.INFERENCEPORT_IPC_WS_HOST ?? "127.0.0.1";
 	const allowedOrigins = new Set(
 		(options.allowedOrigins || [])
-			.map((origin) => origin.trim().toLowerCase())
-			.filter((origin) => origin.length > 0),
+			.map((o) => normalizeOrigin(o.trim().toLowerCase()))
+			.filter((o) => o.length > 0),
 	);
 
 	wsServer = new WebSocketServer({
@@ -397,7 +427,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 	wsServer.on("connection", (ws, req) => {
 		const originHeader =
 			typeof req.headers.origin === "string"
-				? req.headers.origin.trim().toLowerCase()
+				? normalizeOrigin(req.headers.origin.trim().toLowerCase())
 				: "";
 		if (allowedOrigins.size > 0 && !allowedOrigins.has(originHeader)) {
 			try {
@@ -420,7 +450,9 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		const onAuthMessage = async (raw: unknown) => {
 			let message: WsAuthMessage | WsRequest;
 			try {
-				message = JSON.parse(rawToString(raw)) as WsAuthMessage | WsRequest;
+				message = JSON.parse(rawToString(raw)) as
+					| WsAuthMessage
+					| WsRequest;
 			} catch {
 				return;
 			}
@@ -433,7 +465,13 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 					(message as WsAuthMessage).type === "auth_response" &&
 					typeof (message as WsAuthMessage).signature === "string"
 				) {
-					if (verifyHmac(WS_AUTH_TOKEN, challenge, (message as WsAuthMessage).signature!)) {
+					if (
+						verifyHmac(
+							WS_AUTH_TOKEN,
+							challenge,
+							(message as WsAuthMessage).signature!,
+						)
+					) {
 						authenticated = true;
 						wsClients.add(ws);
 						sendWs(ws, { type: "auth_ok" } as unknown as WsEvent);
@@ -441,11 +479,17 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 						ws.off("message", onAuthMessage);
 						ws.on("message", onNormalMessage);
 					} else {
-						sendWs(ws, { type: "auth_error", error: "Invalid signature" } as unknown as WsEvent);
+						sendWs(ws, {
+							type: "auth_error",
+							error: "Invalid signature",
+						} as unknown as WsEvent);
 						ws.close();
 					}
 				} else {
-					sendWs(ws, { type: "auth_error", error: "Malformed auth response" } as unknown as WsEvent);
+					sendWs(ws, {
+						type: "auth_error",
+						error: "Malformed auth response",
+					} as unknown as WsEvent);
 					ws.close();
 				}
 				return;
@@ -486,7 +530,9 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 				if (!message.id) {
 					void dispatchSend(message, ws).catch((err) => {
 						console.warn(
-							sanitizeForLog(`IPC send dispatch failed for '${message.channel}'`),
+							sanitizeForLog(
+								`IPC send dispatch failed for '${message.channel}'`,
+							),
 							err,
 						);
 					});
