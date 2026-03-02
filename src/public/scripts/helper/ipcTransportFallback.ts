@@ -593,29 +593,6 @@ function getFallbackSessionStorageKey(): string {
 	return "inferenceport.browser.sessions";
 }
 
-function readFallbackSessions(): Sessions {
-	try {
-		const raw = localStorage.getItem(getFallbackSessionStorageKey());
-		if (!raw) return {};
-		const parsed = JSON.parse(raw) as Sessions;
-		if (!parsed || typeof parsed !== "object") return {};
-		return parsed;
-	} catch {
-		return {};
-	}
-}
-
-function writeFallbackSessions(sessions: Sessions): void {
-	try {
-		localStorage.setItem(
-			getFallbackSessionStorageKey(),
-			JSON.stringify(sessions),
-		);
-	} catch {
-		void 0;
-	}
-}
-
 function getBrowserAuthSessionKey(): string {
 	return "inferenceport.browser.auth.session";
 }
@@ -676,31 +653,12 @@ function writeBrowserAuthSession(session: AuthSessionView | null): void {
 
 function buildProviderAuthUrl(provider: "github" | "google"): string {
 	const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
-	const redirectTo = `${window.location.origin}/auth.html`;
+	const redirectTo = `https://inference.js.org/authcallback.html?rd=${window.location.origin}/auth.html`;
 	const params = new URLSearchParams({
 		provider,
 		redirect_to: redirectTo,
 	});
 	return `${supabaseUrl}/auth/v1/authorize?${params.toString()}`;
-}
-
-function getClientBase(clientUrl?: string): string {
-	if (clientUrl && clientUrl.trim() && clientUrl.trim() !== "lightning") {
-		return clientUrl.replace(/\/$/, "");
-	}
-	return "http://localhost:11434";
-}
-
-function randomId(): string {
-	return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function formatModelSize(bytes?: number): string {
-	if (!bytes || !Number.isFinite(bytes)) return "Unknown";
-	const gb = bytes / (1024 ** 3);
-	if (gb >= 1) return `${gb.toFixed(1)} GB`;
-	const mb = bytes / (1024 ** 2);
-	return `${mb.toFixed(0)} MB`;
 }
 
 function createEventHub() {
