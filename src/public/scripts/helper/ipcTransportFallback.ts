@@ -203,7 +203,11 @@ class WsIpcClient {
 				try {
 					handler(...args);
 				} catch (err) {
-					console.warn("IPC event listener failed for", message.channel, err);
+					const channelLog =
+						typeof message.channel === "string"
+							? message.channel.replace(/[\r\n]/g, " ").slice(0, 200)
+							: String(message.channel).replace(/[\r\n]/g, " ").slice(0, 200);
+					console.warn("IPC event listener failed for", channelLog, err);
 				}
 			}
 		}
