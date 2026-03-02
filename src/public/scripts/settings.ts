@@ -178,6 +178,7 @@ startupAutoProxyCheckbox?.addEventListener("change", async () => {
 		});
 	} catch (err) {
 		console.warn("Could not update auto proxy startup setting", err);
+		showNotification({ message: "Could not update auto proxy startup setting", type: "warning" });
 	}
 });
 
