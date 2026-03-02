@@ -72,8 +72,19 @@ function loadOrCreateWsAuthToken(): string {
 			? fs.readFileSync(tokenPath, "utf-8").trim()
 			: "";
 		if (existing) return existing;
+		const dir = path.dirname(tokenPath);
 
-		fs.mkdirSync(path.dirname(tokenPath), { recursive: true });
+		try {
+			const st = fs.lstatSync(dir);
+			if (!st.isDirectory()) throw new Error("Invalid token directory");
+		} catch (err: Error | any) {
+			if (err.code === "ENOENT") {
+				fs.mkdirSync(dir, { recursive: false, mode: 0o700 });
+			} else {
+				throw err;
+			}
+		}
+
 		try {
 			fs.writeFileSync(tokenPath, generated, {
 				encoding: "utf-8",
@@ -81,15 +92,18 @@ function loadOrCreateWsAuthToken(): string {
 				flag: "wx",
 			});
 			return generated;
-		} catch (err) {
-			const code = (err as NodeJS.ErrnoException).code;
-			if (code !== "EEXIST") {
-				console.warn(sanitizeForLog("Unable to persist websocket auth token"), err);
+		} catch (err: Error | any) {
+			if (err.code !== "EEXIST") {
+				console.warn("Unable to persist websocket auth token", err);
 				return generated;
 			}
-			const fromRace = fs.readFileSync(tokenPath, "utf-8").trim();
-			return fromRace || generated;
+			const fd = fs.openSync(tokenPath, fs.constants.O_RDONLY);
+			const existing = fs.readFileSync(fd, "utf8").trim();
+			fs.closeSync(fd);
+
+			return existing || generated;
 		}
+
 	} catch (err) {
 		console.warn(sanitizeForLog("Unable to load websocket auth token from userData"), err);
 		return generated;
