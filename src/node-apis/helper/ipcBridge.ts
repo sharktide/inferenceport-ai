@@ -68,10 +68,23 @@ function loadOrCreateWsAuthToken(): string {
 	try {
 		const userDataDir = app.getPath("userData");
 		const tokenPath = path.join(userDataDir, WS_AUTH_TOKEN_FILE);
-		const existing = fs.existsSync(tokenPath)
-			? fs.readFileSync(tokenPath, "utf-8").trim()
-			: "";
-		if (existing) return existing;
+		try {
+		const fd = fs.openSync(
+			tokenPath,
+			fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW
+		);
+
+		const stat = fs.fstatSync(fd);
+		if (!stat.isFile()) {
+			throw new Error("Token path is not a regular file");
+		}
+
+		const existing = fs.readFileSync(fd, "utf8").trim();
+		fs.closeSync(fd);
+		return existing;
+		} catch (err: any) {
+		if (err.code !== "ENOENT") throw err;
+		}
 		const dir = path.dirname(tokenPath);
 
 		try {
