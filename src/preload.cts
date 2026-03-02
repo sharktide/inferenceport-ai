@@ -139,9 +139,9 @@ contextBridge.exposeInMainWorld("utils", {
 	listAssets: (): Promise<Array<string>> => ipcRenderer.invoke("utils:listAssets"),
 	web_open: (url: string) => ipcRenderer.invoke("utils:web_open", url),
 	markdown_parse_and_purify: (markdown: string): string =>
-		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),
+		ipcRenderer.invoke("utils:markdown_parse_and_purify", markdown),
 	DOMPurify: (html: string): string =>
-		ipcRenderer.sendSync("utils:DOMPurify", html),
+		ipcRenderer.invoke("utils:DOMPurify", html),
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),

@@ -97,8 +97,8 @@ declare global {
 			rmAsset: (assetId: string) => Promise<void>;
 			listAssets: () => Promise<Array<string>>;
 			web_open: (url: string) => Promise<void>;
-			markdown_parse_and_purify: (markdown: string) => string;
-			DOMPurify: (html: string) => string;
+			markdown_parse_and_purify: (markdown: string) => Promise<string>;
+			DOMPurify: (html: string) => Promise<string>;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
 			getWarning: (modelSize: string, clientUrl?: string) => Promise<{

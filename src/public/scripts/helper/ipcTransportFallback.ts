@@ -565,37 +565,12 @@ function escapeHtml(input: string): string {
 		.replace(/'/g, "&#39;");
 }
 
-function basicSanitize(html: string): string {
-	return html
-		.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-		.replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-		.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
-}
-
-function basicMarkdownParse(markdown: string): string {
-	const escaped = escapeHtml(markdown);
-	const withBlocks = escaped
-		.replace(/^### (.+)$/gm, "<h3>$1</h3>")
-		.replace(/^## (.+)$/gm, "<h2>$1</h2>")
-		.replace(/^# (.+)$/gm, "<h1>$1</h1>");
-
-	const withInline = withBlocks
-		.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-		.replace(/\*(.+?)\*/g, "<em>$1</em>")
-		.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-	return basicSanitize(withInline).replace(/\n/g, "<br>");
-}
 
 function hasElectronIpc(): boolean {
 	return (
 		typeof window.ollama?.listModels === "function" &&
 		typeof window.utils?.getPath === "function"
 	);
-}
-
-function getFallbackSessionStorageKey(): string {
-	return "inferenceport.browser.sessions";
 }
 
 function getBrowserAuthSessionKey(): string {
@@ -887,9 +862,12 @@ export function installWebSocketTransportFallback(): void {
 				window.open(url, "_blank", "noopener,noreferrer");
 			}
 		},
-		markdown_parse_and_purify: (markdown: string): string =>
-			basicMarkdownParse(markdown),
-		DOMPurify: (html: string): string => basicSanitize(html),
+		markdown_parse_and_purify: async (markdown: string): Promise<string> => {
+			return client.invoke("utils:markdown_parse_and_purify", markdown) as Promise<string>;
+		},
+		DOMPurify: (html: string): Promise<string> => {
+			return client.invoke("utils:dompurify", html) as Promise<string>;
+		},
 		saveFile: async (filePath: string, content: string) => {
 			await invokeOrDefault("utils:saveFile", [filePath, content]);
 		},

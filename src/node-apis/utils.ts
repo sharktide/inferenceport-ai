@@ -210,9 +210,9 @@ export default function register() {
 		}
 	);
 
-	ipcMain.on(
+	ipcMain.handle(
 		"utils:markdown_parse_and_purify",
-		(event: IpcMainEvent, markdown: string) => {
+		(event: IpcMainInvokeEvent, markdown: string) => {
 			try {
 				const dirty = mdit.render(markdown);
 				const clean = sanitizeHtml(dirty, {
@@ -235,16 +235,14 @@ export default function register() {
 						["data"]
 					),
 				});
-				event.returnValue = clean;
+				return clean;
 			} catch (err) {
-				event.returnValue = `<p>Error parsing markdown: ${
-					err instanceof Error ? err.message : String(err)
-				}</p>`;
+				throw new Error(`Error parsing markdown: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
 	);
 
-	ipcMain.on("utils:DOMPurify", (event: IpcMainEvent, html: string) => {
+	ipcMain.handle("utils:DOMPurify", async (_event: IpcMainInvokeEvent, html: string) => {
 		try {
 			const cleanHTML = sanitizeHtml(html, {
 				allowedTags: sanitizeHtml.defaults.allowedTags.concat([
@@ -265,11 +263,9 @@ export default function register() {
 					"data",
 				]),
 			});
-			event.returnValue = cleanHTML;
+			return cleanHTML;
 		} catch (err) {
-			event.returnValue = `<p>Error cleaning HTML: ${
-				err instanceof Error ? err.message : String(err)
-			}</p>`;
+			throw new Error(`Error cleaning HTML: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	});
 

@@ -635,7 +635,7 @@ async function loadOptions() {
 
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
-		renderChat();
+		await renderChat();
 		setSessionProgress(95);
 
 		try {
@@ -1350,7 +1350,7 @@ form.addEventListener("submit", async (e) => {
 	attachedFiles = [];
 	renderFileIndicator();
 	session.history.push({ role: "user", content: fullPrompt });
-	renderChat();
+	await renderChat();
 
 	const botBubble = document.createElement("div");
 	botBubble.className = "chat-bubble bot-bubble thinking";
@@ -1382,7 +1382,7 @@ form.addEventListener("submit", async (e) => {
 	isStreaming = true;
 	updateActionButton();
 
-	window.ollama.onResponse((chunk) => {
+	window.ollama.onResponse(async (chunk) => {
 		if (isThinking) {
 			botBubble.classList.remove("thinking");
 			botBubble.removeAttribute("data-text");
@@ -1393,13 +1393,13 @@ form.addEventListener("submit", async (e) => {
 		fullResponse += chunk;
 		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML =
-			window.utils.markdown_parse_and_purify(fullResponse);
+			await window.utils.markdown_parse_and_purify(fullResponse);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
 	});
 
-	window.ollama.onError((err) => {
+	window.ollama.onError(async (err) => {
 		botBubble.classList.remove("thinking");
 		botBubble.removeAttribute("data-text");
 		botBubble.classList.remove("generating");
@@ -1442,12 +1442,12 @@ form.addEventListener("submit", async (e) => {
 		endStreaming();
 	});
 
-	window.ollama.onDone(() => {
+	window.ollama.onDone(async () => {
 		botBubble.classList.remove("thinking");
 		botBubble.removeAttribute("data-text");
 		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
-		renderChat();
+		await renderChat();
 		const status = document.createElement("div");
 		status.textContent = "✅ Done";
 		status.style.marginTop = "8px";
@@ -1466,12 +1466,12 @@ form.addEventListener("submit", async (e) => {
 		endStreaming();
 	});
 
-	window.ollama.onAbort(() => {
+	window.ollama.onAbort(async () => {
 		botBubble.classList.remove("thinking");
 		botBubble.removeAttribute("data-text");
 		botBubble.classList.remove("generating");
 		session.history.push({ role: "assistant", content: fullResponse });
-		renderChat();
+		await renderChat();
 		const status = document.createElement("div");
 		status.textContent = "⚠︎ Interrupted";
 		status.style.marginTop = "8px";
@@ -1716,7 +1716,7 @@ function openEditMessageDialog(messageIndex: number): void {
 
 					latestHistory[messageIndex].content = updated;
 					await persistSessionsAndSync();
-					renderChat();
+					await renderChat();
 					editModal.close();
 				},
 			},
@@ -1746,7 +1746,7 @@ function openDeleteMessageDialog(messageIndex: number): void {
 
 					history.splice(messageIndex, 1);
 					await persistSessionsAndSync();
-					renderChat();
+					await renderChat();
 					editModal.close();
 				},
 			},
@@ -1801,7 +1801,7 @@ function buildMessageActions(
 	return actions;
 }
 
-function renderChat() {
+async function renderChat() {
 	for (const url of assetObjectUrlCache.values()) {
 		try {
 			URL.revokeObjectURL(url);
@@ -1830,13 +1830,13 @@ function renderChat() {
 
 	setWelcomeMode(false);
 
-	session.history.forEach((msg, messageIndex) => {
+	for (const [messageIndex, msg] of session.history.entries()) {
 		/* ---------------- USER ---------------- */
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble has-message-actions";
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
-			bubble.innerHTML = window.utils.markdown_parse_and_purify(
+			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
 				msg.content || "",
 			);
 			const actions = buildMessageActions(msg, messageIndex);
@@ -1844,13 +1844,13 @@ function renderChat() {
 				bubble.appendChild(actions);
 			}
 			chatBox.appendChild(bubble);
-			return;
+			continue;
 		}
 
 		/* ---------------- ASSISTANT ---------------- */
 		if (msg.role === "assistant") {
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
-			const html = window.utils.markdown_parse_and_purify(
+			const html = await window.utils.markdown_parse_and_purify(
 				msg.content || "",
 			);
 			const temp = document.createElement("div");
@@ -1922,22 +1922,22 @@ function renderChat() {
 			}
 
 			chatBox.appendChild(botContainer);
-			return;
+			continue;
 		}
 
 		if (msg.role === "image") {
 			chatBox.appendChild(createImageAssetBubble(msg.content));
-			return;
+			continue;
 		}
 
 		if (msg.role === "video") {
 			renderMediaAssetFromContent("video", msg.content, chatBox);
-			return;
+			continue;
 		}
 
 		if (msg.role === "audio") {
 			renderMediaAssetFromContent("audio", msg.content, chatBox);
-			return;
+			continue;
 		}
 
 		if (msg.role === "tool") {
@@ -2041,11 +2041,11 @@ function renderChat() {
 			}
 
 			chatBox.appendChild(toolBubble);
-			return;
+			continue;
 		}
 
 		console.warn("Unknown message role:", msg.role, msg);
-	});
+	};
 
 	renderMathInElement(document.body, {
 		delimiters: [
