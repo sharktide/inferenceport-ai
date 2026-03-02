@@ -202,7 +202,7 @@ class WsIpcClient {
 				try {
 					handler(...args);
 				} catch (err) {
-					console.warn(`IPC event listener failed for ${message.channel}`, err);
+					console.warn("IPC event listener failed for", message.channel, err);
 				}
 			}
 		}
