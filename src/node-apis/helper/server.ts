@@ -27,7 +27,7 @@ let logStream: fs.WriteStream | null = null;
 
 const MAX_LOG_SIZE = 10 * 1024 * 1024;
 
-function sanitizeForLog(value: string): string {
+export function sanitizeForLog(value: string): string {
 	return value
 		.replace(/[\r\n\t]/g, " ")
 		.replace(/\x1b\[[0-9;]*m/g, "")

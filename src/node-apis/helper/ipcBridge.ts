@@ -5,6 +5,7 @@ import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
 import fs from "fs";
 import path from "path";
+import { sanitizeForLog } from "./server.js";
 
 type InvokeHandler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 type OnHandler = (event: IpcMainEvent, ...args: unknown[]) => unknown;
@@ -83,14 +84,14 @@ function loadOrCreateWsAuthToken(): string {
 		} catch (err) {
 			const code = (err as NodeJS.ErrnoException).code;
 			if (code !== "EEXIST") {
-				console.warn("Unable to persist websocket auth token", err);
+				console.warn(sanitizeForLog("Unable to persist websocket auth token"), err);
 				return generated;
 			}
 			const fromRace = fs.readFileSync(tokenPath, "utf-8").trim();
 			return fromRace || generated;
 		}
 	} catch (err) {
-		console.warn("Unable to load websocket auth token from userData", err);
+		console.warn(sanitizeForLog("Unable to load websocket auth token from userData"), err);
 		return generated;
 	}
 }
@@ -329,12 +330,11 @@ function trackIpcChannels(): void {
 }
 
 export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
-	console.log("Broadcasting IPC event", channel, args);
 	for (const win of BrowserWindow.getAllWindows()) {
 		try {
 			win.webContents.send(channel, ...args);
 		} catch (err) {
-			console.warn(`Failed to broadcast IPC event '${channel}'`, err);
+			console.warn("Failed to broadcast IPC event", sanitizeForLog(channel), err);
 		}
 	}
 
@@ -347,15 +347,12 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 	};
 
 	if (store?.ws) {
-		console.log("Broadcasting IPC event", channel, args);
 		sendWs(store.ws, payload);
 		return;
 	}
 
 	for (const ws of wsClients) {
-		console.log("Broadcasting IPC event over websocket", channel, args);
 		sendWs(ws, payload);
-		console.log("Broadcasted IPC event over websocket", channel, args);
 	}
 }
 
@@ -475,7 +472,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 				if (!message.id) {
 					void dispatchSend(message, ws).catch((err) => {
 						console.warn(
-							`IPC send dispatch failed for '${message.channel}'`,
+							sanitizeForLog(`IPC send dispatch failed for '${message.channel}'`),
 							err,
 						);
 					});
