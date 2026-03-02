@@ -2030,7 +2030,7 @@ async function renderChat() {
 			}
 
 			if (msg.name === "generate_audio") {
-				const options = getAudioOptionsFromToolMessage(msg);
+				const options = getAudioOptionsFromToolCall(msg);
 				if (options) {
 					toolBubble.appendChild(
 						createToolSummaryElement([
