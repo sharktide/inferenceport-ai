@@ -1,9 +1,6 @@
 ![InferencePortAI logo](/src/build/banner.png)
 ![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fsharktide%2Finferenceport-ai%40main%2Fsrc%2Fpackage.json&query=%24.version&label=Latest%20Version) [![Build](https://github.com/sharktide/inferenceport-ai/actions/workflows/build.yml/badge.svg)](https://github.com/sharktide/inferenceport-ai/actions/workflows/build.yml) ![Website](https://img.shields.io/website?url=https%3A%2F%2Finferencs.js.org) ![GitHub last commit](https://img.shields.io/github/last-commit/sharktide/inferenceport-ai) ![GitHub License](https://img.shields.io/github/license/sharktide/inferenceport-ai)
 
-
-
-
 The best place for enterprise local model management
 
 InferencePortAI provides a simple, privacy-focused interface for running local models, chatting with models, saving sessions locally, and browsing or launching Hugging Face Spaces and websites.
@@ -13,6 +10,29 @@ InferencePortAI provides a simple, privacy-focused interface for running local m
 - Save and load chat sessions locally.
 - Browse and open Hugging Face Spaces and website cards.
 - Simple marketplace UI for discovering models and Spaces.
+
+## Install
+
+Binaries are provided for the following platforms:
+
+You may download them at https://inference.js.org/install.html
+
+| Platform | Architecture | Acceleration | Binary Formats |
+| -------- | ------------ | ------------ | -------------- |
+| Windows  | x86_64       | Vulkan/CPU   | Zip, Exe (Admin, Default), MSI |
+| Windows  | ARM64        | Vulkan/CPU   | Zip, Exe (Admin, Default), MSI |
+| Windows  | x86_64       | CUDA v12/v13 | 7z |
+| Windows  | x86_64       | ROCm         | 7z |
+| Windows  | x86_64       | CUDA v12/v13 | 7z |
+| MacOS    | x86_64       | Metal/CPU    | dmg, pkg, zip |
+| MacOS    | ARM64        | Metal/CPU    | dmg, pkg, zip |
+| Linux    | x86_64       | Vulkan/CPU   | AppImage, deb, tar.xz |
+| Linux    | ARM          | Vulkan/CPU   | AppImage, deb, tar.xz |
+| Linux    | x86_64       | CUDA v12/v13 | tar.xz |
+| Linux    | ARM64        | CUDA v12/v13 | tar.xz |
+| Linux    | x86_64       | ROCm | tar.xz |
+| NVIDIA Jetson Linux    | ARM64       | JetPack 5 | tar.xz |
+| NVIDIA Jetson Linux    | ARM64       | JetPack 6 | tar.xz |
 
 ## Now introducing: InferencePort 2
 InferencePort 2 is packed with new features, each going to be released incrementally. Here's what we have in store:
