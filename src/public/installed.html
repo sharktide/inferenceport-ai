@@ -112,30 +112,7 @@
 
 		</main>
 
-			<script>
-				(async function(){
-					if (typeof window.ollama?.isAvailable !== 'function') return;
-					async function check(){
-						const ok = await window.ollama.isAvailable();
-						const banner = document.getElementById('ollama-missing');
-						const grid = document.getElementById('installed-models');
-						const spinner = document.getElementById('spinner-ollama');
-						if (!ok) {
-							if (banner) { banner.style.display = 'block'; }
-							if (grid) { grid.classList.add('disabled'); grid.style.opacity = '0.5'; }
-							if (spinner) { spinner.style.display = 'none'; }
-						} else {
-							if (banner) { banner.style.display = 'none'; }
-							if (grid) { grid.classList.remove('disabled'); grid.style.opacity = ''; }
-							if (spinner) { spinner.style.display = ''; }
-						}
-					}
-					document.getElementById('ollama-retry')?.addEventListener('click', check);
-					await check();
-				})();
-			</script>
-
-			<script type="module" src="scripts/installed.js"></script>
+		<script type="module" src="scripts/installed.js"></script>
 	</body>
 </html>
 
