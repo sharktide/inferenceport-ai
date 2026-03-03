@@ -37,61 +37,63 @@ export function is52458(url: string): boolean {
 }
 
 export async function save_stream(response: Blob): Promise<UUID> {
-    const asset_id = crypto.randomUUID();
-    const assetsDir = path.join(dataDir, "assets");
-    const file_path = path.join(assetsDir, `${asset_id}.blob`);
+	const asset_id = crypto.randomUUID();
+	const assetsDir = path.join(dataDir, "assets");
+	const file_path = path.join(assetsDir, `${asset_id}.blob`);
 
-    await fs.promises.mkdir(assetsDir, { recursive: true });
+	await fs.promises.mkdir(assetsDir, { recursive: true });
 
-    const fd = await fs.promises.open(
-        file_path,
-        constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-        0o600
-    );
+	const fd = await fs.promises.open(
+		file_path,
+		constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
+		0o600,
+	);
 
-    try {
-        for await (const chunk of response.stream()) {
-            await fd.write(chunk);
-        }
-    } catch (err) {
-        await fd.close().catch(() => {});
-        await fs.promises.unlink(file_path).catch(() => {});
-        throw err;
-    }
+	try {
+		for await (const chunk of response.stream()) {
+			await fd.write(chunk);
+		}
+	} catch (err) {
+		await fd.close().catch(() => {});
+		await fs.promises.unlink(file_path).catch(() => {});
+		throw err;
+	}
 
-    await fd.close();
-    return asset_id;
+	await fd.close();
+	return asset_id;
 }
 
 export async function load_blob(asset_id: UUID): Promise<Buffer> {
-    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
-    return await fs.promises.readFile(file_path);
+	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	return await fs.promises.readFile(file_path);
 }
 
 export async function delete_blob(asset_id: UUID): Promise<void> {
-    const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
 	try {
-    	await fs.promises.unlink(file_path);
+		await fs.promises.unlink(file_path);
 	} catch (err: Error | any) {
 		if (err.code != "ENOENT") throw err;
 	}
 }
 
 export async function listAssets(): Promise<Array<string>> {
-    const assetsDir = path.join(dataDir, "assets");
+	const assetsDir = path.join(dataDir, "assets");
 
-    try {
-        const files = await fs.promises.readdir(assetsDir, { withFileTypes: true });
+	try {
+		const files = await fs.promises.readdir(assetsDir, {
+			withFileTypes: true,
+		});
 
-        return files
-            .filter(f => f.isFile() && f.name.endsWith(".blob"))
-            .map(f => f.name.replace(/\.blob$/, ""));
-    } catch (err: any) {
-        if (err.code === "ENOENT") {
-            return [];
-        }
-        throw err;
-    }
+		return files
+			.filter((f) => f.isFile() && f.name.endsWith(".blob"))
+			.map((f) => f.name.replace(/\.blob$/, ""));
+	} catch (err: any) {
+		if (err.code === "ENOENT") {
+			return [];
+		}
+		throw err;
+	}
 }
 
 function detailsBlock(md: any): void {
@@ -102,7 +104,7 @@ function detailsBlock(md: any): void {
 			state: any,
 			startLine: number,
 			endLine: number,
-			silent: boolean
+			silent: boolean,
 		): boolean => {
 			const start = state.bMarks[startLine!] + state.tShift[startLine!];
 			const max = state.eMarks[startLine!];
@@ -133,7 +135,7 @@ function detailsBlock(md: any): void {
 			token.content = content;
 
 			return true;
-		}
+		},
 	);
 }
 
@@ -144,6 +146,26 @@ const mdit = MDIT({
 });
 
 mdit.use(detailsBlock);
+const defaultLinkOpenRenderer =
+	mdit.renderer.rules.link_open ||
+	function (tokens, idx, options, env, self) {
+		return self.renderToken(tokens, idx, options);
+	};
+
+mdit.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+	const originalHref = tokens[idx]!.attrGet("href");
+
+	if (!originalHref) {
+		return defaultLinkOpenRenderer(tokens, idx, options, env, self);
+	}
+
+	const encoded = encodeURIComponent(originalHref);
+	const jsUrl = `javascript:window.utils.web_open('${encoded}')`;
+
+	tokens[idx]!.attrSet("href", jsUrl);
+
+	return defaultLinkOpenRenderer(tokens, idx, options, env, self);
+};
 
 const FIRST_RUN_FILE = "first-run-2.0.0.json";
 
@@ -156,7 +178,12 @@ function isFirstLaunch(): boolean {
 
 	try {
 		const fd = fs.openSync(markerPath, "wx");
-		fs.writeSync(fd, JSON.stringify({ firstRunCompleted: true }), undefined, "utf-8");
+		fs.writeSync(
+			fd,
+			JSON.stringify({ firstRunCompleted: true }),
+			undefined,
+			"utf-8",
+		);
 		fs.closeSync(fd);
 		return true;
 	} catch (err: any) {
@@ -185,17 +212,23 @@ function resetFirstLaunch(): void {
 
 export default function register() {
 	initHardwareInfo();
-	ipcMain.handle("utils:getAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
-		return await load_blob(assetId);
-	});
-	ipcMain.handle("utils:rmAsset", async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<void> => {
-		return await delete_blob(assetId)
-	});
+	ipcMain.handle(
+		"utils:getAsset",
+		async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
+			return await load_blob(assetId);
+		},
+	);
+	ipcMain.handle(
+		"utils:rmAsset",
+		async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<void> => {
+			return await delete_blob(assetId);
+		},
+	);
 	ipcMain.handle("utils:is-first-launch", () => {
 		return isFirstLaunch();
 	});
 	ipcMain.handle("utils:listAssets", async (): Promise<Array<string>> => {
-		return await listAssets()
+		return await listAssets();
 	});
 
 	ipcMain.handle("utils:reset-first-launch", () => {
@@ -207,7 +240,7 @@ export default function register() {
 		"utils:web_open",
 		async (_event: IpcMainInvokeEvent, url: string) => {
 			shell.openExternal(url);
-		}
+		},
 	);
 
 	ipcMain.handle(
@@ -215,7 +248,61 @@ export default function register() {
 		(event: IpcMainInvokeEvent, markdown: string) => {
 			try {
 				const dirty = mdit.render(markdown);
+				const SAFE_PREFIX = "javascript:window.utils.web_open('";
+
 				const clean = sanitizeHtml(dirty, {
+					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+						"details",
+						"summary",
+					]),
+
+					allowedAttributes: {
+						...sanitizeHtml.defaults.allowedAttributes,
+						"*": [
+							...(sanitizeHtml.defaults.allowedAttributes["*"] ||
+								[]),
+							"class",
+							"id",
+						],
+						a: ["href"],
+						details: ["open"],
+					},
+
+					allowedSchemesByTag: {
+						a: ["http", "https", "mailto", "data", "javascript"],
+					},
+
+					transformTags: {
+						a: (tagName, attribs) => {
+							const href = attribs.href || "";
+
+							if (
+								href.startsWith(SAFE_PREFIX) &&
+								href.endsWith("')")
+							) {
+								return { tagName, attribs };
+							}
+
+							const { href: _removed, ...rest } = attribs;
+							return { tagName, attribs: rest };
+						},
+					},
+				});
+
+				return clean;
+			} catch (err) {
+				throw new Error(
+					`Error parsing markdown: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			}
+		},
+	);
+
+	ipcMain.handle(
+		"utils:DOMPurify",
+		async (_event: IpcMainInvokeEvent, html: string) => {
+			try {
+				const cleanHTML = sanitizeHtml(html, {
 					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
 						"details",
 						"summary",
@@ -229,49 +316,28 @@ export default function register() {
 								[]
 							).concat(["class", "id"]),
 							details: ["open"],
-						}
+						},
 					),
 					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(
-						["data"]
+						["data"],
 					),
 				});
-				return clean;
+				return cleanHTML;
 			} catch (err) {
-				throw new Error(`Error parsing markdown: ${err instanceof Error ? err.message : String(err)}`);
+				throw new Error(
+					`Error cleaning HTML: ${err instanceof Error ? err.message : String(err)}`,
+				);
 			}
-		}
+		},
 	);
-
-	ipcMain.handle("utils:DOMPurify", async (_event: IpcMainInvokeEvent, html: string) => {
-		try {
-			const cleanHTML = sanitizeHtml(html, {
-				allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-					"details",
-					"summary",
-				]),
-				allowedAttributes: Object.assign(
-					{},
-					sanitizeHtml.defaults.allowedAttributes,
-					{
-						"*": (
-							sanitizeHtml.defaults.allowedAttributes["*"] || []
-						).concat(["class", "id"]),
-						details: ["open"],
-					}
-				),
-				allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat([
-					"data",
-				]),
-			});
-			return cleanHTML;
-		} catch (err) {
-			throw new Error(`Error cleaning HTML: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	});
 
 	ipcMain.handle(
 		"utils:saveFile",
-		async (_event: IpcMainInvokeEvent, filePath: string, content: string) => {
+		async (
+			_event: IpcMainInvokeEvent,
+			filePath: string,
+			content: string,
+		) => {
 			const base = app.getPath("userData");
 			const resolved = path.resolve(filePath);
 
@@ -288,7 +354,7 @@ export default function register() {
 			await fs.promises.rename(tmp, resolved);
 
 			return true;
-		}
+		},
 	);
 
 	const AppDataDir = app.getPath("userData");
@@ -299,8 +365,12 @@ export default function register() {
 
 	ipcMain.handle(
 		"utils:get-hardware-performance-warning",
-		async (_event: IpcMainInvokeEvent, modelSizeRaw: string, clientUrl?: string) => {
-			return getHardwareRating(modelSizeRaw, clientUrl)
-		}
+		async (
+			_event: IpcMainInvokeEvent,
+			modelSizeRaw: string,
+			clientUrl?: string,
+		) => {
+			return getHardwareRating(modelSizeRaw, clientUrl);
+		},
 	);
 }
