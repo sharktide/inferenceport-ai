@@ -48,40 +48,20 @@ function modelSupportsTools(modelName: string): boolean {
 }
 
 async function fetchAvailableModels(): Promise<AvailableModel[]> {
-	const response = await fetch("https://ollama.com/library");
-	const html = await response.text();
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(html, "text/html");
-
-	const modelItems = Array.from(doc.querySelectorAll("li[x-test-model]"));
-	//@ts-ignore
-	return modelItems.map((item) => {
-		const name =
-			item
-				.querySelector("[x-test-model-title] span")
-				?.textContent?.trim() ?? "";
-		const description = item
-			.querySelector("p.max-w-lg")
-			?.textContent?.trim();
-		const sizes = Array.from(item.querySelectorAll("[x-test-size]")).map(
-			(el) => el.textContent!.trim(),
-		);
-		const pulls =
-			item.querySelector("[x-test-pull-count]")?.textContent?.trim() ??
-			"Unknown";
-		const tagElements = item.querySelectorAll(
-			'span[class*="text-blue-600"]',
-		);
-		const tags = Array.from(tagElements).map((el) =>
-			el.textContent!.trim(),
-		);
-		const updated =
-			item.querySelector("[x-test-updated]")?.textContent?.trim() ??
-			"Unknown";
-		const link = item.querySelector("a")?.getAttribute("href") ?? undefined;
-
-		return { name, description, sizes, pulls, tags, updated, link };
-	});
+	const response = await fetch("https://sharktide-lightning.hf.space/models");
+	if (!response.ok) {
+		throw new Error("Failed to fetch available models");
+	}
+	const html = await response.json();
+	return html.map((model: AvailableModel) => ({
+		name: model.name,
+		description: model.description,
+		sizes: model.sizes,
+		pulls: model.pulls,
+		tags: model.tags,
+		updated: model.updated,
+		link: model.link,
+	}));
 }
 
 async function pullModel(name: string): Promise<void> {
