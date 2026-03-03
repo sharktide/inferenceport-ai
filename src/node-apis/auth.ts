@@ -1,17 +1,33 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Session, AuthChangeEvent } from "@supabase/supabase-js";
-import { app, ipcMain, BrowserWindow, session } from "electron";
+import type { Session, AuthChangeEvent, Subscription } from "@supabase/supabase-js";
+import { app, ipcMain, session } from "electron";
 
 import fs from "fs";
 import path from "path";
 import { shell } from "electron";
 
 import type { Message, SessionType } from "./types/index.types.d.ts";
+import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
 const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+type RendererSessionUser = {
+	id: string;
+	provider: string | null;
+};
+
+type RendererSessionView = {
+	isAuthenticated: boolean;
+	user: RendererSessionUser | null;
+	expiresAt: string | null;
+};
+
+type RendererProfileView = {
+	username: string;
+} | null;
 
 export const sessionFile = path.join(app.getPath("userData"), "supabase-session.json");
 const profilesFile = path.join(app.getPath("userData"), "profiles.json");
@@ -67,6 +83,70 @@ export async function getSession(): Promise<Session> {
 	});
 }
 
+function getSessionProvider(session: Session): string | null {
+	const providerFromMetadata = session.user?.app_metadata?.provider;
+	if (typeof providerFromMetadata === "string" && providerFromMetadata.trim()) {
+		return providerFromMetadata.trim();
+	}
+
+	const userRecord = session.user as { identities?: Array<{ provider?: string }> };
+	const providerFromIdentity = userRecord.identities?.[0]?.provider;
+	if (typeof providerFromIdentity === "string" && providerFromIdentity.trim()) {
+		return providerFromIdentity.trim();
+	}
+
+	return null;
+}
+
+function toRendererSession(session: Session | null): RendererSessionView {
+	if (!session?.user?.id) {
+		return {
+			isAuthenticated: false,
+			user: null,
+			expiresAt: null,
+		};
+	}
+
+	return {
+		isAuthenticated: true,
+		user: {
+			id: session.user.id,
+			provider: getSessionProvider(session),
+		},
+		expiresAt: session.expires_at
+			? new Date(session.expires_at * 1000).toISOString()
+			: null,
+	};
+}
+
+async function getProfileForUser(userId: string | undefined): Promise<RendererProfileView> {
+	if (!userId) return null;
+
+	const { data } = await supabase
+		.from("profiles")
+		.select("username")
+		.eq("id", userId)
+		.maybeSingle();
+
+	if (!data?.username || typeof data.username !== "string") {
+		return null;
+	}
+
+	return {
+		username: data.username,
+	};
+}
+
+async function buildRendererSessionPayload(session: Session | null): Promise<{
+	session: RendererSessionView;
+	profile: RendererProfileView;
+}> {
+	return {
+		session: toRendererSession(session),
+		profile: await getProfileForUser(session?.user?.id),
+	};
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -90,14 +170,20 @@ export default function register() {
 			email,
 			password,
 		});
-		if (error) return { error: error.message };
-		return { session: data.session, user: data.user };
+		if (error) {
+			return {
+				error: error.message,
+				session: toRendererSession(null),
+				profile: null,
+			};
+		}
+		return await buildRendererSessionPayload(data.session);
 	});
 
 	ipcMain.handle("auth:signUpWithEmail", async (_event, email, password) => {
 		const { data, error } = await supabase.auth.signUp({ email, password });
 		if (error) return { error: error.message };
-		return { user: data.user };
+		return { success: true, userId: data.user?.id || null };
 	});
 
 	ipcMain.handle("auth:signOut", async () => {
@@ -109,22 +195,45 @@ export default function register() {
 
 	ipcMain.handle("auth:getSession", async () => {
 		const { data, error } = await supabase.auth.getSession();
-		if (error) return { error: error.message };
-
-		const session = data.session;
-		let profile = null;
-
-		if (session?.user?.id) {
-			const { data: profileData } = await supabase
-				.from("profiles")
-				.select("username")
-				.eq("id", session.user.id)
-				.maybeSingle();
-			profile = profileData || null;
+		if (error) {
+			return {
+				error: error.message,
+				session: toRendererSession(null),
+				profile: null,
+			};
 		}
 
-		return { session, profile };
+		return await buildRendererSessionPayload(data.session);
 	});
+
+	ipcMain.handle(
+		"auth:setSessionTokens",
+		async (_event, accessToken: string, refreshToken: string) => {
+			if (!accessToken || !refreshToken) {
+				return {
+					error: "Missing access or refresh token",
+					session: toRendererSession(null),
+					profile: null,
+				};
+			}
+
+			const { data: setData, error: setError } =
+				await supabase.auth.setSession({
+					access_token: accessToken,
+					refresh_token: refreshToken,
+				});
+
+			if (setError) {
+				return {
+					error: setError.message,
+					session: toRendererSession(null),
+					profile: null,
+				};
+			}
+
+			return await buildRendererSessionPayload(setData.session);
+		},
+	);
 
 	ipcMain.handle(
 		"auth:setUsername",
@@ -165,14 +274,27 @@ export default function register() {
 		}
 	);
 
-	ipcMain.handle("auth:onAuthStateChange", () => {
-		const win = BrowserWindow.getFocusedWindow();
-		const { data: listener } = supabase.auth.onAuthStateChange(
-			(_eventType, session) => {
-				win?.webContents.send("auth:stateChanged", session);
+	let authStateChangeUnsubscribe: { subscription: Subscription } | null = null;
+
+	ipcMain.handle("auth:onAuthStateChange", (event) => {
+		if (authStateChangeUnsubscribe) {
+			authStateChangeUnsubscribe.subscription.unsubscribe();
+		}
+
+		authStateChangeUnsubscribe = supabase.auth.onAuthStateChange(
+			(_eventType: AuthChangeEvent, session: Session | null) => {
+				broadcastIpcEvent("auth:stateChanged", toRendererSession(session));
 			}
-		);
+		).data;
+
 		return { success: true };
+	});
+
+	ipcMain.on("destroy", () => {
+		if (authStateChangeUnsubscribe) {
+			authStateChangeUnsubscribe.subscription.unsubscribe();
+			authStateChangeUnsubscribe = null;
+		}
 	});
 
 	ipcMain.handle("auth:resetPassword", async (_event, email: string) => {

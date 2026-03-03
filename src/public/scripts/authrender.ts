@@ -6,10 +6,35 @@ const statusText = document.getElementById('status') as HTMLParagraphElement;
 (window as any).mode = 0;
 
 type AuthSessionResult = {
-    session: any;
-    profile: { username: string } | null;
+    session: AuthSessionView;
+    profile: AuthProfileView;
     error?: string;
 };
+
+async function completeOAuthRedirectIfPresent() {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const queryParams = new URLSearchParams(window.location.search);
+
+    const accessToken =
+        hashParams.get("access_token") || queryParams.get("access_token");
+    const refreshToken =
+        hashParams.get("refresh_token") || queryParams.get("refresh_token");
+
+    if (!accessToken || !refreshToken) return;
+
+    updateStatus("Completing sign-in...");
+    const result = await window.auth.setSessionFromTokens(accessToken, refreshToken);
+    if ((result as any)?.error) {
+        updateStatus(`OAuth sign-in failed: ${(result as any).error}`);
+        return;
+    }
+
+    const cleanUrl = `${window.location.pathname}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+    showSignInSuccessModal();
+}
+
+void completeOAuthRedirectIfPresent();
 
 loginButton.addEventListener('click', async () => {
     if ((window as any).mode === 0) {
@@ -65,7 +90,7 @@ function showSignInSuccessModal() {
 }
 
 window.auth.onAuthStateChange((session) => {
-    if (session?.user) {
+    if (session?.isAuthenticated) {
         if (window.location.pathname.includes("auth")) {
             showSignInSuccessModal();
         }

@@ -2,6 +2,8 @@ import ThemeManager from "./Managers/ThemeManager.js";
 import AuthManager from "./Managers/AuthManager.js";
 
 import iModal from "./Utility/classes/modal.js";
+import { installWebSocketTransportFallback } from "../helper/ipcTransportFallback.js";
+import { installLocalStorageSync } from "../helper/localStorageSync.js";
 
 import { sanitizeFilename, saveImport } from "./Utility/functions/imports.js";
 
@@ -23,6 +25,9 @@ const ifc: iFunctions = {
     sanitizeFilename: sanitizeFilename,
     saveImport: saveImport,
 }
+
+installWebSocketTransportFallback();
+installLocalStorageSync();
 
 new ThemeManager();
 new AuthManager();
@@ -97,3 +102,37 @@ function showAppWideBanner(message: string) {
 }
 
 window.addEventListener("DOMContentLoaded", checkAndShowNotificationBanner);
+
+async function disableWebUiServiceWorker(): Promise<void> {
+	if (!("serviceWorker" in navigator)) return;
+	if (!(window.location.protocol === "http:" || window.location.protocol === "https:")) {
+		return;
+	}
+
+	try {
+		const regs = await navigator.serviceWorker.getRegistrations();
+		for (const reg of regs) {
+			const scope = reg.scope || "";
+			if (scope.includes(window.location.origin)) {
+				await reg.unregister();
+			}
+		}
+	} catch (err) {
+		console.warn("Service worker cleanup failed", err);
+	}
+
+	try {
+		const keys = await caches.keys();
+		for (const key of keys) {
+			if (key.startsWith("inferenceport-webui-")) {
+				await caches.delete(key);
+			}
+		}
+	} catch {
+		void 0;
+	}
+}
+
+window.addEventListener("load", () => {
+	void disableWebUiServiceWorker();
+});

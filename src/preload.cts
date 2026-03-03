@@ -16,7 +16,7 @@ limitations under the License.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Session, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Sessions } from "./node-apis/types/index.types.d.ts";
 import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
@@ -139,9 +139,9 @@ contextBridge.exposeInMainWorld("utils", {
 	listAssets: (): Promise<Array<string>> => ipcRenderer.invoke("utils:listAssets"),
 	web_open: (url: string) => ipcRenderer.invoke("utils:web_open", url),
 	markdown_parse_and_purify: (markdown: string): string =>
-		ipcRenderer.sendSync("utils:markdown_parse_and_purify", markdown),
+		ipcRenderer.invoke("utils:markdown_parse_and_purify", markdown),
 	DOMPurify: (html: string): string =>
-		ipcRenderer.sendSync("utils:DOMPurify", html),
+		ipcRenderer.invoke("utils:DOMPurify", html),
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
@@ -176,9 +176,9 @@ contextBridge.exposeInMainWorld("auth", {
 		ipcRenderer.invoke("auth:signUpWithEmail", email, password),
 	signOut: () => ipcRenderer.invoke("auth:signOut"),
 	getSession: () => ipcRenderer.invoke("auth:getSession"),
-	onAuthStateChange: (callback: (session: Session) => void) => {
+	onAuthStateChange: (callback: (session: AuthSessionView) => void) => {
 		ipcRenderer.invoke("auth:onAuthStateChange");
-		ipcRenderer.on("auth:stateChanged", (_e: any, session: Session) => callback(session));
+		ipcRenderer.on("auth:stateChanged", (_e: any, session: AuthSessionView) => callback(session));
 	},
 	resetPassword: (email: string) =>
 		ipcRenderer.invoke("auth:resetPassword", email),
@@ -187,6 +187,8 @@ contextBridge.exposeInMainWorld("auth", {
 	deleteAccount: () => ipcRenderer.invoke("auth:delete-account"),
 	setUsername: (userId: string, username: string) =>
 		ipcRenderer.invoke("auth:setUsername", userId, username),
+	setSessionFromTokens: (accessToken: string, refreshToken: string) =>
+		ipcRenderer.invoke("auth:setSessionTokens", accessToken, refreshToken),
 });
 
 // ===== Sync =====
@@ -194,4 +196,40 @@ contextBridge.exposeInMainWorld("sync", {
 	getRemoteSessions: () => ipcRenderer.invoke("sync:getRemoteSessions"),
 	saveAllSessions: (sessions: Record<string, Sessions>) =>
 		ipcRenderer.invoke("sync:saveAllSessions", sessions),
+});
+
+contextBridge.exposeInMainWorld("storageSync", {
+	getAll: () =>
+		ipcRenderer.invoke("storage:get-all") as Promise<Record<string, string>>,
+	setItem: (key: string, value: string) =>
+		ipcRenderer.invoke("storage:set-item", key, value),
+	removeItem: (key: string) => ipcRenderer.invoke("storage:remove-item", key),
+	clear: () => ipcRenderer.invoke("storage:clear"),
+	onChange: (
+		callback: (change: {
+			type: "set" | "remove" | "clear";
+			key?: string;
+			value?: string;
+		}) => void,
+	) => {
+		ipcRenderer.on(
+			"storage:changed",
+			(_: Electron.IpcRendererEvent, change: {
+				type: "set" | "remove" | "clear";
+				key?: string;
+				value?: string;
+			}) => callback(change),
+		);
+	},
+});
+
+contextBridge.exposeInMainWorld("startup", {
+	getSettings: () => ipcRenderer.invoke("startup:get-settings"),
+	updateSettings: (patch: {
+		runAtLogin?: boolean;
+		autoStartProxy?: boolean;
+		proxyPort?: number;
+		uiPort?: number;
+		proxyUsers?: { email: string; role: string }[];
+	}) => ipcRenderer.invoke("startup:update-settings", patch),
 });

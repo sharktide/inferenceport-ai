@@ -1,49 +1,284 @@
 /*
 Copyright 2025 Rihaan Meher
 */
+
+.settings-main {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 28px 20px 20px;
+}
+
 .settings-container {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 20px;
-  background-color: var(--secondary-color);
-  border-radius: var(--border-radius);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--secondary-color) 82%, transparent) 0%,
+      color-mix(in srgb, var(--bg-light) 92%, transparent) 50%,
+      color-mix(in srgb, var(--secondary-color) 76%, transparent) 100%
+    );
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 color-mix(in srgb, var(--bg-primary) 50%, transparent);
 }
 
 .settings-container h1 {
-  font-size: 24px;
-  margin-bottom: 24px;
-  text-align: center;
+  margin: 0 0 8px;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
-.setting-item {
-  display: flex;
-  justify-content: space-between;
+.settings-section {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 10%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  overflow: clip;
+}
+
+[data-theme="dark"] .settings-section {
+  background: color-mix(in srgb, var(--bg-light) 78%, transparent);
+}
+
+.settings-section > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--secondary-color) 62%, transparent);
+  border-bottom: 1px solid transparent;
+}
+
+.settings-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-section > summary::after {
+  content: "Expand";
+  float: right;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-dark) 62%, transparent);
+}
+
+.settings-section[open] > summary {
+  border-bottom-color: color-mix(in srgb, var(--text-dark) 12%, transparent);
+}
+
+.settings-section[open] > summary::after {
+  content: "Open";
+}
+
+.settings-section-content {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.settings-container p {
+  margin: 0;
+}
+
+.settings-container .muted {
+  color: color-mix(in srgb, var(--text-dark) 68%, transparent);
+  font-size: 0.94rem;
+}
+
+.settings-checkbox {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.setting-item label {
-  font-size: 16px;
+  gap: 10px;
   font-weight: 500;
 }
 
+.settings-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.settings-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-inline-row label {
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.settings-container input[type="number"] {
+  width: 170px;
+  margin: 0;
+}
+
+.settings-container button,
 .theme-toggle {
-  padding: 8px 16px;
-  font-size: 14px;
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+  padding: 9px 14px;
+  font-size: 0.95rem;
+}
+
+#open-delete {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 30%, transparent);
+}
+
+.settings-proxy-form {
+  display: grid;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--text-dark) 60%, transparent);
+  font-weight: 500;
+}
+
+.email-chip-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--blue) 60%, transparent);
+  border-radius: 12px;
+  background: var(--input-bg);
+  cursor: text;
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.email-chip-input input {
   border: none;
-  border-radius: 6px;
-  background-color: var(--blue);
-  color: white;
+  outline: none;
+  flex: 1;
+  min-width: 190px;
+  background: transparent;
+  color: var(--text-dark);
+  font-size: 0.92rem;
+  margin: 0;
+  padding: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blue) 88%, #245a93 12%);
+  color: #fff;
+  font-size: 0.81rem;
+}
+
+.chip.invalid {
+  background: color-mix(in srgb, var(--error) 82%, #8d1f1f 18%);
+}
+
+.chip button {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.92rem;
+  line-height: 1;
   cursor: pointer;
-  transition: background 0.3s ease;
 }
 
-.theme-toggle .red { 
-  color: red
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
 }
 
-.theme-toggle:hover {
-  background-color: #235a92;
+.settings-container button:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.server-logs-panel {
+  margin-top: 6px;
+  max-width: 760px;
+  display: none;
+}
+
+.server-logs-panel pre {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text-dark);
+  border: 1px solid color-mix(in srgb, var(--blue) 55%, transparent);
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.settings-footer {
+  margin: 18px 4px 0;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text-dark) 68%, transparent);
+}
+
+@media (max-width: 700px) {
+  .settings-main {
+    padding: 14px 10px 12px;
+  }
+
+  .settings-container {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .settings-inline-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-inline-row label {
+    min-width: 0;
+  }
+
+  .settings-container input[type="number"],
+  .settings-container button,
+  .theme-toggle {
+    width: 100%;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
 }

@@ -26,6 +26,14 @@ import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
+import {
+	initIpcWebSocketBridge,
+	stopIpcWebSocketBridge,
+} from "./node-apis/helper/ipcBridge.js";
+import storageSyncHandlers from "./node-apis/storageSync.js";
+import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
+import startupHandlers, { getStartupSettings } from "./node-apis/startup.js";
+import { startProxyServer } from "./node-apis/helper/server.js";
 
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
@@ -36,9 +44,13 @@ const __dirname = dirname(__filename);
 
 fixPath();
 const supabase = supabaseClient;
+const IPC_WS_PORT_HEADLESS = 52456;
+const IPC_WS_PORT_FOREGROUND = 52457;
+const DEFAULT_WEB_UI_PORT = 52459;
 
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
+const backgroundServerMode = process.argv.includes("--background-server");
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
@@ -278,10 +290,13 @@ function safeWriteJSONAtomic(filePath: string, data: any) {
     }
 }
 
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-	app.quit();
+if (!backgroundServerMode) {
+	const gotLock = app.requestSingleInstanceLock();
+	if (!gotLock) {
+		app.quit();
+	}
 }
+
 const deeplinkArg = process.argv.find(arg =>
 	arg.startsWith("inferenceport-ai://"),
 );
@@ -291,8 +306,17 @@ if (deeplinkArg) {
 }
 
 app.on("second-instance", async (_event, argv) => {
+	if (backgroundServerMode) return;
     const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
-    if (!urlArg) return;
+    if (!urlArg) {
+		if (!mainWindow) createWindow();
+		else {
+			if (mainWindow.isMinimized()) mainWindow.restore();
+			mainWindow.show();
+			mainWindow.focus();
+		}
+		return;
+	}
 
     if (await handleAuthCallback(urlArg)) {
         if (mainWindow) {
@@ -303,12 +327,13 @@ app.on("second-instance", async (_event, argv) => {
         return;
     }
 
+    if (!mainWindow) createWindow();
     if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.show();
-        mainWindow.focus();
-        openFromDeepLink(urlArg);
-    }
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.show();
+		mainWindow.focus();
+		openFromDeepLink(urlArg);
+	}
 });
 
 
@@ -328,6 +353,18 @@ app.on("open-url", async (event, url) => {
 
 app.whenReady().then(async () => {
 	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
+	const startupSettings = getStartupSettings();
+	const uiPort = startupSettings.uiPort || DEFAULT_WEB_UI_PORT;
+	const wsPort = backgroundServerMode
+		? IPC_WS_PORT_HEADLESS
+		: IPC_WS_PORT_FOREGROUND;
+	initIpcWebSocketBridge({
+		port: wsPort,
+		allowedOrigins: [
+			`http://127.0.0.1:${uiPort}`,
+			`http://localhost:${uiPort}`,
+		],
+	});
 
 	try {
 		if (process.defaultApp) {
@@ -350,8 +387,27 @@ app.whenReady().then(async () => {
 	ollamaHandlers();
 	utilsHandlers();
 	spacesHandlers();
+	storageSyncHandlers();
+	startupHandlers();
 
-	createWindow();
+	if (
+		startupSettings.autoStartProxy &&
+		startupSettings.proxyUsers.length > 0
+	) {
+		try {
+			startProxyServer(
+				startupSettings.proxyPort || 52458,
+				startupSettings.proxyUsers,
+			);
+			console.info("Auto-started proxy server from startup settings");
+		} catch (err) {
+			console.warn("Failed to auto-start proxy server", err);
+		}
+	}
+
+	if (!backgroundServerMode) {
+		createWindow();
+	}
 
 	(async function checkForUpdate() {
 		try {
@@ -411,15 +467,28 @@ app.whenReady().then(async () => {
 	if (pendingDeepLink) {
 		const handled = await handleAuthCallback(pendingDeepLink);
 		if (!handled) {
+			if (!mainWindow) createWindow();
 			openFromDeepLink(pendingDeepLink);
 		}
 		pendingDeepLink = null;
 	}
 
 	fireAndForget(serve(), "serve");
+	fireAndForget(
+		startWebUiServer(uiPort, "127.0.0.1", wsPort),
+		"startWebUiServer",
+	);
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
 });
 
+app.on("before-quit", () => {
+	stopWebUiServer();
+	stopIpcWebSocketBridge();
+});
+
 app.on("window-all-closed", () => {
+	if (backgroundServerMode) return;
+	stopWebUiServer();
+	stopIpcWebSocketBridge();
 	app.quit();
 });

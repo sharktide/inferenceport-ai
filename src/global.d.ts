@@ -18,6 +18,27 @@ export {};
 import type { iConstructor, iInstance, iFunctions } from "./public/scripts/staticload/index.ts";
 
 declare global {
+	type AuthUserView = {
+		id: string;
+		provider: string | null;
+	};
+
+	type AuthSessionView = {
+		isAuthenticated: boolean;
+		user: AuthUserView | null;
+		expiresAt: string | null;
+	};
+
+	type AuthProfileView = {
+		username: string;
+	} | null;
+
+	type AuthSessionResponse = {
+		session: AuthSessionView;
+		profile: AuthProfileView;
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -26,6 +47,8 @@ declare global {
 		ic: iConstructor;
 		ifc: iFunctions;
 		ollama: {
+			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
+
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
 			deleteModel: (name: string, clientUrl?: string) => Promise<string>;
@@ -53,8 +76,8 @@ declare global {
 			save: (sessions: Sessions) => Promise<void>;
 			getPath: () => Promise<string>;
 			removeAllListeners: () => void;
-			isAvailable: () => boolean;
-			onNewAsset: (cb: (msg: ChatAsset) => void) => void;
+			isAvailable: () => Promise<boolean>;
+			onNewAsset: (cb: (msg: any) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
@@ -66,13 +89,16 @@ declare global {
 			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			onToolCall: (cb: (calls: any[]) => void) => void;
 		};
 
 		utils: {
-			getAsset: (assetId: string) => Promise<Buffer>;
+			getAsset: (assetId: string) => Promise<Uint8Array>;
 			rmAsset: (assetId: string) => Promise<void>;
+			listAssets: () => Promise<Array<string>>;
 			web_open: (url: string) => Promise<void>;
-			markdown_parse_and_purify: (markdown: string) => string;
+			markdown_parse_and_purify: (markdown: string) => Promise<string>;
+			DOMPurify: (html: string) => Promise<string>;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
 			getWarning: (modelSize: string, clientUrl?: string) => Promise<{
@@ -90,11 +116,11 @@ declare global {
 		};
 
 		hfspaces: {
-			get_cards: () => string;
-			delete: (username: string, repo: string) => void;
-			share: (username: string, repo: string) => void;
-			get_website_cards: () => string;
-			delete_website: (url: string) => boolean;
+			get_cards: () => Promise<string>;
+			delete: (username: string, repo: string) => Promise<void>;
+			share: (username: string, repo: string) => Promise<void>;
+			get_website_cards: () => Promise<string>;
+			delete_website: (url: string) => Promise<boolean>;
 			share_website: (url: string, title: string) => Promise<void>;
 		};
 
@@ -102,18 +128,15 @@ declare global {
 			signInWithEmail: (
 				email: string,
 				password: string
-			) => Promise<{
-				session?: any;
-				user?: any;
-				error?: string;
-			}>;
+			) => Promise<AuthSessionResponse>;
 			signInWithGitHub: () => Promise<void>;
 			signInWithGoogle: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string
 			) => Promise<{
-				user?: any;
+				success?: boolean;
+				userId?: string | null;
 				error?: string;
 			}>;
 			setUsername: (
@@ -121,8 +144,8 @@ declare global {
 				username: string
 			) => Promise<{ success?: boolean; profile?: any; error?: string }>;
 			signOut: () => Promise<{ success?: boolean; error?: string }>;
-			getSession: () => Promise<{ session?: any; error?: string }>;
-			onAuthStateChange: (callback: (session: any) => void) => void;
+			getSession: () => Promise<AuthSessionResponse>;
+			onAuthStateChange: (callback: (session: AuthSessionView) => void) => void;
 			resetPassword: (
 				email: string
 			) => Promise<{ status: boolean; error: any }>;
@@ -133,9 +156,10 @@ declare global {
 				success: boolean;
 				error: string | undefined;
 			}>;
-			autoNameSession(model: string, prompt: string, clientUrl?: string): Promise<string>;
-			onToolCall: (cb: (calls: any[]) => void) => void;
-
+			setSessionFromTokens: (
+				accessToken: string,
+				refreshToken: string,
+			) => Promise<AuthSessionResponse>;
 		};
 
 		sync: {
@@ -143,6 +167,43 @@ declare global {
 			saveAllSessions: (
 				sessions: Record<string, Sessions>
 			) => Promise<string | { error: string }>;
+		};
+
+		storageSync: {
+			getAll: () => Promise<Record<string, string>>;
+			setItem: (key: string, value: string) => Promise<boolean>;
+			removeItem: (key: string) => Promise<boolean>;
+			clear: () => Promise<boolean>;
+			onChange: (
+				callback: (change: {
+					type: "set" | "remove" | "clear";
+					key?: string;
+					value?: string;
+				}) => void,
+			) => void;
+		};
+
+		startup: {
+			getSettings: () => Promise<{
+				runAtLogin: boolean;
+				autoStartProxy: boolean;
+				proxyPort: number;
+				proxyUsers: { email: string; role: string }[];
+				uiPort: number;
+			}>;
+			updateSettings: (patch: {
+				runAtLogin?: boolean;
+				autoStartProxy?: boolean;
+				proxyPort?: number;
+				uiPort?: number;
+				proxyUsers?: { email: string; role: string }[];
+			}) => Promise<{
+				runAtLogin: boolean;
+				autoStartProxy: boolean;
+				proxyPort: number;
+				proxyUsers: { email: string; role: string }[];
+				uiPort: number;
+			}>;
 		};
 	}
 

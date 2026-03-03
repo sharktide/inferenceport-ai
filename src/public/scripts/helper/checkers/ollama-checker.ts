@@ -1,7 +1,7 @@
 (async function(){
     if (typeof window.ollama.isAvailable !== 'function') return;
     async function check(){
-        const ok: boolean = window.ollama.isAvailable();
+        const ok: boolean = await window.ollama.isAvailable();
         const banner = document.getElementById('ollama-missing');
         const installedGrid = document.getElementById('installed-models');
         const availGrid = document.getElementById('available-models');
