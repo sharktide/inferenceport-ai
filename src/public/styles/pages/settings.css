@@ -43,6 +43,10 @@ Copyright 2025 Rihaan Meher
   overflow: clip;
 }
 
+[data-theme="dark"] .settings-section {
+  background: color-mix(in srgb, var(--bg-light) 78%, transparent);
+}
+
 .settings-section > summary {
   list-style: none;
   cursor: pointer;
