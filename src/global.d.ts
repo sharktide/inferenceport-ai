@@ -39,6 +39,22 @@ declare global {
 		error?: string;
 	};
 
+	type AuthSubscriptionTier = {
+		name: string;
+		url: string;
+		price: string;
+	};
+
+	type AuthSubscriptionInfo = {
+		planName: string;
+		isPaid: boolean;
+		email: string | null;
+		signedUp: string | null;
+		status: string | null;
+		tiers: AuthSubscriptionTier[];
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -160,6 +176,8 @@ declare global {
 				accessToken: string,
 				refreshToken: string,
 			) => Promise<AuthSessionResponse>;
+			getSubscriptionInfo: () => Promise<AuthSubscriptionInfo>;
+			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
 		};
 
 		sync: {

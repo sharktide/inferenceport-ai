@@ -169,6 +169,66 @@
 							></toggle-switch>
 						</div>
 					</div>
+					<section id="usage-panel" class="usage-panel" aria-live="polite">
+						<div class="usage-panel-header">
+							<div>
+								<p class="usage-kicker">Current plan</p>
+								<p id="usage-plan-name" class="usage-plan-name">Free Tier</p>
+							</div>
+							<div class="usage-panel-actions">
+								<button id="usage-refresh-btn" type="button" class="usage-btn subtle">
+									Refresh
+								</button>
+								<button id="usage-upgrade-btn" type="button" class="usage-btn">
+									Upgrade
+								</button>
+							</div>
+						</div>
+						<p id="usage-plan-meta" class="usage-plan-meta">
+							Checking subscription limits...
+						</p>
+						<div class="usage-grid">
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Cloud Chat</span>
+									<span id="usage-cloud-value">0 / 50 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-cloud-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Images</span>
+									<span id="usage-image-value">0 / 10 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-image-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Videos</span>
+									<span id="usage-video-value">0 / 3 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-video-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Audio</span>
+									<span id="usage-audio-value">0 / 1 this week</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-audio-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+						</div>
+						<p id="usage-reset-note" class="usage-reset-note">
+							Daily limits reset at local midnight. Audio resets every week.
+						</p>
+					</section>
 					<input
 						type="hidden"
 						id="session-search"

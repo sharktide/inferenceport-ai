@@ -85,6 +85,21 @@ const sidebarControls = document.getElementById(
 const lightningStatus = document.getElementById(
 	"lightning-status",
 ) as HTMLDivElement | null;
+const usagePlanNameEl = document.getElementById(
+	"usage-plan-name",
+) as HTMLParagraphElement | null;
+const usagePlanMetaEl = document.getElementById(
+	"usage-plan-meta",
+) as HTMLParagraphElement | null;
+const usageResetNoteEl = document.getElementById(
+	"usage-reset-note",
+) as HTMLParagraphElement | null;
+const usageUpgradeBtn = document.getElementById(
+	"usage-upgrade-btn",
+) as HTMLButtonElement | null;
+const usageRefreshBtn = document.getElementById(
+	"usage-refresh-btn",
+) as HTMLButtonElement | null;
 let modal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
@@ -106,6 +121,86 @@ const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
 const VIDEO_MODE_OPTIONS = ["normal", "fun"];
 const DEFAULT_VIDEO_DURATION = 5;
 const liveToolBubbles = new Map<string, HTMLDivElement>();
+const PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
+const PLAN_DISPLAY_NAMES = {
+	free: "Free Tier",
+	light: "InferencePort AI Light",
+	pro: "InferencePort AI Pro",
+	creator: "InferencePort AI Creator",
+	professional: "InferencePort AI Professional",
+} as const;
+const PLAN_LIMITS = {
+	free: {
+		cloudChatDaily: 50,
+		imagesDaily: 10,
+		videosDaily: 3,
+		audioWeekly: 1,
+	},
+	light: {
+		cloudChatDaily: null,
+		imagesDaily: 50,
+		videosDaily: 10,
+		audioWeekly: 5,
+	},
+	pro: {
+		cloudChatDaily: null,
+		imagesDaily: 150,
+		videosDaily: null,
+		audioWeekly: 25,
+	},
+	creator: {
+		cloudChatDaily: null,
+		imagesDaily: 300,
+		videosDaily: 50,
+		audioWeekly: 45,
+	},
+	professional: {
+		cloudChatDaily: null,
+		imagesDaily: null,
+		videosDaily: null,
+		audioWeekly: 75,
+	},
+} as const;
+const LIMIT_COPY = {
+	cloudChatDaily: { label: "Cloud chat", period: "today" },
+	imagesDaily: { label: "Image generation", period: "today" },
+	videosDaily: { label: "Video generation", period: "today" },
+	audioWeekly: { label: "Audio generation", period: "this week" },
+} as const;
+const USAGE_STORAGE_PREFIX = "inferenceport-usage-v1";
+const USAGE_UI_MAP = {
+	cloudChatDaily: {
+		valueId: "usage-cloud-value",
+		fillId: "usage-cloud-fill",
+	},
+	imagesDaily: {
+		valueId: "usage-image-value",
+		fillId: "usage-image-fill",
+	},
+	videosDaily: {
+		valueId: "usage-video-value",
+		fillId: "usage-video-fill",
+	},
+	audioWeekly: {
+		valueId: "usage-audio-value",
+		fillId: "usage-audio-fill",
+	},
+} as const;
+let usageStorageKey = `${USAGE_STORAGE_PREFIX}:guest`;
+let currentPlanKey: keyof typeof PLAN_LIMITS = "free";
+let currentPlanName = PLAN_DISPLAY_NAMES.free;
+let currentPlanPaid = false;
+let currentAuthSession: AuthSessionView | null = null;
+let lastTierLookupError: string | null = null;
+let subscriptionTiers: AuthSubscriptionTier[] = [];
+let usageState = {
+	dayKey: "",
+	weekKey: "",
+	cloudChatDaily: 0,
+	imagesDaily: 0,
+	videosDaily: 0,
+	audioWeekly: 0,
+};
 
 type ToggleSwitchElement = HTMLElement & {
 	checked: boolean;
@@ -117,6 +212,383 @@ function readLightningSetting(): boolean {
 	} catch (e) {
 		return false;
 	}
+}
+
+function getLocalDayKey(date: Date = new Date()): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+function getIsoWeekKey(date: Date = new Date()): string {
+	const temp = new Date(date.getTime());
+	temp.setHours(0, 0, 0, 0);
+	temp.setDate(temp.getDate() + 3 - ((temp.getDay() + 6) % 7));
+	const weekOne = new Date(temp.getFullYear(), 0, 4);
+	const weekNumber =
+		1 +
+		Math.round(
+			((temp.getTime() - weekOne.getTime()) / 86400000 -
+				3 +
+				((weekOne.getDay() + 6) % 7)) /
+				7,
+		);
+	return `${temp.getFullYear()}-W${String(weekNumber).padStart(2, "0")}`;
+}
+
+function createDefaultUsageState() {
+	return {
+		dayKey: getLocalDayKey(),
+		weekKey: getIsoWeekKey(),
+		cloudChatDaily: 0,
+		imagesDaily: 0,
+		videosDaily: 0,
+		audioWeekly: 0,
+	};
+}
+
+function getUsageStorageKeyForUser(userId?: string | null): string {
+	return `${USAGE_STORAGE_PREFIX}:${userId || "guest"}`;
+}
+
+function normalizePlanKey(planName: string): keyof typeof PLAN_LIMITS {
+	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
+	if (normalized.includes("professional")) return "professional";
+	if (normalized.includes("creator")) return "creator";
+	if (normalized.includes("pro")) return "pro";
+	if (normalized.includes("light")) return "light";
+	return "free";
+}
+
+function getActivePlanLimits() {
+	return PLAN_LIMITS[currentPlanKey];
+}
+
+function pruneUsageState() {
+	const dayKey = getLocalDayKey();
+	const weekKey = getIsoWeekKey();
+	if (usageState.dayKey !== dayKey) {
+		usageState.dayKey = dayKey;
+		usageState.cloudChatDaily = 0;
+		usageState.imagesDaily = 0;
+		usageState.videosDaily = 0;
+	}
+	if (usageState.weekKey !== weekKey) {
+		usageState.weekKey = weekKey;
+		usageState.audioWeekly = 0;
+	}
+}
+
+function saveUsageState() {
+	try {
+		pruneUsageState();
+		localStorage.setItem(usageStorageKey, JSON.stringify(usageState));
+	} catch (e) {
+		void 0;
+	}
+}
+
+function loadUsageStateForUser(userId?: string | null) {
+	usageStorageKey = getUsageStorageKeyForUser(userId);
+	let nextState = createDefaultUsageState();
+
+	try {
+		const raw = localStorage.getItem(usageStorageKey);
+		if (raw) {
+			const parsed = JSON.parse(raw);
+			nextState = {
+				...nextState,
+				...(parsed && typeof parsed === "object" ? parsed : {}),
+			};
+		}
+	} catch (e) {
+		void 0;
+	}
+
+	usageState = {
+		dayKey:
+			typeof nextState.dayKey === "string" && nextState.dayKey
+				? nextState.dayKey
+				: getLocalDayKey(),
+		weekKey:
+			typeof nextState.weekKey === "string" && nextState.weekKey
+				? nextState.weekKey
+				: getIsoWeekKey(),
+		cloudChatDaily: Number.isFinite(Number(nextState.cloudChatDaily))
+			? Math.max(0, Number(nextState.cloudChatDaily))
+			: 0,
+		imagesDaily: Number.isFinite(Number(nextState.imagesDaily))
+			? Math.max(0, Number(nextState.imagesDaily))
+			: 0,
+		videosDaily: Number.isFinite(Number(nextState.videosDaily))
+			? Math.max(0, Number(nextState.videosDaily))
+			: 0,
+		audioWeekly: Number.isFinite(Number(nextState.audioWeekly))
+			? Math.max(0, Number(nextState.audioWeekly))
+			: 0,
+	};
+
+	pruneUsageState();
+	saveUsageState();
+	renderUsagePanel();
+}
+
+function toFiniteRatio(used: number, limit: number): number {
+	if (!Number.isFinite(limit) || limit <= 0) return 0;
+	return Math.min(1, Math.max(0, used / limit));
+}
+
+function formatUsageMetric(
+	kind: keyof typeof LIMIT_COPY,
+	used: number,
+	limit: number | null,
+) {
+	const copy = LIMIT_COPY[kind];
+	if (limit == null) {
+		return `${used} used ${copy.period} • Unlimited`;
+	}
+	return `${Math.min(used, limit)} / ${limit} ${copy.period}`;
+}
+
+function updateUsageRow(
+	kind: keyof typeof LIMIT_COPY,
+	used: number,
+	limit: number | null,
+) {
+	const map = USAGE_UI_MAP[kind];
+	const valueEl = document.getElementById(map.valueId);
+	const fillEl = document.getElementById(map.fillId) as HTMLDivElement | null;
+	if (valueEl) {
+		valueEl.textContent = formatUsageMetric(kind, used, limit);
+	}
+	if (!fillEl) return;
+
+	fillEl.classList.remove("is-warning", "is-danger", "is-unlimited");
+	if (limit == null) {
+		fillEl.classList.add("is-unlimited");
+		fillEl.style.width = "100%";
+		return;
+	}
+
+	const ratio = toFiniteRatio(used, limit);
+	fillEl.style.width = `${Math.round(ratio * 100)}%`;
+	if (ratio >= 1) {
+		fillEl.classList.add("is-danger");
+	} else if (ratio >= 0.75) {
+		fillEl.classList.add("is-warning");
+	}
+}
+
+function renderUsagePanel() {
+	pruneUsageState();
+	const limits = getActivePlanLimits();
+	if (usagePlanNameEl) usagePlanNameEl.textContent = currentPlanName;
+	if (usagePlanMetaEl) {
+		const paidText = currentPlanPaid
+			? "Paid subscription active."
+			: "No paid subscription detected. Free plan limits apply.";
+		const errorText = lastTierLookupError
+			? ` ${lastTierLookupError}`
+			: "";
+		usagePlanMetaEl.textContent = `${paidText}${errorText}`;
+	}
+	if (usageResetNoteEl) {
+		usageResetNoteEl.textContent =
+			`Local reset windows: day ${usageState.dayKey}, week ${usageState.weekKey}.`;
+	}
+
+	updateUsageRow(
+		"cloudChatDaily",
+		usageState.cloudChatDaily,
+		limits.cloudChatDaily,
+	);
+	updateUsageRow("imagesDaily", usageState.imagesDaily, limits.imagesDaily);
+	updateUsageRow("videosDaily", usageState.videosDaily, limits.videosDaily);
+	updateUsageRow("audioWeekly", usageState.audioWeekly, limits.audioWeekly);
+}
+
+function canConsumeUsage(kind: keyof typeof LIMIT_COPY): boolean {
+	pruneUsageState();
+	const limit = getActivePlanLimits()[kind];
+	if (limit == null) return true;
+	return usageState[kind] < limit;
+}
+
+function bumpUsage(kind: keyof typeof LIMIT_COPY, amount = 1) {
+	pruneUsageState();
+	usageState[kind] += amount;
+	saveUsageState();
+	renderUsagePanel();
+}
+
+function isCloudRequest(model: string, clientUrl?: string): boolean {
+	return (
+		lightningEnabled ||
+		model === LIGHTNING_MODEL_VALUE ||
+		clientUrl === LIGHTNING_CLIENT_URL
+	);
+}
+
+function getTierPrice(name: string): string | null {
+	const match = subscriptionTiers.find(
+		(tier) => normalizePlanKey(tier.name) === normalizePlanKey(name),
+	);
+	if (!match?.price) return null;
+	return `$${match.price}/mo`;
+}
+
+function getSortedTierCatalog(): AuthSubscriptionTier[] {
+	if (!Array.isArray(subscriptionTiers)) return [];
+	const weight = new Map(PLAN_ORDER.map((plan, index) => [plan, index]));
+	return [...subscriptionTiers].sort((a, b) => {
+		const aWeight = weight.get(normalizePlanKey(a.name)) ?? 999;
+		const bWeight = weight.get(normalizePlanKey(b.name)) ?? 999;
+		return aWeight - bWeight;
+	});
+}
+
+function getRecommendedUpgradePlan(
+	kind: keyof typeof LIMIT_COPY,
+): keyof typeof PLAN_LIMITS | null {
+	const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
+	for (let i = Math.max(currentIndex + 1, 0); i < PLAN_ORDER.length; i++) {
+		const candidate = PLAN_ORDER[i];
+		if (PLAN_LIMITS[candidate][kind] == null) return candidate;
+		const currentLimit = PLAN_LIMITS[candidate][kind];
+		if (typeof currentLimit === "number") return candidate;
+	}
+	return null;
+}
+
+async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
+	await refreshSubscriptionData(true);
+	const recommended = getRecommendedUpgradePlan(kind);
+	const tiers = getSortedTierCatalog();
+	const plansToShow =
+		tiers.length > 0
+			? tiers
+			: PLAN_ORDER.filter((plan) => plan !== "free").map((plan) => ({
+					name: PLAN_DISPLAY_NAMES[plan],
+					url: "",
+					price: "",
+				}));
+
+	const planCards = plansToShow
+		.filter((tier) => normalizePlanKey(tier.name) !== currentPlanKey)
+		.map((tier) => {
+			const tierKey = normalizePlanKey(tier.name);
+			const recommendedBadge =
+				recommended && tierKey === recommended
+					? `<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(60,163,116,0.15);color:#3ca374;">Recommended</span>`
+					: "";
+			const price = tier.price ? `$${escapeHtml(tier.price)}/mo` : "";
+			const button =
+				tier.url && tier.url.trim().length > 0
+					? `<button type="button" data-upgrade-url="${escapeHtml(tier.url)}" style="margin-top:6px">Buy ${escapeHtml(tier.name)}</button>`
+					: `<button type="button" disabled style="margin-top:6px;opacity:.6;cursor:not-allowed;">Link unavailable</button>`;
+			return `
+				<div style="border:1px solid rgba(127,127,127,0.25);border-radius:10px;padding:10px;display:grid;gap:4px;">
+					<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+						<strong>${escapeHtml(tier.name)}</strong>
+						${recommendedBadge}
+					</div>
+					${price ? `<div style="font-size:12px;opacity:.8">${price}</div>` : ""}
+					${button}
+				</div>
+			`;
+		})
+		.join("");
+
+	const copy = LIMIT_COPY[kind];
+	modal.open({
+		html: `
+			<h3>${escapeHtml(copy.label)} limit reached</h3>
+			<p style="opacity:.8;margin:8px 0 10px;">
+				Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+			</p>
+			<p style="opacity:.8;margin:0 0 12px;">
+				Upgrade to continue ${escapeHtml(copy.label.toLowerCase())} beyond your ${escapeHtml(copy.period)} quota.
+			</p>
+			<div style="display:grid;gap:8px;max-height:300px;overflow:auto;">
+				${planCards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
+			</div>
+		`,
+		actions: [
+			{
+				id: "close-upgrade-dialog",
+				label: "Close",
+				onClick: () => modal.close(),
+			},
+		],
+	});
+
+	document.querySelectorAll("[data-upgrade-url]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const url = (btn as HTMLElement).getAttribute("data-upgrade-url");
+			if (url) {
+				void window.utils.web_open(url);
+			}
+		});
+	});
+}
+
+function notifyLimitReached(kind: keyof typeof LIMIT_COPY) {
+	const copy = LIMIT_COPY[kind];
+	showNotification({
+		message: `${copy.label} limit reached for ${currentPlanName}.`,
+		type: "warning",
+		actions: [
+			{
+				label: "Upgrade Plan",
+				onClick: () => void openUpgradeDialog(kind),
+			},
+		],
+	});
+}
+
+function enforceLimit(kind: keyof typeof LIMIT_COPY): boolean {
+	if (canConsumeUsage(kind)) return true;
+	notifyLimitReached(kind);
+	renderUsagePanel();
+	return false;
+}
+
+function getPlanNameFromSubscription(info: AuthSubscriptionInfo): string {
+	if (typeof info?.planName === "string" && info.planName.trim()) {
+		const key = normalizePlanKey(info.planName);
+		return PLAN_DISPLAY_NAMES[key];
+	}
+	return PLAN_DISPLAY_NAMES.free;
+}
+
+async function refreshSubscriptionData(force = false) {
+	if (!force && !currentAuthSession?.isAuthenticated) {
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		currentPlanPaid = false;
+		lastTierLookupError = null;
+		renderUsagePanel();
+		return;
+	}
+
+	try {
+		const info = await window.auth.getSubscriptionInfo();
+		const planName = getPlanNameFromSubscription(info);
+		currentPlanKey = normalizePlanKey(planName);
+		currentPlanName = planName;
+		currentPlanPaid = Boolean(info?.isPaid && currentPlanKey !== "free");
+		subscriptionTiers = Array.isArray(info?.tiers) ? info.tiers : [];
+		lastTierLookupError = info?.error ? `(${info.error})` : null;
+	} catch (err: any) {
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		currentPlanPaid = false;
+		lastTierLookupError = "(Subscription lookup unavailable)";
+		console.warn("Subscription fetch failed:", err);
+	}
+
+	renderUsagePanel();
 }
 
 function collectUsedAssetIds(sessions: any): Set<string> {
@@ -237,6 +709,14 @@ document.addEventListener("DOMContentLoaded", () => {
 	initWelcomeCards();
 	initLightningToggleEvents();
 	updateExperimentalFeatureNotice();
+	loadUsageStateForUser(null);
+	renderUsagePanel();
+	usageUpgradeBtn?.addEventListener("click", () => {
+		void openUpgradeDialog("cloudChatDaily");
+	});
+	usageRefreshBtn?.addEventListener("click", () => {
+		void refreshSubscriptionData(true);
+	});
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -473,6 +953,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		hostSelect.addEventListener("change", updateHostSelectState);
 	}
 
+	window.auth.onAuthStateChange((session) => {
+		currentAuthSession = session;
+		loadUsageStateForUser(session?.user?.id);
+		void refreshSubscriptionData(true);
+	});
+
 	remoteHostCancel?.addEventListener("click", () => {
 		remoteHostDialog?.classList.add("hidden");
 		if (hostSelect)
@@ -583,6 +1069,9 @@ async function loadOptions() {
 		setSessionProgress(45);
 
 		const auth = await window.auth.getSession();
+		currentAuthSession = auth?.session ?? null;
+		loadUsageStateForUser(currentAuthSession?.user?.id);
+		await refreshSubscriptionData();
 		setSessionProgress(55);
 
 		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
@@ -1096,6 +1585,7 @@ imgBtn.addEventListener("click", () => {
 		imgEnabled = false;
 		imageLabel.style.color = "";
 	} else {
+		if (!enforceLimit("imagesDaily")) return;
 		imgEnabled = true;
 		Object.assign(imageLabel.style, { color: "#f9d400ff" });
 	}
@@ -1107,6 +1597,7 @@ videoBtn.addEventListener("click", () => {
 		videoEnabled = false;
 		videoLabel.style.color = "";
 	} else {
+		if (!enforceLimit("videosDaily")) return;
 		videoEnabled = true;
 		Object.assign(videoLabel.style, { color: "#f9d400ff" });
 	}
@@ -1119,6 +1610,7 @@ audioBtn.addEventListener("click", () => {
 		audioEnabled = false;
 		audioLabel.style.color = "";
 	} else {
+		if (!enforceLimit("audioWeekly")) return;
 		audioEnabled = true;
 		Object.assign(audioLabel.style, { color: "#f9d400ff" });
 	}
@@ -1331,6 +1823,14 @@ form.addEventListener("submit", async (e) => {
 		currentSessionId,
 	);
 	if (!prompt || !currentSessionId) return;
+	const isCloudChat = isCloudRequest(model, clientUrl);
+	if (isCloudChat && !enforceLimit("cloudChatDaily")) {
+		input.value = prompt;
+		typingBar.classList.remove("empty");
+		updateTextareaState();
+		textarea.focus();
+		return;
+	}
 	setWelcomeMode(false);
 	if (sessions[currentSessionId].history.length === 0) {
 		console.log(
@@ -1377,6 +1877,9 @@ form.addEventListener("submit", async (e) => {
 		},
 		clientUrl,
 	);
+	if (isCloudChat) {
+		bumpUsage("cloudChatDaily");
+	}
 
 	let fullResponse = "";
 	isStreaming = true;
@@ -2866,6 +3369,14 @@ function createLiveVideoToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("videosDaily")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Video limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting video options...");
@@ -2989,6 +3500,14 @@ function createLiveImageToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("imagesDaily")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Image limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting image options...");
@@ -3098,6 +3617,14 @@ function createLiveAudioToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("audioWeekly")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Audio limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting audio prompt...");
@@ -3197,6 +3724,15 @@ window.ollama.onNewAsset((msg) => {
 		role: msg.role,
 		content,
 	});
+	if (msg.role === "image") {
+		bumpUsage("imagesDaily");
+	}
+	if (msg.role === "video") {
+		bumpUsage("videosDaily");
+	}
+	if (msg.role === "audio") {
+		bumpUsage("audioWeekly");
+	}
 
 	void window.ollama.save(sessions);
 	if (shouldRender) {

@@ -1026,6 +1026,13 @@ export function installWebSocketTransportFallback(): void {
 		verifyPassword: async (password: string) =>
 			invokeOrDefault("auth:verify-password", [{ password }]),
 		deleteAccount: async () => invokeOrDefault("auth:delete-account", []),
+		getSubscriptionInfo: async () =>
+			invokeOrDefault<AuthSubscriptionInfo>("auth:getSubscriptionInfo", []),
+		getSubscriptionTiers: async () =>
+			invokeOrDefault<AuthSubscriptionTier[]>(
+				"auth:getSubscriptionTiers",
+				[],
+			),
 		setSessionFromTokens: async (
 			accessToken: string,
 			refreshToken: string,

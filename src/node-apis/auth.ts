@@ -13,6 +13,36 @@ const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
 const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
 export const supabase = createClient(supabaseUrl, supabaseKey);
+const subscriptionApiBase = "https://sharktide-lightning.hf.space";
+const subscriptionDetailsUrl = `${subscriptionApiBase}/subscription`;
+const subscriptionTiersUrl = `${subscriptionApiBase}/tiers`;
+
+type SubscriptionTierView = {
+	name: string;
+	url: string;
+	price: string;
+};
+
+type RendererSubscriptionView = {
+	planName: string;
+	isPaid: boolean;
+	email: string | null;
+	signedUp: string | null;
+	status: string | null;
+	tiers: SubscriptionTierView[];
+	error?: string;
+};
+
+type RemoteSubscriptionEntry = {
+	status?: unknown;
+	product_name?: unknown;
+};
+
+type RemoteSubscriptionPayload = {
+	email?: unknown;
+	signed_up?: unknown;
+	subscription?: RemoteSubscriptionEntry[];
+};
 
 type RendererSessionUser = {
 	id: string;
@@ -147,6 +177,77 @@ async function buildRendererSessionPayload(session: Session | null): Promise<{
 	};
 }
 
+function asTrimmedString(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeTier(value: unknown): SubscriptionTierView | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const name = asTrimmedString(asRecord.name);
+	const url = asTrimmedString(asRecord.url);
+	if (!name || !url) return null;
+
+	return {
+		name,
+		url,
+		price: asTrimmedString(asRecord.price) ?? "",
+	};
+}
+
+async function getSubscriptionTiersSafe(): Promise<SubscriptionTierView[]> {
+	try {
+		const res = await fetch(subscriptionTiersUrl, {
+			headers: {
+				Accept: "application/json",
+			},
+		});
+
+		if (!res.ok) {
+			return [];
+		}
+
+		const payload = await res.json();
+		if (!Array.isArray(payload)) return [];
+		return payload
+			.map((entry) => normalizeTier(entry))
+			.filter((entry): entry is SubscriptionTierView => Boolean(entry));
+	} catch (_err) {
+		return [];
+	}
+}
+
+function toSubscriptionView(
+	payload: RemoteSubscriptionPayload | null,
+	tiers: SubscriptionTierView[],
+): RendererSubscriptionView {
+	const subscriptionEntries = Array.isArray(payload?.subscription)
+		? payload.subscription
+		: [];
+
+	const preferredEntry =
+		subscriptionEntries.find((entry) => {
+			const status = asTrimmedString(entry?.status)?.toLowerCase();
+			return status === "active" || status === "trialing";
+		}) ?? subscriptionEntries[0];
+
+	const planName = asTrimmedString(preferredEntry?.product_name) ?? "Free Tier";
+	const status = asTrimmedString(preferredEntry?.status);
+	const email = asTrimmedString(payload?.email);
+	const signedUp = asTrimmedString(payload?.signed_up);
+
+	return {
+		planName,
+		isPaid: planName !== "Free Tier",
+		email,
+		signedUp,
+		status,
+		tiers,
+	};
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -204,6 +305,59 @@ export default function register() {
 		}
 
 		return await buildRendererSessionPayload(data.session);
+	});
+
+	ipcMain.handle("auth:getSubscriptionTiers", async () => {
+		return await getSubscriptionTiersSafe();
+	});
+
+	ipcMain.handle("auth:getSubscriptionInfo", async () => {
+		const tiers = await getSubscriptionTiersSafe();
+		const fallback: RendererSubscriptionView = {
+			planName: "Free Tier",
+			isPaid: false,
+			email: null,
+			signedUp: null,
+			status: null,
+			tiers,
+		};
+
+		try {
+			const { data, error } = await supabase.auth.getSession();
+			if (error || !data.session?.access_token) {
+				return {
+					...fallback,
+					...(error ? { error: error.message } : {}),
+				};
+			}
+
+			const res = await fetch(subscriptionDetailsUrl, {
+				headers: {
+					Authorization: `Bearer ${data.session.access_token}`,
+					Accept: "application/json",
+				},
+			});
+
+			// Free tier users may not have a subscription payload.
+			if (res.status === 401 || res.status === 403 || res.status === 404) {
+				return fallback;
+			}
+
+			if (!res.ok) {
+				return {
+					...fallback,
+					error: `Subscription lookup failed (${res.status})`,
+				};
+			}
+
+			const payload = (await res.json()) as RemoteSubscriptionPayload;
+			return toSubscriptionView(payload, tiers);
+		} catch (err) {
+			return {
+				...fallback,
+				error: err instanceof Error ? err.message : String(err),
+			};
+		}
 	});
 
 	ipcMain.handle(
