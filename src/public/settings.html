@@ -14,80 +14,65 @@
 			<div class="settings-container">
 				<h1>Settings</h1>
 
-				<details open class="settings-section">
-					<summary>General</summary>
-					<div class="settings-section-content">
-						<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
+				<div class="tab-container">
+					<div class="tab-buttons">
+						<button class="tab-button active" data-tab="general">General</button>
+						<button class="tab-button" data-tab="startup">Startup</button>
+						<button class="tab-button" data-tab="account">Account</button>
+						<button class="tab-button" data-tab="syncing">Syncing</button>
+						<button class="tab-button" data-tab="host">Host (Proxy)</button>
 					</div>
-				</details>
-
-				<details open class="settings-section">
-					<summary>Startup</summary>
-					<div class="settings-section-content">
-						<label class="settings-checkbox">
-							<input type="checkbox" id="startup-run-at-login">
-							Start background server on device startup
-						</label>
-						<label class="settings-checkbox">
-							<input type="checkbox" id="startup-auto-proxy">
-							Auto-start hosting proxy (uses saved host users)
-						</label>
-						<div class="settings-inline-row">
-							<label for="startup-ui-port">Web UI port</label>
-						<input
-							type="number"
-							id="startup-ui-port"
-							min="1"
-							max="65535"
-							step="1"
-						/>
-							<button id="startup-ui-port-save" class="theme-toggle">
-							Save UI Port
-						</button>
+					<div class="tab-content">
+						<div class="tab-pane active" id="general">
+							<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
 						</div>
-					<p id="startup-ui-port-status" class="muted">
-						Reserved ports: 52440-52458.
-					</p>
-					<p id="startup-status" class="muted"></p>
-					</div>
-				</details>
-
-				<details open id="account-settings" class="settings-section">
-					<summary>Account</summary>
-					<div class="settings-section-content">
-						<div class="settings-inline-row">
-						<button id="open-rename" class="theme-toggle">Change Username</button>
-							<button id="open-delete" class="theme-toggle">Delete Account</button>
+						<div class="tab-pane" id="startup">
+							<label class="settings-checkbox">
+								<input type="checkbox" id="startup-run-at-login">
+								Start background server on device startup
+							</label>
+							<label class="settings-checkbox">
+								<input type="checkbox" id="startup-auto-proxy">
+								Auto-start hosting proxy (uses saved host users)
+							</label>
+							<div class="settings-inline-row">
+								<label for="startup-ui-port">Web UI port</label>
+							<input
+								type="number"
+								id="startup-ui-port"
+								min="1"
+								max="65535"
+								step="1"
+							/>
+								<button id="startup-ui-port-save" class="theme-toggle">
+								Save UI Port
+							</button>
+							</div>
+						<p id="startup-ui-port-status" class="muted">
+							Reserved ports: 52440-52458.
+						</p>
+						<p id="startup-status" class="muted"></p>
 						</div>
-						<hr style="margin:18px 0;">
-						<section id="upgrade-section" style="margin-top:10px;padding:16px 12px;border-radius:10px;background:var(--settings-upgrade-bg,#f8f8e5);box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-							<h3 style="margin-top:0;margin-bottom:8px;">Upgrade Plan</h3>
-							<p id="upgrade-plan-info" style="margin-bottom:10px;">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
-							<button id="settings-upgrade-btn" class="theme-toggle" style="background:#2a4d7a;color:#fff;padding:8px 18px;border-radius:8px;font-size:15px;">See Upgrade Options</button>
-						</section>
-					</div>
-				</details>
-				<!--
-		<div class="setting-item">
-			<label for="language-select">Language</label>
-			<select id="language-select">
-			<option value="en">English</option>
-			<option value="es">Spanish</option>
-			</select>
-		</div>
-		-->
-					<details open class="settings-section"><summary>Syncing</summary>
-						<div class="settings-section-content">
+						<div class="tab-pane" id="account">
+							<div class="settings-inline-row">
+							<button id="open-rename" class="theme-toggle">Change Username</button>
+								<button id="open-delete" class="theme-toggle">Delete Account</button>
+							</div>
+							<hr style="margin:18px 0;">
+							<section id="upgrade-section" style="margin-top:10px;padding:16px 12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+								<h3 style="margin-top:0;margin-bottom:8px;">Upgrade Plan</h3>
+								<p id="upgrade-plan-info" style="margin-bottom:10px;">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
+								<button id="settings-upgrade-btn" class="theme-toggle" style="background:#2a4d7a;color:#fff;padding:8px 18px;border-radius:8px;font-size:15px;">See Upgrade Options</button>
+							</section>
+						</div>
+						<div class="tab-pane" id="syncing">
 							<label class="settings-checkbox">
 								<input type="checkbox" id="sync-chats"> Enable chat sync
 							</label>
 						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
 						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
 						</div>
-					</details>
-
-					<details open class="settings-section"><summary>Host (Proxy)</summary>
-						<div class="settings-section-content">
+						<div class="tab-pane" id="host">
 						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the comma-separated list of allowed emails, then click <strong>Start Hosting</strong>.</p>
 						<div class="settings-proxy-form">
 							<label>Port: 52458</label>
@@ -120,7 +105,8 @@
 							<pre id="logs-output"></pre>
 						</div>
 						</div>
-					</details>
+					</div>
+				</div>
 			</div>
 			<footer class="settings-footer">Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 			<footer class="settings-footer"><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
