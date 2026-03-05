@@ -4,12 +4,155 @@ const loginButton = document.getElementById('login') as HTMLButtonElement;
 const signupButton = document.getElementById('signup') as HTMLButtonElement;
 const statusText = document.getElementById('status') as HTMLParagraphElement;
 (window as any).mode = 0;
+const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
+const DEFAULT_UPGRADE_TARGET = "settings.html#upgrade";
+const initialQueryParams = new URLSearchParams(window.location.search);
+let upgradeChoiceModal: declarations["iInstance"]["iModal"] | null = null;
 
 type AuthSessionResult = {
     session: AuthSessionView;
     profile: AuthProfileView;
     error?: string;
 };
+
+function getUpgradeIntentTarget(): string | null {
+    try {
+        const target = localStorage.getItem(UPGRADE_INTENT_STORAGE_KEY);
+        return target && target.trim() ? target : null;
+    } catch (_e) {
+        return null;
+    }
+}
+
+function setUpgradeIntentTarget(target: string): void {
+    try {
+        localStorage.setItem(UPGRADE_INTENT_STORAGE_KEY, target || DEFAULT_UPGRADE_TARGET);
+    } catch (_e) {
+        void 0;
+    }
+}
+
+function clearUpgradeIntentTarget(): void {
+    try {
+        localStorage.removeItem(UPGRADE_INTENT_STORAGE_KEY);
+    } catch (_e) {
+        void 0;
+    }
+}
+
+function getUpgradeModal(): declarations["iInstance"]["iModal"] | null {
+    if (!(window.ic && window.ic.iModal)) return null;
+    if (!upgradeChoiceModal) {
+        upgradeChoiceModal = new window.ic.iModal(
+            "auth-upgrade-modal",
+            520,
+            undefined,
+            false,
+            false,
+        );
+    }
+    return upgradeChoiceModal;
+}
+
+function promptUpgradeAfterAuth(defaultTarget: string) {
+    const upgradeTarget = getUpgradeIntentTarget();
+    if (!upgradeTarget) {
+        window.location.href = defaultTarget;
+        return;
+    }
+
+    const modal = getUpgradeModal();
+    if (!modal) {
+        clearUpgradeIntentTarget();
+        window.location.href = upgradeTarget;
+        return;
+    }
+
+    modal.open({
+        html: `
+            <h3>Upgrade your plan now?</h3>
+            <p style="opacity:.85;margin:8px 0 10px;">
+                You are signed in. Do you want to review paid plans now?
+            </p>
+        `,
+        actions: [
+            {
+                id: "auth-upgrade-now",
+                label: "Yes, show plans",
+                onClick: () => {
+                    clearUpgradeIntentTarget();
+                    modal.close();
+                    window.location.href = upgradeTarget;
+                },
+            },
+            {
+                id: "auth-upgrade-later",
+                label: "Not now",
+                onClick: () => {
+                    clearUpgradeIntentTarget();
+                    modal.close();
+                    window.location.href = defaultTarget;
+                },
+            },
+        ],
+    });
+}
+
+function promptUpgradePreferenceAfterSignup() {
+    if (!getUpgradeIntentTarget()) return;
+    const modal = getUpgradeModal();
+    if (!modal) {
+        updateStatus(
+            "After you verify your email and sign in, you can upgrade from Settings > Upgrade Plan.",
+        );
+        return;
+    }
+
+    modal.open({
+        html: `
+            <h3>Would you like to upgrade after signup?</h3>
+            <p style="opacity:.85;margin:8px 0 10px;">
+                Once you verify your email and sign in, do you want to review upgrade plans?
+            </p>
+        `,
+        actions: [
+            {
+                id: "auth-signup-upgrade-yes",
+                label: "Yes, ask me",
+                onClick: () => {
+                    modal.close();
+                    updateStatus(
+                        "Great. Verify your email, sign in, and we will ask if you want to upgrade.",
+                    );
+                },
+            },
+            {
+                id: "auth-signup-upgrade-no",
+                label: "No thanks",
+                onClick: () => {
+                    clearUpgradeIntentTarget();
+                    modal.close();
+                    updateStatus(
+                        "Account created. You can upgrade anytime from Settings.",
+                    );
+                },
+            },
+        ],
+    });
+}
+
+function syncUpgradeIntentFromQuery() {
+    if (initialQueryParams.get("upgrade") !== "1") return;
+    const nextTarget = initialQueryParams.get("next") || DEFAULT_UPGRADE_TARGET;
+    setUpgradeIntentTarget(nextTarget);
+    if (initialQueryParams.get("mode") === "signup") {
+        updateStatus("Create an account to continue with upgrading.");
+    } else {
+        updateStatus("Sign in to continue with upgrading.");
+    }
+}
+
+syncUpgradeIntentFromQuery();
 
 async function completeOAuthRedirectIfPresent() {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -53,7 +196,7 @@ loginButton.addEventListener('click', async () => {
         if (!profile?.username) {
             window.location.href = "welcome.html";
         } else {
-            window.location.href = "index.html";
+            promptUpgradeAfterAuth("index.html");
         }
     }
     else if ((window as any).mode === 1) {
@@ -81,10 +224,16 @@ googleButton?.addEventListener("click", async () => {
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
     const returnBtn = document.getElementById("return-home-btn")!;
-    modal.classList.remove("hidden")
+    modal.classList.remove("hidden");
+    const hasUpgradeIntent = Boolean(getUpgradeIntentTarget());
+    returnBtn.textContent = hasUpgradeIntent ? "Continue" : "Return Home";
 
     returnBtn.onclick = () => {
-        modal.classList.remove("hidden");
+        modal.classList.add("hidden");
+        if (hasUpgradeIntent) {
+            promptUpgradeAfterAuth("index.html");
+            return;
+        }
         window.location.href = "index.html";
     };
 }
@@ -108,6 +257,7 @@ signupButton.addEventListener('click', async () => {
         if (result.error) return updateStatus(`Signup failed: ${result.error}`);
 
         updateStatus(`Account created for ${email}. Please check your email to confirm before logging in.`);
+        promptUpgradePreferenceAfterSignup();
     }
     else if ((window as any).mode === 1) {
         const email = emailInput.value.trim();
@@ -136,4 +286,8 @@ function forgotPassword() {
     loginButton.innerText = "Cancel";
     signupButton.innerText = "Contine";
     (window as any).mode = 1
+}
+
+if (initialQueryParams.get("mode") === "signup") {
+    updateStatus("Create an account, then verify your email and sign in.");
 }

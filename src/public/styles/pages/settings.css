@@ -148,6 +148,46 @@ Copyright 2025 Rihaan Meher
   border-color: color-mix(in srgb, var(--error) 30%, transparent);
 }
 
+.settings-upgrade-section {
+  margin-top: 10px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-light) 86%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-upgrade-section h3 {
+  margin: 0 0 8px;
+}
+
+.settings-upgrade-section p {
+  margin: 0;
+}
+
+.settings-upgrade-limits {
+  margin: 10px 0 12px;
+  display: none;
+}
+
+.settings-upgrade-limits.is-visible {
+  display: block;
+}
+
+.settings-upgrade-limits ul {
+  margin: 6px 0 0 16px;
+  padding: 0;
+}
+
+.settings-upgrade-limits li {
+  margin: 4px 0;
+}
+
+.settings-upgrade-btn {
+  background: #2a4d7a;
+  color: #fff;
+}
+
 .settings-proxy-form {
   display: grid;
   gap: 10px;

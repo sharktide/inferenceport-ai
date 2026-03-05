@@ -1033,6 +1033,8 @@ export function installWebSocketTransportFallback(): void {
 				"auth:getSubscriptionTiers",
 				[],
 			),
+		getTierConfig: async () =>
+			invokeOrDefault<AuthTierConfig | null>("auth:getTierConfig", []),
 		setSessionFromTokens: async (
 			accessToken: string,
 			refreshToken: string,

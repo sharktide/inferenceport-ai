@@ -1,6 +1,7 @@
 import { LOG, LOG_ERR } from "./log.js";
 import fs from "fs";
 import path from "path"
+import { getSession } from "../auth.js";
 export const cache ={
  	cachedSupportsTools: null as string[] | null,
 	writeInProgress: null as Promise<void> | null
@@ -52,6 +53,18 @@ async function fetchWithRetry(
     throw new Error("Unreachable");
 }
 
+async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	try {
+		const session = await getSession();
+		if (session?.access_token) {
+			return { Authorization: `Bearer ${session.access_token}` };
+		}
+	} catch (_err) {
+		void 0;
+	}
+	return {};
+}
+
 export type ImageGenerateRequest = {
 	prompt: string;
 	mode?: "auto" | "fantasy" | "realistic";
@@ -73,11 +86,15 @@ export async function GenerateImage(
 	try {
 		const body: Record<string, unknown> = { prompt: request.prompt };
 		if (request.mode) body.mode = request.mode;
+		const authHeaders = await getLightningAuthHeaders();
 
 		response = await fetch(url,
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+					"Content-Type": "application/json",
+					...authHeaders,
+				},
                 body: JSON.stringify(body),
             }
         );
@@ -173,9 +190,13 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
 
 	let response: Response;
 	try {
+		const authHeaders = await getLightningAuthHeaders();
 		response = await fetchWithRetry(trace, url, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				...authHeaders,
+			},
 			body: JSON.stringify({ prompt: prompt }),
 		}, 6);
 		LOG(trace, "FETCH RESOLVED", {
@@ -251,9 +272,13 @@ export async function generateVideo(
 
 	let response: Response;
 	try {
+		const authHeaders = await getLightningAuthHeaders();
 		response = await fetchWithRetry(trace, url, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				...authHeaders,
+			},
 			body: JSON.stringify(body),
 		}, 6);
 		LOG(trace, "FETCH RESOLVED", {

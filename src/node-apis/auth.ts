@@ -16,31 +16,59 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 const subscriptionApiBase = "https://sharktide-lightning.hf.space";
 const subscriptionDetailsUrl = `${subscriptionApiBase}/subscription`;
 const subscriptionTiersUrl = `${subscriptionApiBase}/tiers`;
+const subscriptionTierConfigUrl = `${subscriptionApiBase}/tier-config`;
 
 type SubscriptionTierView = {
+	key?: string;
 	name: string;
 	url: string;
 	price: string;
 };
 
+type SubscriptionLimitsView = {
+	cloudChatDaily: number | null;
+	imagesDaily: number | null;
+	videosDaily: number | null;
+	audioWeekly: number | null;
+};
+
+type SubscriptionTierConfigPlanView = {
+	key: string;
+	name: string;
+	url: string;
+	price: string;
+	limits: SubscriptionLimitsView;
+	order: number;
+};
+
+type SubscriptionTierConfigView = {
+	defaultPlanKey: string;
+	plans: SubscriptionTierConfigPlanView[];
+};
+
 type RendererSubscriptionView = {
+	planKey: string;
 	planName: string;
 	isPaid: boolean;
 	email: string | null;
 	signedUp: string | null;
 	status: string | null;
 	tiers: SubscriptionTierView[];
+	tierConfig: SubscriptionTierConfigView | null;
 	error?: string;
 };
 
 type RemoteSubscriptionEntry = {
 	status?: unknown;
 	product_name?: unknown;
+	plan_key?: unknown;
 };
 
 type RemoteSubscriptionPayload = {
 	email?: unknown;
 	signed_up?: unknown;
+	plan_key?: unknown;
+	plan_name?: unknown;
 	subscription?: RemoteSubscriptionEntry[];
 };
 
@@ -183,21 +211,152 @@ function asTrimmedString(value: unknown): string | null {
 	return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizePlanKeyFromName(planName: string | null): string {
+	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
+	if (normalized.includes("professional")) return "professional";
+	if (normalized.includes("creator")) return "creator";
+	if (normalized.includes("pro")) return "pro";
+	if (normalized.includes("light")) return "light";
+	return "free";
+}
+
+function normalizeLimitValue(value: unknown): number | null {
+	if (value === null || value === undefined) return null;
+	const n = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(n)) return null;
+	const rounded = Math.round(n);
+	return rounded >= 0 ? rounded : null;
+}
+
 function normalizeTier(value: unknown): SubscriptionTierView | null {
 	if (!value || typeof value !== "object") return null;
 	const asRecord = value as Record<string, unknown>;
 	const name = asTrimmedString(asRecord.name);
-	const url = asTrimmedString(asRecord.url);
-	if (!name || !url) return null;
+	if (!name) return null;
+	const key = asTrimmedString(asRecord.key);
 
 	return {
+		...(key ? { key } : {}),
 		name,
-		url,
+		url: asTrimmedString(asRecord.url) ?? "",
 		price: asTrimmedString(asRecord.price) ?? "",
 	};
 }
 
+function normalizeTierConfigPlan(
+	value: unknown,
+	index: number,
+): SubscriptionTierConfigPlanView | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const key = asTrimmedString(asRecord.key)?.toLowerCase();
+	const name = asTrimmedString(asRecord.name);
+	if (!key || !name) return null;
+
+	const limitsRecord =
+		asRecord.limits && typeof asRecord.limits === "object"
+			? (asRecord.limits as Record<string, unknown>)
+			: {};
+
+	return {
+		key,
+		name,
+		url: asTrimmedString(asRecord.url) ?? "",
+		price: asTrimmedString(asRecord.price) ?? "",
+		limits: {
+			cloudChatDaily: normalizeLimitValue(limitsRecord.cloudChatDaily),
+			imagesDaily: normalizeLimitValue(limitsRecord.imagesDaily),
+			videosDaily: normalizeLimitValue(limitsRecord.videosDaily),
+			audioWeekly: normalizeLimitValue(limitsRecord.audioWeekly),
+		},
+		order:
+			typeof asRecord.order === "number" && Number.isFinite(asRecord.order)
+				? Math.round(asRecord.order)
+				: index,
+	};
+}
+
+function normalizeTierConfig(value: unknown): SubscriptionTierConfigView | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const plansRaw = Array.isArray(asRecord.plans) ? asRecord.plans : [];
+	const plans = plansRaw
+		.map((entry, index) => normalizeTierConfigPlan(entry, index))
+		.filter(
+			(entry): entry is SubscriptionTierConfigPlanView => Boolean(entry),
+		)
+		.sort((a, b) => a.order - b.order);
+	if (plans.length === 0) return null;
+	const defaultPlanKey =
+		asTrimmedString(asRecord.defaultPlanKey)?.toLowerCase() ?? "free";
+	return {
+		defaultPlanKey,
+		plans,
+	};
+}
+
+const TIER_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
+const tierConfigCache: {
+	value: SubscriptionTierConfigView | null;
+	expiresAt: number;
+} = {
+	value: null,
+	expiresAt: 0,
+};
+
+async function getSubscriptionTierConfigSafe(
+	force = false,
+): Promise<SubscriptionTierConfigView | null> {
+	const now = Date.now();
+	if (
+		!force &&
+		tierConfigCache.value &&
+		tierConfigCache.expiresAt > now
+	) {
+		return tierConfigCache.value;
+	}
+
+	try {
+		const res = await fetch(subscriptionTierConfigUrl, {
+			headers: {
+				Accept: "application/json",
+			},
+		});
+		if (!res.ok) {
+			return tierConfigCache.value;
+		}
+
+		const payload = await res.json();
+		const normalized = normalizeTierConfig(payload);
+		if (!normalized) return tierConfigCache.value;
+
+		tierConfigCache.value = normalized;
+		tierConfigCache.expiresAt = now + TIER_CONFIG_CACHE_TTL_MS;
+		return normalized;
+	} catch (_err) {
+		return tierConfigCache.value;
+	}
+}
+
+function getTiersFromConfig(
+	config: SubscriptionTierConfigView | null,
+): SubscriptionTierView[] {
+	if (!config?.plans?.length) return [];
+	return config.plans
+		.filter((plan) => plan.key !== config.defaultPlanKey)
+		.map((plan) => ({
+			key: plan.key,
+			name: plan.name,
+			url: plan.url,
+			price: plan.price,
+		}));
+}
+
 async function getSubscriptionTiersSafe(): Promise<SubscriptionTierView[]> {
+	const tierConfig = await getSubscriptionTierConfigSafe();
+	const fromConfig = getTiersFromConfig(tierConfig);
+	if (fromConfig.length > 0) return fromConfig;
+
 	try {
 		const res = await fetch(subscriptionTiersUrl, {
 			headers: {
@@ -222,6 +381,7 @@ async function getSubscriptionTiersSafe(): Promise<SubscriptionTierView[]> {
 function toSubscriptionView(
 	payload: RemoteSubscriptionPayload | null,
 	tiers: SubscriptionTierView[],
+	tierConfig: SubscriptionTierConfigView | null,
 ): RendererSubscriptionView {
 	const subscriptionEntries = Array.isArray(payload?.subscription)
 		? payload.subscription
@@ -233,20 +393,45 @@ function toSubscriptionView(
 			return status === "active" || status === "trialing";
 		}) ?? subscriptionEntries[0];
 
-	const planName = asTrimmedString(preferredEntry?.product_name) ?? "Free Tier";
+	const tierMap = new Map(
+		(tierConfig?.plans || []).map((plan) => [plan.key, plan]),
+	);
+	const payloadPlanKey =
+		asTrimmedString(preferredEntry?.plan_key)?.toLowerCase() ??
+		asTrimmedString(payload?.plan_key)?.toLowerCase();
+	let planKey =
+		payloadPlanKey && tierMap.has(payloadPlanKey)
+			? payloadPlanKey
+			: normalizePlanKeyFromName(
+					asTrimmedString(preferredEntry?.product_name) ??
+						asTrimmedString(payload?.plan_name),
+				);
+	if (tierMap.size > 0 && !tierMap.has(planKey)) {
+		planKey = tierConfig?.defaultPlanKey || "free";
+	}
+	const fallbackPlanName =
+		tierMap.get(planKey)?.name ??
+		asTrimmedString(preferredEntry?.product_name) ??
+		"Free Tier";
+	const planName = fallbackPlanName;
 	const status = asTrimmedString(preferredEntry?.status);
 	const email = asTrimmedString(payload?.email);
 	const signedUp = asTrimmedString(payload?.signed_up);
+	const defaultPlanKey = tierConfig?.defaultPlanKey || "free";
 
 	return {
+		planKey,
 		planName,
-		isPaid: planName !== "Free Tier",
+		isPaid: planKey !== defaultPlanKey,
 		email,
 		signedUp,
 		status,
 		tiers,
+		tierConfig,
 	};
 }
+
+void getSubscriptionTierConfigSafe();
 
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
@@ -311,15 +496,26 @@ export default function register() {
 		return await getSubscriptionTiersSafe();
 	});
 
+	ipcMain.handle("auth:getTierConfig", async () => {
+		return await getSubscriptionTierConfigSafe();
+	});
+
 	ipcMain.handle("auth:getSubscriptionInfo", async () => {
+		const tierConfig = await getSubscriptionTierConfigSafe();
 		const tiers = await getSubscriptionTiersSafe();
+		const defaultPlanKey = tierConfig?.defaultPlanKey || "free";
+		const defaultPlanName =
+			tierConfig?.plans.find((p) => p.key === defaultPlanKey)?.name ||
+			"Free Tier";
 		const fallback: RendererSubscriptionView = {
-			planName: "Free Tier",
+			planKey: defaultPlanKey,
+			planName: defaultPlanName,
 			isPaid: false,
 			email: null,
 			signedUp: null,
 			status: null,
 			tiers,
+			tierConfig,
 		};
 
 		try {
@@ -351,7 +547,7 @@ export default function register() {
 			}
 
 			const payload = (await res.json()) as RemoteSubscriptionPayload;
-			return toSubscriptionView(payload, tiers);
+			return toSubscriptionView(payload, tiers, tierConfig);
 		} catch (err) {
 			return {
 				...fallback,

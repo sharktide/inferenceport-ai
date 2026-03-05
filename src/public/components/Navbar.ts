@@ -53,9 +53,9 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="installed.html">Installed</a></li>
                     <li><a href="settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
                     <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;width:200px;color:#fff;background-color:#fcba03;">Free Tier</span>
+                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
                     <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
                     <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
                 </div>
@@ -78,9 +78,9 @@ export class Type1Navbar extends HTMLElement {
                     <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
                     <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;width:200px;color:#fff;background-color:#fcba03;">Free Tier</span>
+                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
                     <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
                     <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
                     </div>
@@ -103,9 +103,9 @@ export class MarketplaceNavbar extends HTMLElement {
                     <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
                     <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;width:200px;color:#fff;background-color:#fcba03;">Free Tier</span>
+                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
                     <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
                     <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
                 </div>

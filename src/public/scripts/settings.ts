@@ -55,12 +55,437 @@ let hostConfigModal: declarations["iInstance"]["iModal"];
 let renameModal: declarations["iInstance"]["iModal"];
 let deleteConfirmModal: declarations["iInstance"]["iModal"];
 let deletePasswordModal: declarations["iInstance"]["iModal"];
+let settingsUpgradeModal: declarations["iInstance"]["iModal"];
+let settingsUpgradeAuthModal: declarations["iInstance"]["iModal"];
+
+const settingsUpgradeBtn = document.getElementById(
+	"settings-upgrade-btn",
+) as HTMLButtonElement | null;
+const settingsUpgradePlanInfo = document.getElementById(
+	"upgrade-plan-info",
+) as HTMLParagraphElement | null;
+const settingsUpgradeLimitsEl = document.getElementById(
+	"upgrade-plan-limits",
+) as HTMLDivElement | null;
+type PlanKey = "free" | "light" | "pro" | "creator" | "professional";
+const PLAN_ORDER: PlanKey[] = [
+	"free",
+	"light",
+	"pro",
+	"creator",
+	"professional",
+];
+const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
+	free: "Free Tier",
+	light: "InferencePort AI Light",
+	pro: "InferencePort AI Pro",
+	creator: "InferencePort AI Creator",
+	professional: "InferencePort AI Professional",
+};
+const EMPTY_PLAN_LIMITS: AuthTierLimits = {
+	cloudChatDaily: null,
+	imagesDaily: null,
+	videosDaily: null,
+	audioWeekly: null,
+};
+const PLAN_LIMITS: Record<PlanKey, AuthTierLimits> = {
+	free: { ...EMPTY_PLAN_LIMITS },
+	light: { ...EMPTY_PLAN_LIMITS },
+	pro: { ...EMPTY_PLAN_LIMITS },
+	creator: { ...EMPTY_PLAN_LIMITS },
+	professional: { ...EMPTY_PLAN_LIMITS },
+};
+const LIMIT_COPY = {
+	cloudChatDaily: "Cloud chat/day",
+	imagesDaily: "Image generation/day",
+	videosDaily: "Video generation/day",
+	audioWeekly: "Audio generation/week",
+} as const;
+const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
+const DEFAULT_UPGRADE_TARGET = "settings.html#upgrade";
+let currentPlanKey: PlanKey = "free";
+let currentPlanName: string = PLAN_DISPLAY_NAMES.free;
+let subscriptionTiers: AuthSubscriptionTier[] = [];
+let isUpgradeUserAuthenticated = false;
+let currentTierConfig: AuthTierConfig | null = null;
+
+function escapeHtml(value: string): string {
+	const map: Record<string, string> = {
+		"&": "&amp;",
+		"<": "&lt;",
+		">": "&gt;",
+		'"': "&quot;",
+		"'": "&#039;",
+	};
+	return String(value ?? "").replace(/[&<>"']/g, (m) => map[m] || m);
+}
+
+function isKnownPlanKey(value: string): value is PlanKey {
+	return (
+		value === "free" ||
+		value === "light" ||
+		value === "pro" ||
+		value === "creator" ||
+		value === "professional"
+	);
+}
+
+function normalizePlanKey(planName: string): PlanKey {
+	const direct = (planName || "").trim().toLowerCase();
+	if (isKnownPlanKey(direct)) return direct;
+	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
+	if (normalized.includes("professional")) return "professional";
+	if (normalized.includes("creator")) return "creator";
+	if (normalized.includes("pro")) return "pro";
+	if (normalized.includes("light")) return "light";
+	return "free";
+}
+
+function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return;
+	currentTierConfig = tierConfig;
+	const orderedKeys: PlanKey[] = [];
+	tierConfig.plans
+		.slice()
+		.sort((a, b) => a.order - b.order)
+		.forEach((plan) => {
+			const key = (plan.key || "").toLowerCase();
+			if (!isKnownPlanKey(key)) return;
+			if (!orderedKeys.includes(key)) orderedKeys.push(key);
+			if (typeof plan.name === "string" && plan.name.trim()) {
+				PLAN_DISPLAY_NAMES[key] = plan.name.trim();
+			}
+			PLAN_LIMITS[key] = {
+				cloudChatDaily:
+					typeof plan.limits?.cloudChatDaily === "number"
+						? plan.limits.cloudChatDaily
+						: null,
+				imagesDaily:
+					typeof plan.limits?.imagesDaily === "number"
+						? plan.limits.imagesDaily
+						: null,
+				videosDaily:
+					typeof plan.limits?.videosDaily === "number"
+						? plan.limits.videosDaily
+						: null,
+				audioWeekly:
+					typeof plan.limits?.audioWeekly === "number"
+						? plan.limits.audioWeekly
+						: null,
+			};
+		});
+	if (orderedKeys.length > 0) {
+		const missing = (["free", "light", "pro", "creator", "professional"] as PlanKey[]).filter(
+			(key) => !orderedKeys.includes(key),
+		);
+		PLAN_ORDER.splice(0, PLAN_ORDER.length, ...orderedKeys, ...missing);
+	}
+}
+
+function getPaidTiersFromConfig(
+	tierConfig: AuthTierConfig | null | undefined,
+): AuthSubscriptionTier[] {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return [];
+	const defaultKey = normalizePlanKey(tierConfig.defaultPlanKey || "free");
+	return tierConfig.plans
+		.filter((plan) => normalizePlanKey(plan.key) !== defaultKey)
+		.map((plan) => ({
+			key: plan.key,
+			name: plan.name,
+			url: plan.url,
+			price: plan.price,
+			limits: plan.limits,
+		}));
+}
+
+function rememberUpgradeIntent(target: string = DEFAULT_UPGRADE_TARGET): void {
+	try {
+		localStorage.setItem(UPGRADE_INTENT_STORAGE_KEY, target);
+	} catch (_e) {
+		void 0;
+	}
+}
+
+function formatLimitValue(value: number | null): string {
+	return value === null ? "Unlimited" : String(value);
+}
+
+function getSortedTierCatalog(): AuthSubscriptionTier[] {
+	const weight = new Map(PLAN_ORDER.map((plan, index) => [plan, index]));
+	return [...subscriptionTiers].sort((a, b) => {
+		const aWeight =
+			weight.get(normalizePlanKey((a.key as string) || a.name)) ?? 999;
+		const bWeight =
+			weight.get(normalizePlanKey((b.key as string) || b.name)) ?? 999;
+		return aWeight - bWeight;
+	});
+}
+
+function getTierPrice(name: string): string | null {
+	const match = subscriptionTiers.find(
+		(tier) => normalizePlanKey((tier.key as string) || tier.name) === normalizePlanKey(name),
+	);
+	if (!match?.price) return null;
+	return `$${match.price}/mo`;
+}
+
+function getRecommendedUpgradePlan(): PlanKey | null {
+	const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
+	for (let i = Math.max(currentIndex + 1, 0); i < PLAN_ORDER.length; i++) {
+		const candidate = PLAN_ORDER[i];
+		if (!candidate) continue;
+		const candidateLimit = PLAN_LIMITS[candidate].cloudChatDaily;
+		if (candidateLimit == null || typeof candidateLimit === "number") {
+			return candidate;
+		}
+	}
+	return null;
+}
+
+function renderSettingsUpgradePanel() {
+	if (settingsUpgradePlanInfo) {
+		const price = getTierPrice(currentPlanName);
+		settingsUpgradePlanInfo.textContent = `Current plan: ${currentPlanName}${price ? ` (${price})` : ""}.`;
+	}
+
+	if (!settingsUpgradeLimitsEl) return;
+	const limits = PLAN_LIMITS[currentPlanKey];
+	let html = "<strong>Rate Limits:</strong><ul>";
+	(Object.keys(limits) as Array<keyof typeof LIMIT_COPY>).forEach((key) => {
+		html += `<li>${LIMIT_COPY[key]}: ${formatLimitValue(limits[key])}</li>`;
+	});
+	html += "</ul>";
+	settingsUpgradeLimitsEl.innerHTML = html;
+	settingsUpgradeLimitsEl.classList.add("is-visible");
+}
+
+async function refreshUpgradeSubscriptionData(force = false): Promise<void> {
+	if (!force && !isUpgradeUserAuthenticated) {
+		try {
+			applyTierConfig(await window.auth.getTierConfig());
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+		} catch (_err) {
+			void 0;
+		}
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		renderSettingsUpgradePanel();
+		return;
+	}
+
+	try {
+		const sessionRes = await window.auth.getSession();
+		isUpgradeUserAuthenticated = Boolean(sessionRes?.session?.isAuthenticated);
+		if (!isUpgradeUserAuthenticated) {
+			applyTierConfig(await window.auth.getTierConfig());
+			currentPlanKey = "free";
+			currentPlanName = PLAN_DISPLAY_NAMES.free;
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+			renderSettingsUpgradePanel();
+			return;
+		}
+
+		const info = await window.auth.getSubscriptionInfo();
+		applyTierConfig(info?.tierConfig);
+		currentPlanKey =
+			typeof info?.planKey === "string" && info.planKey.trim()
+				? normalizePlanKey(info.planKey)
+				: normalizePlanKey(info?.planName || "");
+		currentPlanName = PLAN_DISPLAY_NAMES[currentPlanKey];
+		subscriptionTiers = Array.isArray(info?.tiers)
+			? info.tiers
+			: getPaidTiersFromConfig(info?.tierConfig);
+	} catch (_err) {
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+	}
+
+	renderSettingsUpgradePanel();
+}
+
+function redirectToAuthForUpgrade(mode: "signin" | "signup") {
+	const params = new URLSearchParams();
+	params.set("upgrade", "1");
+	params.set("mode", mode);
+	params.set("next", DEFAULT_UPGRADE_TARGET);
+	rememberUpgradeIntent(DEFAULT_UPGRADE_TARGET);
+	window.location.href = `auth.html?${params.toString()}`;
+}
+
+function openUpgradeRequiresAccountModal() {
+	if (!settingsUpgradeAuthModal && window.ic && window.ic.iModal) {
+		settingsUpgradeAuthModal = new window.ic.iModal(
+			"settings-upgrade-auth-modal",
+			520,
+			undefined,
+			false,
+			false,
+		);
+	}
+	if (!settingsUpgradeAuthModal) {
+		redirectToAuthForUpgrade("signin");
+		return;
+	}
+
+	settingsUpgradeAuthModal.open({
+		html: `
+			<h3>Account required to upgrade</h3>
+			<p style="opacity:.85;margin:8px 0 10px;">
+				You need an account before you can upgrade your plan.
+			</p>
+		`,
+		actions: [
+			{
+				id: "settings-upgrade-auth-signin",
+				label: "Sign In",
+				onClick: () => {
+					settingsUpgradeAuthModal.close();
+					redirectToAuthForUpgrade("signin");
+				},
+			},
+			{
+				id: "settings-upgrade-auth-signup",
+				label: "Create Account",
+				onClick: () => {
+					settingsUpgradeAuthModal.close();
+					redirectToAuthForUpgrade("signup");
+				},
+			},
+			{
+				id: "settings-upgrade-auth-close",
+				label: "Close",
+				onClick: () => settingsUpgradeAuthModal.close(),
+			},
+		],
+	});
+}
+
+async function openSettingsUpgradeModal() {
+	await refreshUpgradeSubscriptionData(true);
+
+	if (!isUpgradeUserAuthenticated) {
+		openUpgradeRequiresAccountModal();
+		return;
+	}
+
+	if (!settingsUpgradeModal && window.ic && window.ic.iModal) {
+		settingsUpgradeModal = new window.ic.iModal(
+			"settings-upgrade-modal",
+			700,
+			undefined,
+			false,
+			false,
+		);
+	}
+	if (!settingsUpgradeModal) return;
+
+	const recommended = getRecommendedUpgradePlan();
+	const tiers = getSortedTierCatalog();
+	const plansToShow =
+		tiers.length > 0
+			? tiers
+			: PLAN_ORDER.filter((plan) => plan !== "free").map((plan) => ({
+					key: plan,
+					name: PLAN_DISPLAY_NAMES[plan],
+					url: "",
+					price: "",
+				}));
+
+	const cards = plansToShow
+		.filter((tier) => normalizePlanKey((tier.key as string) || tier.name) !== currentPlanKey)
+		.map((tier) => {
+			const tierKey = normalizePlanKey((tier.key as string) || tier.name);
+			const recommendedBadge =
+				recommended && tierKey === recommended
+					? `<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(60,163,116,0.15);color:#3ca374;">Recommended</span>`
+					: "";
+			const price = tier.price ? `$${escapeHtml(tier.price)}/mo` : "";
+			const button =
+				tier.url && tier.url.trim().length > 0
+					? `<button type="button" data-upgrade-url="${escapeHtml(tier.url)}" style="margin-top:6px">Buy ${escapeHtml(tier.name)}</button>`
+					: `<button type="button" disabled style="margin-top:6px;opacity:.6;cursor:not-allowed;">Link unavailable</button>`;
+			return `
+				<div style="border:1px solid rgba(127,127,127,0.25);border-radius:10px;padding:10px;display:grid;gap:4px;">
+					<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+						<strong>${escapeHtml(tier.name)}</strong>
+						${recommendedBadge}
+					</div>
+					${price ? `<div style="font-size:12px;opacity:.8">${price}</div>` : ""}
+					${button}
+				</div>
+			`;
+		})
+		.join("");
+
+	settingsUpgradeModal.open({
+		html: `
+			<h3>Upgrade Your Plan</h3>
+			<p style="opacity:.8;margin:8px 0 10px;">
+				Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+			</p>
+			<p style="opacity:.8;margin:0 0 12px;">
+				Upgrade to unlock higher limits, premium models, and priority support.
+			</p>
+			<div style="display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,auto);gap:12px;max-height:300px;overflow:auto;">
+				${cards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
+			</div>
+		`,
+		actions: [
+			{
+				id: "close-settings-upgrade-dialog",
+				label: "Close",
+				onClick: () => settingsUpgradeModal.close(),
+			},
+		],
+	});
+
+	document.querySelectorAll("[data-upgrade-url]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const url = (btn as HTMLElement).getAttribute("data-upgrade-url");
+			if (url) {
+				void window.utils.web_open(url);
+			}
+		});
+	});
+}
 
 document.addEventListener("DOMContentLoaded", () => {
 	hostConfigModal = new window.ic.iModal("host-config-modal", 650);
 	renameModal = new window.ic.iModal("rename-modal", 400);
 	deleteConfirmModal = new window.ic.iModal("delete-confirm-modal", 420);
 	deletePasswordModal = new window.ic.iModal("delete-password-modal", 420);
+	settingsUpgradeModal = new window.ic.iModal(
+		"settings-upgrade-modal",
+		700,
+		undefined,
+		false,
+		false,
+	);
+	settingsUpgradeAuthModal = new window.ic.iModal(
+		"settings-upgrade-auth-modal",
+		520,
+		undefined,
+		false,
+		false,
+	);
+
+	settingsUpgradeBtn?.addEventListener("click", () => {
+		void openSettingsUpgradeModal();
+	});
+	void refreshUpgradeSubscriptionData(true);
+	window.auth.onAuthStateChange((session) => {
+		isUpgradeUserAuthenticated = Boolean(session?.isAuthenticated);
+		void refreshUpgradeSubscriptionData(true);
+	});
+
+	if (window.location.hash.replace(/^#/, "").toLowerCase() === "upgrade") {
+		const accountButton = document.querySelector(
+			'.tab-button[data-tab="account"]',
+		) as HTMLButtonElement | null;
+		accountButton?.click();
+		setTimeout(() => void openSettingsUpgradeModal(), 180);
+	}
 });
 
 (async () => {

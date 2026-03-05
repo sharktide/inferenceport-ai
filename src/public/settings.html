@@ -6,7 +6,6 @@
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="Components.js"></script>
 		<script type="module" src="scripts/staticload/index.js"></script>
-<script type="module" src="scripts/staticload/settings-upgrade.js"></script>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
@@ -54,16 +53,19 @@
 						<p id="startup-status" class="muted"></p>
 						</div>
 						<div class="tab-pane" id="account">
+							<div id="account-settings">
 							<div class="settings-inline-row">
 							<button id="open-rename" class="theme-toggle">Change Username</button>
 								<button id="open-delete" class="theme-toggle">Delete Account</button>
 							</div>
 							<hr style="margin:18px 0;">
-							<section id="upgrade-section" style="margin-top:10px;padding:16px 12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-								<h3 style="margin-top:0;margin-bottom:8px;">Upgrade Plan</h3>
-								<p id="upgrade-plan-info" style="margin-bottom:10px;">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
-								<button id="settings-upgrade-btn" class="theme-toggle" style="background:#2a4d7a;color:#fff;padding:8px 18px;border-radius:8px;font-size:15px;">See Upgrade Options</button>
+							<section id="upgrade-section" class="settings-upgrade-section">
+								<h3>Upgrade Plan</h3>
+								<p id="upgrade-plan-info">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
+								<div id="upgrade-plan-limits" class="settings-upgrade-limits"></div>
+								<button id="settings-upgrade-btn" class="theme-toggle settings-upgrade-btn">See Upgrade Options</button>
 							</section>
+							</div>
 						</div>
 						<div class="tab-pane" id="syncing">
 							<label class="settings-checkbox">

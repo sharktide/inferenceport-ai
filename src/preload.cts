@@ -191,6 +191,7 @@ contextBridge.exposeInMainWorld("auth", {
 		ipcRenderer.invoke("auth:setSessionTokens", accessToken, refreshToken),
 	getSubscriptionInfo: () => ipcRenderer.invoke("auth:getSubscriptionInfo"),
 	getSubscriptionTiers: () => ipcRenderer.invoke("auth:getSubscriptionTiers"),
+	getTierConfig: () => ipcRenderer.invoke("auth:getTierConfig"),
 });
 
 // ===== Sync =====

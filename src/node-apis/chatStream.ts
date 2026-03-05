@@ -19,7 +19,8 @@ import {
 } from "./utils.js";
 
 import {
-    issueProxyToken
+    issueProxyToken,
+	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 let chatHistory: ChatHistoryEntry[] = [];
@@ -45,9 +46,18 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	}
 
 	if (baseURL == "lightning") {
+		let lightningApiKey = "public";
+		try {
+			const session = await getSession();
+			if (session?.access_token) {
+				lightningApiKey = session.access_token;
+			}
+		} catch (_e) {
+			void 0;
+		}
 		return new OpenAI({
 			baseURL: "https://sharktide-lightning.hf.space/gen",
-			apiKey: "No key needed, rate limited by user",
+			apiKey: lightningApiKey,
 		});
 	}
 

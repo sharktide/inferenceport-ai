@@ -40,18 +40,43 @@ declare global {
 	};
 
 	type AuthSubscriptionTier = {
+		key?: string;
 		name: string;
 		url: string;
 		price: string;
+		limits?: AuthTierLimits;
+	};
+
+	type AuthTierLimits = {
+		cloudChatDaily: number | null;
+		imagesDaily: number | null;
+		videosDaily: number | null;
+		audioWeekly: number | null;
+	};
+
+	type AuthTierConfigPlan = {
+		key: string;
+		name: string;
+		url: string;
+		price: string;
+		limits: AuthTierLimits;
+		order: number;
+	};
+
+	type AuthTierConfig = {
+		defaultPlanKey: string;
+		plans: AuthTierConfigPlan[];
 	};
 
 	type AuthSubscriptionInfo = {
+		planKey: string;
 		planName: string;
 		isPaid: boolean;
 		email: string | null;
 		signedUp: string | null;
 		status: string | null;
 		tiers: AuthSubscriptionTier[];
+		tierConfig: AuthTierConfig | null;
 		error?: string;
 	};
 
@@ -178,6 +203,7 @@ declare global {
 			) => Promise<AuthSessionResponse>;
 			getSubscriptionInfo: () => Promise<AuthSubscriptionInfo>;
 			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
+			getTierConfig: () => Promise<AuthTierConfig | null>;
 		};
 
 		sync: {

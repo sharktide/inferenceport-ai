@@ -122,46 +122,34 @@ const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
 const VIDEO_MODE_OPTIONS = ["normal", "fun"];
 const DEFAULT_VIDEO_DURATION = 5;
 const liveToolBubbles = new Map<string, HTMLDivElement>();
-const PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
-export const PLAN_DISPLAY_NAMES = {
+type PlanKey = "free" | "light" | "pro" | "creator" | "professional";
+const PLAN_ORDER: PlanKey[] = [
+	"free",
+	"light",
+	"pro",
+	"creator",
+	"professional",
+];
+export const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
 	free: "Free Tier",
 	light: "InferencePort AI Light",
 	pro: "InferencePort AI Pro",
 	creator: "InferencePort AI Creator",
 	professional: "InferencePort AI Professional",
-} as const;
-export const PLAN_LIMITS = {
-	free: {
-		cloudChatDaily: 50,
-		imagesDaily: 10,
-		videosDaily: 3,
-		audioWeekly: 1,
-	},
-	light: {
-		cloudChatDaily: null,
-		imagesDaily: 50,
-		videosDaily: 10,
-		audioWeekly: 5,
-	},
-	pro: {
-		cloudChatDaily: null,
-		imagesDaily: 150,
-		videosDaily: null,
-		audioWeekly: 25,
-	},
-	creator: {
-		cloudChatDaily: null,
-		imagesDaily: 300,
-		videosDaily: 50,
-		audioWeekly: 45,
-	},
-	professional: {
-		cloudChatDaily: null,
-		imagesDaily: null,
-		videosDaily: null,
-		audioWeekly: 75,
-	},
-} as const;
+};
+const EMPTY_PLAN_LIMITS: AuthTierLimits = {
+	cloudChatDaily: null,
+	imagesDaily: null,
+	videosDaily: null,
+	audioWeekly: null,
+};
+export const PLAN_LIMITS: Record<PlanKey, AuthTierLimits> = {
+	free: { ...EMPTY_PLAN_LIMITS },
+	light: { ...EMPTY_PLAN_LIMITS },
+	pro: { ...EMPTY_PLAN_LIMITS },
+	creator: { ...EMPTY_PLAN_LIMITS },
+	professional: { ...EMPTY_PLAN_LIMITS },
+};
 const LIMIT_COPY = {
 	cloudChatDaily: { label: "Cloud chat", period: "today" },
 	imagesDaily: { label: "Image generation", period: "today" },
@@ -169,6 +157,8 @@ const LIMIT_COPY = {
 	audioWeekly: { label: "Audio generation", period: "this week" },
 } as const;
 const USAGE_STORAGE_PREFIX = "inferenceport-usage-v1";
+const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
+const UPGRADE_SETTINGS_TARGET = "settings.html#upgrade";
 const USAGE_UI_MAP = {
 	cloudChatDaily: {
 		valueId: "usage-cloud-value",
@@ -188,12 +178,13 @@ const USAGE_UI_MAP = {
 	},
 } as const;
 let usageStorageKey = `${USAGE_STORAGE_PREFIX}:guest`;
-let currentPlanKey: keyof typeof PLAN_LIMITS = "free";
+let currentPlanKey: PlanKey = "free";
 let currentPlanName = PLAN_DISPLAY_NAMES.free;
 let currentPlanPaid = false;
 let currentAuthSession: AuthSessionView | null = null;
 let lastTierLookupError: string | null = null;
 let subscriptionTiers: AuthSubscriptionTier[] = [];
+let currentTierConfig: AuthTierConfig | null = null;
 let usageState = {
 	dayKey: "",
 	weekKey: "",
@@ -253,13 +244,83 @@ function getUsageStorageKeyForUser(userId?: string | null): string {
 	return `${USAGE_STORAGE_PREFIX}:${userId || "guest"}`;
 }
 
-function normalizePlanKey(planName: string): keyof typeof PLAN_LIMITS {
+function isKnownPlanKey(value: string): value is PlanKey {
+	return (
+		value === "free" ||
+		value === "light" ||
+		value === "pro" ||
+		value === "creator" ||
+		value === "professional"
+	);
+}
+
+function normalizePlanKey(planName: string): PlanKey {
+	const direct = (planName || "").trim().toLowerCase();
+	if (isKnownPlanKey(direct)) return direct;
 	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
 	if (normalized.includes("professional")) return "professional";
 	if (normalized.includes("creator")) return "creator";
 	if (normalized.includes("pro")) return "pro";
 	if (normalized.includes("light")) return "light";
 	return "free";
+}
+
+function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return;
+	currentTierConfig = tierConfig;
+	const orderedKeys: PlanKey[] = [];
+	tierConfig.plans
+		.slice()
+		.sort((a, b) => a.order - b.order)
+		.forEach((plan) => {
+			const key = (plan.key || "").toLowerCase();
+			if (!isKnownPlanKey(key)) return;
+			if (!orderedKeys.includes(key)) orderedKeys.push(key);
+			if (typeof plan.name === "string" && plan.name.trim()) {
+				PLAN_DISPLAY_NAMES[key] = plan.name.trim();
+			}
+			PLAN_LIMITS[key] = {
+				cloudChatDaily:
+					typeof plan.limits?.cloudChatDaily === "number"
+						? plan.limits.cloudChatDaily
+						: null,
+				imagesDaily:
+					typeof plan.limits?.imagesDaily === "number"
+						? plan.limits.imagesDaily
+						: null,
+				videosDaily:
+					typeof plan.limits?.videosDaily === "number"
+						? plan.limits.videosDaily
+						: null,
+				audioWeekly:
+					typeof plan.limits?.audioWeekly === "number"
+						? plan.limits.audioWeekly
+						: null,
+			};
+		});
+
+	if (orderedKeys.length > 0) {
+		const missing = (["free", "light", "pro", "creator", "professional"] as PlanKey[]).filter(
+			(key) => !orderedKeys.includes(key),
+		);
+		PLAN_ORDER.splice(0, PLAN_ORDER.length, ...orderedKeys, ...missing);
+	}
+}
+
+function getPaidTiersFromConfig(
+	tierConfig: AuthTierConfig | null | undefined,
+): AuthSubscriptionTier[] {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return [];
+	const defaultKey = normalizePlanKey(tierConfig.defaultPlanKey || "free");
+	return tierConfig.plans
+		.filter((plan) => normalizePlanKey(plan.key) !== defaultKey)
+		.map((plan) => ({
+			key: plan.key,
+			name: plan.name,
+			url: plan.url,
+			price: plan.price,
+			limits: plan.limits,
+		}));
 }
 
 function getActivePlanLimits() {
@@ -433,7 +494,7 @@ function isCloudRequest(model: string, clientUrl?: string): boolean {
 
 function getTierPrice(name: string): string | null {
 	const match = subscriptionTiers.find(
-		(tier) => normalizePlanKey(tier.name) === normalizePlanKey(name),
+		(tier) => normalizePlanKey((tier.key as string) || tier.name) === normalizePlanKey(name),
 	);
 	if (!match?.price) return null;
 	return `$${match.price}/mo`;
@@ -443,18 +504,21 @@ function getSortedTierCatalog(): AuthSubscriptionTier[] {
 	if (!Array.isArray(subscriptionTiers)) return [];
 	const weight = new Map(PLAN_ORDER.map((plan, index) => [plan, index]));
 	return [...subscriptionTiers].sort((a, b) => {
-		const aWeight = weight.get(normalizePlanKey(a.name)) ?? 999;
-		const bWeight = weight.get(normalizePlanKey(b.name)) ?? 999;
+		const aWeight =
+			weight.get(normalizePlanKey((a.key as string) || a.name)) ?? 999;
+		const bWeight =
+			weight.get(normalizePlanKey((b.key as string) || b.name)) ?? 999;
 		return aWeight - bWeight;
 	});
 }
 
 function getRecommendedUpgradePlan(
 	kind: keyof typeof LIMIT_COPY,
-): keyof typeof PLAN_LIMITS | null {
+): PlanKey | null {
 	const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
 	for (let i = Math.max(currentIndex + 1, 0); i < PLAN_ORDER.length; i++) {
 		const candidate = PLAN_ORDER[i];
+		if (!candidate) continue;
 		if (PLAN_LIMITS[candidate][kind] == null) return candidate;
 		const currentLimit = PLAN_LIMITS[candidate][kind];
 		if (typeof currentLimit === "number") return candidate;
@@ -462,23 +526,81 @@ function getRecommendedUpgradePlan(
 	return null;
 }
 
+function rememberUpgradeIntent(target: string = UPGRADE_SETTINGS_TARGET): void {
+	try {
+		localStorage.setItem(UPGRADE_INTENT_STORAGE_KEY, target);
+	} catch (e) {
+		void 0;
+	}
+}
+
+function openUpgradeRequiresAccountDialog(kind: keyof typeof LIMIT_COPY) {
+	const copy = LIMIT_COPY[kind];
+	upgradeModal.open({
+		html: `
+			<h3>${escapeHtml(copy.label)} upgrade requires an account</h3>
+			<p style="opacity:.82;margin:8px 0 10px;">
+				Sign in or create an account first, then choose a paid plan.
+			</p>
+		`,
+		actions: [
+			{
+				id: "upgrade-account-signin",
+				label: "Sign In",
+				onClick: () => {
+					upgradeModal.close();
+					rememberUpgradeIntent(UPGRADE_SETTINGS_TARGET);
+					const params = new URLSearchParams();
+					params.set("upgrade", "1");
+					params.set("mode", "signin");
+					params.set("next", UPGRADE_SETTINGS_TARGET);
+					window.location.href = `../auth.html?${params.toString()}`;
+				},
+			},
+			{
+				id: "upgrade-account-signup",
+				label: "Create Account",
+				onClick: () => {
+					upgradeModal.close();
+					rememberUpgradeIntent(UPGRADE_SETTINGS_TARGET);
+					const params = new URLSearchParams();
+					params.set("upgrade", "1");
+					params.set("mode", "signup");
+					params.set("next", UPGRADE_SETTINGS_TARGET);
+					window.location.href = `../auth.html?${params.toString()}`;
+				},
+			},
+			{
+				id: "upgrade-account-close",
+				label: "Close",
+				onClick: () => upgradeModal.close(),
+			},
+		],
+	});
+}
+
 async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 	await refreshSubscriptionData(true);
+	if (!currentAuthSession?.isAuthenticated) {
+		openUpgradeRequiresAccountDialog(kind);
+		return;
+	}
 	const recommended = getRecommendedUpgradePlan(kind);
 	const tiers = getSortedTierCatalog();
 	const plansToShow =
 		tiers.length > 0
 			? tiers
 			: PLAN_ORDER.filter((plan) => plan !== "free").map((plan) => ({
+					key: plan,
 					name: PLAN_DISPLAY_NAMES[plan],
 					url: "",
 					price: "",
 				}));
 
 	const planCards = plansToShow
-		.filter((tier) => normalizePlanKey(tier.name) !== currentPlanKey)
+		.filter((tier) => normalizePlanKey((tier.key as string) || tier.name) !== currentPlanKey)
 		.map((tier) => {
-			const tierKey = normalizePlanKey(tier.name);
+			const tierKey = normalizePlanKey((tier.key as string) || tier.name);
 			const recommendedBadge =
 				recommended && tierKey === recommended
 					? `<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(60,163,116,0.15);color:#3ca374;">Recommended</span>`
@@ -556,6 +678,11 @@ function enforceLimit(kind: keyof typeof LIMIT_COPY): boolean {
 }
 
 function getPlanNameFromSubscription(info: AuthSubscriptionInfo): string {
+	applyTierConfig(info?.tierConfig);
+	if (typeof info?.planKey === "string" && info.planKey.trim()) {
+		const key = normalizePlanKey(info.planKey);
+		return PLAN_DISPLAY_NAMES[key];
+	}
 	if (typeof info?.planName === "string" && info.planName.trim()) {
 		const key = normalizePlanKey(info.planName);
 		return PLAN_DISPLAY_NAMES[key];
@@ -565,6 +692,12 @@ function getPlanNameFromSubscription(info: AuthSubscriptionInfo): string {
 
 async function refreshSubscriptionData(force = false) {
 	if (!force && !currentAuthSession?.isAuthenticated) {
+		try {
+			applyTierConfig(await window.auth.getTierConfig());
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+		} catch (_e) {
+			void 0;
+		}
 		currentPlanKey = "free";
 		currentPlanName = PLAN_DISPLAY_NAMES.free;
 		currentPlanPaid = false;
@@ -583,11 +716,25 @@ async function refreshSubscriptionData(force = false) {
 
 	try {
 		const info = await window.auth.getSubscriptionInfo();
+		applyTierConfig(info?.tierConfig);
 		const planName = getPlanNameFromSubscription(info);
-		currentPlanKey = normalizePlanKey(planName);
+		currentPlanKey =
+			typeof info?.planKey === "string" && info.planKey.trim()
+				? normalizePlanKey(info.planKey)
+				: normalizePlanKey(planName);
 		currentPlanName = planName;
-		currentPlanPaid = Boolean(info?.isPaid && currentPlanKey !== "free");
-		subscriptionTiers = Array.isArray(info?.tiers) ? info.tiers : [];
+		const defaultPlanKey = normalizePlanKey(
+			info?.tierConfig?.defaultPlanKey || "free",
+		);
+		currentPlanPaid = currentPlanKey !== defaultPlanKey;
+		if (typeof info?.isPaid === "boolean") {
+			currentPlanPaid = Boolean(
+				info.isPaid && currentPlanKey !== defaultPlanKey,
+			);
+		}
+		subscriptionTiers = Array.isArray(info?.tiers)
+			? info.tiers
+			: getPaidTiersFromConfig(info?.tierConfig);
 		lastTierLookupError = info?.error ? `(${info.error})` : null;
 	} catch (err: any) {
 		currentPlanKey = "free";
