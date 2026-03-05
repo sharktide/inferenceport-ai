@@ -73,7 +73,6 @@ window.addEventListener("DOMContentLoaded", async () => {
             plansHtml += `</div>`;
         }
         plansHtml += `</div>`;
-        modal.setContent(plansHtml);
-        modal.open();
+        modal.open({ html: plansHtml });
     };
 });
