@@ -123,14 +123,14 @@ const VIDEO_MODE_OPTIONS = ["normal", "fun"];
 const DEFAULT_VIDEO_DURATION = 5;
 const liveToolBubbles = new Map<string, HTMLDivElement>();
 const PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
-const PLAN_DISPLAY_NAMES = {
+export const PLAN_DISPLAY_NAMES = {
 	free: "Free Tier",
 	light: "InferencePort AI Light",
 	pro: "InferencePort AI Pro",
 	creator: "InferencePort AI Creator",
 	professional: "InferencePort AI Professional",
 } as const;
-const PLAN_LIMITS = {
+export const PLAN_LIMITS = {
 	free: {
 		cloudChatDaily: 50,
 		imagesDaily: 10,

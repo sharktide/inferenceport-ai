@@ -31,14 +31,13 @@ class AuthManager {
         }
     }
 
-    public resolveAuth(redirect: boolean = false): string {
+    public resolveAuth(redirect: boolean = false, customTarget?: string): string {
         const path = window.location.pathname;
         const normalized = path.replace(/\\/g, "/");
-
         let target = "auth.html";
-
+        if (customTarget) target = customTarget;
         if (normalized.includes("/marketplace/") || normalized.includes("/renderer/")) {
-            target = "../auth.html";
+            target = "../" + customTarget;
         }
 
         if (redirect) {
@@ -91,24 +90,24 @@ class AuthManager {
                         });
                         return;
                     }
-                    window.location.href = "settings.html#upgrade";
+                    this.resolveAuth(true, "settings.html#upgrade");
                 };
                 signinBtn.textContent = "Sign Out";
                 signinBtn.style.display = "inline-block";
                 signinBtn.onclick = () => {
                     window.auth.signOut();
-            };
-
+                    this.resolveAuth(true);
+                };
             } else {
                 usernameSpan.textContent = "Guest";
                 planSpan.textContent = "Free Tier";
                 upgradeBtn.style.display = "inline-block";
                 upgradeBtn.onclick = () => {
-                    window.location.href = "auth.html";
+                    this.resolveAuth(true, "settings.html#upgrade");
                 };
                 signinBtn.style.display = "inline-block";
                 signinBtn.onclick = () => {
-                    window.location.href = "auth.html";
+                    this.resolveAuth(true);
                 };
             }
         } catch (e) {
