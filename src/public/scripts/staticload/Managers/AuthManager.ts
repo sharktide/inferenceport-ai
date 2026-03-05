@@ -67,53 +67,51 @@ class AuthManager {
 
     private async renderUserIndicator() {
         try {
+            const usernameSpan = document.getElementById("navbar-username");
+            const planSpan = document.getElementById("navbar-plan");
+            const upgradeBtn = document.getElementById("navbar-upgrade-btn");
+            const signinBtn = document.getElementById("navbar-signin-btn");
             const nav = document.querySelector("nav");
-            if (!nav) return;
-
-            const container = document.createElement("div");
-            container.id = "user-indicator";
-            container.style.marginLeft = "auto";
-            container.style.marginRight = "18px";
-            container.style.opacity = "0";
-            container.style.transition = "opacity 0.3s ease";
-            container.style.display = "flex";
-            container.style.alignItems = "center";
-            container.style.gap = "8px";
+            if (!nav || !usernameSpan || !planSpan || !upgradeBtn || !signinBtn) return;
 
             const res = await window.auth.getSession();
             const session = (res as any)?.session;
             const profile = (res as any)?.profile;
+            const plan = (res as any)?.subscription?.planName || "Free Tier";
 
             if (session?.isAuthenticated && session.user) {
-                const name = profile?.username || "Account";
-                const link = document.createElement("a");
-                link.href = this.resolveSettings();
-                link.textContent = String(name);
-                link.style.textDecoration = "none";
-                link.style.color = "inherit";
-                link.id = "account-link";
+                usernameSpan.textContent = profile?.username || "Account";
+                planSpan.textContent = plan;
+                upgradeBtn.style.display = plan === "Free Tier" ? "inline-block" : "none";
+                upgradeBtn.onclick = () => {
+    if (window.ic && window.ic.iModal) {
+        const modal = new window.ic.iModal("upgrade-modal", 700, undefined, false, false);
+        modal.open({
+            html: `<h2>Upgrade Your Plan</h2><p>Current plan: ${plan}</p><p>Enjoy more features and higher limits by upgrading!</p><ul><li>Higher daily limits</li><li>Priority support</li><li>Access to premium models</li></ul><button onclick='window.location.href="settings.html#upgrade"'>See all plans</button>`
+        });
+        return;
+    }
+    window.location.href = "settings.html#upgrade";
+};
+                signinBtn.textContent = "Sign Out";
+signinBtn.style.display = "inline-block";
+signinBtn.onclick = () => {
+    window.auth.signOut();
+};
+                signinBtn.onclick = null;
 
-                const signOutBtn = document.createElement("button");
-                signOutBtn.textContent = "Sign out";
-                signOutBtn.addEventListener("click", async (e) => {
-                    e.preventDefault();
-                    localStorage.setItem("sync_enabled", "false");
-                    await window.auth.signOut();
-                    window.location.href = this.resolveAuth();
-                });
-
-                container.appendChild(link);
-                container.appendChild(signOutBtn);
             } else {
-                const signIn = document.createElement("a");
-                signIn.href = this.resolveAuth();
-                signIn.textContent = "Sign in";
-                signIn.style.textDecoration = "none";
-                signIn.style.color = "inherit";
-                container.appendChild(signIn);
+                usernameSpan.textContent = "Guest";
+                planSpan.textContent = "Free Tier";
+                upgradeBtn.style.display = "inline-block";
+                upgradeBtn.onclick = () => {
+                    window.location.href = "auth.html";
+                };
+                signinBtn.style.display = "inline-block";
+                signinBtn.onclick = () => {
+                    window.location.href = "auth.html";
+                };
             }
-            nav.querySelectorAll("#user-indicator").forEach(el => el.remove());
-            nav.appendChild(container);
         } catch (e) {
             console.warn("renderUserIndicator error", e);
         }

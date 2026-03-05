@@ -108,12 +108,23 @@
 	margin-bottom: 12px;
 	padding: 12px;
 	border-radius: var(--border-radius);
-	max-width: 80%;
+	max-width: 680px;
 	line-height: 1.5;
 	overflow-x: auto;
 	word-break: break-word;
 	white-space: pre-line;
+	word-wrap: break-word;
 }
+.user-message, .bot-message {
+	max-width: 680px;
+	word-break: break-word;
+	word-wrap: break-word;
+}
+.chat-bubble ul, .chat-bubble ol {
+	word-break: break-word;
+	word-wrap: break-word;
+}
+
 
 .chat-bubble.has-message-actions {
 	position: relative;
@@ -322,8 +333,8 @@
 .chat-bubble pre {
 	margin: 8px 0;
 	padding: 12px 14px;
-	max-width: 100%;
-	overflow: auto;
+	max-width: 680px;
+	overflow-x: auto;
 	white-space: pre;
 	background: #353f4d;
 	color: #fff;

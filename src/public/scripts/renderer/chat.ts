@@ -101,6 +101,7 @@ const usageRefreshBtn = document.getElementById(
 	"usage-refresh-btn",
 ) as HTMLButtonElement | null;
 let modal: declarations["iInstance"]["iModal"];
+let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
 let searchEnabled = false;
@@ -501,7 +502,7 @@ async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 		.join("");
 
 	const copy = LIMIT_COPY[kind];
-	modal.open({
+	upgradeModal.open({
 		html: `
 			<h3>${escapeHtml(copy.label)} limit reached</h3>
 			<p style="opacity:.8;margin:8px 0 10px;">
@@ -510,7 +511,7 @@ async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 			<p style="opacity:.8;margin:0 0 12px;">
 				Upgrade to continue ${escapeHtml(copy.label.toLowerCase())} beyond your ${escapeHtml(copy.period)} quota.
 			</p>
-			<div style="display:grid;gap:8px;max-height:300px;overflow:auto;">
+			<div style="display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,auto);gap:12px;max-height:300px;overflow:auto;">
 				${planCards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
 			</div>
 		`,
@@ -518,7 +519,7 @@ async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 			{
 				id: "close-upgrade-dialog",
 				label: "Close",
-				onClick: () => modal.close(),
+				onClick: () => upgradeModal.close(),
 			},
 		],
 	});
@@ -568,6 +569,14 @@ async function refreshSubscriptionData(force = false) {
 		currentPlanName = PLAN_DISPLAY_NAMES.free;
 		currentPlanPaid = false;
 		lastTierLookupError = null;
+		usageState = {
+			dayKey: getLocalDayKey(),
+			weekKey: getIsoWeekKey(),
+			cloudChatDaily: 0,
+			imagesDaily: 0,
+			videosDaily: 0,
+			audioWeekly: 0,
+		};
 		renderUsagePanel();
 		return;
 	}
@@ -702,6 +711,13 @@ document.addEventListener("DOMContentLoaded", () => {
 	editModal = new window.ic.iModal(
 		"edit-modal",
 		undefined,
+		undefined,
+		false,
+		false,
+	);
+	upgradeModal = new window.ic.iModal(
+		"upgrade-modal",
+		700,
 		undefined,
 		false,
 		false,

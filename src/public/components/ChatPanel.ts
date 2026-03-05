@@ -27,6 +27,14 @@ export class ChatBox extends HTMLElement {
                     </div>
                     <p id="experimental-feature-notice">Experimental: Music/SFX and Video generation is currently in beta! You may experience intermittent issues or rate limits.</p>
                     <p style="display:none;" id="feature-warning">The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
+                    <p id="rate-limit-box" style="display:none;">Rate Limit Information</p>
+                    <script>
+                        const rateLimitBox = document.getElementById("rate-limit-box");
+                        const modelSelect = document.getElementById("model-select");
+                        modelSelect.addEventListener("change", () => {
+                            rateLimitBox.style.display = rateLimitBox.style.display === "none" ? "block" : "none";
+                        });
+                    </script>
 
                     <div id="file-preview-modal" class="modal hidden">
                         <div class="modal-content full-screen">

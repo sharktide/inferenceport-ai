@@ -169,7 +169,25 @@
 							></toggle-switch>
 						</div>
 					</div>
-					<section id="usage-panel" class="usage-panel" aria-live="polite">
+					<details id="usage-panel-details" style="margin-bottom:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+<script>
+const usagePanelDetails = document.getElementById('usage-panel-details');
+const lightningSidebarBanner = document.querySelector('.lightning-sidebar-banner');
+if (usagePanelDetails && lightningSidebarBanner) {
+	usagePanelDetails.addEventListener('toggle', function() {
+		if (usagePanelDetails.open) {
+			lightningSidebarBanner.style.display = 'none';
+		} else {
+			lightningSidebarBanner.style.display = '';
+		}
+	});
+}
+</script>
+						<summary id="usage-panel-summary" style="font-size:15px;cursor:pointer;padding:10px 16px;border-radius:10px 0 0;display:flex;align-items:center;gap:10px;outline:none;user-select:none;">
+						<span style="font-weight:600;">Plan & Usage:</span>
+						<span id="usage-panel-tier" style="color:#2a4d7a;padding:2px 10px;border-radius:6px;font-size:13px;">Free Tier</span>
+					</summary>
+  					<section id="usage-panel" class="usage-panel" aria-live="polite">
 						<div class="usage-panel-header">
 							<div>
 								<p class="usage-kicker">Current plan</p>
@@ -229,6 +247,7 @@
 							Daily limits reset at local midnight. Audio resets every week.
 						</p>
 					</section>
+  </details>
 					<input
 						type="hidden"
 						id="session-search"
