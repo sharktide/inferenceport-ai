@@ -6,12 +6,12 @@ const PLAN_DISPLAY_NAMES = {
     professional: "InferencePort AI Professional",
 };
 const PLAN_LIMITS = {
-    free: {
-        "Lightning Chat": "50 Today",
-        "Images": "10 Today",
-        "Videos": "3 Today",
-        "Audio": "1 Weekly",
-    },
+	free: {
+		cloudChatDaily: 50,
+		imagesDaily: 10,
+		videosDaily: 3,
+		audioWeekly: 1,
+	},
     light: {
         CloudChatsPerDay: null,
         ImagesPerDay: 50,
