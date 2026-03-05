@@ -28,9 +28,7 @@ const HOST_USERS_KEY = "host_users_v1";
 const syncCheckbox = document.getElementById(
 	"sync-chats",
 ) as HTMLInputElement | null;
-const syncSection = document.querySelector(
-	"details:has(#sync-chats)",
-) as HTMLDetailsElement | null;
+const syncSection = document.getElementById("syncing") as HTMLDivElement | null;
 const startupRunAtLoginCheckbox = document.getElementById(
 	"startup-run-at-login",
 ) as HTMLInputElement | null;
@@ -699,3 +697,20 @@ async function performFinalDeletion(statusEl?: HTMLElement) {
 }
 
 setHostingUIRunning(false);
+
+// Tab switching logic
+document.querySelectorAll('.tab-button').forEach((button) => {
+	(button as HTMLButtonElement).addEventListener('click', () => {
+		// Remove active class from all buttons and panes
+		document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
+		document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
+		
+		// Add active class to clicked button and corresponding pane
+		button.classList.add('active');
+		const tabId = (button as HTMLButtonElement).getAttribute('data-tab');
+		if (tabId) {
+			const pane = document.getElementById(tabId);
+			if (pane) pane.classList.add('active');
+		}
+	});
+});
