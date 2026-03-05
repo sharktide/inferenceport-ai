@@ -84,21 +84,20 @@ class AuthManager {
                 planSpan.textContent = plan;
                 upgradeBtn.style.display = plan === "Free Tier" ? "inline-block" : "none";
                 upgradeBtn.onclick = () => {
-    if (window.ic && window.ic.iModal) {
-        const modal = new window.ic.iModal("upgrade-modal", 700, undefined, false, false);
-        modal.open({
-            html: `<h2>Upgrade Your Plan</h2><p>Current plan: ${plan}</p><p>Enjoy more features and higher limits by upgrading!</p><ul><li>Higher daily limits</li><li>Priority support</li><li>Access to premium models</li></ul><button onclick='window.location.href="settings.html#upgrade"'>See all plans</button>`
-        });
-        return;
-    }
-    window.location.href = "settings.html#upgrade";
+                if (window.ic && window.ic.iModal) {
+                    const modal = new window.ic.iModal("upgrade-modal", 700, undefined, false, false);
+                    modal.open({
+                        html: `<h2>Upgrade Your Plan</h2><p>Current plan: ${plan}</p><p>Enjoy more features and higher limits by upgrading!</p><ul><li>Higher daily limits</li><li>Priority support</li><li>Access to premium models</li></ul><button onclick='window.location.href="settings.html#upgrade"'>See all plans</button>`
+                    });
+                    return;
+                }
+                window.location.href = "settings.html#upgrade";
 };
                 signinBtn.textContent = "Sign Out";
-signinBtn.style.display = "inline-block";
-signinBtn.onclick = () => {
-    window.auth.signOut();
-};
-                signinBtn.onclick = null;
+                signinBtn.style.display = "inline-block";
+                signinBtn.onclick = () => {
+                    window.auth.signOut();
+                };
 
             } else {
                 usernameSpan.textContent = "Guest";
