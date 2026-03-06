@@ -100,6 +100,9 @@ const usageUpgradeBtn = document.getElementById(
 const usageRefreshBtn = document.getElementById(
 	"usage-refresh-btn",
 ) as HTMLButtonElement | null;
+const previewTier = document.getElementById(
+	"usage-panel-tier"
+) as HTMLSpanElement;
 let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
@@ -742,6 +745,8 @@ async function refreshSubscriptionData(force = false) {
 		currentPlanPaid = false;
 		lastTierLookupError = "(Subscription lookup unavailable)";
 		console.warn("Subscription fetch failed:", err);
+	} finally {
+		previewTier.textContent = currentPlanName;
 	}
 
 	renderUsagePanel();
