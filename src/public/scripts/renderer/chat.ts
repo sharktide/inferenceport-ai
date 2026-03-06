@@ -2132,6 +2132,7 @@ form.addEventListener("submit", async (e) => {
 			audioGen: audioEnabled,
 		},
 		clientUrl,
+		currentSessionId,
 	);
 	if (isCloudChat) {
 		bumpUsage("cloudChatDaily");

@@ -802,9 +802,17 @@ export function installWebSocketTransportFallback(): void {
 				audioGen: boolean;
 			},
 			clientUrl?: string,
+			sessionId?: string,
 		) => {
 			void client
-				.send("ollama:chat-stream", model, prompt, toolList, clientUrl)
+				.send(
+					"ollama:chat-stream",
+					model,
+					prompt,
+					toolList,
+					clientUrl,
+					sessionId,
+				)
 				.catch((err) => {
 					queueMicrotask(() => {
 						const detail =

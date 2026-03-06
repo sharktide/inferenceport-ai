@@ -128,6 +128,7 @@ declare global {
 					audioGen: boolean;
 				},
 				clientUrl?: string,
+				sessionId?: string,
 			) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;

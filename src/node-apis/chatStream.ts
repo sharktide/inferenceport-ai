@@ -24,7 +24,24 @@ import {
 	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
-let chatHistory: ChatHistoryEntry[] = [];
+const chatHistories = new Map<string, ChatHistoryEntry[]>();
+const DEFAULT_CHAT_HISTORY_KEY = "__default__";
+
+function normalizeHistoryKey(value: unknown): string {
+	if (typeof value !== "string") return DEFAULT_CHAT_HISTORY_KEY;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : DEFAULT_CHAT_HISTORY_KEY;
+}
+
+function getChatHistoryForSession(sessionId: unknown): ChatHistoryEntry[] {
+	const key = normalizeHistoryKey(sessionId);
+	const existing = chatHistories.get(key);
+	if (existing) return existing;
+	const created: ChatHistoryEntry[] = [];
+	chatHistories.set(key, created);
+	return created;
+}
+
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
 export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
@@ -390,8 +407,12 @@ export default function registerChatStream() {
                 }
             },
         );
-        ipcMain.handle("ollama:reset", () => {
-            chatHistory = [];
+        ipcMain.handle("ollama:reset", (_event, sessionId?: string) => {
+            if (typeof sessionId === "string" && sessionId.trim()) {
+                chatHistories.delete(sessionId.trim());
+                return;
+            }
+            chatHistories.clear();
         });
     
         ipcMain.handle(
@@ -467,6 +488,7 @@ export default function registerChatStream() {
 			userMessage: string,
 			toolList: ToolList,
 			clientUrl?: string,
+			sessionId?: string,
 		) => {
             console.log(toolList)
 			/* ------------------------------------------------------------------
@@ -491,6 +513,7 @@ export default function registerChatStream() {
 			if (toolList.audioGen) tools.push(availableTools[2]!);
 			if (toolList.videoGen) tools.push(availableTools[3]!);
 
+			const chatHistory = getChatHistoryForSession(sessionId);
 			chatHistory.push({ role: "user", content: userMessage });
 
 			const openai = await createOpenAIClient(clientUrl);
