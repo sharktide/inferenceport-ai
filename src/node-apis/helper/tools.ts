@@ -2,8 +2,9 @@ import { LOG, LOG_ERR } from "./log.js";
 import fs from "fs";
 import path from "path"
 import { getSession } from "../auth.js";
+import { getLightningClientId } from "./lightningClient.js";
 export const cache ={
- 	cachedSupportsTools: null as string[] | null,
+  	cachedSupportsTools: null as string[] | null,
 	writeInProgress: null as Promise<void> | null
 }
 import { app } from "electron"
@@ -18,7 +19,12 @@ async function fetchWithRetry(
         try {
             const res = await fetch(url, options);
 
-            if (res.status === 500 || res.status === 429) {
+            if (res.status === 429) {
+                // 429 is an enforced limit condition; retrying can create confusing UX.
+                return res;
+            }
+
+            if (res.status >= 500) {
                 LOG_ERR(trace, `${res.status} ERROR ON ATTEMPT ${attempt}`, {
                     status: res.status,
                     statusText: res.statusText,
@@ -54,15 +60,22 @@ async function fetchWithRetry(
 }
 
 async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	const headers: Record<string, string> = {};
+	try {
+		headers["X-Client-ID"] = await getLightningClientId();
+	} catch (_err) {
+		void 0;
+	}
+
 	try {
 		const session = await getSession();
 		if (session?.access_token) {
-			return { Authorization: `Bearer ${session.access_token}` };
+			headers.Authorization = `Bearer ${session.access_token}`;
 		}
 	} catch (_err) {
 		void 0;
 	}
-	return {};
+	return headers;
 }
 
 export type ImageGenerateRequest = {

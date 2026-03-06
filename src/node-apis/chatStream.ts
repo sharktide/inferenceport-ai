@@ -13,6 +13,7 @@ import {
     type ImageGenerateRequest,
     type VideoGenerateRequest,
 } from "./helper/tools.js";
+import { getLightningClientId } from "./helper/lightningClient.js";
 
 import {
 	save_stream, is52458,
@@ -47,6 +48,12 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 
 	if (baseURL == "lightning") {
 		let lightningApiKey = "public";
+		const defaultHeaders: Record<string, string> = {};
+		try {
+			defaultHeaders["X-Client-ID"] = await getLightningClientId();
+		} catch (_err) {
+			void 0;
+		}
 		try {
 			const session = await getSession();
 			if (session?.access_token) {
@@ -58,6 +65,7 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 		return new OpenAI({
 			baseURL: "https://sharktide-lightning.hf.space/gen",
 			apiKey: lightningApiKey,
+			defaultHeaders,
 		});
 	}
 

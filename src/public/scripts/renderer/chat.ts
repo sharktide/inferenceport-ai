@@ -196,6 +196,10 @@ let usageState = {
 	videosDaily: 0,
 	audioWeekly: 0,
 };
+let usageSyncSource: "local" | "server" = "local";
+let usageSyncedAt: string | null = null;
+let lastUsageLookupError: string | null = null;
+let usageSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
 type ToggleSwitchElement = HTMLElement & {
 	checked: boolean;
@@ -331,6 +335,9 @@ function getActivePlanLimits() {
 }
 
 function pruneUsageState() {
+	if (usageSyncSource === "server") {
+		return;
+	}
 	const dayKey = getLocalDayKey();
 	const weekKey = getIsoWeekKey();
 	if (usageState.dayKey !== dayKey) {
@@ -395,6 +402,9 @@ function loadUsageStateForUser(userId?: string | null) {
 	};
 
 	pruneUsageState();
+	usageSyncSource = "local";
+	usageSyncedAt = null;
+	lastUsageLookupError = null;
 	saveUsageState();
 	renderUsagePanel();
 }
@@ -456,11 +466,22 @@ function renderUsagePanel() {
 		const errorText = lastTierLookupError
 			? ` ${lastTierLookupError}`
 			: "";
-		usagePlanMetaEl.textContent = `${paidText}${errorText}`;
+		const usageErrorText = lastUsageLookupError
+			? ` ${lastUsageLookupError}`
+			: "";
+		usagePlanMetaEl.textContent = `${paidText}${errorText}${usageErrorText}`;
 	}
 	if (usageResetNoteEl) {
-		usageResetNoteEl.textContent =
-			`Local reset windows: day ${usageState.dayKey}, week ${usageState.weekKey}.`;
+		const syncTimeText = usageSyncedAt
+			? new Date(usageSyncedAt).toLocaleTimeString()
+			: "not synced yet";
+		if (usageSyncSource === "server") {
+			usageResetNoteEl.textContent =
+				`Server usage windows: day ${usageState.dayKey || "unknown"}, week ${usageState.weekKey || "unknown"} (synced ${syncTimeText}).`;
+		} else {
+			usageResetNoteEl.textContent =
+				`Local estimate windows: day ${usageState.dayKey}, week ${usageState.weekKey}.`;
+		}
 	}
 
 	updateUsageRow(
@@ -483,8 +504,10 @@ function canConsumeUsage(kind: keyof typeof LIMIT_COPY): boolean {
 function bumpUsage(kind: keyof typeof LIMIT_COPY, amount = 1) {
 	pruneUsageState();
 	usageState[kind] += amount;
+	usageSyncSource = "local";
 	saveUsageState();
 	renderUsagePanel();
+	scheduleUsageSync();
 }
 
 function isCloudRequest(model: string, clientUrl?: string): boolean {
@@ -693,6 +716,77 @@ function getPlanNameFromSubscription(info: AuthSubscriptionInfo): string {
 	return PLAN_DISPLAY_NAMES.free;
 }
 
+function applyUsageData(usage: AuthUsageInfo | null | undefined): boolean {
+	if (!usage?.metrics) return false;
+	if (typeof usage.planKey === "string" && usage.planKey.trim()) {
+		currentPlanKey = normalizePlanKey(usage.planKey);
+	}
+	if (typeof usage.planName === "string" && usage.planName.trim()) {
+		currentPlanName = usage.planName.trim();
+	}
+	const defaultPlanKey = normalizePlanKey(
+		currentTierConfig?.defaultPlanKey || "free",
+	);
+	currentPlanPaid = currentPlanKey !== defaultPlanKey;
+
+	const metrics = usage.metrics;
+	const cloud = metrics.cloudChatDaily;
+	const images = metrics.imagesDaily;
+	const videos = metrics.videosDaily;
+	const audio = metrics.audioWeekly;
+	if (!cloud || !images || !videos || !audio) return false;
+
+	usageState = {
+		dayKey:
+			typeof cloud.window === "string" && cloud.window.trim().length > 0
+				? cloud.window.trim()
+				: getLocalDayKey(),
+		weekKey:
+			typeof audio.window === "string" && audio.window.trim().length > 0
+				? audio.window.trim()
+				: getIsoWeekKey(),
+		cloudChatDaily: Math.max(0, Number(cloud.used) || 0),
+		imagesDaily: Math.max(0, Number(images.used) || 0),
+		videosDaily: Math.max(0, Number(videos.used) || 0),
+		audioWeekly: Math.max(0, Number(audio.used) || 0),
+	};
+	usageSyncSource = "server";
+	usageSyncedAt =
+		typeof usage.generatedAt === "string" && usage.generatedAt.trim()
+			? usage.generatedAt
+			: new Date().toISOString();
+	lastUsageLookupError = usage.error ? `(${usage.error})` : null;
+	saveUsageState();
+	return true;
+}
+
+async function syncUsageFromServer(renderAfter = true): Promise<void> {
+	try {
+		const usage = await window.auth.getUsage();
+		const applied = applyUsageData(usage);
+		if (!applied) {
+			usageSyncSource = "local";
+			lastUsageLookupError = "(Usage sync unavailable)";
+		}
+	} catch (err) {
+		usageSyncSource = "local";
+		lastUsageLookupError = "(Usage sync unavailable)";
+		console.warn("Usage fetch failed:", err);
+	} finally {
+		if (renderAfter) renderUsagePanel();
+	}
+}
+
+function scheduleUsageSync(delayMs = 1500): void {
+	if (usageSyncTimer) {
+		clearTimeout(usageSyncTimer);
+	}
+	usageSyncTimer = setTimeout(() => {
+		usageSyncTimer = null;
+		void syncUsageFromServer();
+	}, delayMs);
+}
+
 async function refreshSubscriptionData(force = false) {
 	if (!force && !currentAuthSession?.isAuthenticated) {
 		try {
@@ -705,14 +799,7 @@ async function refreshSubscriptionData(force = false) {
 		currentPlanName = PLAN_DISPLAY_NAMES.free;
 		currentPlanPaid = false;
 		lastTierLookupError = null;
-		usageState = {
-			dayKey: getLocalDayKey(),
-			weekKey: getIsoWeekKey(),
-			cloudChatDaily: 0,
-			imagesDaily: 0,
-			videosDaily: 0,
-			audioWeekly: 0,
-		};
+		await syncUsageFromServer(false);
 		renderUsagePanel();
 		return;
 	}
@@ -749,6 +836,7 @@ async function refreshSubscriptionData(force = false) {
 		previewTier.textContent = currentPlanName;
 	}
 
+	await syncUsageFromServer(false);
 	renderUsagePanel();
 }
 

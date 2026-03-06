@@ -8,6 +8,7 @@ import { shell } from "electron";
 
 import type { Message, SessionType } from "./types/index.types.d.ts";
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
+import { getLightningClientId } from "./helper/lightningClient.js";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
@@ -17,6 +18,7 @@ const subscriptionApiBase = "https://sharktide-lightning.hf.space";
 const subscriptionDetailsUrl = `${subscriptionApiBase}/subscription`;
 const subscriptionTiersUrl = `${subscriptionApiBase}/tiers`;
 const subscriptionTierConfigUrl = `${subscriptionApiBase}/tier-config`;
+const subscriptionUsageUrl = `${subscriptionApiBase}/usage`;
 
 type SubscriptionTierView = {
 	key?: string;
@@ -70,6 +72,28 @@ type RemoteSubscriptionPayload = {
 	plan_key?: unknown;
 	plan_name?: unknown;
 	subscription?: RemoteSubscriptionEntry[];
+};
+
+type UsageMetricKey =
+	| "cloudChatDaily"
+	| "imagesDaily"
+	| "videosDaily"
+	| "audioWeekly";
+
+type RendererUsageMetricView = {
+	limit: number | null;
+	used: number;
+	remaining: number | null;
+	window: string;
+	period: string;
+};
+
+type RendererUsageView = {
+	planKey: string;
+	planName: string;
+	metrics: Record<UsageMetricKey, RendererUsageMetricView>;
+	generatedAt: string | null;
+	error?: string;
 };
 
 type RendererSessionUser = {
@@ -295,6 +319,128 @@ function normalizeTierConfig(value: unknown): SubscriptionTierConfigView | null 
 	};
 }
 
+function defaultUsageMetric(period: string): RendererUsageMetricView {
+	return {
+		limit: null,
+		used: 0,
+		remaining: null,
+		window: "",
+		period,
+	};
+}
+
+function createUsageFallback(
+	tierConfig: SubscriptionTierConfigView | null,
+	error?: string,
+): RendererUsageView {
+	const defaultPlanKey = tierConfig?.defaultPlanKey || "free";
+	const planName =
+		tierConfig?.plans.find((p) => p.key === defaultPlanKey)?.name || "Free Tier";
+	return {
+		planKey: defaultPlanKey,
+		planName,
+		metrics: {
+			cloudChatDaily: defaultUsageMetric("daily"),
+			imagesDaily: defaultUsageMetric("daily"),
+			videosDaily: defaultUsageMetric("daily"),
+			audioWeekly: defaultUsageMetric("weekly"),
+		},
+		generatedAt: null,
+		...(error ? { error } : {}),
+	};
+}
+
+function normalizeUsageMetric(
+	value: unknown,
+	key: UsageMetricKey,
+	planLimit: number | null,
+): RendererUsageMetricView {
+	const fallbackPeriod = key === "audioWeekly" ? "weekly" : "daily";
+	if (!value || typeof value !== "object") {
+		return {
+			...defaultUsageMetric(fallbackPeriod),
+			limit: planLimit,
+		};
+	}
+
+	const asRecord = value as Record<string, unknown>;
+	const used = normalizeLimitValue(asRecord.used) ?? 0;
+	const remainingRaw = normalizeLimitValue(asRecord.remaining);
+	const limit = normalizeLimitValue(asRecord.limit) ?? planLimit;
+	const remaining =
+		remainingRaw !== null
+			? remainingRaw
+			: limit === null
+				? null
+				: Math.max(0, limit - used);
+	const window = asTrimmedString(asRecord.window) ?? "";
+	const period = asTrimmedString(asRecord.period) ?? fallbackPeriod;
+
+	return {
+		limit,
+		used,
+		remaining,
+		window,
+		period,
+	};
+}
+
+function normalizeUsageView(
+	value: unknown,
+	tierConfig: SubscriptionTierConfigView | null,
+): RendererUsageView | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const tierMap = new Map((tierConfig?.plans || []).map((plan) => [plan.key, plan]));
+	const payloadPlanKey = asTrimmedString(asRecord.plan_key)?.toLowerCase();
+	let planKey =
+		payloadPlanKey && tierMap.has(payloadPlanKey)
+			? payloadPlanKey
+			: normalizePlanKeyFromName(asTrimmedString(asRecord.plan_name));
+	if (tierMap.size > 0 && !tierMap.has(planKey)) {
+		planKey = tierConfig?.defaultPlanKey || "free";
+	}
+	const planName =
+		tierMap.get(planKey)?.name ||
+		asTrimmedString(asRecord.plan_name) ||
+		"Free Tier";
+	const usageRecord =
+		asRecord.usage && typeof asRecord.usage === "object"
+			? (asRecord.usage as Record<string, unknown>)
+			: {};
+	const planLimits = tierMap.get(planKey)?.limits;
+
+	const metrics = {
+		cloudChatDaily: normalizeUsageMetric(
+			usageRecord.cloudChatDaily,
+			"cloudChatDaily",
+			planLimits?.cloudChatDaily ?? null,
+		),
+		imagesDaily: normalizeUsageMetric(
+			usageRecord.imagesDaily,
+			"imagesDaily",
+			planLimits?.imagesDaily ?? null,
+		),
+		videosDaily: normalizeUsageMetric(
+			usageRecord.videosDaily,
+			"videosDaily",
+			planLimits?.videosDaily ?? null,
+		),
+		audioWeekly: normalizeUsageMetric(
+			usageRecord.audioWeekly,
+			"audioWeekly",
+			planLimits?.audioWeekly ?? null,
+		),
+	};
+
+	return {
+		planKey,
+		planName,
+		metrics,
+		generatedAt: asTrimmedString(asRecord.generated_at),
+	};
+}
+
 const TIER_CONFIG_CACHE_TTL_MS = 5 * 60 * 1000;
 const tierConfigCache: {
 	value: SubscriptionTierConfigView | null;
@@ -375,6 +521,75 @@ async function getSubscriptionTiersSafe(): Promise<SubscriptionTierView[]> {
 			.filter((entry): entry is SubscriptionTierView => Boolean(entry));
 	} catch (_err) {
 		return [];
+	}
+}
+
+async function getUsageSafe(
+	tierConfig: SubscriptionTierConfigView | null,
+): Promise<RendererUsageView> {
+	const fallback = createUsageFallback(tierConfig);
+	let accessToken: string | null = null;
+	try {
+		const { data, error } = await supabase.auth.getSession();
+		if (!error && data.session?.access_token) {
+			accessToken = data.session.access_token;
+		}
+	} catch (_err) {
+		void 0;
+	}
+
+	let clientId = "";
+	try {
+		clientId = await getLightningClientId();
+	} catch (_err) {
+		void 0;
+	}
+
+	const makeHeaders = (includeAuth: boolean): Record<string, string> => {
+		const headers: Record<string, string> = {
+			Accept: "application/json",
+		};
+		if (clientId) {
+			headers["X-Client-ID"] = clientId;
+		}
+		if (includeAuth && accessToken) {
+			headers.Authorization = `Bearer ${accessToken}`;
+		}
+		return headers;
+	};
+
+	try {
+		let res = await fetch(subscriptionUsageUrl, {
+			headers: makeHeaders(Boolean(accessToken)),
+		});
+
+		if ((res.status === 401 || res.status === 403) && accessToken) {
+			res = await fetch(subscriptionUsageUrl, {
+				headers: makeHeaders(false),
+			});
+		}
+
+		if (!res.ok) {
+			return {
+				...fallback,
+				error: `Usage lookup failed (${res.status})`,
+			};
+		}
+
+		const payload = await res.json();
+		const normalized = normalizeUsageView(payload, tierConfig);
+		if (!normalized) {
+			return {
+				...fallback,
+				error: "Usage payload invalid",
+			};
+		}
+		return normalized;
+	} catch (err) {
+		return {
+			...fallback,
+			error: err instanceof Error ? err.message : String(err),
+		};
 	}
 }
 
@@ -498,6 +713,11 @@ export default function register() {
 
 	ipcMain.handle("auth:getTierConfig", async () => {
 		return await getSubscriptionTierConfigSafe();
+	});
+
+	ipcMain.handle("auth:getUsage", async () => {
+		const tierConfig = await getSubscriptionTierConfigSafe();
+		return await getUsageSafe(tierConfig);
 	});
 
 	ipcMain.handle("auth:getSubscriptionInfo", async () => {

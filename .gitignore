@@ -1038,6 +1038,14 @@ node-apis\helper\ipcBridge.d.ts
 node-apis\helper\ipcBridge.d.ts.map
 node-apis\helper\ipcBridge.js
 node-apis\helper\ipcBridge.js.map
+node-apis\helper\lightningClient.d.d.ts
+node-apis\helper\lightningClient.d.d.ts.map
+node-apis\helper\lightningClient.d.js
+node-apis\helper\lightningClient.d.js.map
+node-apis\helper\lightningClient.d.ts
+node-apis\helper\lightningClient.d.ts.map
+node-apis\helper\lightningClient.js
+node-apis\helper\lightningClient.js.map
 node-apis\helper\log.d.d.ts
 node-apis\helper\log.d.d.ts.map
 node-apis\helper\log.d.js

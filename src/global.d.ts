@@ -80,6 +80,27 @@ declare global {
 		error?: string;
 	};
 
+	type AuthUsageMetric = {
+		limit: number | null;
+		used: number;
+		remaining: number | null;
+		window: string;
+		period: string;
+	};
+
+	type AuthUsageInfo = {
+		planKey: string;
+		planName: string;
+		metrics: {
+			cloudChatDaily: AuthUsageMetric;
+			imagesDaily: AuthUsageMetric;
+			videosDaily: AuthUsageMetric;
+			audioWeekly: AuthUsageMetric;
+		};
+		generatedAt: string | null;
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -204,6 +225,7 @@ declare global {
 			getSubscriptionInfo: () => Promise<AuthSubscriptionInfo>;
 			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
 			getTierConfig: () => Promise<AuthTierConfig | null>;
+			getUsage: () => Promise<AuthUsageInfo>;
 		};
 
 		sync: {

@@ -1035,6 +1035,8 @@ export function installWebSocketTransportFallback(): void {
 			),
 		getTierConfig: async () =>
 			invokeOrDefault<AuthTierConfig | null>("auth:getTierConfig", []),
+		getUsage: async () =>
+			invokeOrDefault<AuthUsageInfo>("auth:getUsage", []),
 		setSessionFromTokens: async (
 			accessToken: string,
 			refreshToken: string,
