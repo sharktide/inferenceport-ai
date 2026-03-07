@@ -148,6 +148,73 @@ Copyright 2025 Rihaan Meher
   border-color: color-mix(in srgb, var(--error) 30%, transparent);
 }
 
+.settings-account-actions {
+  align-items: stretch;
+}
+
+.settings-subscription-card {
+  margin-top: 6px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--blue) 16%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-light) 92%, var(--blue) 8%),
+      color-mix(in srgb, var(--bg-light) 97%, transparent)
+    );
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 14px;
+}
+
+.settings-subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-subscription-kicker {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--blue) 70%, var(--text-dark) 30%);
+}
+
+.settings-subscription-copy {
+  margin: 8px 0 0;
+  color: color-mix(in srgb, var(--text-dark) 84%, transparent);
+  line-height: 1.55;
+}
+
+.settings-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-subscription-btn {
+  min-width: 180px;
+}
+
+.settings-subscription-btn--secondary {
+  background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+  color: var(--text-dark);
+  border-color: color-mix(in srgb, var(--blue) 22%, transparent);
+}
+
+.settings-subscription-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: color-mix(in srgb, var(--text-dark) 88%, transparent);
+}
+
 .settings-upgrade-section {
   margin-top: 10px;
   padding: 16px 12px;
@@ -186,6 +253,18 @@ Copyright 2025 Rihaan Meher
 .settings-upgrade-btn {
   background: #2a4d7a;
   color: #fff;
+}
+
+@media (max-width: 768px) {
+  .settings-subscription-actions,
+  .settings-account-actions {
+    width: 100%;
+  }
+
+  .settings-subscription-btn,
+  .settings-upgrade-btn {
+    flex: 1 1 100%;
+  }
 }
 
 .settings-proxy-form {

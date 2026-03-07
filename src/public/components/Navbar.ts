@@ -41,6 +41,19 @@ function setupNavbar(nav: HTMLElement) {
     });
 }
 
+const userIndicatorMarkup = `
+    <div id="user-indicator" class="navbar-user-indicator">
+        <div class="navbar-account-meta">
+            <span id="navbar-username" class="navbar-username"></span>
+            <span id="navbar-plan" class="navbar-plan" data-plan-key="free">Free Tier</span>
+        <div class="navbar-action-group">
+            <button id="navbar-upgrade-btn" class="navbar-action-btn navbar-action-btn--primary" type="button">Upgrade</button>
+            <button id="navbar-signin-btn" class="navbar-action-btn navbar-action-btn--secondary" type="button">Sign In</button>
+        </div>
+        </div>
+    </div>
+`;
+
 export class RootNavbar extends HTMLElement {
     connectedCallback() {
         this.innerHTML = `
@@ -53,12 +66,7 @@ export class RootNavbar extends HTMLElement {
                     <li><a href="installed.html">Installed</a></li>
                     <li><a href="settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
-                    <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
-                    <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
-                    <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
-                </div>
+                ${userIndicatorMarkup}
             </nav>
         `;
 
@@ -78,12 +86,7 @@ export class Type1Navbar extends HTMLElement {
                     <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
-                    <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
-                    <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
-                    <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
-                    </div>
+                ${userIndicatorMarkup}
             </nav>
         `;
 
@@ -103,12 +106,7 @@ export class MarketplaceNavbar extends HTMLElement {
                     <li><a href="../installed.html">Installed</a></li>
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
-                <div id="user-indicator" style="margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;">
-                    <span id="navbar-username" style="font-weight:600"></span>
-                    <span id="navbar-plan" style="padding:2px 10px;border-radius:6px;font-size:13px;font-weight:500;min-width:120px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;color:#fff;background-color:#fcba03;">Free Tier</span>
-                    <button id="navbar-upgrade-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Upgrade</button>
-                    <button id="navbar-signin-btn" style="margin-left:8px;padding:4px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Sign In</button>
-                </div>
+                ${userIndicatorMarkup}
             </nav>
         `;
 

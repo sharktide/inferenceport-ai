@@ -14,6 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import {
+    BILLING_PORTAL_URL,
+    buildUpgradePlanCards,
+    escapeSubscriptionHtml,
+    installExternalUrlHandler,
+    normalizeUpgradePlanKey,
+} from "../../helper/subscriptionUpgradeUi.js";
+
 class AuthManager {
     private static instance: AuthManager | null = null;
     private static readonly PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
@@ -34,6 +42,7 @@ class AuthManager {
         AuthManager.instance = this;
 
         try {
+            installExternalUrlHandler();
             window.auth.onAuthStateChange(() => this.renderUserIndicator());
             this.renderUserIndicator();
         } catch (e) {
@@ -42,23 +51,11 @@ class AuthManager {
     }
 
     private normalizePlanKey(planName: string): keyof typeof AuthManager.PLAN_DISPLAY_NAMES {
-        const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
-        if (normalized.includes("professional")) return "professional";
-        if (normalized.includes("creator")) return "creator";
-        if (normalized.includes("pro")) return "pro";
-        if (normalized.includes("light")) return "light";
-        return "free";
+        return normalizeUpgradePlanKey(planName);
     }
 
     private escapeHtml(value: string): string {
-        const map: Record<string, string> = {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;",
-        };
-        return String(value ?? "").replace(/[&<>"']/g, (m) => map[m] || m);
+        return escapeSubscriptionHtml(value);
     }
 
     private resolveRoute(defaultTarget: string, customTarget?: string): string {
@@ -73,6 +70,17 @@ class AuthManager {
             target = `../${target}`;
         }
         return target;
+    }
+
+    private openBillingPortal() {
+        void window.utils.web_open(BILLING_PORTAL_URL);
+    }
+
+    private getRecommendedUpgradePlan(
+        currentPlanKey: keyof typeof AuthManager.PLAN_DISPLAY_NAMES,
+    ): keyof typeof AuthManager.PLAN_DISPLAY_NAMES | null {
+        const currentIndex = AuthManager.PLAN_ORDER.indexOf(currentPlanKey);
+        return AuthManager.PLAN_ORDER[currentIndex + 1] ?? null;
     }
 
     private rememberUpgradeIntent(target: string) {
@@ -197,39 +205,40 @@ class AuthManager {
                         price: "",
                     }));
 
-        const cards = plansToShow
-            .filter((tier) => this.normalizePlanKey(tier.name) !== currentPlanKey)
-            .map((tier) => {
-                const name = this.escapeHtml(tier.name);
-                const price = tier.price ? `$${this.escapeHtml(tier.price)}/mo` : "";
-                const button =
-                    tier.url && tier.url.trim().length > 0
-                        ? `<button type="button" data-upgrade-url="${this.escapeHtml(tier.url)}" style="margin-top:6px">Buy ${name}</button>`
-                        : `<button type="button" disabled style="margin-top:6px;opacity:.6;cursor:not-allowed;">Link unavailable</button>`;
-                return `
-                    <div style="border:1px solid rgba(127,127,127,0.25);border-radius:10px;padding:10px;display:grid;gap:4px;">
-                        <strong>${name}</strong>
-                        ${price ? `<div style="font-size:12px;opacity:.8">${price}</div>` : ""}
-                        ${button}
-                    </div>
-                `;
-            })
-            .join("");
+        const recommendedPlan = this.getRecommendedUpgradePlan(currentPlanKey);
+        const cards = buildUpgradePlanCards(plansToShow, {
+            currentPlanKey,
+            recommendedPlanKey: recommendedPlan,
+            allowDirectCheckout: currentPlanKey === "free",
+        });
 
         upgradeModal.open({
             html: `
                 <h3>Upgrade Your Plan</h3>
-                <p style="opacity:.85;margin:8px 0 10px;">
-                    Current plan: <strong>${this.escapeHtml(currentPlanName)}</strong>.
-                </p>
-                <div style="display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,auto);gap:12px;max-height:300px;overflow:auto;">
-                    ${cards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
+                <div class="subscription-upgrade-layout">
+                    <p class="subscription-current-plan">
+                        Current plan: <strong>${this.escapeHtml(currentPlanName)}</strong>.
+                    </p>
+                    <p class="subscription-upgrade-copy">
+                        ${currentPlanKey === "free"
+                            ? "Choose a paid plan to unlock more cloud usage and premium subscription benefits."
+                            : "Review the available plan benefits below, then use the Billing Portal to change your active Stripe subscription."}
+                    </p>
+                    <div class="subscription-plan-grid">
+                        ${cards}
+                    </div>
                 </div>
-                <p style="margin:10px 0 0;opacity:.78;font-size:12px;">
-                    Need more details? Use Settings > Account > Upgrade Plan.
-                </p>
             `,
             actions: [
+                ...(currentPlanKey === "free"
+                    ? []
+                    : [
+                        {
+                            id: "navbar-upgrade-open-portal",
+                            label: "Open Billing Portal",
+                            onClick: () => this.openBillingPortal(),
+                        },
+                    ]),
                 {
                     id: "navbar-upgrade-open-settings",
                     label: "Open Settings",
@@ -244,15 +253,6 @@ class AuthManager {
                     onClick: () => upgradeModal.close(),
                 },
             ],
-        });
-
-        document.querySelectorAll("[data-upgrade-url]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                const url = (btn as HTMLElement).getAttribute("data-upgrade-url");
-                if (url) {
-                    void window.utils.web_open(url);
-                }
-            });
         });
     }
 
@@ -285,8 +285,7 @@ class AuthManager {
                 usernameSpan.textContent = profile?.username || "Account";
                 planSpan.textContent = plan;
                 planSpan.setAttribute("title", plan);
-                planSpan.style.backgroundColor = planKey === "free" ? "#fcba03" : "#2a4d7a";
-                planSpan.style.color = "#fff";
+                planSpan.dataset.planKey = planKey;
                 upgradeBtn.style.display = "inline-block";
                 upgradeBtn.textContent = planKey === "free" ? "Upgrade" : "Manage Plan";
                 upgradeBtn.onclick = () => {
@@ -302,8 +301,7 @@ class AuthManager {
                 usernameSpan.textContent = "Guest";
                 planSpan.textContent = AuthManager.PLAN_DISPLAY_NAMES.free;
                 planSpan.setAttribute("title", AuthManager.PLAN_DISPLAY_NAMES.free);
-                planSpan.style.backgroundColor = "#fcba03";
-                planSpan.style.color = "#fff";
+                planSpan.dataset.planKey = "free";
                 upgradeBtn.style.display = "inline-block";
                 upgradeBtn.textContent = "Upgrade";
                 upgradeBtn.onclick = () => {

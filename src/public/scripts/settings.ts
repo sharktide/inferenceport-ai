@@ -1,4 +1,13 @@
 import { showNotification } from "./helper/notification.js";
+import {
+	BILLING_PORTAL_URL,
+	buildUpgradePlanCards,
+	escapeSubscriptionHtml,
+	getSubscriptionManagementCopy,
+	getSubscriptionManagementSteps,
+	installExternalUrlHandler,
+	normalizeUpgradePlanKey,
+} from "./helper/subscriptionUpgradeUi.js";
 
 const chipContainer = document.getElementById("email-chips") as HTMLDivElement;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
@@ -67,6 +76,15 @@ const settingsUpgradePlanInfo = document.getElementById(
 const settingsUpgradeLimitsEl = document.getElementById(
 	"upgrade-plan-limits",
 ) as HTMLDivElement | null;
+const settingsPortalBtn = document.getElementById(
+	"settings-portal-btn",
+) as HTMLButtonElement | null;
+const subscriptionManagementCopyEl = document.getElementById(
+	"subscription-management-copy",
+) as HTMLParagraphElement | null;
+const subscriptionManagementStepsEl = document.getElementById(
+	"subscription-management-steps",
+) as HTMLOListElement | null;
 type PlanKey = "free" | "light" | "pro" | "creator" | "professional";
 const PLAN_ORDER: PlanKey[] = [
 	"free",
@@ -110,14 +128,7 @@ let isUpgradeUserAuthenticated = false;
 let currentTierConfig: AuthTierConfig | null = null;
 
 function escapeHtml(value: string): string {
-	const map: Record<string, string> = {
-		"&": "&amp;",
-		"<": "&lt;",
-		">": "&gt;",
-		'"': "&quot;",
-		"'": "&#039;",
-	};
-	return String(value ?? "").replace(/[&<>"']/g, (m) => map[m] || m);
+	return escapeSubscriptionHtml(value);
 }
 
 function isKnownPlanKey(value: string): value is PlanKey {
@@ -131,14 +142,7 @@ function isKnownPlanKey(value: string): value is PlanKey {
 }
 
 function normalizePlanKey(planName: string): PlanKey {
-	const direct = (planName || "").trim().toLowerCase();
-	if (isKnownPlanKey(direct)) return direct;
-	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
-	if (normalized.includes("professional")) return "professional";
-	if (normalized.includes("creator")) return "creator";
-	if (normalized.includes("pro")) return "pro";
-	if (normalized.includes("light")) return "light";
-	return "free";
+	return normalizeUpgradePlanKey(planName) as PlanKey;
 }
 
 function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
@@ -242,10 +246,18 @@ function getRecommendedUpgradePlan(): PlanKey | null {
 	return null;
 }
 
+function openBillingPortal(): void {
+	void window.utils.web_open(BILLING_PORTAL_URL);
+}
+
 function renderSettingsUpgradePanel() {
 	if (settingsUpgradePlanInfo) {
 		const price = getTierPrice(currentPlanName);
-		settingsUpgradePlanInfo.textContent = `Current plan: ${currentPlanName}${price ? ` (${price})` : ""}.`;
+		const suffix =
+			isUpgradeUserAuthenticated && currentPlanKey !== "free"
+				? "Compare the plans below, then use the Billing Portal to change or upgrade your subscription."
+				: "Compare paid plan benefits before opening checkout.";
+		settingsUpgradePlanInfo.textContent = `Current plan: ${currentPlanName}${price ? ` (${price})` : ""}. ${suffix}`;
 	}
 
 	if (!settingsUpgradeLimitsEl) return;
@@ -257,6 +269,30 @@ function renderSettingsUpgradePanel() {
 	html += "</ul>";
 	settingsUpgradeLimitsEl.innerHTML = html;
 	settingsUpgradeLimitsEl.classList.add("is-visible");
+
+	if (subscriptionManagementCopyEl) {
+		subscriptionManagementCopyEl.textContent = getSubscriptionManagementCopy(
+			isUpgradeUserAuthenticated,
+			currentPlanKey !== "free",
+			currentPlanName,
+		);
+	}
+
+	if (subscriptionManagementStepsEl) {
+		subscriptionManagementStepsEl.innerHTML = getSubscriptionManagementSteps(
+			isUpgradeUserAuthenticated,
+			currentPlanKey !== "free",
+		)
+			.map((step) => `<li>${escapeHtml(step)}</li>`)
+			.join("");
+	}
+
+	if (settingsPortalBtn) {
+		settingsPortalBtn.disabled = !isUpgradeUserAuthenticated;
+		settingsPortalBtn.title = isUpgradeUserAuthenticated
+			? "Open Stripe Billing Portal"
+			: "Sign in to manage your subscription";
+	}
 }
 
 async function refreshUpgradeSubscriptionData(force = false): Promise<void> {
@@ -393,45 +429,40 @@ async function openSettingsUpgradeModal() {
 				}));
 
 	const cards = plansToShow
-		.filter((tier) => normalizePlanKey((tier.key as string) || tier.name) !== currentPlanKey)
-		.map((tier) => {
-			const tierKey = normalizePlanKey((tier.key as string) || tier.name);
-			const recommendedBadge =
-				recommended && tierKey === recommended
-					? `<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(60,163,116,0.15);color:#3ca374;">Recommended</span>`
-					: "";
-			const price = tier.price ? `$${escapeHtml(tier.price)}/mo` : "";
-			const button =
-				tier.url && tier.url.trim().length > 0
-					? `<button type="button" data-upgrade-url="${escapeHtml(tier.url)}" style="margin-top:6px">Buy ${escapeHtml(tier.name)}</button>`
-					: `<button type="button" disabled style="margin-top:6px;opacity:.6;cursor:not-allowed;">Link unavailable</button>`;
-			return `
-				<div style="border:1px solid rgba(127,127,127,0.25);border-radius:10px;padding:10px;display:grid;gap:4px;">
-					<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-						<strong>${escapeHtml(tier.name)}</strong>
-						${recommendedBadge}
-					</div>
-					${price ? `<div style="font-size:12px;opacity:.8">${price}</div>` : ""}
-					${button}
-				</div>
-			`;
-		})
-		.join("");
+		? buildUpgradePlanCards(plansToShow, {
+				currentPlanKey,
+				recommendedPlanKey: recommended,
+				allowDirectCheckout: currentPlanKey === "free",
+			})
+		: "";
 
 	settingsUpgradeModal.open({
 		html: `
 			<h3>Upgrade Your Plan</h3>
-			<p style="opacity:.8;margin:8px 0 10px;">
-				Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
-			</p>
-			<p style="opacity:.8;margin:0 0 12px;">
-				Upgrade to unlock higher limits, premium models, and priority support.
-			</p>
-			<div style="display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,auto);gap:12px;max-height:300px;overflow:auto;">
-				${cards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
+			<div class="subscription-upgrade-layout">
+				<p class="subscription-current-plan">
+					Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+				</p>
+				<p class="subscription-upgrade-copy">
+					${currentPlanKey === "free"
+						? "Choose a paid plan to unlock higher limits, premium models, and priority support."
+						: "Review the available plan benefits below, then use the Billing Portal to change your active subscription in Stripe."}
+				</p>
+				<div class="subscription-plan-grid">
+					${cards || "<p class='subscription-empty'>No upgrade plans are available right now.</p>"}
+				</div>
 			</div>
 		`,
 		actions: [
+			...(currentPlanKey === "free"
+				? []
+				: [
+						{
+							id: "open-settings-billing-portal",
+							label: "Open Billing Portal",
+							onClick: () => openBillingPortal(),
+						},
+					]),
 			{
 				id: "close-settings-upgrade-dialog",
 				label: "Close",
@@ -439,18 +470,10 @@ async function openSettingsUpgradeModal() {
 			},
 		],
 	});
-
-	document.querySelectorAll("[data-upgrade-url]").forEach((btn) => {
-		btn.addEventListener("click", () => {
-			const url = (btn as HTMLElement).getAttribute("data-upgrade-url");
-			if (url) {
-				void window.utils.web_open(url);
-			}
-		});
-	});
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+	installExternalUrlHandler();
 	hostConfigModal = new window.ic.iModal("host-config-modal", 650);
 	renameModal = new window.ic.iModal("rename-modal", 400);
 	deleteConfirmModal = new window.ic.iModal("delete-confirm-modal", 420);
@@ -472,6 +495,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	settingsUpgradeBtn?.addEventListener("click", () => {
 		void openSettingsUpgradeModal();
+	});
+	settingsPortalBtn?.addEventListener("click", () => {
+		openBillingPortal();
 	});
 	void refreshUpgradeSubscriptionData(true);
 	window.auth.onAuthStateChange((session) => {

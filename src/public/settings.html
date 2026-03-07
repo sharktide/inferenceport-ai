@@ -54,17 +54,39 @@
 						</div>
 						<div class="tab-pane" id="account">
 							<div id="account-settings">
-							<div class="settings-inline-row">
+							<div class="settings-inline-row settings-account-actions">
 								<button id="open-rename" class="theme-toggle">Change Username</button>
-								<button onlick="window.utils.web_open('https://sharktide-lightning.hf.space/portal')" class="theme-toggle">Manage Subscriptions</button>
 								<button id="open-delete" class="theme-toggle">Delete Account</button>
 							</div>
 							<hr style="margin:18px 0;">
+							<section class="settings-subscription-card">
+								<div class="settings-subscription-header">
+									<div>
+										<p class="settings-subscription-kicker">Subscription management</p>
+										<h3>Manage or upgrade in Stripe</h3>
+										<p id="subscription-management-copy" class="settings-subscription-copy">
+											Use the billing portal to review your current subscription, then change plans from Stripe when needed.
+										</p>
+									</div>
+									<div class="settings-subscription-actions">
+										<button id="settings-portal-btn" class="theme-toggle settings-subscription-btn settings-subscription-btn--secondary">
+											Open Billing Portal
+										</button>
+										<button id="settings-upgrade-btn" class="theme-toggle settings-upgrade-btn">
+											See Upgrade Options
+										</button>
+									</div>
+								</div>
+								<ol id="subscription-management-steps" class="settings-subscription-steps">
+									<li>Sign in or create an account.</li>
+									<li>Choose a plan from the upgrade dialog.</li>
+									<li>Use the billing portal later to change or upgrade your subscription.</li>
+								</ol>
+							</section>
 							<section id="upgrade-section" class="settings-upgrade-section">
 								<h3>Upgrade Plan</h3>
 								<p id="upgrade-plan-info">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
 								<div id="upgrade-plan-limits" class="settings-upgrade-limits"></div>
-								<button id="settings-upgrade-btn" class="theme-toggle settings-upgrade-btn">See Upgrade Options</button>
 							</section>
 							</div>
 						</div>

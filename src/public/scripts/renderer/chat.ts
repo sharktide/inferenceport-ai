@@ -18,6 +18,14 @@ limitations under the License.
 
 import { showNotification } from "../helper/notification.js";
 import {
+	BILLING_PORTAL_URL,
+	buildBillingPortalStepsHtml,
+	buildUpgradePlanCards,
+	escapeSubscriptionHtml,
+	installExternalUrlHandler,
+	normalizeUpgradePlanKey,
+} from "../helper/subscriptionUpgradeUi.js";
+import {
 	mergeLocalAndRemoteSessions,
 	safeCallRemote,
 	isOffline,
@@ -262,14 +270,7 @@ function isKnownPlanKey(value: string): value is PlanKey {
 }
 
 function normalizePlanKey(planName: string): PlanKey {
-	const direct = (planName || "").trim().toLowerCase();
-	if (isKnownPlanKey(direct)) return direct;
-	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
-	if (normalized.includes("professional")) return "professional";
-	if (normalized.includes("creator")) return "creator";
-	if (normalized.includes("pro")) return "pro";
-	if (normalized.includes("light")) return "light";
-	return "free";
+	return normalizeUpgradePlanKey(planName) as PlanKey;
 }
 
 function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
@@ -560,6 +561,10 @@ function rememberUpgradeIntent(target: string = UPGRADE_SETTINGS_TARGET): void {
 	}
 }
 
+function openBillingPortal(): void {
+	void window.utils.web_open(BILLING_PORTAL_URL);
+}
+
 function openUpgradeRequiresAccountDialog(kind: keyof typeof LIMIT_COPY) {
 	const copy = LIMIT_COPY[kind];
 	upgradeModal.open({
@@ -623,62 +628,47 @@ async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 					price: "",
 				}));
 
-	const planCards = plansToShow
-		.filter((tier) => normalizePlanKey((tier.key as string) || tier.name) !== currentPlanKey)
-		.map((tier) => {
-			const tierKey = normalizePlanKey((tier.key as string) || tier.name);
-			const recommendedBadge =
-				recommended && tierKey === recommended
-					? `<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(60,163,116,0.15);color:#3ca374;">Recommended</span>`
-					: "";
-			const price = tier.price ? `$${escapeHtml(tier.price)}/mo` : "";
-			const button =
-				tier.url && tier.url.trim().length > 0
-					? `<button type="button" data-upgrade-url="${escapeHtml(tier.url)}" style="margin-top:6px">Buy ${escapeHtml(tier.name)}</button>`
-					: `<button type="button" disabled style="margin-top:6px;opacity:.6;cursor:not-allowed;">Link unavailable</button>`;
-			return `
-				<div style="border:1px solid rgba(127,127,127,0.25);border-radius:10px;padding:10px;display:grid;gap:4px;">
-					<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-						<strong>${escapeHtml(tier.name)}</strong>
-						${recommendedBadge}
-					</div>
-					${price ? `<div style="font-size:12px;opacity:.8">${price}</div>` : ""}
-					${button}
-				</div>
-			`;
-		})
-		.join("");
+	const planCards = buildUpgradePlanCards(plansToShow, {
+		currentPlanKey,
+		recommendedPlanKey: recommended,
+		allowDirectCheckout: currentPlanKey === "free",
+	});
 
 	const copy = LIMIT_COPY[kind];
 	upgradeModal.open({
 		html: `
 			<h3>${escapeHtml(copy.label)} limit reached</h3>
-			<p style="opacity:.8;margin:8px 0 10px;">
-				Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
-			</p>
-			<p style="opacity:.8;margin:0 0 12px;">
-				Upgrade to continue ${escapeHtml(copy.label.toLowerCase())} beyond your ${escapeHtml(copy.period)} quota.
-			</p>
-			<div style="display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,auto);gap:12px;max-height:300px;overflow:auto;">
-				${planCards || "<p style='opacity:.7'>No upgrade plans available right now.</p>"}
+			<div class="subscription-upgrade-layout">
+				<p class="subscription-current-plan">
+					Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+				</p>
+				<p class="subscription-upgrade-copy">
+					${currentPlanKey === "free"
+						? `Upgrade to continue ${escapeHtml(copy.label.toLowerCase())} beyond your ${escapeHtml(copy.period)} quota.`
+						: `Compare the available plan benefits below, then use the Billing Portal to change your subscription in Stripe and restore more ${escapeHtml(copy.label.toLowerCase())}.`}
+				</p>
+				<div class="subscription-plan-grid">
+					${planCards}
+				</div>
+				${currentPlanKey === "free" ? "" : buildBillingPortalStepsHtml()}
 			</div>
 		`,
 		actions: [
+			...(currentPlanKey === "free"
+				? []
+				: [
+						{
+							id: "open-upgrade-billing-portal",
+							label: "Open Billing Portal",
+							onClick: () => openBillingPortal(),
+						},
+					]),
 			{
 				id: "close-upgrade-dialog",
 				label: "Close",
 				onClick: () => upgradeModal.close(),
 			},
 		],
-	});
-
-	document.querySelectorAll("[data-upgrade-url]").forEach((btn) => {
-		btn.addEventListener("click", () => {
-			const url = (btn as HTMLElement).getAttribute("data-upgrade-url");
-			if (url) {
-				void window.utils.web_open(url);
-			}
-		});
 	});
 }
 
@@ -941,6 +931,7 @@ function initWelcomeCards(): void {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+	installExternalUrlHandler();
 	modal = new window.ic.iModal(
 		"global-modal",
 		undefined,
@@ -2382,12 +2373,7 @@ async function setTitle() {
 }
 
 function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
+	return escapeSubscriptionHtml(value);
 }
 
 async function persistSessionsAndSync(): Promise<void> {
