@@ -19,7 +19,6 @@ limitations under the License.
 import { showNotification } from "../helper/notification.js";
 import {
 	BILLING_PORTAL_URL,
-	buildBillingPortalStepsHtml,
 	buildUpgradePlanCards,
 	escapeSubscriptionHtml,
 	installExternalUrlHandler,
@@ -650,7 +649,6 @@ async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
 				<div class="subscription-plan-grid">
 					${planCards}
 				</div>
-				${currentPlanKey === "free" ? "" : buildBillingPortalStepsHtml()}
 			</div>
 		`,
 		actions: [
