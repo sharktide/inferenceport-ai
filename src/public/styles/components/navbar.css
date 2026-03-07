@@ -183,7 +183,7 @@ nav:not(.collapsed) .nav-links {
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--blue) 20%, transparent);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
   cursor: pointer;
   transition:
     transform 160ms ease,
