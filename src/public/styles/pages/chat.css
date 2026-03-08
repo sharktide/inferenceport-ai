@@ -1447,27 +1447,6 @@ select {
 	outline: none;
 }
 
-#session-list::-webkit-scrollbar,
-#chat-box::-webkit-scrollbar {
-	width: 8px;
-}
-
-#session-list::-webkit-scrollbar-track,
-#chat-box::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-#session-list::-webkit-scrollbar-thumb,
-#chat-box::-webkit-scrollbar-thumb {
-	background: rgba(120, 120, 120, 0.25);
-	border-radius: 8px;
-	transition: background 0.2s ease;
-}
-
-#session-list::-webkit-scrollbar-thumb:hover,
-#chat-box::-webkit-scrollbar-thumb:hover {
-	background: rgba(120, 120, 120, 0.45);
-}
 #session-search::placeholder {
 	opacity: 0.7;
 }
