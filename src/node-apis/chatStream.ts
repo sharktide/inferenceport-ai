@@ -510,35 +510,31 @@ export default function registerChatStream() {
 			};
 
 			const tools = [];
-			// Only add tools if at least one tool is enabled
 			const toolsEnabled = toolList.search || toolList.imageGen || toolList.audioGen || toolList.videoGen;
 			
 			if (toolsEnabled) {
-				// Include read_web_page only if search is enabled
 				if (toolList.search) {
 					const readWebPageTool = availableTools.find(t => t.function.name === "read_web_page");
 					if (readWebPageTool) tools.push(readWebPageTool);
 				}
-				// Search tool based on engine
 				if (toolList.search) {
-					let searchTool;
-					if (toolList.searchEngine === "ollama") {
-						searchTool = availableTools.find(t => t.function.name === "ollama_search");
-					} else {
-						searchTool = availableTools.find(t => t.function.name === "duckduckgo_search");
-					}
-					if (searchTool) tools.push(searchTool);
+					let searchToolOne: ToolDefinition | undefined;
+					searchToolOne = availableTools.find(t => t.function.name === "ollama_search");
+					let searchToolTwo: ToolDefinition | undefined;
+					searchToolTwo = availableTools.find(t => t.function.name === "duckduckgo_search");
+					if (searchToolOne) tools.push(searchToolOne);
+					if (searchToolTwo) tools.push(searchToolTwo);
 				}
 				if (toolList.imageGen) {
-					const imageTool = availableTools.find(t => t.function.name === "generate_image");
+					const imageTool: ToolDefinition | undefined = availableTools.find(t => t.function.name === "generate_image");
 					if (imageTool) tools.push(imageTool);
 				}
 				if (toolList.audioGen) {
-					const audioTool = availableTools.find(t => t.function.name === "generate_audio");
+					const audioTool: ToolDefinition | undefined = availableTools.find(t => t.function.name === "generate_audio");
 					if (audioTool) tools.push(audioTool);
 				}
 				if (toolList.videoGen) {
-					const videoTool = availableTools.find(t => t.function.name === "generate_video");
+					const videoTool: ToolDefinition |undefined = availableTools.find(t => t.function.name === "generate_video");
 					if (videoTool) tools.push(videoTool);
 				}
 			}

@@ -29,6 +29,7 @@ import {
 	safeCallRemote,
 	isOffline,
 } from "../helper/sync.js";
+import * as toolSettings from "../helper/toolSettings.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -135,14 +136,35 @@ let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
-let searchEnabled = false;
-let searchEngine = localStorage.getItem("search_engine") || "duckduckgo";
-let imgEnabled = false;
-let videoEnabled = false;
-let audioEnabled = false;
+// Initialize tool settings from localStorage
+toolSettings.initializeSettings();
+let currentToolSettings = toolSettings.getSettings();
+let searchEnabled = currentToolSettings.webSearch;
+let searchEngine = currentToolSettings.searchEngines[0] || "duckduckgo";
+let imgEnabled = currentToolSettings.imageGen;
+let videoEnabled = currentToolSettings.videoGen;
+let audioEnabled = currentToolSettings.audioGen;
 let sessions = {};
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
+
+// Listen for tool settings changes from settings page
+const unsubscribeToolSettings = toolSettings.onSettingsChange(
+	(settings) => {
+		searchEnabled = settings.webSearch;
+		imgEnabled = settings.imageGen;
+		videoEnabled = settings.videoGen;
+		audioEnabled = settings.audioGen;
+
+		// Update search engine (use first enabled engine, or default)
+		if (settings.searchEngines.length > 0) {
+			searchEngine = settings.searchEngines[0];
+		}
+
+		// Update button styling to reflect new state
+		updateToolButtonUI();
+	},
+);
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
@@ -1835,6 +1857,40 @@ function renderSessionList(): void {
 	return void 0;
 }
 
+function updateToolButtonUI(): void {
+	if (searchEnabled) {
+		Object.assign(searchLabel.style, { color: "#f9d400ff" });
+		searchBtn.classList.add("active");
+	} else {
+		searchLabel.style.color = "";
+		searchBtn.classList.remove("active");
+	}
+
+	if (imgEnabled) {
+		Object.assign(imageLabel.style, { color: "#f9d400ff" });
+		imgBtn.classList.add("active");
+	} else {
+		imageLabel.style.color = "";
+		imgBtn.classList.remove("active");
+	}
+
+	if (videoEnabled) {
+		Object.assign(videoLabel.style, { color: "#f9d400ff" });
+		videoBtn.classList.add("active");
+	} else {
+		videoLabel.style.color = "";
+		videoBtn.classList.remove("active");
+	}
+
+	if (audioEnabled) {
+		Object.assign(audioLabel.style, { color: "#f9d400ff" });
+		audioBtn.classList.add("active");
+	} else {
+		audioLabel.style.color = "";
+		audioBtn.classList.remove("active");
+	}
+}
+
 const actionBtn = document.getElementById("send");
 
 let isStreaming = false;
@@ -1860,6 +1916,7 @@ searchBtn.addEventListener("click", () => {
 		searchEnabled = true;
 		Object.assign(searchLabel.style, { color: "#f9d400ff" });
 	}
+	toolSettings.setToolEnabled("webSearch", searchEnabled);
 	console.log("searchEnabled", searchEnabled);
 });
 
@@ -1872,6 +1929,7 @@ imgBtn.addEventListener("click", () => {
 		imgEnabled = true;
 		Object.assign(imageLabel.style, { color: "#f9d400ff" });
 	}
+	toolSettings.setToolEnabled("imageGen", imgEnabled);
 	console.log("imgEnabled", imgEnabled);
 });
 
@@ -1884,6 +1942,7 @@ videoBtn.addEventListener("click", () => {
 		videoEnabled = true;
 		Object.assign(videoLabel.style, { color: "#f9d400ff" });
 	}
+	toolSettings.setToolEnabled("videoGen", videoEnabled);
 	console.log("videoEnabled", videoEnabled);
 	updateExperimentalFeatureNotice();
 });
@@ -1897,9 +1956,13 @@ audioBtn.addEventListener("click", () => {
 		audioEnabled = true;
 		Object.assign(audioLabel.style, { color: "#f9d400ff" });
 	}
+	toolSettings.setToolEnabled("audioGen", audioEnabled);
 	console.log("audioEnabled", audioEnabled);
 	updateExperimentalFeatureNotice();
 });
+
+// Initialize tool button UI based on current settings
+updateToolButtonUI();
 
 let attachedFiles = [];
 

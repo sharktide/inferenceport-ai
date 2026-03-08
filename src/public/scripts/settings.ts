@@ -8,6 +8,7 @@ import {
 	installExternalUrlHandler,
 	normalizeUpgradePlanKey,
 } from "./helper/subscriptionUpgradeUi.js";
+import * as toolSettings from "./helper/toolSettings.js";
 
 const chipContainer = document.getElementById("email-chips") as HTMLDivElement;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
@@ -60,6 +61,29 @@ const startupStatus = document.getElementById(
 const searchEngineSelect = document.getElementById(
 	"search-engine-select",
 ) as HTMLSelectElement | null;
+
+// Tool toggle elements
+const toolWebSearchToggle = document.getElementById(
+	"tool-web-search",
+) as HTMLElement | null;
+const toolImageGenToggle = document.getElementById(
+	"tool-image-gen",
+) as HTMLElement | null;
+const toolVideoGenToggle = document.getElementById(
+	"tool-video-gen",
+) as HTMLElement | null;
+const toolAudioGenToggle = document.getElementById(
+	"tool-audio-gen",
+) as HTMLElement | null;
+
+// Search engine checkboxes
+const searchEngineDuckduckgoCheckbox = document.getElementById(
+	"search-engine-duckduckgo",
+) as HTMLInputElement | null;
+const searchEngineOllamaCheckbox = document.getElementById(
+	"search-engine-ollama",
+) as HTMLInputElement | null;
+
 let emails: string[] = [];
 const RESERVED_PORT_MIN = 52440;
 const RESERVED_PORT_MAX = 52458;
@@ -1157,6 +1181,78 @@ async function performFinalDeletion(statusEl?: HTMLElement) {
 			window.location.href = "index.html";
 		});
 	}, 800);
+}
+
+// Initialize tool settings from localStorage
+toolSettings.initializeSettings();
+const currentSettings = toolSettings.getSettings();
+
+// Update UI to reflect current settings
+if (toolWebSearchToggle) {
+	(toolWebSearchToggle as any).checked = currentSettings.webSearch;
+	toolWebSearchToggle.addEventListener("click", () => {
+		const newState = !(toolWebSearchToggle as any).checked;
+		toolSettings.setToolEnabled("webSearch", newState);
+		(toolWebSearchToggle as any).checked = newState;
+	});
+}
+
+if (toolImageGenToggle) {
+	(toolImageGenToggle as any).checked = currentSettings.imageGen;
+	toolImageGenToggle.addEventListener("click", () => {
+		const newState = !(toolImageGenToggle as any).checked;
+		toolSettings.setToolEnabled("imageGen", newState);
+		(toolImageGenToggle as any).checked = newState;
+	});
+}
+
+if (toolVideoGenToggle) {
+	(toolVideoGenToggle as any).checked = currentSettings.videoGen;
+	toolVideoGenToggle.addEventListener("click", () => {
+		const newState = !(toolVideoGenToggle as any).checked;
+		toolSettings.setToolEnabled("videoGen", newState);
+		(toolVideoGenToggle as any).checked = newState;
+	});
+}
+
+if (toolAudioGenToggle) {
+	(toolAudioGenToggle as any).checked = currentSettings.audioGen;
+	toolAudioGenToggle.addEventListener("click", () => {
+		const newState = !(toolAudioGenToggle as any).checked;
+		toolSettings.setToolEnabled("audioGen", newState);
+		(toolAudioGenToggle as any).checked = newState;
+	});
+}
+
+// Handle search engine checkboxes
+if (searchEngineDuckduckgoCheckbox) {
+	searchEngineDuckduckgoCheckbox.checked = currentSettings.searchEngines.includes(
+		"duckduckgo",
+	);
+	searchEngineDuckduckgoCheckbox.addEventListener("change", () => {
+		const engines = [
+			...(searchEngineDuckduckgoCheckbox.checked ? ["duckduckgo"] : []),
+			...(searchEngineOllamaCheckbox?.checked ? ["ollama"] : []),
+		];
+		if (engines.length > 0) {
+			toolSettings.setSearchEngines(engines);
+		}
+	});
+}
+
+if (searchEngineOllamaCheckbox) {
+	searchEngineOllamaCheckbox.checked = currentSettings.searchEngines.includes(
+		"ollama",
+	);
+	searchEngineOllamaCheckbox.addEventListener("change", () => {
+		const engines = [
+			...(searchEngineDuckduckgoCheckbox?.checked ? ["duckduckgo"] : []),
+			...(searchEngineOllamaCheckbox.checked ? ["ollama"] : []),
+		];
+		if (engines.length > 0) {
+			toolSettings.setSearchEngines(engines);
+		}
+	});
 }
 
 setHostingUIRunning(false);
