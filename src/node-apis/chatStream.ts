@@ -330,7 +330,7 @@ function waitForAudioRequestInput(
 }
 
 const systemPrompt =
-	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. Do not be technical with the user unless they ask for it.";
+	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. You can create SVG images by outputting the SVG code in a code block labeled with 'svg'. For example: ```svg <svg>...</svg>``` Always use the triple tick marks to close and open, and include the letters svg exactly like ```svg, then add a new line to render properly between all tick marks and xml. This will be rendered as an image for the user. Do not be technical with the user unless they ask for it.";
 
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
@@ -510,30 +510,37 @@ export default function registerChatStream() {
 			};
 
 			const tools = [];
-			// Always include read_web_page
-			const readWebPageTool = availableTools.find(t => t.function.name === "read_web_page");
-			if (readWebPageTool) tools.push(readWebPageTool);
-			// Search tool based on engine
-			if (toolList.search) {
-				let searchTool;
-				if (toolList.searchEngine === "ollama") {
-					searchTool = availableTools.find(t => t.function.name === "ollama_search");
-				} else {
-					searchTool = availableTools.find(t => t.function.name === "duckduckgo_search");
+			// Only add tools if at least one tool is enabled
+			const toolsEnabled = toolList.search || toolList.imageGen || toolList.audioGen || toolList.videoGen;
+			
+			if (toolsEnabled) {
+				// Include read_web_page only if search is enabled
+				if (toolList.search) {
+					const readWebPageTool = availableTools.find(t => t.function.name === "read_web_page");
+					if (readWebPageTool) tools.push(readWebPageTool);
 				}
-				if (searchTool) tools.push(searchTool);
-			}
-			if (toolList.imageGen) {
-				const imageTool = availableTools.find(t => t.function.name === "generate_image");
-				if (imageTool) tools.push(imageTool);
-			}
-			if (toolList.audioGen) {
-				const audioTool = availableTools.find(t => t.function.name === "generate_audio");
-				if (audioTool) tools.push(audioTool);
-			}
-			if (toolList.videoGen) {
-				const videoTool = availableTools.find(t => t.function.name === "generate_video");
-				if (videoTool) tools.push(videoTool);
+				// Search tool based on engine
+				if (toolList.search) {
+					let searchTool;
+					if (toolList.searchEngine === "ollama") {
+						searchTool = availableTools.find(t => t.function.name === "ollama_search");
+					} else {
+						searchTool = availableTools.find(t => t.function.name === "duckduckgo_search");
+					}
+					if (searchTool) tools.push(searchTool);
+				}
+				if (toolList.imageGen) {
+					const imageTool = availableTools.find(t => t.function.name === "generate_image");
+					if (imageTool) tools.push(imageTool);
+				}
+				if (toolList.audioGen) {
+					const audioTool = availableTools.find(t => t.function.name === "generate_audio");
+					if (audioTool) tools.push(audioTool);
+				}
+				if (toolList.videoGen) {
+					const videoTool = availableTools.find(t => t.function.name === "generate_video");
+					if (videoTool) tools.push(videoTool);
+				}
 			}
 
 			const chatHistory = getChatHistoryForSession(sessionId);
