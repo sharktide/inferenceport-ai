@@ -1,6 +1,3 @@
 [submodule "src/website"]
 	path = website
 	url = https://github.com/sharktide/inferenceport-web
-[submodule "src/lightning-api"]
-	path = lightning-api
-	url = https://hf.co/spaces/sharktide/lightning
