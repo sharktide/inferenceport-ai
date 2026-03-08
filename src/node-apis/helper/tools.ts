@@ -1,4 +1,6 @@
 import { LOG, LOG_ERR } from "./log.js";
+import { convert } from "html-to-text";
+import { Client } from "@gradio/client";
 import fs from "fs";
 import path from "path"
 import { getSession } from "../auth.js";
@@ -166,6 +168,29 @@ export async function GenerateImage(
 	return {
 		dataUrl: `data:${contentType || "image/png"};base64,${base64}`,
 	};
+}
+
+export async function ollamaSearch(query: string) {
+	const client = await Client.connect("incognitolm/Web-Search");
+	const result = await client.predict("/perform_search", {
+		query,
+	});
+	const data = await result.data;
+	return data;
+}
+
+export async function readWebPage(url: string): Promise<{ title: string | undefined; content: string }> {
+	const res = await fetch(url, {
+		method: "GET",
+	});
+	if (!res.ok) {
+		return { title: undefined, content: `Failed to fetch page: ${res.status} ${res.statusText}` };
+	}
+	const html = await res.text();
+	const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+	const title = titleMatch ? titleMatch[1] : "No title found";
+	const text = convert(html, { wordwrap: false, selectors: [{ selector: "table", format: "block", options: { uppercase: true } }], });
+	return { title, content: text };
 }
 
 export async function duckDuckGoSearch(query: string): Promise<{

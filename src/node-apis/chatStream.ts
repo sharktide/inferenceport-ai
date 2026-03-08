@@ -8,6 +8,8 @@ import toolSchema from "./assets/tools.json" with { type: "json" };
 import {
     GenerateImage,
     duckDuckGoSearch,
+    ollamaSearch,
+    readWebPage,
     generateVideo,
     generateAudioOrSFX,
     type ImageGenerateRequest,
@@ -508,10 +510,31 @@ export default function registerChatStream() {
 			};
 
 			const tools = [];
-			if (toolList.search) tools.push(availableTools[0]!);
-			if (toolList.imageGen) tools.push(availableTools[1]!);
-			if (toolList.audioGen) tools.push(availableTools[2]!);
-			if (toolList.videoGen) tools.push(availableTools[3]!);
+			// Always include read_web_page
+			const readWebPageTool = availableTools.find(t => t.function.name === "read_web_page");
+			if (readWebPageTool) tools.push(readWebPageTool);
+			// Search tool based on engine
+			if (toolList.search) {
+				let searchTool;
+				if (toolList.searchEngine === "ollama") {
+					searchTool = availableTools.find(t => t.function.name === "ollama_search");
+				} else {
+					searchTool = availableTools.find(t => t.function.name === "duckduckgo_search");
+				}
+				if (searchTool) tools.push(searchTool);
+			}
+			if (toolList.imageGen) {
+				const imageTool = availableTools.find(t => t.function.name === "generate_image");
+				if (imageTool) tools.push(imageTool);
+			}
+			if (toolList.audioGen) {
+				const audioTool = availableTools.find(t => t.function.name === "generate_audio");
+				if (audioTool) tools.push(audioTool);
+			}
+			if (toolList.videoGen) {
+				const videoTool = availableTools.find(t => t.function.name === "generate_video");
+				if (videoTool) tools.push(videoTool);
+			}
 
 			const chatHistory = getChatHistoryForSession(sessionId);
 			chatHistory.push({ role: "user", content: userMessage });
@@ -622,6 +645,32 @@ export default function registerChatStream() {
 							const query = typeof args.query === "string" ? args.query.trim() : "";
 							if (!query) throw new Error("Search query is required");
 							toolResult = await duckDuckGoSearch(query);
+						}
+
+						/* ---- Ollama search --------------------------------------------------- */
+						if (toolCall.function.name === "ollama_search") {
+							broadcastIpcEvent("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "pending",
+							});
+							const query = typeof args.query === "string" ? args.query.trim() : "";
+							if (!query) throw new Error("Search query is required");
+							toolResult = await ollamaSearch(query);
+						}
+
+						/* ---- Read web page --------------------------------------------------- */
+						if (toolCall.function.name === "read_web_page") {
+							broadcastIpcEvent("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "pending",
+							});
+							const url = typeof args.url === "string" ? args.url.trim() : "";
+							if (!url) throw new Error("URL is required");
+							toolResult = await readWebPage(url);
 						}
 
 						/* ---- Image generation ---------------------------------------------------- */

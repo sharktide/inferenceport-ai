@@ -21,13 +21,16 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.97.0",
     "fix-path": "^5.0.0",
+    "html-to-text": "^9.0.5",
     "markdown-it": "^14.1.1",
     "openai": "^6.25.0",
     "sanitize-html": "^2.17.1",
     "systeminformation": "^5.31.1"
   },
   "devDependencies": {
+    "@gradio/client": "^2.1.0",
     "@types/dompurify": "^3.2.0",
+    "@types/html-to-text": "^9.0.4",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.2.3",
     "@types/sanitize-html": "^2.16.0",

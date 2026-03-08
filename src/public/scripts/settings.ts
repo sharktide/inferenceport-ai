@@ -33,6 +33,7 @@ const RESTART_REQUIRED_KEY = "host_restart_required";
 
 const EMAIL_STORAGE_KEY = "host_emails_v2";
 const HOST_USERS_KEY = "host_users_v1";
+const SEARCH_ENGINE_KEY = "search_engine";
 
 const syncCheckbox = document.getElementById(
 	"sync-chats",
@@ -56,6 +57,9 @@ const startupUiPortStatus = document.getElementById(
 const startupStatus = document.getElementById(
 	"startup-status",
 ) as HTMLParagraphElement | null;
+const searchEngineSelect = document.getElementById(
+	"search-engine-select",
+) as HTMLSelectElement | null;
 let emails: string[] = [];
 const RESERVED_PORT_MIN = 52440;
 const RESERVED_PORT_MAX = 52458;
@@ -548,6 +552,14 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 	} catch (e) {
 		console.warn("Could not initialize sync setting", e);
+	}
+	// Initialize search engine select
+	if (searchEngineSelect) {
+		const savedEngine = localStorage.getItem(SEARCH_ENGINE_KEY) || "duckduckgo";
+		searchEngineSelect.value = savedEngine;
+		searchEngineSelect.addEventListener("change", () => {
+			localStorage.setItem(SEARCH_ENGINE_KEY, searchEngineSelect.value);
+		});
 	}
 })();
 

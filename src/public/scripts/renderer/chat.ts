@@ -115,6 +115,7 @@ let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
 let searchEnabled = false;
+let searchEngine = localStorage.getItem("search_engine") || "duckduckgo";
 let imgEnabled = false;
 let videoEnabled = false;
 let audioEnabled = false;
@@ -2116,6 +2117,7 @@ form.addEventListener("submit", async (e) => {
 		fullPrompt,
 		{
 			search: searchEnabled,
+			searchEngine: searchEngine,
 			imageGen: imgEnabled,
 			videoGen: videoEnabled,
 			audioGen: audioEnabled,
