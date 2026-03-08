@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Rihaan Meher
+Copyright 2026 Rihaan Meher
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,27 @@ import {
 const dataDir = window.ollama.getPath();
 
 const sessionFile = `${dataDir}/sessions.json`;
+
+function processTextForDisplay(text: string): string {
+	let result = '';
+	let i = 0;
+	while (i < text.length) {
+		const svgStart = text.indexOf('```svg', i);
+		if (svgStart === -1) {
+			result += text.slice(i);
+			break;
+		}
+		result += text.slice(i, svgStart) + '[SVG Image]';
+		const svgEnd = text.indexOf('```', svgStart + 6);
+		if (svgEnd === -1) {
+			// open block, stop here
+			break;
+		}
+		i = svgEnd + 3;
+	}
+	return result;
+}
+
 const chatBox = document.getElementById("chat-box") as HTMLDivElement;
 const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
@@ -963,6 +984,22 @@ document.addEventListener("DOMContentLoaded", () => {
 	usageRefreshBtn?.addEventListener("click", () => {
 		void refreshSubscriptionData(true);
 	});
+	// Create SVG side panel
+	const svgSidePanel = document.createElement("div");
+	svgSidePanel.id = "svg-side-panel";
+	svgSidePanel.style.position = "fixed";
+	svgSidePanel.style.right = "0";
+	svgSidePanel.style.top = "0";
+	svgSidePanel.style.width = "300px";
+	svgSidePanel.style.height = "100%";
+	svgSidePanel.style.background = "white";
+	svgSidePanel.style.borderLeft = "1px solid #ccc";
+	svgSidePanel.style.display = "none";
+	svgSidePanel.style.zIndex = "1000";
+	svgSidePanel.style.padding = "10px";
+	svgSidePanel.style.overflow = "auto";
+	svgSidePanel.style.resize = "horizontal";
+	document.body.appendChild(svgSidePanel);
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -2142,9 +2179,10 @@ form.addEventListener("submit", async (e) => {
 			botBubble.classList.add("generating");
 		}
 		fullResponse += chunk;
+		const displayText = processTextForDisplay(fullResponse);
 		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML =
-			await window.utils.markdown_parse_and_purify(fullResponse);
+			await window.utils.markdown_parse_and_purify(displayText);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
@@ -2623,40 +2661,106 @@ async function renderChat() {
 						if (match) lang = match[1];
 					}
 
-					const codeBubble = document.createElement(
-						"div",
-					) as HTMLDivElement;
-					codeBubble.className = "ai-code-bubble";
+					if (lang === "svg") {
+						const svgCode = codeEl?.textContent || "";
+						const img = document.createElement("img") as HTMLImageElement;
+						img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);
+						img.style.maxWidth = "100%";
+						img.style.cursor = "pointer";
+						img.onclick = () => {
+							const panel = document.getElementById("svg-side-panel") as HTMLDivElement;
+							if (panel) {
+								panel.innerHTML = "";
+								const header = document.createElement("div") as HTMLDivElement;
+								header.style.position = "relative";
+								header.style.height = "40px";
+								const closeBtn = document.createElement("span") as HTMLSpanElement;
+								closeBtn.textContent = "✕";
+								closeBtn.style.position = "absolute";
+								closeBtn.style.top = "10px";
+								closeBtn.style.right = "10px";
+								closeBtn.style.cursor = "pointer";
+								closeBtn.style.fontSize = "20px";
+								closeBtn.onclick = () => (panel.style.display = "none");
+								header.appendChild(closeBtn);
+								const toggle = document.createElement("div") as HTMLDivElement;
+								toggle.style.position = "absolute";
+								toggle.style.top = "10px";
+								toggle.style.left = "10px";
+								toggle.style.width = "30px";
+								toggle.style.height = "30px";
+								toggle.style.borderRadius = "5px";
+								toggle.style.background = "#f0f0f0";
+								toggle.style.display = "flex";
+								toggle.style.alignItems = "center";
+								toggle.style.justifyContent = "center";
+								toggle.style.cursor = "pointer";
+								toggle.textContent = "👁️";
+								let showImage = true;
+								const imgDiv = document.createElement("div") as HTMLDivElement;
+								const imgCopy = document.createElement("img") as HTMLImageElement;
+								imgCopy.src = img.src;
+								imgCopy.style.width = "100%";
+								imgDiv.appendChild(imgCopy);
+								const xmlDiv = document.createElement("div") as HTMLDivElement;
+								const xmlLabel = document.createElement("h3") as HTMLHeadingElement;
+								xmlLabel.textContent = "SVG XML";
+								xmlDiv.appendChild(xmlLabel);
+								const xmlPre = document.createElement("pre") as HTMLPreElement;
+								xmlPre.textContent = svgCode;
+								xmlPre.style.whiteSpace = "pre-wrap";
+								xmlDiv.appendChild(xmlPre);
+								const content = document.createElement("div") as HTMLDivElement;
+								content.appendChild(imgDiv);
+								toggle.onclick = () => {
+									showImage = !showImage;
+									toggle.textContent = showImage ? "👁️" : "</>";
+									content.innerHTML = "";
+									content.appendChild(showImage ? imgDiv : xmlDiv);
+								};
+								header.appendChild(toggle);
+								panel.appendChild(header);
+								panel.appendChild(content);
+								panel.style.display = "block";
+							}
+						};
+						botContainer.appendChild(img);
+					} else {
+						const codeBubble = document.createElement(
+							"div",
+						) as HTMLDivElement;
+						codeBubble.className = "ai-code-bubble";
 
-					const header = document.createElement(
-						"div",
-					) as HTMLDivElement;
-					header.className = "ai-code-header";
+						const header = document.createElement(
+							"div",
+						) as HTMLDivElement;
+						header.className = "ai-code-header";
 
-					const langLabel = document.createElement(
-						"span",
-					) as HTMLSpanElement;
-					langLabel.className = "ai-code-lang";
-					langLabel.textContent = lang;
+						const langLabel = document.createElement(
+							"span",
+						) as HTMLSpanElement;
+						langLabel.className = "ai-code-lang";
+						langLabel.textContent = lang;
 
-					const copyBtn = document.createElement(
-						"button",
-					) as HTMLButtonElement;
-					copyBtn.className = "ai-copy-btn";
-					copyBtn.textContent = "Copy";
-					copyBtn.onclick = () => {
-						navigator.clipboard.writeText(
-							codeEl?.textContent || "",
-						);
-						copyBtn.textContent = "Copied!";
-						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-					};
+						const copyBtn = document.createElement(
+							"button",
+						) as HTMLButtonElement;
+						copyBtn.className = "ai-copy-btn";
+						copyBtn.textContent = "Copy";
+						copyBtn.onclick = () => {
+							navigator.clipboard.writeText(
+								codeEl?.textContent || "",
+							);
+							copyBtn.textContent = "Copied!";
+							setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+						};
 
-					header.appendChild(langLabel);
-					header.appendChild(copyBtn);
-					codeBubble.appendChild(header);
-					codeBubble.appendChild(preEl.cloneNode(true));
-					botContainer.appendChild(codeBubble);
+						header.appendChild(langLabel);
+						header.appendChild(copyBtn);
+						codeBubble.appendChild(header);
+						codeBubble.appendChild(preEl.cloneNode(true));
+						botContainer.appendChild(codeBubble);
+					}
 				} else {
 					botContainer.appendChild(node.cloneNode(true));
 				}
