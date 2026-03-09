@@ -30,7 +30,7 @@
     "@types/dompurify": "^3.2.0",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.2.3",
-    "@types/sanitize-html": "^2.16.0",
+    "@types/sanitize-html": "^2.16.1",
     "@types/tar": "^7.0.87",
     "@typescript/native-preview": "^7.0.0-dev.20260302.1",
     "electron": "^40.6.0",
