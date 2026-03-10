@@ -25,7 +25,7 @@ export type ToolCall = {
 
 export interface ToolList { 
 	search: boolean;
-	searchEngine: string;
+	searchEngine: Array<string>;
 	imageGen: boolean;
 	videoGen: boolean;
 	audioGen: boolean;

@@ -136,11 +136,10 @@ let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
-// Initialize tool settings from localStorage
 toolSettings.initializeSettings();
 let currentToolSettings = toolSettings.getSettings();
 let searchEnabled = currentToolSettings.webSearch;
-let searchEngine = currentToolSettings.searchEngines[0] || "duckduckgo";
+let searchEngine: Array<string> = currentToolSettings.searchEngines || ["duckduckgo"];
 let imgEnabled = currentToolSettings.imageGen;
 let videoEnabled = currentToolSettings.videoGen;
 let audioEnabled = currentToolSettings.audioGen;
@@ -148,23 +147,6 @@ let sessions = {};
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
 
-// Listen for tool settings changes from settings page
-const unsubscribeToolSettings = toolSettings.onSettingsChange(
-	(settings) => {
-		searchEnabled = settings.webSearch;
-		imgEnabled = settings.imageGen;
-		videoEnabled = settings.videoGen;
-		audioEnabled = settings.audioGen;
-
-		// Update search engine (use first enabled engine, or default)
-		if (settings.searchEngines.length > 0) {
-			searchEngine = settings.searchEngines[0];
-		}
-
-		// Update button styling to reflect new state
-		updateToolButtonUI();
-	},
-);
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
@@ -1889,7 +1871,28 @@ function updateToolButtonUI(): void {
 		audioLabel.style.color = "";
 		audioBtn.classList.remove("active");
 	}
+
+    const searchContainer = searchBtn.closest('.tool-btn-wrap') ?? searchBtn;
+    const imgContainer = imgBtn.closest('.tool-btn-wrap') ?? imgBtn;
+    const videoContainer = videoBtn.closest('.tool-btn-wrap') ?? videoBtn;
+    const audioContainer = audioBtn.closest('.tool-btn-wrap') ?? audioBtn;
+
+    (searchContainer as HTMLDivElement).style.display = currentToolSettings.webSearch !== false ? '' : 'none';
+    (imgContainer as HTMLDivElement).style.display = currentToolSettings.imageGen !== false ? '' : 'none';
+    (videoContainer as HTMLDivElement).style.display = currentToolSettings.videoGen !== false ? '' : 'none';
+    (audioContainer as HTMLDivElement).style.display = currentToolSettings.audioGen !== false ? '' : 'none';
+
 }
+
+const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
+    searchEnabled = settings.webSearch;
+    imgEnabled = settings.imageGen;
+    videoEnabled = settings.videoGen;
+    audioEnabled = settings.audioGen;
+    searchEngine = settings.searchEngines.length > 0 ? settings.searchEngines : ["duckduckgo"]; // FIX array assignment
+    currentToolSettings = settings;
+    updateToolButtonUI();
+});
 
 const actionBtn = document.getElementById("send");
 

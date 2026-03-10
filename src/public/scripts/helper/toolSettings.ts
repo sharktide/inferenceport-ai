@@ -65,7 +65,6 @@ function parseSearchEngines(): string[] {
 				return parsed;
 			}
 		} catch {
-			// Fall back to comma-separated
 			const engines = stored.split(",").map((e) => e.trim());
 			if (engines.length > 0) return engines;
 		}

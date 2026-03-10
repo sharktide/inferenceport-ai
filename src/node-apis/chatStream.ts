@@ -26,6 +26,7 @@ import {
 	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
+import type { Tool } from "openai/resources/responses/responses.mjs";
 const chatHistories = new Map<string, ChatHistoryEntry[]>();
 const DEFAULT_CHAT_HISTORY_KEY = "__default__";
 
@@ -518,25 +519,24 @@ export default function registerChatStream() {
 					if (readWebPageTool) tools.push(readWebPageTool);
 				}
 				if (toolList.search) {
-					let searchToolOne: ToolDefinition | undefined;
-					searchToolOne = availableTools.find(t => t.function.name === "ollama_search");
-					let searchToolTwo: ToolDefinition | undefined;
-					searchToolTwo = availableTools.find(t => t.function.name === "duckduckgo_search");
-					if (searchToolOne) tools.push(searchToolOne);
-					if (searchToolTwo) tools.push(searchToolTwo);
+					if (toolList.searchEngine.includes("ollama")) {
+						tools.push(availableTools.find(t => t.function.name === "ollama_search") as ToolDefinition);
+					}
+					if (toolList.searchEngine.includes("duckduckgo")) {
+						tools.push(availableTools.find(t => t.function.name === "duckduckgo_search") as ToolDefinition);
+					}
+					if (toolList.searchEngine.length === 0) console.warn("Search enabled, but no search engines provided")
 				}
 				if (toolList.imageGen) {
-					const imageTool: ToolDefinition | undefined = availableTools.find(t => t.function.name === "generate_image");
-					if (imageTool) tools.push(imageTool);
+					tools.push(availableTools.find(t => t.function.name === "generate_image") as ToolDefinition);
 				}
 				if (toolList.audioGen) {
-					const audioTool: ToolDefinition | undefined = availableTools.find(t => t.function.name === "generate_audio");
-					if (audioTool) tools.push(audioTool);
+					tools.push(availableTools.find(t => t.function.name === "generate_audio") as ToolDefinition);
 				}
 				if (toolList.videoGen) {
-					const videoTool: ToolDefinition |undefined = availableTools.find(t => t.function.name === "generate_video");
-					if (videoTool) tools.push(videoTool);
+					tools.push(availableTools.find(t => t.function.name === "generate_video") as ToolDefinition);
 				}
+				console.log(tools)
 			}
 
 			const chatHistory = getChatHistoryForSession(sessionId);

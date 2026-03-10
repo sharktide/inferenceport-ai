@@ -577,14 +577,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	} catch (e) {
 		console.warn("Could not initialize sync setting", e);
 	}
-	// Initialize search engine select
-	if (searchEngineSelect) {
-		const savedEngine = localStorage.getItem(SEARCH_ENGINE_KEY) || "duckduckgo";
-		searchEngineSelect.value = savedEngine;
-		searchEngineSelect.addEventListener("change", () => {
-			localStorage.setItem(SEARCH_ENGINE_KEY, searchEngineSelect.value);
-		});
-	}
 })();
 
 async function initStartupSettings() {
@@ -1183,88 +1175,78 @@ async function performFinalDeletion(statusEl?: HTMLElement) {
 	}, 800);
 }
 
-// Initialize tool settings from localStorage
 toolSettings.initializeSettings();
 const currentSettings = toolSettings.getSettings();
 
-// Update UI to reflect current settings
 if (toolWebSearchToggle) {
-	(toolWebSearchToggle as any).checked = currentSettings.webSearch;
-	toolWebSearchToggle.addEventListener("click", () => {
-		const newState = !(toolWebSearchToggle as any).checked;
-		toolSettings.setToolEnabled("webSearch", newState);
-		(toolWebSearchToggle as any).checked = newState;
-	});
+    (toolWebSearchToggle as any).checked = currentSettings.webSearch;
+    toolWebSearchToggle.addEventListener("change", () => {
+        const newState = Boolean((toolWebSearchToggle as any).checked);
+        toolSettings.setToolEnabled("webSearch", newState);
+    });
 }
 
 if (toolImageGenToggle) {
-	(toolImageGenToggle as any).checked = currentSettings.imageGen;
-	toolImageGenToggle.addEventListener("click", () => {
-		const newState = !(toolImageGenToggle as any).checked;
-		toolSettings.setToolEnabled("imageGen", newState);
-		(toolImageGenToggle as any).checked = newState;
-	});
+    (toolImageGenToggle as any).checked = currentSettings.imageGen;
+    toolImageGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolImageGenToggle as any).checked);
+        toolSettings.setToolEnabled("imageGen", newState);
+    });
 }
 
 if (toolVideoGenToggle) {
-	(toolVideoGenToggle as any).checked = currentSettings.videoGen;
-	toolVideoGenToggle.addEventListener("click", () => {
-		const newState = !(toolVideoGenToggle as any).checked;
-		toolSettings.setToolEnabled("videoGen", newState);
-		(toolVideoGenToggle as any).checked = newState;
-	});
+    (toolVideoGenToggle as any).checked = currentSettings.videoGen;
+    toolVideoGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolVideoGenToggle as any).checked);
+        toolSettings.setToolEnabled("videoGen", newState);
+    });
 }
 
 if (toolAudioGenToggle) {
-	(toolAudioGenToggle as any).checked = currentSettings.audioGen;
-	toolAudioGenToggle.addEventListener("click", () => {
-		const newState = !(toolAudioGenToggle as any).checked;
-		toolSettings.setToolEnabled("audioGen", newState);
-		(toolAudioGenToggle as any).checked = newState;
-	});
+    (toolAudioGenToggle as any).checked = currentSettings.audioGen;
+    toolAudioGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolAudioGenToggle as any).checked);
+        toolSettings.setToolEnabled("audioGen", newState);
+    });
 }
 
-// Handle search engine checkboxes
 if (searchEngineDuckduckgoCheckbox) {
-	searchEngineDuckduckgoCheckbox.checked = currentSettings.searchEngines.includes(
-		"duckduckgo",
-	);
-	searchEngineDuckduckgoCheckbox.addEventListener("change", () => {
-		const engines = [
-			...(searchEngineDuckduckgoCheckbox.checked ? ["duckduckgo"] : []),
-			...(searchEngineOllamaCheckbox?.checked ? ["ollama"] : []),
-		];
-		if (engines.length > 0) {
-			toolSettings.setSearchEngines(engines);
-		}
-	});
+    searchEngineDuckduckgoCheckbox.checked = currentSettings.searchEngines.includes("duckduckgo");
+    searchEngineDuckduckgoCheckbox.addEventListener("change", () => {
+        const engines = [
+            ...(searchEngineDuckduckgoCheckbox.checked ? ["duckduckgo"] : []),
+            ...(searchEngineOllamaCheckbox?.checked ? ["ollama"] : []),
+        ];
+        if (engines.length === 0) {
+            searchEngineDuckduckgoCheckbox.checked = true;
+            return;
+        }
+        toolSettings.setSearchEngines(engines);
+    });
 }
 
 if (searchEngineOllamaCheckbox) {
-	searchEngineOllamaCheckbox.checked = currentSettings.searchEngines.includes(
-		"ollama",
-	);
-	searchEngineOllamaCheckbox.addEventListener("change", () => {
-		const engines = [
-			...(searchEngineDuckduckgoCheckbox?.checked ? ["duckduckgo"] : []),
-			...(searchEngineOllamaCheckbox.checked ? ["ollama"] : []),
-		];
-		if (engines.length > 0) {
-			toolSettings.setSearchEngines(engines);
-		}
-	});
+    searchEngineOllamaCheckbox.checked = currentSettings.searchEngines.includes("ollama");
+    searchEngineOllamaCheckbox.addEventListener("change", () => {
+        const engines = [
+            ...(searchEngineDuckduckgoCheckbox?.checked ? ["duckduckgo"] : []),
+            ...(searchEngineOllamaCheckbox.checked ? ["ollama"] : []),
+        ];
+        if (engines.length === 0) {
+            searchEngineOllamaCheckbox.checked = true;
+            return;
+        }
+        toolSettings.setSearchEngines(engines);
+    });
 }
 
 setHostingUIRunning(false);
 
-// Tab switching logic
 document.querySelectorAll('.tab-button').forEach((button) => {
 	(button as HTMLButtonElement).addEventListener('click', () => {
-		// Remove active class from all buttons and panes
 		document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
 		document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
 		
-		// Add active class to clicked button and corresponding pane
 		button.classList.add('active');
 		const tabId = (button as HTMLButtonElement).getAttribute('data-tab');
 		if (tabId) {

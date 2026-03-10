@@ -132,7 +132,7 @@
 						</div>
 						<div class="tab-pane" id="tools">
 							<h1>Enable or Disable Tools</h1>
-							<div class="tools-section">
+							<div class="tools-section" style="display: flex; gap:10px; flex-direction: column;">
 								<label class="tool-toggle-container">
 									<toggle-switch id="tool-web-search" class="tool-toggle"></toggle-switch>
 									<span class="tool-label">Web search</span>
@@ -151,14 +151,16 @@
 								</label>
 							</div>
 							<h2>Search Engines (select one or more)</h2>
-							<div class="search-engines-section">
+							<div class="search-engines-section" style="display: flex; gap:10px; flex-direction: column;">
 								<label class="search-engine-checkbox">
-									<input type="checkbox" id="search-engine-duckduckgo" value="duckduckgo" />
-									DuckDuckGo
+									<toggle-switch id="search-engine-duckduckgo" value="duckduckgo" class="search-engine-selector"/>
+										DuckDuckGo
+									</toggle-switch>
 								</label>
 								<label class="search-engine-checkbox">
-									<input type="checkbox" id="search-engine-ollama" value="ollama" />
-									Ollama
+									<toggle-switch id="search-engine-ollama" value="ollama" class="search-engine-selector"/>
+										Ollama
+									</toggle-switch>
 								</label>
 							</div>
 						</div>
