@@ -170,19 +170,19 @@
 						</div>
 					</div>
 					<details id="usage-panel-details" style="margin-bottom:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-<script>
-const usagePanelDetails = document.getElementById('usage-panel-details');
-const lightningSidebarBanner = document.querySelector('.lightning-sidebar-banner');
-if (usagePanelDetails && lightningSidebarBanner) {
-	usagePanelDetails.addEventListener('toggle', function() {
-		if (usagePanelDetails.open) {
-			lightningSidebarBanner.style.display = 'none';
-		} else {
-			lightningSidebarBanner.style.display = '';
-		}
-	});
-}
-</script>
+				<script>
+				const usagePanelDetails = document.getElementById('usage-panel-details');
+				const lightningSidebarBanner = document.querySelector('.lightning-sidebar-banner');
+				if (usagePanelDetails && lightningSidebarBanner) {
+					usagePanelDetails.addEventListener('toggle', function() {
+						if (usagePanelDetails.open) {
+							lightningSidebarBanner.style.display = 'none';
+						} else {
+							lightningSidebarBanner.style.display = '';
+						}
+					});
+				}
+				</script>
 						<summary id="usage-panel-summary" style="font-size:15px;cursor:pointer;padding:10px 16px;border-radius:10px 0 0;display:flex;align-items:center;gap:10px;outline:none;user-select:none;">
 						<span style="font-weight:600;">Plan:</span>
 						<span id="usage-panel-tier" style="color:#2a4d7a;padding:2px 10px;border-radius:6px;font-size:13px;">Free Tier</span>
