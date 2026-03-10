@@ -1014,7 +1014,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	svgSidePanel.style.top = "0";
 	svgSidePanel.style.width = "300px";
 	svgSidePanel.style.height = "100%";
-	svgSidePanel.style.background = "white";
+	svgSidePanel.style.background = "var(--gray)";
 	svgSidePanel.style.borderLeft = "1px solid #ccc";
 	svgSidePanel.style.display = "none";
 	svgSidePanel.style.zIndex = "1000";
@@ -2753,6 +2753,7 @@ async function renderChat() {
 								toggle.style.width = "30px";
 								toggle.style.height = "30px";
 								toggle.style.borderRadius = "5px";
+								toggle.style.color = "#000000"
 								toggle.style.background = "#f0f0f0";
 								toggle.style.display = "flex";
 								toggle.style.alignItems = "center";
