@@ -88,7 +88,7 @@ type RendererUsageMetricView = {
 	period: string;
 };
 
-type RendererUsageView = {
+export type RendererUsageView = {
 	planKey: string;
 	planName: string;
 	metrics: Record<UsageMetricKey, RendererUsageMetricView>;
