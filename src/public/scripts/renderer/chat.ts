@@ -1839,49 +1839,30 @@ function renderSessionList(): void {
 	return void 0;
 }
 
-function updateToolButtonUI(): void {
-	if (searchEnabled) {
-		Object.assign(searchLabel.style, { color: "#f9d400ff" });
-		searchBtn.classList.add("active");
-	} else {
-		searchLabel.style.color = "";
-		searchBtn.classList.remove("active");
-	}
+function updateToolButtonVisibility(): void {
+    const searchContainer = (searchBtn.closest('.tool-btn-wrap') ?? searchBtn) as HTMLElement;
+    const imgContainer = (imgBtn.closest('.tool-btn-wrap') ?? imgBtn) as HTMLElement;
+    const videoContainer = (videoBtn.closest('.tool-btn-wrap') ?? videoBtn) as HTMLElement;
+    const audioContainer = (audioBtn.closest('.tool-btn-wrap') ?? audioBtn) as HTMLElement;
 
-	if (imgEnabled) {
-		Object.assign(imageLabel.style, { color: "#f9d400ff" });
-		imgBtn.classList.add("active");
-	} else {
-		imageLabel.style.color = "";
-		imgBtn.classList.remove("active");
-	}
+    searchContainer.style.display = currentToolSettings.webSearch ? '' : 'none';
+    imgContainer.style.display = currentToolSettings.imageGen ? '' : 'none';
+    videoContainer.style.display = currentToolSettings.videoGen ? '' : 'none';
+    audioContainer.style.display = currentToolSettings.audioGen ? '' : 'none';
+}
 
-	if (videoEnabled) {
-		Object.assign(videoLabel.style, { color: "#f9d400ff" });
-		videoBtn.classList.add("active");
-	} else {
-		videoLabel.style.color = "";
-		videoBtn.classList.remove("active");
-	}
+function updateToolButtonActiveState(): void {
+    searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
+    searchBtn.classList.toggle("active", searchEnabled);
 
-	if (audioEnabled) {
-		Object.assign(audioLabel.style, { color: "#f9d400ff" });
-		audioBtn.classList.add("active");
-	} else {
-		audioLabel.style.color = "";
-		audioBtn.classList.remove("active");
-	}
+    imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
+    imgBtn.classList.toggle("active", imgEnabled);
 
-    const searchContainer = searchBtn.closest('.tool-btn-wrap') ?? searchBtn;
-    const imgContainer = imgBtn.closest('.tool-btn-wrap') ?? imgBtn;
-    const videoContainer = videoBtn.closest('.tool-btn-wrap') ?? videoBtn;
-    const audioContainer = audioBtn.closest('.tool-btn-wrap') ?? audioBtn;
+    videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
+    videoBtn.classList.toggle("active", videoEnabled);
 
-    (searchContainer as HTMLDivElement).style.display = currentToolSettings.webSearch !== false ? '' : 'none';
-    (imgContainer as HTMLDivElement).style.display = currentToolSettings.imageGen !== false ? '' : 'none';
-    (videoContainer as HTMLDivElement).style.display = currentToolSettings.videoGen !== false ? '' : 'none';
-    (audioContainer as HTMLDivElement).style.display = currentToolSettings.audioGen !== false ? '' : 'none';
-
+    audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
+    audioBtn.classList.toggle("active", audioEnabled);
 }
 
 const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
@@ -1889,9 +1870,10 @@ const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
     imgEnabled = settings.imageGen;
     videoEnabled = settings.videoGen;
     audioEnabled = settings.audioGen;
-    searchEngine = settings.searchEngines.length > 0 ? settings.searchEngines : ["duckduckgo"]; // FIX array assignment
+    searchEngine = settings.searchEngines.length > 0 ? settings.searchEngines : ["duckduckgo"];
     currentToolSettings = settings;
-    updateToolButtonUI();
+    updateToolButtonVisibility();
+    updateToolButtonActiveState();
 });
 
 const actionBtn = document.getElementById("send");
@@ -1912,60 +1894,32 @@ chatBox.addEventListener("scroll", () => {
 });
 
 searchBtn.addEventListener("click", () => {
-	if (searchEnabled) {
-		searchEnabled = false;
-		searchLabel.style.color = "";
-	} else {
-		searchEnabled = true;
-		Object.assign(searchLabel.style, { color: "#f9d400ff" });
-	}
-	toolSettings.setToolEnabled("webSearch", searchEnabled);
-	console.log("searchEnabled", searchEnabled);
+    searchEnabled = !searchEnabled;
+    updateToolButtonActiveState();
 });
 
 imgBtn.addEventListener("click", () => {
-	if (imgEnabled) {
-		imgEnabled = false;
-		imageLabel.style.color = "";
-	} else {
-		if (!enforceLimit("imagesDaily")) return;
-		imgEnabled = true;
-		Object.assign(imageLabel.style, { color: "#f9d400ff" });
-	}
-	toolSettings.setToolEnabled("imageGen", imgEnabled);
-	console.log("imgEnabled", imgEnabled);
+    if (!imgEnabled && !enforceLimit("imagesDaily")) return;
+    imgEnabled = !imgEnabled;
+    updateToolButtonActiveState();
 });
 
 videoBtn.addEventListener("click", () => {
-	if (videoEnabled) {
-		videoEnabled = false;
-		videoLabel.style.color = "";
-	} else {
-		if (!enforceLimit("videosDaily")) return;
-		videoEnabled = true;
-		Object.assign(videoLabel.style, { color: "#f9d400ff" });
-	}
-	toolSettings.setToolEnabled("videoGen", videoEnabled);
-	console.log("videoEnabled", videoEnabled);
-	updateExperimentalFeatureNotice();
+    if (!videoEnabled && !enforceLimit("videosDaily")) return;
+    videoEnabled = !videoEnabled;
+    updateToolButtonActiveState();
+    updateExperimentalFeatureNotice();
 });
 
 audioBtn.addEventListener("click", () => {
-	if (audioEnabled) {
-		audioEnabled = false;
-		audioLabel.style.color = "";
-	} else {
-		if (!enforceLimit("audioWeekly")) return;
-		audioEnabled = true;
-		Object.assign(audioLabel.style, { color: "#f9d400ff" });
-	}
-	toolSettings.setToolEnabled("audioGen", audioEnabled);
-	console.log("audioEnabled", audioEnabled);
-	updateExperimentalFeatureNotice();
+    if (!audioEnabled && !enforceLimit("audioWeekly")) return;
+    audioEnabled = !audioEnabled;
+    updateToolButtonActiveState();
+    updateExperimentalFeatureNotice();
 });
 
-// Initialize tool button UI based on current settings
-updateToolButtonUI();
+updateToolButtonVisibility();
+updateToolButtonActiveState();
 
 let attachedFiles = [];
 
