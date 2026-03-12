@@ -151,7 +151,7 @@ function preserveMathDelimiters(md: any) {
 
     md.inline.ruler.before("escape", "preserve_math", function (state: any) {
         state.src = state.src.replace(escapeRE, (match: string) => {
-            return match.replace("\\", "\uFFF0");
+            return match.replace(/\\/g, "\uFFF0");
         });
         return false;
     });
