@@ -143,9 +143,33 @@ const mdit = MDIT({
 	html: false,
 	linkify: true,
 	breaks: false,
+	typographer: true
 });
 
+function preserveMathDelimiters(md: any) {
+    const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
+
+    md.inline.ruler.before("escape", "preserve_math", function (state: any) {
+        state.src = state.src.replace(escapeRE, (match: string) => {
+            return match.replace("\\", "\uFFF0");
+        });
+        return false;
+    });
+    md.core.ruler.after("inline", "restore_math", function (state: any) {
+        state.tokens.forEach((blockToken: any) => {
+            if (blockToken.type !== "inline" || !blockToken.children) return;
+
+            blockToken.children.forEach((token: any) => {
+                if (token.type === "text" && typeof token.content === "string") {
+                    token.content = token.content.replace(/\uFFF0/g, "\\");
+                }
+            });
+        });
+    });
+}
+
 mdit.use(detailsBlock);
+mdit.use(preserveMathDelimiters);
 const defaultLinkOpenRenderer =
 	mdit.renderer.rules.link_open ||
 	function (tokens, idx, options, env, self) {
