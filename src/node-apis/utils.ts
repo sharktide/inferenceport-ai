@@ -270,7 +270,14 @@ export default function register() {
 			} catch (err) {
 				void 0;
 			}
-			if (url.includes("buy.stripe.com")) {
+			let parsedUrl: URL | null = null;
+			try {
+				parsedUrl = new URL(url);
+			} catch {
+				parsedUrl = null;
+			}
+			const allowedStripeHosts = ["buy.stripe.com"];
+			if (parsedUrl && allowedStripeHosts.includes(parsedUrl.hostname)) {
 				try {
 					if (session && session.user && session.user.email) {
 						const email = session.user.email;
