@@ -158,7 +158,7 @@ nav:not(.collapsed) .nav-links {
 .navbar-plan[data-plan-key="light"] {
   background: linear-gradient(135deg, #d84b4b, #d86252);
 }
-.navbar-plan[data-plan-key="pro"] {
+.navbar-plan[data-plan-key="core"] {
   background: linear-gradient(135deg, #214f89, #3f78bf);
 }
 .navbar-plan[data-plan-key="creator"] {

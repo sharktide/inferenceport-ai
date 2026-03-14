@@ -52,7 +52,6 @@ type RendererSubscriptionView = {
 	planKey: string;
 	planName: string;
 	isPaid: boolean;
-	email: string | null;
 	signedUp: string | null;
 	status: string | null;
 	tiers: SubscriptionTierView[];
@@ -239,7 +238,7 @@ function normalizePlanKeyFromName(planName: string | null): string {
 	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
 	if (normalized.includes("professional")) return "professional";
 	if (normalized.includes("creator")) return "creator";
-	if (normalized.includes("pro")) return "pro";
+	if (normalized.includes("core")) return "core";
 	if (normalized.includes("light")) return "light";
 	return "free";
 }
@@ -638,7 +637,6 @@ function toSubscriptionView(
 		planKey,
 		planName,
 		isPaid: planKey !== defaultPlanKey,
-		email,
 		signedUp,
 		status,
 		tiers,
@@ -731,7 +729,6 @@ export default function register() {
 			planKey: defaultPlanKey,
 			planName: defaultPlanName,
 			isPaid: false,
-			email: null,
 			signedUp: null,
 			status: null,
 			tiers,

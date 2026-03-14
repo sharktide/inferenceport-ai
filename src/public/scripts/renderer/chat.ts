@@ -158,18 +158,18 @@ const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
 const VIDEO_MODE_OPTIONS = ["normal", "fun"];
 const DEFAULT_VIDEO_DURATION = 5;
 const liveToolBubbles = new Map<string, HTMLDivElement>();
-type PlanKey = "free" | "light" | "pro" | "creator" | "professional";
+type PlanKey = "free" | "light" | "core" | "creator" | "professional";
 const PLAN_ORDER: PlanKey[] = [
 	"free",
 	"light",
-	"pro",
+	"core",
 	"creator",
 	"professional",
 ];
 export const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
 	free: "Free Tier",
 	light: "InferencePort AI Light",
-	pro: "InferencePort AI Pro",
+	core: "InferencePort AI Core",
 	creator: "InferencePort AI Creator",
 	professional: "InferencePort AI Professional",
 };
@@ -182,7 +182,7 @@ const EMPTY_PLAN_LIMITS: AuthTierLimits = {
 export const PLAN_LIMITS: Record<PlanKey, AuthTierLimits> = {
 	free: { ...EMPTY_PLAN_LIMITS },
 	light: { ...EMPTY_PLAN_LIMITS },
-	pro: { ...EMPTY_PLAN_LIMITS },
+	core: { ...EMPTY_PLAN_LIMITS },
 	creator: { ...EMPTY_PLAN_LIMITS },
 	professional: { ...EMPTY_PLAN_LIMITS },
 };
@@ -288,7 +288,7 @@ function isKnownPlanKey(value: string): value is PlanKey {
 	return (
 		value === "free" ||
 		value === "light" ||
-		value === "pro" ||
+		value === "core" ||
 		value === "creator" ||
 		value === "professional"
 	);
@@ -333,7 +333,7 @@ function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
 		});
 
 	if (orderedKeys.length > 0) {
-		const missing = (["free", "light", "pro", "creator", "professional"] as PlanKey[]).filter(
+		const missing = (["free", "light", "core", "creator", "professional"] as PlanKey[]).filter(
 			(key) => !orderedKeys.includes(key),
 		);
 		PLAN_ORDER.splice(0, PLAN_ORDER.length, ...orderedKeys, ...missing);

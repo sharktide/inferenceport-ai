@@ -72,7 +72,6 @@ declare global {
 		planKey: string;
 		planName: string;
 		isPaid: boolean;
-		email: string | null;
 		signedUp: string | null;
 		status: string | null;
 		tiers: AuthSubscriptionTier[];

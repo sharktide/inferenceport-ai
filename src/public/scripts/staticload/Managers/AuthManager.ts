@@ -24,11 +24,11 @@ import {
 
 class AuthManager {
     private static instance: AuthManager | null = null;
-    private static readonly PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
+    private static readonly PLAN_ORDER = ["free", "light", "core", "creator", "professional"] as const;
     private static readonly PLAN_DISPLAY_NAMES = {
         free: "Free Tier",
         light: "Light",
-        pro: "Pro",
+        core: "Core",
         creator: "Creator",
         professional: "Professional",
     } as const;
@@ -204,7 +204,7 @@ class AuthManager {
                         url: "",
                         price: "",
                     }));
-
+        console.log("Upgrade tiers to show:", plansToShow);
         const recommendedPlan = this.getRecommendedUpgradePlan(currentPlanKey);
         const cards = buildUpgradePlanCards(plansToShow, {
             currentPlanKey,

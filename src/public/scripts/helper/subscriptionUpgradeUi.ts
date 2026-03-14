@@ -1,4 +1,4 @@
-const PLAN_ORDER = ["free", "light", "pro", "creator", "professional"] as const;
+const PLAN_ORDER = ["free", "light", "core", "creator", "professional"] as const;
 
 type UpgradePlanKey = (typeof PLAN_ORDER)[number];
 
@@ -33,7 +33,7 @@ const PLAN_BENEFIT_COPY: Record<UpgradePlanKey, string[]> = {
 		"More room for chat and image workflows",
 		"Good fit for lighter personal workloads",
 	],
-	pro: [
+	core: [
 		"Balanced daily limits for frequent use",
 		"Stronger image, video, and audio allowances",
 		"Priority for heavier day-to-day usage",
@@ -73,7 +73,7 @@ export function normalizeUpgradePlanKey(planName: string): UpgradePlanKey {
 	const normalized = (planName || "").toLowerCase().replace(/[^a-z]/g, "");
 	if (normalized.includes("professional")) return "professional";
 	if (normalized.includes("creator")) return "creator";
-	if (normalized.includes("pro")) return "pro";
+	if (normalized.includes("core")) return "core";
 	if (normalized.includes("light")) return "light";
 	return "free";
 }

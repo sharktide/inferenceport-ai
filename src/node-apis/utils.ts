@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 import sanitizeHtml from "sanitize-html";
-import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
+import type { IpcMainInvokeEvent } from "electron";
 
 import fs from "fs";
 import { constants } from "fs";
@@ -24,6 +24,7 @@ import { shell, app, ipcMain } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
 import type { UUID } from "crypto";
+import { getSession } from "./auth.js";
 
 const dataDir: string = app.getPath("userData");
 
@@ -263,7 +264,49 @@ export default function register() {
 	ipcMain.handle(
 		"utils:web_open",
 		async (_event: IpcMainInvokeEvent, url: string) => {
+			let session = null;
+			try {
+				session = await getSession()
+			} catch (err) {
+				void 0;
+			}
+			if (url.includes("buy.stripe.com")) {
+				try {
+					if (session && session.user && session.user.email) {
+						const email = session.user.email;
+						const separator = url.includes("?") ? "&" : "?";
+						url += `${separator}locked_prefilled_email=${encodeURIComponent(email)}`;
+					}
+				} catch (err) {
+					console.error("Error occurred while fetching session:", err);
+				}
+				shell.openExternal(url);
+				return;
+			} else if (url === "https://sharktide-lightning.hf.space/portal") {
+				try {
+					if (session && session.user && session.user.email) {
+						const email = session.user.email;
+						const url_res: Response = await fetch("https://sharktide-lightning.hf.space/portal", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({"email": email}),
+						})
+						if (url_res.ok) {
+							const stripe_url = (await url_res.json()).redirect_url;
+							if (stripe_url) {
+								shell.openExternal(stripe_url);
+							} else shell.openExternal(url);
+						} else shell.openExternal(url);
+					}
+				} catch (err) {
+					console.error("Error occurred while fetching session:", err);
+				}
+				return;
+			}
 			shell.openExternal(url);
+			return
 		},
 	);
 
