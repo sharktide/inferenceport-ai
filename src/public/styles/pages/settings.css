@@ -126,7 +126,7 @@ Copyright 2025 Rihaan Meher
 
 .settings-inline-row label {
   font-weight: 600;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .settings-container input[type="number"] {

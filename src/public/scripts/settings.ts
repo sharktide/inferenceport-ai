@@ -34,7 +34,7 @@ const RESTART_REQUIRED_KEY = "host_restart_required";
 
 const EMAIL_STORAGE_KEY = "host_emails_v2";
 const HOST_USERS_KEY = "host_users_v1";
-const SEARCH_ENGINE_KEY = "search_engine";
+const startup = await window.startup.getSettings();
 
 const syncCheckbox = document.getElementById(
 	"sync-chats",
@@ -582,7 +582,6 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initStartupSettings() {
 	if (!startupRunAtLoginCheckbox || !startupAutoProxyCheckbox) return;
 	try {
-		const startup = await window.startup.getSettings();
 		startupRunAtLoginCheckbox.checked = Boolean(startup.runAtLogin);
 		startupAutoProxyCheckbox.checked = Boolean(startup.autoStartProxy);
 		if (startupUiPortInput) {
@@ -624,6 +623,10 @@ startupUiPortSaveBtn?.addEventListener("click", async () => {
 		}
 		return;
 	}
+    if (startupUiPortStatus) {
+        startupUiPortStatus.textContent =
+            "Changing the UI port may disconnect hosted clients. Disengaging is recommended before changing ports.";
+    }
 
 	if (isReservedPort(port)) {
 		if (startupUiPortStatus) {
@@ -636,7 +639,7 @@ startupUiPortSaveBtn?.addEventListener("click", async () => {
 		const updated = await window.startup.updateSettings({ uiPort: port });
 		startupUiPortInput.value = String(updated.uiPort);
 		if (startupUiPortStatus) {
-			startupUiPortStatus.textContent = `UI port saved: ${updated.uiPort}. Restart app to fully apply. If changes do not take effect, restart your computer. Make sure this port isn't already being used by nother process or changes may not take effect.`;
+			startupUiPortStatus.textContent = `UI port saved: ${updated.uiPort}. Restart computer and/or app to fully apply. Disengaging is recommended to clear browser data for the old port.`;
 		}
 	} catch (err: any) {
 		if (startupUiPortStatus) {
@@ -1180,12 +1183,25 @@ const currentSettings = toolSettings.getSettings();
 
 if (toolWebSearchToggle) {
     (toolWebSearchToggle as any).checked = currentSettings.webSearch;
+
     toolWebSearchToggle.addEventListener("change", () => {
         const newState = Boolean((toolWebSearchToggle as any).checked);
+
+        const engines = toolSettings.getSettings().searchEngines;
+
+        if (newState && engines.length === 0) {
+            showNotification({
+                message: "Enable a search engine first.",
+                type: "warning",
+            });
+
+            (toolWebSearchToggle as any).checked = false;
+            return;
+        }
+
         toolSettings.setToolEnabled("webSearch", newState);
     });
 }
-
 if (toolImageGenToggle) {
     (toolImageGenToggle as any).checked = currentSettings.imageGen;
     toolImageGenToggle.addEventListener("change", () => {
@@ -1217,10 +1233,13 @@ if (searchEngineDuckduckgoCheckbox) {
             ...(searchEngineDuckduckgoCheckbox.checked ? ["duckduckgo"] : []),
             ...(searchEngineOllamaCheckbox?.checked ? ["ollama"] : []),
         ];
-        if (engines.length === 0) {
-            searchEngineDuckduckgoCheckbox.checked = true;
-            return;
-        }
+		if (engines.length === 0) {
+			toolSettings.setToolEnabled("webSearch", false);
+
+			if (toolWebSearchToggle) {
+				(toolWebSearchToggle as any).checked = false;
+			}
+		}
         toolSettings.setSearchEngines(engines);
     });
 }
@@ -1232,10 +1251,13 @@ if (searchEngineOllamaCheckbox) {
             ...(searchEngineDuckduckgoCheckbox?.checked ? ["duckduckgo"] : []),
             ...(searchEngineOllamaCheckbox.checked ? ["ollama"] : []),
         ];
-        if (engines.length === 0) {
-            searchEngineOllamaCheckbox.checked = true;
-            return;
-        }
+		if (engines.length === 0) {
+			toolSettings.setToolEnabled("webSearch", false);
+
+			if (toolWebSearchToggle) {
+				(toolWebSearchToggle as any).checked = false;
+			}
+		}
         toolSettings.setSearchEngines(engines);
     });
 }
@@ -1254,4 +1276,24 @@ document.querySelectorAll('.tab-button').forEach((button) => {
 			if (pane) pane.classList.add('active');
 		}
 	});
+});
+
+const disengageBtn = document.getElementById("startup-disengage-btn") as HTMLButtonElement | null;
+const disengageStatus = document.getElementById("startup-disengage-status") as HTMLParagraphElement | null;
+
+disengageBtn?.addEventListener("click", async () => {
+    try {
+        const port = startup.uiPort;
+
+        const url = `http://127.0.0.1:${port}/disengage.html`;
+        window.utils.web_open(url);
+
+        if (disengageStatus) {
+            disengageStatus.textContent = `Opening disengage page on port ${port}…`;
+        }
+    } catch (err) {
+        if (disengageStatus) {
+            disengageStatus.textContent = "Could not open disengage page.";
+        }
+    }
 });

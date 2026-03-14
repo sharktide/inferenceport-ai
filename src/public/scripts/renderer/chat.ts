@@ -139,7 +139,7 @@ let editModal: declarations["iInstance"]["iModal"];
 toolSettings.initializeSettings();
 let currentToolSettings = toolSettings.getSettings();
 let searchEnabled = currentToolSettings.webSearch;
-let searchEngine: Array<string> = currentToolSettings.searchEngines || ["duckduckgo"];
+let searchEngine: Array<string> = currentToolSettings.searchEngines;
 let imgEnabled = currentToolSettings.imageGen;
 let videoEnabled = currentToolSettings.videoGen;
 let audioEnabled = currentToolSettings.audioGen;
@@ -1870,7 +1870,7 @@ const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
     imgEnabled = settings.imageGen;
     videoEnabled = settings.videoGen;
     audioEnabled = settings.audioGen;
-    searchEngine = settings.searchEngines.length > 0 ? settings.searchEngines : ["duckduckgo"];
+    searchEngine = settings.searchEngines.length;
     currentToolSettings = settings;
     updateToolButtonVisibility();
     updateToolButtonActiveState();

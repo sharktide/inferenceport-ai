@@ -121,9 +121,8 @@ export function setSearchEngines(engines: string[]): void {
 
 	if (validEngines.length === 0) {
 		console.warn(
-			"No valid search engines provided, keeping current selection",
+			"No valid search engines provided",
 		);
-		return;
 	}
 
 	currentSettings.searchEngines = validEngines;
