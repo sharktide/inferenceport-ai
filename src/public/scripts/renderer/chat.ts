@@ -96,9 +96,6 @@ const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
-const experimentalFeatureNotice = document.getElementById(
-	"experimental-feature-notice",
-) as HTMLParagraphElement | null;
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -919,12 +916,6 @@ function initLightningToggleEvents(): void {
 	applyLightningState();
 }
 
-function updateExperimentalFeatureNotice(): void {
-	if (!experimentalFeatureNotice) return;
-	experimentalFeatureNotice.style.display =
-		videoEnabled || audioEnabled ? "block" : "none";
-}
-
 function setWelcomeMode(enabled: boolean): void {
 	if (!chatPanel) return;
 	chatPanel.classList.toggle("welcome-mode", enabled);
@@ -979,7 +970,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	);
 	initWelcomeCards();
 	initLightningToggleEvents();
-	updateExperimentalFeatureNotice();
 	loadUsageStateForUser(null);
 	renderUsagePanel();
 	usageUpgradeBtn?.addEventListener("click", () => {
@@ -1908,14 +1898,12 @@ videoBtn.addEventListener("click", () => {
     if (!videoEnabled && !enforceLimit("videosDaily")) return;
     videoEnabled = !videoEnabled;
     updateToolButtonActiveState();
-    updateExperimentalFeatureNotice();
 });
 
 audioBtn.addEventListener("click", () => {
     if (!audioEnabled && !enforceLimit("audioWeekly")) return;
     audioEnabled = !audioEnabled;
     updateToolButtonActiveState();
-    updateExperimentalFeatureNotice();
 });
 
 updateToolButtonVisibility();
