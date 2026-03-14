@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>InferencePort Disengaged</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			:root {
+				color-scheme: dark light;
+				--bg: #05060a;
+				--bg-soft: #0c1018;
+				--fg: #f5f7fb;
+				--fg-soft: #a5afc7;
+				--accent: #4f8cff;
+				--accent-soft: rgba(79, 140, 255, 0.12);
+				--border-subtle: rgba(255, 255, 255, 0.06);
+				--shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.45);
+				--radius-lg: 18px;
+				--radius-pill: 999px;
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+
+			body {
+				min-height: 100vh;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 24px;
+				font-family:
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					"SF Pro Text",
+					"Segoe UI",
+					sans-serif;
+				background: radial-gradient(
+					circle at top,
+					#151b2b 0,
+					#05060a 55%,
+					#020308 100%
+				);
+				color: var(--fg);
+			}
+
+			.shell {
+				width: 100%;
+				max-width: 520px;
+				background: linear-gradient(145deg, var(--bg-soft), #05060a);
+				border-radius: var(--radius-lg);
+				border: 1px solid var(--border-subtle);
+				box-shadow: var(--shadow-soft);
+				padding: 26px 24px 22px;
+				position: relative;
+				overflow: hidden;
+			}
+
+			.shell::before {
+				content: "";
+				position: absolute;
+				inset: -40%;
+				background:
+					radial-gradient(
+						circle at 0% 0%,
+						rgba(79, 140, 255, 0.18),
+						transparent 55%
+					),
+					radial-gradient(
+						circle at 100% 100%,
+						rgba(111, 207, 151, 0.12),
+						transparent 55%
+					);
+				opacity: 0.7;
+				pointer-events: none;
+				mix-blend-mode: screen;
+			}
+
+			.inner {
+				position: relative;
+				z-index: 1;
+			}
+
+			.badge-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-bottom: 18px;
+				gap: 12px;
+			}
+
+			.badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 4px 10px;
+				border-radius: var(--radius-pill);
+				background: rgba(5, 6, 10, 0.7);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				font-size: 11px;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: var(--fg-soft);
+			}
+
+			.badge-dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 999px;
+				background: #ff4f6b;
+				box-shadow: 0 0 0 6px rgba(255, 79, 107, 0.25);
+			}
+
+			.badge-label {
+				opacity: 0.9;
+			}
+
+			.pill {
+				font-size: 11px;
+				padding: 4px 10px;
+				border-radius: var(--radius-pill);
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				background: rgba(5, 6, 10, 0.7);
+				color: var(--fg-soft);
+				white-space: nowrap;
+			}
+
+			h1 {
+				font-size: 22px;
+				line-height: 1.25;
+				margin-bottom: 8px;
+				letter-spacing: 0.01em;
+			}
+
+			.subtitle {
+				font-size: 13px;
+				line-height: 1.6;
+				color: var(--fg-soft);
+				margin-bottom: 18px;
+			}
+
+			.card {
+				border-radius: 14px;
+				border: 1px solid rgba(255, 255, 255, 0.06);
+				background: radial-gradient(
+					circle at top left,
+					var(--accent-soft),
+					transparent 60%
+				);
+				padding: 14px 14px 12px;
+				margin-bottom: 18px;
+				display: flex;
+				gap: 10px;
+				align-items: flex-start;
+			}
+
+			.card-icon {
+				width: 26px;
+				height: 26px;
+				border-radius: 999px;
+				background: rgba(5, 6, 10, 0.9);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 14px;
+			}
+
+			.card-body {
+				flex: 1;
+			}
+
+			.card-title {
+				font-size: 13px;
+				font-weight: 600;
+				margin-bottom: 4px;
+			}
+
+			.card-text {
+				font-size: 12px;
+				line-height: 1.6;
+				color: var(--fg-soft);
+			}
+
+			.meta-row {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				align-items: center;
+				justify-content: space-between;
+				margin-top: 6px;
+			}
+
+			.meta {
+				font-size: 11px;
+				color: var(--fg-soft);
+				opacity: 0.9;
+			}
+
+			.meta strong {
+				font-weight: 600;
+				color: var(--fg);
+			}
+
+			.status-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 4px 10px;
+				border-radius: var(--radius-pill);
+				background: rgba(5, 6, 10, 0.8);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				font-size: 11px;
+				color: var(--fg-soft);
+			}
+
+			.status-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 999px;
+				background: #4ade80;
+				box-shadow: 0 0 0 5px rgba(74, 222, 128, 0.25);
+			}
+
+			.footer {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 10px;
+				margin-top: 10px;
+				padding-top: 10px;
+				border-top: 1px solid rgba(255, 255, 255, 0.06);
+				font-size: 11px;
+				color: var(--fg-soft);
+			}
+
+			.footer a {
+				color: var(--accent);
+				text-decoration: none;
+			}
+
+			.footer a:hover {
+				text-decoration: underline;
+			}
+
+			.btn-row {
+				display: flex;
+				gap: 8px;
+				margin-top: 6px;
+				flex-wrap: wrap;
+			}
+
+			.btn {
+				border-radius: var(--radius-pill);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				padding: 7px 14px;
+				font-size: 12px;
+				background: rgba(5, 6, 10, 0.9);
+				color: var(--fg);
+				cursor: pointer;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				transition:
+					background 0.15s ease,
+					transform 0.1s ease,
+					box-shadow 0.15s ease;
+			}
+
+			.btn-primary {
+				background: linear-gradient(135deg, var(--accent), #7c5cff);
+				border-color: rgba(255, 255, 255, 0.12);
+				box-shadow: 0 10px 25px rgba(79, 140, 255, 0.35);
+			}
+
+			.btn:hover {
+				transform: translateY(-1px);
+				box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+			}
+
+			.btn:active {
+				transform: translateY(0);
+				box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+			}
+
+			.btn-icon {
+				font-size: 14px;
+			}
+
+			@media (max-width: 480px) {
+				.shell {
+					padding: 22px 18px 18px;
+				}
+
+				h1 {
+					font-size: 20px;
+				}
+
+				.subtitle {
+					font-size: 12px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="shell">
+			<div class="inner">
+				<div class="badge-row">
+					<div class="badge">
+						<span class="badge-dot"></span>
+						<span class="badge-label">Session disengaged</span>
+					</div>
+					<div class="pill">Local settings cleared</div>
+				</div>
+
+				<h1>This port has been safely disengaged.</h1>
+				<p class="subtitle">
+					This browser session is no longer linked to your previous
+					local environment. Non‑essential settings stored in
+					<code>localStorage</code> have been cleared on this origin.
+				</p>
+
+				<div class="card">
+					<div class="card-icon">🧹</div>
+					<div class="card-body">
+						<div class="card-title">Local reset completed</div>
+						<p class="card-text" id="status-text">
+							Local storage for this port has been cleared.
+							Re-opening any port will still automatically sync
+							your settings
+						</p>
+						<div class="meta-row">
+							<div class="meta">
+								<strong>Scope:</strong> This browser origin only
+							</div>
+							<div class="status-pill">
+								<span class="status-dot"></span>
+								<span id="status-pill-text"
+									>State: Disengaged</span
+								>
+							</div>
+						</div>
+						<div class="btn-row">
+							<button class="btn btn-primary" id="reload-btn">
+								<span class="btn-icon">↻</span>
+								<span>Open a fresh session</span>
+							</button>
+							<button class="btn" id="details-btn">
+								<span class="btn-icon">⌘</span>
+								<span>View technical details</span>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="footer">
+					<span id="ts-label">Local reset executed just now.</span>
+					<span>InferencePort AI • Localhost environment</span>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			(function () {
+				try {
+					localStorage.clear();
+				} catch (err) {
+					console.warn("Failed to clear localStorage:", err);
+					const status = document.getElementById("status-text");
+					if (status) {
+						status.textContent =
+							"Attempted to clear local storage, but the browser blocked the operation.";
+					}
+					const pill = document.getElementById("status-pill-text");
+					if (pill) {
+						pill.textContent = "State: Partially disengaged";
+					}
+				}
+
+				const tsLabel = document.getElementById("ts-label");
+				if (tsLabel) {
+					const now = new Date();
+					const formatted = now.toLocaleString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "2-digit",
+						hour: "2-digit",
+						minute: "2-digit",
+					});
+					tsLabel.textContent =
+						"Local reset executed at " + formatted + ".";
+				}
+
+				const reloadBtn = document.getElementById("reload-btn");
+				if (reloadBtn) {
+					reloadBtn.addEventListener("click", function () {
+						window.location.href = "/";
+					});
+				}
+
+				const detailsBtn = document.getElementById("details-btn");
+				if (detailsBtn) {
+					detailsBtn.addEventListener("click", function () {
+						const origin = window.location.origin;
+						const msg =
+							"What just happened:\n\n" +
+							"• This page cleared localStorage for the current origin:\n" +
+							"    " +
+							origin +
+							"\n\n" +
+							"• Only non‑essential, local settings were removed.\n" +
+							"• No remote or cloud data was touched.\n\n" +
+							"You can safely close this tab or open a fresh session.";
+						alert(msg);
+					});
+				}
+			})();
+		</script>
+	</body>
+</html>

@@ -16,7 +16,7 @@ limitations under the License.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-import type { ChatMessage, ChatAsset, ModelInfo, PullProgress, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { ChatAsset, ModelInfo, PullProgress, Sessions } from "./node-apis/types/index.types.d.ts";
 import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
@@ -189,6 +189,10 @@ contextBridge.exposeInMainWorld("auth", {
 		ipcRenderer.invoke("auth:setUsername", userId, username),
 	setSessionFromTokens: (accessToken: string, refreshToken: string) =>
 		ipcRenderer.invoke("auth:setSessionTokens", accessToken, refreshToken),
+	getSubscriptionInfo: () => ipcRenderer.invoke("auth:getSubscriptionInfo"),
+	getSubscriptionTiers: () => ipcRenderer.invoke("auth:getSubscriptionTiers"),
+	getTierConfig: () => ipcRenderer.invoke("auth:getTierConfig"),
+	getUsage: (): Promise<AuthUsageInfo> => ipcRenderer.invoke("auth:getUsage"),
 });
 
 // ===== Sync =====

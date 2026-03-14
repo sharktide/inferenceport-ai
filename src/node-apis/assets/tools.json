@@ -19,6 +19,40 @@
   {
     "type": "function",
     "function": {
+      "name": "ollama_search",
+      "description": "Search the web using Ollama search",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query"
+          }
+        },
+        "required": ["query"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_web_page",
+      "description": "Read the content of a web page",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The URL of the web page to read"
+          }
+        },
+        "required": ["url"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "generate_image",
       "description": "Generate an image from a prompt and mode",
       "parameters": {

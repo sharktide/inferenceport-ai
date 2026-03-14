@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Rihaan Meher
+Copyright 2026 Rihaan Meher
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,14 +18,43 @@ limitations under the License.
 
 import { showNotification } from "../helper/notification.js";
 import {
+	BILLING_PORTAL_URL,
+	buildUpgradePlanCards,
+	escapeSubscriptionHtml,
+	installExternalUrlHandler,
+	normalizeUpgradePlanKey,
+} from "../helper/subscriptionUpgradeUi.js";
+import {
 	mergeLocalAndRemoteSessions,
 	safeCallRemote,
 	isOffline,
 } from "../helper/sync.js";
+import * as toolSettings from "../helper/toolSettings.js";
 
 const dataDir = window.ollama.getPath();
 
 const sessionFile = `${dataDir}/sessions.json`;
+
+function processTextForDisplay(text: string): string {
+	let result = '';
+	let i = 0;
+	while (i < text.length) {
+		const svgStart = text.indexOf('```svg', i);
+		if (svgStart === -1) {
+			result += text.slice(i);
+			break;
+		}
+		result += text.slice(i, svgStart) + '[SVG Image]';
+		const svgEnd = text.indexOf('```', svgStart + 6);
+		if (svgEnd === -1) {
+			// open block, stop here
+			break;
+		}
+		i = svgEnd + 3;
+	}
+	return result;
+}
+
 const chatBox = document.getElementById("chat-box") as HTMLDivElement;
 const input = document.getElementById("chat-input") as HTMLInputElement;
 const form = document.getElementById("chat-form") as HTMLFormElement;
@@ -67,9 +96,6 @@ const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
 	"feature-warning",
 ) as HTMLParagraphElement;
-const experimentalFeatureNotice = document.getElementById(
-	"experimental-feature-notice",
-) as HTMLParagraphElement | null;
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -85,16 +111,39 @@ const sidebarControls = document.getElementById(
 const lightningStatus = document.getElementById(
 	"lightning-status",
 ) as HTMLDivElement | null;
+const usagePlanNameEl = document.getElementById(
+	"usage-plan-name",
+) as HTMLParagraphElement | null;
+const usagePlanMetaEl = document.getElementById(
+	"usage-plan-meta",
+) as HTMLParagraphElement | null;
+const usageResetNoteEl = document.getElementById(
+	"usage-reset-note",
+) as HTMLParagraphElement | null;
+const usageUpgradeBtn = document.getElementById(
+	"usage-upgrade-btn",
+) as HTMLButtonElement | null;
+const usageRefreshBtn = document.getElementById(
+	"usage-refresh-btn",
+) as HTMLButtonElement | null;
+const previewTier = document.getElementById(
+	"usage-panel-tier"
+) as HTMLSpanElement;
 let modal: declarations["iInstance"]["iModal"];
+let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
-let searchEnabled = false;
-let imgEnabled = false;
-let videoEnabled = false;
-let audioEnabled = false;
+toolSettings.initializeSettings();
+let currentToolSettings = toolSettings.getSettings();
+let searchEnabled = currentToolSettings.webSearch;
+let searchEngine: Array<string> = currentToolSettings.searchEngines;
+let imgEnabled = currentToolSettings.imageGen;
+let videoEnabled = currentToolSettings.videoGen;
+let audioEnabled = currentToolSettings.audioGen;
 let sessions = {};
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
+
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
@@ -106,6 +155,81 @@ const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
 const VIDEO_MODE_OPTIONS = ["normal", "fun"];
 const DEFAULT_VIDEO_DURATION = 5;
 const liveToolBubbles = new Map<string, HTMLDivElement>();
+type PlanKey = "free" | "light" | "core" | "creator" | "professional";
+const PLAN_ORDER: PlanKey[] = [
+	"free",
+	"light",
+	"core",
+	"creator",
+	"professional",
+];
+export const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
+	free: "Free Tier",
+	light: "InferencePort AI Light",
+	core: "InferencePort AI Core",
+	creator: "InferencePort AI Creator",
+	professional: "InferencePort AI Professional",
+};
+const EMPTY_PLAN_LIMITS: AuthTierLimits = {
+	cloudChatDaily: null,
+	imagesDaily: null,
+	videosDaily: null,
+	audioWeekly: null,
+};
+export const PLAN_LIMITS: Record<PlanKey, AuthTierLimits> = {
+	free: { ...EMPTY_PLAN_LIMITS },
+	light: { ...EMPTY_PLAN_LIMITS },
+	core: { ...EMPTY_PLAN_LIMITS },
+	creator: { ...EMPTY_PLAN_LIMITS },
+	professional: { ...EMPTY_PLAN_LIMITS },
+};
+const LIMIT_COPY = {
+	cloudChatDaily: { label: "Cloud chat", period: "today" },
+	imagesDaily: { label: "Image generation", period: "today" },
+	videosDaily: { label: "Video generation", period: "today" },
+	audioWeekly: { label: "Audio generation", period: "this week" },
+} as const;
+const USAGE_STORAGE_PREFIX = "inferenceport-usage-v1";
+const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
+const UPGRADE_SETTINGS_TARGET = "settings.html#upgrade";
+const USAGE_UI_MAP = {
+	cloudChatDaily: {
+		valueId: "usage-cloud-value",
+		fillId: "usage-cloud-fill",
+	},
+	imagesDaily: {
+		valueId: "usage-image-value",
+		fillId: "usage-image-fill",
+	},
+	videosDaily: {
+		valueId: "usage-video-value",
+		fillId: "usage-video-fill",
+	},
+	audioWeekly: {
+		valueId: "usage-audio-value",
+		fillId: "usage-audio-fill",
+	},
+} as const;
+let usageStorageKey = `${USAGE_STORAGE_PREFIX}:guest`;
+let currentPlanKey: PlanKey = "free";
+let currentPlanName = PLAN_DISPLAY_NAMES.free;
+let currentPlanPaid = false;
+let currentAuthSession: AuthSessionView | null = null;
+let lastTierLookupError: string | null = null;
+let subscriptionTiers: AuthSubscriptionTier[] = [];
+let currentTierConfig: AuthTierConfig | null = null;
+let usageState = {
+	dayKey: "",
+	weekKey: "",
+	cloudChatDaily: 0,
+	imagesDaily: 0,
+	videosDaily: 0,
+	audioWeekly: 0,
+};
+let usageSyncSource: "local" | "server" = "local";
+let usageSyncedAt: string | null = null;
+let lastUsageLookupError: string | null = null;
+let usageSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
 type ToggleSwitchElement = HTMLElement & {
 	checked: boolean;
@@ -117,6 +241,614 @@ function readLightningSetting(): boolean {
 	} catch (e) {
 		return false;
 	}
+}
+
+function getLocalDayKey(date: Date = new Date()): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+function getIsoWeekKey(date: Date = new Date()): string {
+	const temp = new Date(date.getTime());
+	temp.setHours(0, 0, 0, 0);
+	temp.setDate(temp.getDate() + 3 - ((temp.getDay() + 6) % 7));
+	const weekOne = new Date(temp.getFullYear(), 0, 4);
+	const weekNumber =
+		1 +
+		Math.round(
+			((temp.getTime() - weekOne.getTime()) / 86400000 -
+				3 +
+				((weekOne.getDay() + 6) % 7)) /
+				7,
+		);
+	return `${temp.getFullYear()}-W${String(weekNumber).padStart(2, "0")}`;
+}
+
+function createDefaultUsageState() {
+	return {
+		dayKey: getLocalDayKey(),
+		weekKey: getIsoWeekKey(),
+		cloudChatDaily: 0,
+		imagesDaily: 0,
+		videosDaily: 0,
+		audioWeekly: 0,
+	};
+}
+
+function getUsageStorageKeyForUser(userId?: string | null): string {
+	return `${USAGE_STORAGE_PREFIX}:${userId || "guest"}`;
+}
+
+function isKnownPlanKey(value: string): value is PlanKey {
+	return (
+		value === "free" ||
+		value === "light" ||
+		value === "core" ||
+		value === "creator" ||
+		value === "professional"
+	);
+}
+
+function normalizePlanKey(planName: string): PlanKey {
+	return normalizeUpgradePlanKey(planName) as PlanKey;
+}
+
+function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return;
+	currentTierConfig = tierConfig;
+	const orderedKeys: PlanKey[] = [];
+	tierConfig.plans
+		.slice()
+		.sort((a, b) => a.order - b.order)
+		.forEach((plan) => {
+			const key = (plan.key || "").toLowerCase();
+			if (!isKnownPlanKey(key)) return;
+			if (!orderedKeys.includes(key)) orderedKeys.push(key);
+			if (typeof plan.name === "string" && plan.name.trim()) {
+				PLAN_DISPLAY_NAMES[key] = plan.name.trim();
+			}
+			PLAN_LIMITS[key] = {
+				cloudChatDaily:
+					typeof plan.limits?.cloudChatDaily === "number"
+						? plan.limits.cloudChatDaily
+						: null,
+				imagesDaily:
+					typeof plan.limits?.imagesDaily === "number"
+						? plan.limits.imagesDaily
+						: null,
+				videosDaily:
+					typeof plan.limits?.videosDaily === "number"
+						? plan.limits.videosDaily
+						: null,
+				audioWeekly:
+					typeof plan.limits?.audioWeekly === "number"
+						? plan.limits.audioWeekly
+						: null,
+			};
+		});
+
+	if (orderedKeys.length > 0) {
+		const missing = (["free", "light", "core", "creator", "professional"] as PlanKey[]).filter(
+			(key) => !orderedKeys.includes(key),
+		);
+		PLAN_ORDER.splice(0, PLAN_ORDER.length, ...orderedKeys, ...missing);
+	}
+}
+
+function getPaidTiersFromConfig(
+	tierConfig: AuthTierConfig | null | undefined,
+): AuthSubscriptionTier[] {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return [];
+	const defaultKey = normalizePlanKey(tierConfig.defaultPlanKey || "free");
+	return tierConfig.plans
+		.filter((plan) => normalizePlanKey(plan.key) !== defaultKey)
+		.map((plan) => ({
+			key: plan.key,
+			name: plan.name,
+			url: plan.url,
+			price: plan.price,
+			limits: plan.limits,
+		}));
+}
+
+function getActivePlanLimits() {
+	return PLAN_LIMITS[currentPlanKey];
+}
+
+function pruneUsageState() {
+	if (usageSyncSource === "server") {
+		return;
+	}
+	const dayKey = getLocalDayKey();
+	const weekKey = getIsoWeekKey();
+	if (usageState.dayKey !== dayKey) {
+		usageState.dayKey = dayKey;
+		usageState.cloudChatDaily = 0;
+		usageState.imagesDaily = 0;
+		usageState.videosDaily = 0;
+	}
+	if (usageState.weekKey !== weekKey) {
+		usageState.weekKey = weekKey;
+		usageState.audioWeekly = 0;
+	}
+}
+
+function saveUsageState() {
+	try {
+		pruneUsageState();
+		localStorage.setItem(usageStorageKey, JSON.stringify(usageState));
+	} catch (e) {
+		void 0;
+	}
+}
+
+function loadUsageStateForUser(userId?: string | null) {
+	usageStorageKey = getUsageStorageKeyForUser(userId);
+	let nextState = createDefaultUsageState();
+
+	try {
+		const raw = localStorage.getItem(usageStorageKey);
+		if (raw) {
+			const parsed = JSON.parse(raw);
+			nextState = {
+				...nextState,
+				...(parsed && typeof parsed === "object" ? parsed : {}),
+			};
+		}
+	} catch (e) {
+		void 0;
+	}
+
+	usageState = {
+		dayKey:
+			typeof nextState.dayKey === "string" && nextState.dayKey
+				? nextState.dayKey
+				: getLocalDayKey(),
+		weekKey:
+			typeof nextState.weekKey === "string" && nextState.weekKey
+				? nextState.weekKey
+				: getIsoWeekKey(),
+		cloudChatDaily: Number.isFinite(Number(nextState.cloudChatDaily))
+			? Math.max(0, Number(nextState.cloudChatDaily))
+			: 0,
+		imagesDaily: Number.isFinite(Number(nextState.imagesDaily))
+			? Math.max(0, Number(nextState.imagesDaily))
+			: 0,
+		videosDaily: Number.isFinite(Number(nextState.videosDaily))
+			? Math.max(0, Number(nextState.videosDaily))
+			: 0,
+		audioWeekly: Number.isFinite(Number(nextState.audioWeekly))
+			? Math.max(0, Number(nextState.audioWeekly))
+			: 0,
+	};
+
+	pruneUsageState();
+	usageSyncSource = "local";
+	usageSyncedAt = null;
+	lastUsageLookupError = null;
+	saveUsageState();
+	renderUsagePanel();
+}
+
+function toFiniteRatio(used: number, limit: number): number {
+	if (!Number.isFinite(limit) || limit <= 0) return 0;
+	return Math.min(1, Math.max(0, used / limit));
+}
+
+function formatUsageMetric(
+	kind: keyof typeof LIMIT_COPY,
+	used: number,
+	limit: number | null,
+) {
+	const copy = LIMIT_COPY[kind];
+	if (limit == null) {
+		return `${used} used ${copy.period} • Unlimited`;
+	}
+	return `${Math.min(used, limit)} / ${limit} ${copy.period}`;
+}
+
+function updateUsageRow(
+	kind: keyof typeof LIMIT_COPY,
+	used: number,
+	limit: number | null,
+) {
+	const map = USAGE_UI_MAP[kind];
+	const valueEl = document.getElementById(map.valueId);
+	const fillEl = document.getElementById(map.fillId) as HTMLDivElement | null;
+	if (valueEl) {
+		valueEl.textContent = formatUsageMetric(kind, used, limit);
+	}
+	if (!fillEl) return;
+
+	fillEl.classList.remove("is-warning", "is-danger", "is-unlimited");
+	if (limit == null) {
+		fillEl.classList.add("is-unlimited");
+		fillEl.style.width = "100%";
+		return;
+	}
+
+	const ratio = toFiniteRatio(used, limit);
+	fillEl.style.width = `${Math.round(ratio * 100)}%`;
+	if (ratio >= 1) {
+		fillEl.classList.add("is-danger");
+	} else if (ratio >= 0.75) {
+		fillEl.classList.add("is-warning");
+	}
+}
+
+function renderUsagePanel() {
+	pruneUsageState();
+	const limits = getActivePlanLimits();
+	if (usagePlanNameEl) usagePlanNameEl.textContent = currentPlanName;
+	if (usagePlanMetaEl) {
+		const paidText = currentPlanPaid
+			? "Paid subscription active."
+			: "No paid subscription detected. Free plan limits apply.";
+		const errorText = lastTierLookupError
+			? ` ${lastTierLookupError}`
+			: "";
+		const usageErrorText = lastUsageLookupError
+			? ` ${lastUsageLookupError}`
+			: "";
+		usagePlanMetaEl.textContent = `${paidText}${errorText}${usageErrorText}`;
+	}
+	if (usageResetNoteEl) {
+		const syncTimeText = usageSyncedAt
+			? new Date(usageSyncedAt).toLocaleTimeString()
+			: "not synced yet";
+		if (usageSyncSource === "server") {
+			usageResetNoteEl.textContent =
+				`Server usage windows: day ${usageState.dayKey || "unknown"}, week ${usageState.weekKey || "unknown"} (synced ${syncTimeText}).`;
+		} else {
+			usageResetNoteEl.textContent =
+				`Local estimate windows: day ${usageState.dayKey}, week ${usageState.weekKey}.`;
+		}
+	}
+
+	updateUsageRow(
+		"cloudChatDaily",
+		usageState.cloudChatDaily,
+		limits.cloudChatDaily,
+	);
+	updateUsageRow("imagesDaily", usageState.imagesDaily, limits.imagesDaily);
+	updateUsageRow("videosDaily", usageState.videosDaily, limits.videosDaily);
+	updateUsageRow("audioWeekly", usageState.audioWeekly, limits.audioWeekly);
+}
+
+function canConsumeUsage(kind: keyof typeof LIMIT_COPY): boolean {
+	pruneUsageState();
+	const limit = getActivePlanLimits()[kind];
+	if (limit == null) return true;
+	return usageState[kind] < limit;
+}
+
+function bumpUsage(kind: keyof typeof LIMIT_COPY, amount = 1) {
+	pruneUsageState();
+	usageState[kind] += amount;
+	usageSyncSource = "local";
+	saveUsageState();
+	renderUsagePanel();
+	scheduleUsageSync();
+}
+
+function isCloudRequest(model: string, clientUrl?: string): boolean {
+	return (
+		lightningEnabled ||
+		model === LIGHTNING_MODEL_VALUE ||
+		clientUrl === LIGHTNING_CLIENT_URL
+	);
+}
+
+function getTierPrice(name: string): string | null {
+	const match = subscriptionTiers.find(
+		(tier) => normalizePlanKey((tier.key as string) || tier.name) === normalizePlanKey(name),
+	);
+	if (!match?.price) return null;
+	return `$${match.price}/mo`;
+}
+
+function getSortedTierCatalog(): AuthSubscriptionTier[] {
+	if (!Array.isArray(subscriptionTiers)) return [];
+	const weight = new Map(PLAN_ORDER.map((plan, index) => [plan, index]));
+	return [...subscriptionTiers].sort((a, b) => {
+		const aWeight =
+			weight.get(normalizePlanKey((a.key as string) || a.name)) ?? 999;
+		const bWeight =
+			weight.get(normalizePlanKey((b.key as string) || b.name)) ?? 999;
+		return aWeight - bWeight;
+	});
+}
+
+function getRecommendedUpgradePlan(
+	kind: keyof typeof LIMIT_COPY,
+): PlanKey | null {
+	const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
+	for (let i = Math.max(currentIndex + 1, 0); i < PLAN_ORDER.length; i++) {
+		const candidate = PLAN_ORDER[i];
+		if (!candidate) continue;
+		if (PLAN_LIMITS[candidate][kind] == null) return candidate;
+		const currentLimit = PLAN_LIMITS[candidate][kind];
+		if (typeof currentLimit === "number") return candidate;
+	}
+	return null;
+}
+
+function rememberUpgradeIntent(target: string = UPGRADE_SETTINGS_TARGET): void {
+	try {
+		localStorage.setItem(UPGRADE_INTENT_STORAGE_KEY, target);
+	} catch (e) {
+		void 0;
+	}
+}
+
+function openBillingPortal(): void {
+	void window.utils.web_open(BILLING_PORTAL_URL);
+}
+
+function openUpgradeRequiresAccountDialog(kind: keyof typeof LIMIT_COPY) {
+	const copy = LIMIT_COPY[kind];
+	upgradeModal.open({
+		html: `
+			<h3>${escapeHtml(copy.label)} upgrade requires an account</h3>
+			<p style="opacity:.82;margin:8px 0 10px;">
+				Sign in or create an account first, then choose a paid plan.
+			</p>
+		`,
+		actions: [
+			{
+				id: "upgrade-account-signin",
+				label: "Sign In",
+				onClick: () => {
+					upgradeModal.close();
+					rememberUpgradeIntent(UPGRADE_SETTINGS_TARGET);
+					const params = new URLSearchParams();
+					params.set("upgrade", "1");
+					params.set("mode", "signin");
+					params.set("next", UPGRADE_SETTINGS_TARGET);
+					window.location.href = `../auth.html?${params.toString()}`;
+				},
+			},
+			{
+				id: "upgrade-account-signup",
+				label: "Create Account",
+				onClick: () => {
+					upgradeModal.close();
+					rememberUpgradeIntent(UPGRADE_SETTINGS_TARGET);
+					const params = new URLSearchParams();
+					params.set("upgrade", "1");
+					params.set("mode", "signup");
+					params.set("next", UPGRADE_SETTINGS_TARGET);
+					window.location.href = `../auth.html?${params.toString()}`;
+				},
+			},
+			{
+				id: "upgrade-account-close",
+				label: "Close",
+				onClick: () => upgradeModal.close(),
+			},
+		],
+	});
+}
+
+async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
+	await refreshSubscriptionData(true);
+	if (!currentAuthSession?.isAuthenticated) {
+		openUpgradeRequiresAccountDialog(kind);
+		return;
+	}
+	const recommended = getRecommendedUpgradePlan(kind);
+	const tiers = getSortedTierCatalog();
+	const plansToShow =
+		tiers.length > 0
+			? tiers
+			: PLAN_ORDER.filter((plan) => plan !== "free").map((plan) => ({
+					key: plan,
+					name: PLAN_DISPLAY_NAMES[plan],
+					url: "",
+					price: "",
+				}));
+
+	const planCards = buildUpgradePlanCards(plansToShow, {
+		currentPlanKey,
+		recommendedPlanKey: recommended,
+		allowDirectCheckout: currentPlanKey === "free",
+	});
+
+	const copy = LIMIT_COPY[kind];
+	upgradeModal.open({
+		html: `
+			<h3>${escapeHtml(copy.label)} limit reached</h3>
+			<div class="subscription-upgrade-layout">
+				<p class="subscription-current-plan">
+					Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+				</p>
+				<p class="subscription-upgrade-copy">
+					${currentPlanKey === "free"
+						? `Upgrade to continue ${escapeHtml(copy.label.toLowerCase())} beyond your ${escapeHtml(copy.period)} quota.`
+						: `Compare the available plan benefits below, then use the Billing Portal to change your subscription in Stripe and restore more ${escapeHtml(copy.label.toLowerCase())}.`}
+				</p>
+				<div class="subscription-plan-grid">
+					${planCards}
+				</div>
+			</div>
+		`,
+		actions: [
+			...(currentPlanKey === "free"
+				? []
+				: [
+						{
+							id: "open-upgrade-billing-portal",
+							label: "Open Billing Portal",
+							onClick: () => openBillingPortal(),
+						},
+					]),
+			{
+				id: "close-upgrade-dialog",
+				label: "Close",
+				onClick: () => upgradeModal.close(),
+			},
+		],
+	});
+}
+
+function notifyLimitReached(kind: keyof typeof LIMIT_COPY) {
+	const copy = LIMIT_COPY[kind];
+	showNotification({
+		message: `${copy.label} limit reached for ${currentPlanName}.`,
+		type: "warning",
+		actions: [
+			{
+				label: "Upgrade Plan",
+				onClick: () => void openUpgradeDialog(kind),
+			},
+		],
+	});
+}
+
+function enforceLimit(kind: keyof typeof LIMIT_COPY): boolean {
+	if (canConsumeUsage(kind)) return true;
+	notifyLimitReached(kind);
+	renderUsagePanel();
+	return false;
+}
+
+function getPlanNameFromSubscription(info: AuthSubscriptionInfo): string {
+	applyTierConfig(info?.tierConfig);
+	if (typeof info?.planKey === "string" && info.planKey.trim()) {
+		const key = normalizePlanKey(info.planKey);
+		return PLAN_DISPLAY_NAMES[key];
+	}
+	if (typeof info?.planName === "string" && info.planName.trim()) {
+		const key = normalizePlanKey(info.planName);
+		return PLAN_DISPLAY_NAMES[key];
+	}
+	return PLAN_DISPLAY_NAMES.free;
+}
+
+function applyUsageData(usage: AuthUsageInfo | null | undefined): boolean {
+	if (!usage?.metrics) return false;
+	if (typeof usage.planKey === "string" && usage.planKey.trim()) {
+		currentPlanKey = normalizePlanKey(usage.planKey);
+	}
+	if (typeof usage.planName === "string" && usage.planName.trim()) {
+		currentPlanName = usage.planName.trim();
+	}
+	const defaultPlanKey = normalizePlanKey(
+		currentTierConfig?.defaultPlanKey || "free",
+	);
+	currentPlanPaid = currentPlanKey !== defaultPlanKey;
+
+	const metrics = usage.metrics;
+	const cloud = metrics.cloudChatDaily;
+	const images = metrics.imagesDaily;
+	const videos = metrics.videosDaily;
+	const audio = metrics.audioWeekly;
+	if (!cloud || !images || !videos || !audio) return false;
+
+	usageState = {
+		dayKey:
+			typeof cloud.window === "string" && cloud.window.trim().length > 0
+				? cloud.window.trim()
+				: getLocalDayKey(),
+		weekKey:
+			typeof audio.window === "string" && audio.window.trim().length > 0
+				? audio.window.trim()
+				: getIsoWeekKey(),
+		cloudChatDaily: Math.max(0, Number(cloud.used) || 0),
+		imagesDaily: Math.max(0, Number(images.used) || 0),
+		videosDaily: Math.max(0, Number(videos.used) || 0),
+		audioWeekly: Math.max(0, Number(audio.used) || 0),
+	};
+	usageSyncSource = "server";
+	usageSyncedAt =
+		typeof usage.generatedAt === "string" && usage.generatedAt.trim()
+			? usage.generatedAt
+			: new Date().toISOString();
+	lastUsageLookupError = usage.error ? `(${usage.error})` : null;
+	saveUsageState();
+	return true;
+}
+
+async function syncUsageFromServer(renderAfter = true): Promise<void> {
+	try {
+		const usage = await window.auth.getUsage();
+		const applied = applyUsageData(usage);
+		if (!applied) {
+			usageSyncSource = "local";
+			lastUsageLookupError = "(Usage sync unavailable)";
+		}
+	} catch (err) {
+		usageSyncSource = "local";
+		lastUsageLookupError = "(Usage sync unavailable)";
+		console.warn("Usage fetch failed:", err);
+	} finally {
+		if (renderAfter) renderUsagePanel();
+	}
+}
+
+function scheduleUsageSync(delayMs = 1500): void {
+	if (usageSyncTimer) {
+		clearTimeout(usageSyncTimer);
+	}
+	usageSyncTimer = setTimeout(() => {
+		usageSyncTimer = null;
+		void syncUsageFromServer();
+	}, delayMs);
+}
+
+async function refreshSubscriptionData(force = false) {
+	if (!force && !currentAuthSession?.isAuthenticated) {
+		try {
+			applyTierConfig(await window.auth.getTierConfig());
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+		} catch (_e) {
+			void 0;
+		}
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		currentPlanPaid = false;
+		lastTierLookupError = null;
+		await syncUsageFromServer(false);
+		renderUsagePanel();
+		return;
+	}
+
+	try {
+		const info = await window.auth.getSubscriptionInfo();
+		applyTierConfig(info?.tierConfig);
+		const planName = getPlanNameFromSubscription(info);
+		currentPlanKey =
+			typeof info?.planKey === "string" && info.planKey.trim()
+				? normalizePlanKey(info.planKey)
+				: normalizePlanKey(planName);
+		currentPlanName = planName;
+		const defaultPlanKey = normalizePlanKey(
+			info?.tierConfig?.defaultPlanKey || "free",
+		);
+		currentPlanPaid = currentPlanKey !== defaultPlanKey;
+		if (typeof info?.isPaid === "boolean") {
+			currentPlanPaid = Boolean(
+				info.isPaid && currentPlanKey !== defaultPlanKey,
+			);
+		}
+		subscriptionTiers = Array.isArray(info?.tiers)
+			? info.tiers
+			: getPaidTiersFromConfig(info?.tierConfig);
+		lastTierLookupError = info?.error ? `(${info.error})` : null;
+	} catch (err: any) {
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		currentPlanPaid = false;
+		lastTierLookupError = "(Subscription lookup unavailable)";
+		console.warn("Subscription fetch failed:", err);
+	} finally {
+		previewTier.textContent = currentPlanName;
+	}
+
+	await syncUsageFromServer(false);
+	renderUsagePanel();
 }
 
 function collectUsedAssetIds(sessions: any): Set<string> {
@@ -184,12 +916,6 @@ function initLightningToggleEvents(): void {
 	applyLightningState();
 }
 
-function updateExperimentalFeatureNotice(): void {
-	if (!experimentalFeatureNotice) return;
-	experimentalFeatureNotice.style.display =
-		videoEnabled || audioEnabled ? "block" : "none";
-}
-
 function setWelcomeMode(enabled: boolean): void {
 	if (!chatPanel) return;
 	chatPanel.classList.toggle("welcome-mode", enabled);
@@ -220,6 +946,7 @@ function initWelcomeCards(): void {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+	installExternalUrlHandler();
 	modal = new window.ic.iModal(
 		"global-modal",
 		undefined,
@@ -234,9 +961,39 @@ document.addEventListener("DOMContentLoaded", () => {
 		false,
 		false,
 	);
+	upgradeModal = new window.ic.iModal(
+		"upgrade-modal",
+		700,
+		undefined,
+		false,
+		false,
+	);
 	initWelcomeCards();
 	initLightningToggleEvents();
-	updateExperimentalFeatureNotice();
+	loadUsageStateForUser(null);
+	renderUsagePanel();
+	usageUpgradeBtn?.addEventListener("click", () => {
+		void openUpgradeDialog("cloudChatDaily");
+	});
+	usageRefreshBtn?.addEventListener("click", () => {
+		void refreshSubscriptionData(true);
+	});
+	// Create SVG side panel
+	const svgSidePanel = document.createElement("div");
+	svgSidePanel.id = "svg-side-panel";
+	svgSidePanel.style.position = "fixed";
+	svgSidePanel.style.right = "0";
+	svgSidePanel.style.top = "0";
+	svgSidePanel.style.width = "300px";
+	svgSidePanel.style.height = "100%";
+	svgSidePanel.style.background = "var(--bg-light)";
+	svgSidePanel.style.borderLeft = "1px solid var(--light-blue)";
+	svgSidePanel.style.display = "none";
+	svgSidePanel.style.zIndex = "1000";
+	svgSidePanel.style.padding = "10px";
+	svgSidePanel.style.overflow = "auto";
+	svgSidePanel.style.resize = "horizontal";
+	document.body.appendChild(svgSidePanel);
 });
 modelSelect?.addEventListener("change", setTitle);
 const urlParams = new URLSearchParams(window.location.search);
@@ -473,6 +1230,12 @@ document.addEventListener("DOMContentLoaded", () => {
 		hostSelect.addEventListener("change", updateHostSelectState);
 	}
 
+	window.auth.onAuthStateChange((session) => {
+		currentAuthSession = session;
+		loadUsageStateForUser(session?.user?.id);
+		void refreshSubscriptionData(true);
+	});
+
 	remoteHostCancel?.addEventListener("click", () => {
 		remoteHostDialog?.classList.add("hidden");
 		if (hostSelect)
@@ -583,6 +1346,9 @@ async function loadOptions() {
 		setSessionProgress(45);
 
 		const auth = await window.auth.getSession();
+		currentAuthSession = auth?.session ?? null;
+		loadUsageStateForUser(currentAuthSession?.user?.id);
+		await refreshSubscriptionData();
 		setSessionProgress(55);
 
 		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
@@ -1063,6 +1829,43 @@ function renderSessionList(): void {
 	return void 0;
 }
 
+function updateToolButtonVisibility(): void {
+    const searchContainer = (searchBtn.closest('.tool-btn-wrap') ?? searchBtn) as HTMLElement;
+    const imgContainer = (imgBtn.closest('.tool-btn-wrap') ?? imgBtn) as HTMLElement;
+    const videoContainer = (videoBtn.closest('.tool-btn-wrap') ?? videoBtn) as HTMLElement;
+    const audioContainer = (audioBtn.closest('.tool-btn-wrap') ?? audioBtn) as HTMLElement;
+
+    searchContainer.style.display = currentToolSettings.webSearch ? '' : 'none';
+    imgContainer.style.display = currentToolSettings.imageGen ? '' : 'none';
+    videoContainer.style.display = currentToolSettings.videoGen ? '' : 'none';
+    audioContainer.style.display = currentToolSettings.audioGen ? '' : 'none';
+}
+
+function updateToolButtonActiveState(): void {
+    searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
+    searchBtn.classList.toggle("active", searchEnabled);
+
+    imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
+    imgBtn.classList.toggle("active", imgEnabled);
+
+    videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
+    videoBtn.classList.toggle("active", videoEnabled);
+
+    audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
+    audioBtn.classList.toggle("active", audioEnabled);
+}
+
+const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
+    searchEnabled = settings.webSearch;
+    imgEnabled = settings.imageGen;
+    videoEnabled = settings.videoGen;
+    audioEnabled = settings.audioGen;
+    searchEngine = settings.searchEngines.length;
+    currentToolSettings = settings;
+    updateToolButtonVisibility();
+    updateToolButtonActiveState();
+});
+
 const actionBtn = document.getElementById("send");
 
 let isStreaming = false;
@@ -1081,50 +1884,30 @@ chatBox.addEventListener("scroll", () => {
 });
 
 searchBtn.addEventListener("click", () => {
-	if (searchEnabled) {
-		searchEnabled = false;
-		searchLabel.style.color = "";
-	} else {
-		searchEnabled = true;
-		Object.assign(searchLabel.style, { color: "#f9d400ff" });
-	}
-	console.log("searchEnabled", searchEnabled);
+    searchEnabled = !searchEnabled;
+    updateToolButtonActiveState();
 });
 
 imgBtn.addEventListener("click", () => {
-	if (imgEnabled) {
-		imgEnabled = false;
-		imageLabel.style.color = "";
-	} else {
-		imgEnabled = true;
-		Object.assign(imageLabel.style, { color: "#f9d400ff" });
-	}
-	console.log("imgEnabled", imgEnabled);
+    if (!imgEnabled && !enforceLimit("imagesDaily")) return;
+    imgEnabled = !imgEnabled;
+    updateToolButtonActiveState();
 });
 
 videoBtn.addEventListener("click", () => {
-	if (videoEnabled) {
-		videoEnabled = false;
-		videoLabel.style.color = "";
-	} else {
-		videoEnabled = true;
-		Object.assign(videoLabel.style, { color: "#f9d400ff" });
-	}
-	console.log("videoEnabled", videoEnabled);
-	updateExperimentalFeatureNotice();
+    if (!videoEnabled && !enforceLimit("videosDaily")) return;
+    videoEnabled = !videoEnabled;
+    updateToolButtonActiveState();
 });
 
 audioBtn.addEventListener("click", () => {
-	if (audioEnabled) {
-		audioEnabled = false;
-		audioLabel.style.color = "";
-	} else {
-		audioEnabled = true;
-		Object.assign(audioLabel.style, { color: "#f9d400ff" });
-	}
-	console.log("audioEnabled", audioEnabled);
-	updateExperimentalFeatureNotice();
+    if (!audioEnabled && !enforceLimit("audioWeekly")) return;
+    audioEnabled = !audioEnabled;
+    updateToolButtonActiveState();
 });
+
+updateToolButtonVisibility();
+updateToolButtonActiveState();
 
 let attachedFiles = [];
 
@@ -1331,6 +2114,14 @@ form.addEventListener("submit", async (e) => {
 		currentSessionId,
 	);
 	if (!prompt || !currentSessionId) return;
+	const isCloudChat = isCloudRequest(model, clientUrl);
+	if (isCloudChat && !enforceLimit("cloudChatDaily")) {
+		input.value = prompt;
+		typingBar.classList.remove("empty");
+		updateTextareaState();
+		textarea.focus();
+		return;
+	}
 	setWelcomeMode(false);
 	if (sessions[currentSessionId].history.length === 0) {
 		console.log(
@@ -1371,12 +2162,17 @@ form.addEventListener("submit", async (e) => {
 		fullPrompt,
 		{
 			search: searchEnabled,
+			searchEngine: searchEngine,
 			imageGen: imgEnabled,
 			videoGen: videoEnabled,
 			audioGen: audioEnabled,
 		},
 		clientUrl,
+		currentSessionId,
 	);
+	if (isCloudChat) {
+		bumpUsage("cloudChatDaily");
+	}
 
 	let fullResponse = "";
 	isStreaming = true;
@@ -1391,9 +2187,10 @@ form.addEventListener("submit", async (e) => {
 			botBubble.classList.add("generating");
 		}
 		fullResponse += chunk;
+		const displayText = processTextForDisplay(fullResponse);
 		// nosemgrep: javascript.browser.security.insecure-innerhtml
 		botBubble.innerHTML =
-			await window.utils.markdown_parse_and_purify(fullResponse);
+			await window.utils.markdown_parse_and_purify(displayText);
 		if (autoScroll) {
 			chatBox.scrollTop = chatBox.scrollHeight;
 		}
@@ -1622,12 +2419,7 @@ async function setTitle() {
 }
 
 function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
+	return escapeSubscriptionHtml(value);
 }
 
 async function persistSessionsAndSync(): Promise<void> {
@@ -1877,40 +2669,107 @@ async function renderChat() {
 						if (match) lang = match[1];
 					}
 
-					const codeBubble = document.createElement(
-						"div",
-					) as HTMLDivElement;
-					codeBubble.className = "ai-code-bubble";
+					if (lang === "svg") {
+						const svgCode = codeEl?.textContent || "";
+						const img = document.createElement("img") as HTMLImageElement;
+						img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);
+						img.style.maxWidth = "100%";
+						img.style.cursor = "pointer";
+						img.onclick = () => {
+							const panel = document.getElementById("svg-side-panel") as HTMLDivElement;
+							if (panel) {
+								panel.innerHTML = "";
+								const header = document.createElement("div") as HTMLDivElement;
+								header.style.position = "relative";
+								header.style.height = "40px";
+								const closeBtn = document.createElement("span") as HTMLSpanElement;
+								closeBtn.textContent = "✕";
+								closeBtn.style.position = "absolute";
+								closeBtn.style.top = "10px";
+								closeBtn.style.right = "10px";
+								closeBtn.style.cursor = "pointer";
+								closeBtn.style.fontSize = "20px";
+								closeBtn.onclick = () => (panel.style.display = "none");
+								header.appendChild(closeBtn);
+								const toggle = document.createElement("div") as HTMLDivElement;
+								toggle.style.position = "absolute";
+								toggle.style.top = "10px";
+								toggle.style.left = "10px";
+								toggle.style.width = "30px";
+								toggle.style.height = "30px";
+								toggle.style.borderRadius = "5px";
+								toggle.style.color = "#000000"
+								toggle.style.background = "#f0f0f0";
+								toggle.style.display = "flex";
+								toggle.style.alignItems = "center";
+								toggle.style.justifyContent = "center";
+								toggle.style.cursor = "pointer";
+								toggle.textContent = "👁️";
+								let showImage = true;
+								const imgDiv = document.createElement("div") as HTMLDivElement;
+								const imgCopy = document.createElement("img") as HTMLImageElement;
+								imgCopy.src = img.src;
+								imgCopy.style.width = "100%";
+								imgDiv.appendChild(imgCopy);
+								const xmlDiv = document.createElement("div") as HTMLDivElement;
+								const xmlLabel = document.createElement("h3") as HTMLHeadingElement;
+								xmlLabel.textContent = "SVG XML";
+								xmlDiv.appendChild(xmlLabel);
+								const xmlPre = document.createElement("pre") as HTMLPreElement;
+								xmlPre.textContent = svgCode;
+								xmlPre.style.whiteSpace = "pre-wrap";
+								xmlDiv.appendChild(xmlPre);
+								const content = document.createElement("div") as HTMLDivElement;
+								content.appendChild(imgDiv);
+								toggle.onclick = () => {
+									showImage = !showImage;
+									toggle.textContent = showImage ? "👁️" : "</>";
+									content.innerHTML = "";
+									content.appendChild(showImage ? imgDiv : xmlDiv);
+								};
+								header.appendChild(toggle);
+								panel.appendChild(header);
+								panel.appendChild(content);
+								panel.style.display = "block";
+							}
+						};
+						botContainer.appendChild(img);
+					} else {
+						const codeBubble = document.createElement(
+							"div",
+						) as HTMLDivElement;
+						codeBubble.className = "ai-code-bubble";
 
-					const header = document.createElement(
-						"div",
-					) as HTMLDivElement;
-					header.className = "ai-code-header";
+						const header = document.createElement(
+							"div",
+						) as HTMLDivElement;
+						header.className = "ai-code-header";
 
-					const langLabel = document.createElement(
-						"span",
-					) as HTMLSpanElement;
-					langLabel.className = "ai-code-lang";
-					langLabel.textContent = lang;
+						const langLabel = document.createElement(
+							"span",
+						) as HTMLSpanElement;
+						langLabel.className = "ai-code-lang";
+						langLabel.textContent = lang;
 
-					const copyBtn = document.createElement(
-						"button",
-					) as HTMLButtonElement;
-					copyBtn.className = "ai-copy-btn";
-					copyBtn.textContent = "Copy";
-					copyBtn.onclick = () => {
-						navigator.clipboard.writeText(
-							codeEl?.textContent || "",
-						);
-						copyBtn.textContent = "Copied!";
-						setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
-					};
+						const copyBtn = document.createElement(
+							"button",
+						) as HTMLButtonElement;
+						copyBtn.className = "ai-copy-btn";
+						copyBtn.textContent = "Copy";
+						copyBtn.onclick = () => {
+							navigator.clipboard.writeText(
+								codeEl?.textContent || "",
+							);
+							copyBtn.textContent = "Copied!";
+							setTimeout(() => (copyBtn.textContent = "Copy"), 1200);
+						};
 
-					header.appendChild(langLabel);
-					header.appendChild(copyBtn);
-					codeBubble.appendChild(header);
-					codeBubble.appendChild(preEl.cloneNode(true));
-					botContainer.appendChild(codeBubble);
+						header.appendChild(langLabel);
+						header.appendChild(copyBtn);
+						codeBubble.appendChild(header);
+						codeBubble.appendChild(preEl.cloneNode(true));
+						botContainer.appendChild(codeBubble);
+					}
 				} else {
 					botContainer.appendChild(node.cloneNode(true));
 				}
@@ -2866,6 +3725,14 @@ function createLiveVideoToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("videosDaily")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Video limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting video options...");
@@ -2989,6 +3856,14 @@ function createLiveImageToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("imagesDaily")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Image limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting image options...");
@@ -3098,6 +3973,14 @@ function createLiveAudioToolBubble(
 			setVideoBubbleStatus(bubble, "Prompt is required.", true);
 			return;
 		}
+		if (!enforceLimit("audioWeekly")) {
+			setVideoBubbleStatus(
+				bubble,
+				"Audio limit reached for your current plan.",
+				true,
+			);
+			return;
+		}
 
 		setVideoBubbleControlsDisabled(bubble, true);
 		setVideoBubbleStatus(bubble, "Submitting audio prompt...");
@@ -3197,6 +4080,15 @@ window.ollama.onNewAsset((msg) => {
 		role: msg.role,
 		content,
 	});
+	if (msg.role === "image") {
+		bumpUsage("imagesDaily");
+	}
+	if (msg.role === "video") {
+		bumpUsage("videosDaily");
+	}
+	if (msg.role === "audio") {
+		bumpUsage("audioWeekly");
+	}
 
 	void window.ollama.save(sessions);
 	if (shouldRender) {
