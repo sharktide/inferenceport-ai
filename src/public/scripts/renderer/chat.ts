@@ -1188,7 +1188,7 @@ function modelSupportsToolsForRequest(modelName: string): boolean {
 }
 
 function modelSupportsVisionForRequest(modelName: string): boolean {
-	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return false;
+	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return true;
 	return modelsSupportsVision.includes(normalizeModelIdForCapabilities(modelName));
 }
 
