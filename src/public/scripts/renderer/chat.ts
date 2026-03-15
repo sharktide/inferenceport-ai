@@ -47,6 +47,9 @@ interface AttachedTextFile {
 	type: "text";
 	name: string;
 	content: string;
+	/** Optional preview (used for SVG-as-XML attachments). */
+	previewDataUrl?: string;
+	previewMimeType?: string;
 }
 
 /** An attached file that is an image (stored as base64). */
@@ -61,16 +64,44 @@ type AttachedFile = AttachedTextFile | AttachedImageFile;
 
 // ─── Image-extension helpers ──────────────────────────────────────────────────
 
-const IMAGE_EXTENSIONS = new Set([
-	"jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "tiff", "tif", "avif",
+const RASTER_IMAGE_EXTENSIONS = new Set([
+	"jpg",
+	"jpeg",
+	"png",
+	"gif",
+	"webp",
+	"bmp",
+	"ico",
+	"tiff",
+	"tif",
+	"avif",
 ]);
 
 function getFileExtension(filename: string): string {
 	return filename.split(".").pop()?.toLowerCase() ?? "";
 }
 
-function isImageFile(filename: string): boolean {
-	return IMAGE_EXTENSIONS.has(getFileExtension(filename));
+function isRasterImageFile(filename: string): boolean {
+	return RASTER_IMAGE_EXTENSIONS.has(getFileExtension(filename));
+}
+
+function isSvgFilename(filename: string): boolean {
+	return getFileExtension(filename) === "svg";
+}
+
+function isSvgFile(file: File): boolean {
+	return isSvgFilename(file.name) || file.type === "image/svg+xml";
+}
+
+function isNonSvgImageFile(file: File): boolean {
+	if (isSvgFile(file)) return false;
+	return file.type.startsWith("image/") || isRasterImageFile(file.name);
+}
+
+function svgTextToPreviewDataUrl(svgText: string): string {
+	// URL-encode to keep the preview safe and avoid Unicode/base64 pitfalls.
+	const encoded = encodeURIComponent(svgText);
+	return `data:image/svg+xml;charset=utf-8,${encoded}`;
 }
 
 /**
@@ -167,6 +198,16 @@ const welcomeCards = document.getElementById(
 	"welcome-cards",
 ) as HTMLDivElement | null;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
+let imageInput = document.getElementById("image-upload") as HTMLInputElement | null;
+if (!imageInput) {
+	imageInput = document.createElement("input");
+	imageInput.type = "file";
+	imageInput.id = "image-upload";
+	imageInput.multiple = true;
+	imageInput.accept = "image/*";
+	imageInput.style.display = "none";
+	fileInput.insertAdjacentElement("afterend", imageInput);
+}
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
@@ -992,6 +1033,7 @@ function setLightningEnabled(enabled: boolean): void {
 	}
 	applyLightningState();
 	void setToolSupport();
+	setVisionSupport();
 }
 
 function initLightningToggleEvents(): void {
@@ -1084,7 +1126,11 @@ document.addEventListener("DOMContentLoaded", () => {
 	svgSidePanel.style.resize = "horizontal";
 	document.body.appendChild(svgSidePanel);
 });
-modelSelect?.addEventListener("change", setTitle);
+modelSelect?.addEventListener("change", () => {
+	void setTitle();
+	void setToolSupport();
+	setVisionSupport();
+});
 const urlParams = new URLSearchParams(window.location.search);
 interface RemoteHost {
 	url: string;
@@ -1093,6 +1139,14 @@ interface RemoteHost {
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+}
+
+function normalizeModelIdForCapabilities(modelValue: string): string {
+	return modelValue
+		.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+		.split(":")[0]
+		.replace(/-gguf72$/i, "")
+		.toLowerCase();
 }
 
 function isSyncEnabled() {
@@ -1105,6 +1159,8 @@ function isSyncEnabled() {
 
 let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
+let modelsSupportsVision: string[] = [];
+let visionNotice: string | null = null;
 
 async function setToolSupport() {
 	if (lightningEnabled) {
@@ -1114,7 +1170,7 @@ async function setToolSupport() {
 	}
 
 	if (
-		modelsSupportsTools.includes(modelSelect.value.split(":")[0]) ||
+		modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelSelect.value)) ||
 		toolNotice
 	) {
 		typingBar.classList.remove("no-tools");
@@ -1123,6 +1179,39 @@ async function setToolSupport() {
 		typingBar.classList.add("no-tools");
 		featureWarning.style.display = "block";
 	}
+}
+
+function modelSupportsToolsForRequest(modelName: string): boolean {
+	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return true;
+	if (toolNotice) return true;
+	return modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelName));
+}
+
+function modelSupportsVisionForRequest(modelName: string): boolean {
+	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return false;
+	return modelsSupportsVision.includes(normalizeModelIdForCapabilities(modelName));
+}
+
+function setVisionSupport(): void {
+	enforceVisionAttachmentPolicy();
+}
+
+function enforceVisionAttachmentPolicy(): void {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	const supportsVision = modelSupportsVisionForRequest(modelValue);
+	if (supportsVision) return;
+
+	const removedCount = attachedFiles.filter((f) => f.type === "image").length;
+	if (!removedCount) return;
+
+	attachedFiles = attachedFiles.filter((f) => f.type !== "image");
+	renderFileIndicator();
+
+	showNotification({
+		message:
+			`Removed ${removedCount} image attachment${removedCount === 1 ? "" : "s"} — the selected model does not support vision.`,
+		type: "warning",
+	});
 }
 
 let sessionProgress = 0;
@@ -1389,13 +1478,32 @@ async function loadOptions() {
 		try {
 			const { supportsTools } =
 				await window.ollama.getToolSupportingModels();
-			modelsSupportsTools = supportsTools || [];
+			modelsSupportsTools = (supportsTools || []).map((m) =>
+				String(m).toLowerCase(),
+			);
 		} catch (e) {
 			modelsSupportsTools = [];
 			toolNotice =
 				"Could not fetch model capabilities. Tool features may not work as expected.";
 			showNotification({
 				message: toolNotice,
+				type: "warning",
+				actions: [{ label: "Dismiss", onClick: () => void 0 }],
+			});
+		}
+
+		try {
+			const { supportsVision } =
+				await window.ollama.getVisionSupportingModels();
+			modelsSupportsVision = (supportsVision || []).map((m) =>
+				String(m).toLowerCase(),
+			);
+		} catch (e) {
+			modelsSupportsVision = [];
+			visionNotice =
+				"Could not fetch vision model capabilities. Image uploads are disabled.";
+			showNotification({
+				message: visionNotice,
 				type: "warning",
 				actions: [{ label: "Dismiss", onClick: () => void 0 }],
 			});
@@ -1509,6 +1617,7 @@ async function loadOptions() {
 			void 0;
 		}
 		void setToolSupport();
+		setVisionSupport();
 	} catch (err) {
 		console.error(err);
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
@@ -1598,6 +1707,9 @@ async function reloadModelsForHost(hostValue: string) {
 		) {
 			modelSelect.selectedIndex = 0;
 		}
+
+		void setToolSupport();
+		setVisionSupport();
 	} catch (err: any) {
 		console.error("Model reload failed:", err);
 
@@ -2002,29 +2114,188 @@ updateToolButtonActiveState();
 
 let attachedFiles: AttachedFile[] = [];
 
-attachBtn.addEventListener("click", () => fileInput.click());
+let attachMenuEl: HTMLDivElement | null = null;
+let attachMenuDocHandler: ((event: MouseEvent) => void) | null = null;
+let attachMenuKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 
-// Accept all file types in the HTML; we detect images by extension at read time.
+function canUploadImages(): boolean {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	return modelSupportsVisionForRequest(modelValue);
+}
+
+function ensureAttachMenu(): HTMLDivElement {
+	if (attachMenuEl) return attachMenuEl;
+	const menu = document.createElement("div");
+	menu.id = "attach-context-menu";
+	menu.className = "context-menu hidden";
+	menu.style.width = "190px";
+	document.body.appendChild(menu);
+	attachMenuEl = menu;
+	return menu;
+}
+
+function closeAttachMenu(): void {
+	if (!attachMenuEl) return;
+	attachMenuEl.classList.add("hidden");
+	if (attachMenuDocHandler) {
+		document.removeEventListener("click", attachMenuDocHandler);
+		attachMenuDocHandler = null;
+	}
+	if (attachMenuKeyHandler) {
+		document.removeEventListener("keydown", attachMenuKeyHandler);
+		attachMenuKeyHandler = null;
+	}
+}
+
+function openAttachMenu(): void {
+	const menu = ensureAttachMenu();
+	menu.innerHTML = "";
+
+	const addItem = (label: string, onClick: () => void) => {
+		const item = document.createElement("div");
+		item.className = "context-item";
+		item.textContent = label;
+		item.addEventListener("click", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			closeAttachMenu();
+			onClick();
+		});
+		menu.appendChild(item);
+	};
+
+	addItem("📄 Upload file", () => fileInput.click());
+	if (canUploadImages()) {
+		addItem("🖼️ Upload image", () => imageInput?.click());
+	}
+
+	menu.classList.remove("hidden");
+
+	const btnRect = attachBtn.getBoundingClientRect();
+	const menuRect = menu.getBoundingClientRect();
+
+	let left = btnRect.left + window.scrollX;
+	let top = btnRect.top + window.scrollY - menuRect.height - 8;
+
+	if (top < 8) {
+		top = btnRect.bottom + window.scrollY + 8;
+	}
+
+	if (left + menuRect.width > window.innerWidth - 8) {
+		left = Math.max(8, window.innerWidth - menuRect.width - 8);
+	}
+
+	menu.style.left = `${left}px`;
+	menu.style.top = `${top}px`;
+
+	attachMenuDocHandler = (event: MouseEvent) => {
+		const target = event.target as Node | null;
+		if (!target) {
+			closeAttachMenu();
+			return;
+		}
+		if (menu.contains(target)) return;
+		closeAttachMenu();
+	};
+
+	attachMenuKeyHandler = (event: KeyboardEvent) => {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			closeAttachMenu();
+		}
+	};
+
+	// Register handlers after this click stack finishes so the menu doesn't close
+	// immediately from the same click that opened it.
+	queueMicrotask(() => {
+		if (!attachMenuEl || attachMenuEl.classList.contains("hidden")) return;
+		if (attachMenuDocHandler) document.addEventListener("click", attachMenuDocHandler);
+		if (attachMenuKeyHandler)
+			document.addEventListener("keydown", attachMenuKeyHandler);
+	});
+}
+
+function toggleAttachMenu(): void {
+	const menu = ensureAttachMenu();
+	const isOpen = !menu.classList.contains("hidden");
+	if (isOpen) closeAttachMenu();
+	else openAttachMenu();
+}
+
+attachBtn.addEventListener("click", (event) => {
+	event.preventDefault();
+	event.stopPropagation();
+	toggleAttachMenu();
+});
+
+// "Upload file": attach text files, plus SVG-as-XML (with an image preview).
 fileInput.addEventListener("change", async (e) => {
 	const files = Array.from((e.target as HTMLInputElement).files ?? []);
 	for (const file of files) {
-		if (isImageFile(file.name)) {
-			try {
-				const { base64, mimeType } = await readFileAsBase64(file);
-				attachedFiles.push({ type: "image", name: file.name, mimeType, base64 });
-			} catch (err: any) {
-				showNotification({
-					message: `Failed to read image "${file.name}": ${String(err)}`,
-					type: "error",
-				});
-			}
+		if (isNonSvgImageFile(file)) {
+			const visionAvailable = canUploadImages();
+			showNotification({
+				message: visionAvailable
+					? `Image "${file.name}" must be uploaded via "Upload image".`
+					: `Image "${file.name}" cannot be attached — the selected model does not support vision.`,
+				type: "warning",
+			});
+			continue;
+		}
+
+		const text = await file.text();
+		if (isSvgFile(file)) {
+			attachedFiles.push({
+				type: "text",
+				name: file.name,
+				content: text,
+				previewMimeType: "image/svg+xml",
+				previewDataUrl: svgTextToPreviewDataUrl(text),
+			});
 		} else {
-			const text = await file.text();
 			attachedFiles.push({ type: "text", name: file.name, content: text });
 		}
 	}
 	// Reset the input so the same file can be re-selected if needed.
 	fileInput.value = "";
+	renderFileIndicator();
+});
+
+// "Upload image": only available for vision-capable models.
+imageInput?.addEventListener("change", async (e) => {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	if (!modelSupportsVisionForRequest(modelValue)) {
+		showNotification({
+			message: "The selected model does not support image input.",
+			type: "warning",
+		});
+		(imageInput as HTMLInputElement).value = "";
+		return;
+	}
+
+	const files = Array.from((e.target as HTMLInputElement).files ?? []);
+	for (const file of files) {
+		if (!file.type.startsWith("image/") && !isRasterImageFile(file.name) && !isSvgFile(file)) {
+			showNotification({
+				message: `Only image files are supported (got "${file.name}").`,
+				type: "warning",
+			});
+			continue;
+		}
+
+		try {
+			const { base64, mimeType } = await readFileAsBase64(file);
+			attachedFiles.push({ type: "image", name: file.name, mimeType, base64 });
+		} catch (err: any) {
+			showNotification({
+				message: `Failed to read image "${file.name}": ${String(err)}`,
+				type: "error",
+			});
+		}
+	}
+
+	// Reset the input so the same file can be re-selected if needed.
+	(imageInput as HTMLInputElement).value = "";
 	renderFileIndicator();
 });
 
@@ -2294,7 +2565,23 @@ form.addEventListener("submit", async (e) => {
 	session.model = model;
 
 	// Build the content (string for text-only, array when images are attached).
-	const messageContent = buildUserMessageContent(prompt, attachedFiles);
+	const supportsVisionForRequest = modelSupportsVisionForRequest(model);
+	const droppedImages = supportsVisionForRequest
+		? 0
+		: attachedFiles.filter((f) => f.type === "image").length;
+	const effectiveAttachedFiles = supportsVisionForRequest
+		? attachedFiles
+		: attachedFiles.filter((f) => f.type !== "image");
+
+	if (droppedImages > 0) {
+		showNotification({
+			message:
+				`Removed ${droppedImages} image attachment${droppedImages === 1 ? "" : "s"} — the selected model does not support vision.`,
+			type: "warning",
+		});
+	}
+
+	const messageContent = buildUserMessageContent(prompt, effectiveAttachedFiles);
 	// The text sent to the model for streaming is always the plain-text form.
 	const fullPromptText = typeof messageContent === "string"
 		? messageContent
@@ -2320,15 +2607,16 @@ form.addEventListener("submit", async (e) => {
 	if (!lightningEnabled) {
 		localStorage.setItem("host_select", hostChoice);
 	}
+	const supportsToolsForRequest = modelSupportsToolsForRequest(model);
 	window.ollama.streamPrompt(
 		model,
 		messageContent,
 		{
-			search: searchEnabled,
+			search: supportsToolsForRequest && searchEnabled,
 			searchEngine: searchEngine,
-			imageGen: imgEnabled,
-			videoGen: videoEnabled,
-			audioGen: audioEnabled,
+			imageGen: supportsToolsForRequest && imgEnabled,
+			videoGen: supportsToolsForRequest && videoEnabled,
+			audioGen: supportsToolsForRequest && audioEnabled,
 		},
 		clientUrl,
 		currentSessionId,
@@ -2475,6 +2763,16 @@ function renderFileIndicator() {
 			thumb.style.borderRadius = "4px";
 			thumb.style.pointerEvents = "none";
 			icon.appendChild(thumb);
+		} else if (file.previewDataUrl) {
+			const thumb = document.createElement("img");
+			thumb.src = file.previewDataUrl;
+			thumb.alt = file.name;
+			thumb.style.width = "32px";
+			thumb.style.height = "32px";
+			thumb.style.objectFit = "cover";
+			thumb.style.borderRadius = "4px";
+			thumb.style.pointerEvents = "none";
+			icon.appendChild(thumb);
 		} else {
 			icon.textContent = "📄";
 		}
@@ -2582,6 +2880,23 @@ function openFilePreview(file: AttachedFile) {
 				alt="${escapeHtml(file.name)}"
 				style="max-width:100%;max-height:70vh;border-radius:6px;"
 			/>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	} else if (file.previewDataUrl) {
+		modal.open({
+			title: file.name,
+			html: `<img
+				src="${escapeHtml(file.previewDataUrl)}"
+				alt="${escapeHtml(file.name)}"
+				style="max-width:100%;max-height:45vh;border-radius:6px;margin-bottom:10px;"
+			/>
+			<pre class="file-preview">${escapeHtml(file.content)}</pre>`,
 			actions: [
 				{
 					id: "close-file-preview",

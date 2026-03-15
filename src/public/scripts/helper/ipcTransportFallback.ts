@@ -866,6 +866,16 @@ export function installWebSocketTransportFallback(): void {
 				"ollama:fetch-tool-models",
 				[],
 			),
+		getVisionSupportingModels: async () =>
+			invokeOrDefault<{ supportsVision: string[] }>(
+				"ollama:get-vision-models",
+				[],
+			),
+		fetchVisionSupportingModels: async () =>
+			invokeOrDefault<{ supportsVision: string[] }>(
+				"ollama:fetch-vision-models",
+				[],
+			),
 		startServer: async (
 			port: number,
 			allowedUsers: { email: string; role: string }[],

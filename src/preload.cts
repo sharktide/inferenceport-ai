@@ -122,6 +122,8 @@ contextBridge.exposeInMainWorld("ollama", {
 
 	getToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:get-tool-models"),
 	fetchToolSupportingModels: (): Promise<{ supportsTools: string[] }> => ipcRenderer.invoke("ollama:fetch-tool-models"),
+	getVisionSupportingModels: (): Promise<{ supportsVision: string[] }> => ipcRenderer.invoke("ollama:get-vision-models"),
+	fetchVisionSupportingModels: (): Promise<{ supportsVision: string[] }> => ipcRenderer.invoke("ollama:fetch-vision-models"),
 	autoNameSession: async (model: string, prompt: string, clientUrl?: string): Promise<string> => {
 		return await ipcRenderer.invoke("ollama:auto-name-session", model, prompt, clientUrl);
 	},

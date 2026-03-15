@@ -143,6 +143,8 @@ declare global {
 			onNewAsset: (cb: (msg: any) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			getVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
+			fetchVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
 			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
 			stopServer: () => Promise<void>;
 			onLogAppend: (callback: (chunk: string) => void) => void;

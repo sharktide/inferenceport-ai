@@ -26,6 +26,7 @@ let availableModels: AvailableModel[] = [];
 let currentModelName = "";
 let currentModelSizes: string[] = [];
 let toolSupportingModels: Set<string> = new Set();
+let visionSupportingModels: Set<string> = new Set();
 let currentHost: string = "local";
 
 function getClientUrl(): string | undefined {
@@ -43,8 +44,48 @@ function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
+const MODEL_CAPABILITIES = [
+	{ key: "tools", label: "Tools", icon: "🛠️" },
+	{ key: "vision", label: "Vision", icon: "👁️" },
+] as const;
+
+function normalizeModelId(modelName: string): string {
+	const base =
+		modelName
+			.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+			.split(":")[0] ?? "";
+	return base.replace(/-gguf72$/i, "").toLowerCase();
+}
+
 function modelSupportsTools(modelName: string): boolean {
-	return toolSupportingModels.has(modelName.toLowerCase());
+	return toolSupportingModels.has(normalizeModelId(modelName));
+}
+
+function modelSupportsVision(modelName: string): boolean {
+	return visionSupportingModels.has(normalizeModelId(modelName));
+}
+
+function appendCapabilityBadges(target: HTMLElement, modelName: string): void {
+	const supportsTools = modelSupportsTools(modelName);
+	const supportsVision = modelSupportsVision(modelName);
+
+	if (!supportsTools && !supportsVision) return;
+
+	const featuresDiv = document.createElement("div");
+	featuresDiv.className = "model-features";
+
+	for (const cap of MODEL_CAPABILITIES) {
+		const isOn = cap.key === "tools" ? supportsTools : supportsVision;
+		if (!isOn) continue;
+		const span = document.createElement("span");
+		span.className = "feature-badge on";
+		span.textContent = `${cap.icon} ${cap.label}`;
+		featuresDiv.appendChild(span);
+	}
+
+	if (featuresDiv.childElementCount) {
+		target.appendChild(featuresDiv);
+	}
 }
 
 async function fetchAvailableModels(): Promise<AvailableModel[]> {
@@ -278,6 +319,8 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
                 pModified.append(` ${model.modified}`);
                 card.appendChild(pModified);
 
+				appendCapabilityBadges(card, model.name);
+ 
                 const button = document.createElement("button");
                 button.textContent = "Delete";
                 button.addEventListener("click", () => deleteModel(model.name));
@@ -342,16 +385,7 @@ function renderAvailableModels(filter: string = "", fail?: boolean): void {
 				});
 				card.appendChild(tagsDiv);
 
-				const featuresDiv = document.createElement("div");
-				featuresDiv.className = "model-features";
-				const supportsTools = modelSupportsTools(model.name);
-				TOOL_FEATURES.forEach((f) => {
-					const span = document.createElement("span");
-					span.className = `feature-badge ${supportsTools ? "on" : "off"}`;
-					span.textContent = `${f.icon} ${f.label}`;
-					featuresDiv.appendChild(span);
-				});
-				card.appendChild(featuresDiv);
+				appendCapabilityBadges(card, model.name);
 
 				const metaDiv = document.createElement("div");
 				metaDiv.className = "model-meta";
@@ -635,10 +669,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 		const clientUrl = getClientUrl();
 
-		const { supportsTools } = await window.ollama.getToolSupportingModels();
-		toolSupportingModels = new Set(
-			supportsTools.map((m: string) => m.toLowerCase()),
-		);
+		try {
+			const { supportsTools } = await window.ollama.getToolSupportingModels();
+			toolSupportingModels = new Set(
+				(supportsTools ?? []).map((m: string) => m.toLowerCase()),
+			);
+		} catch (_err) {
+			toolSupportingModels = new Set();
+		}
+
+		try {
+			const { supportsVision } = await window.ollama.getVisionSupportingModels();
+			visionSupportingModels = new Set(
+				(supportsVision ?? []).map((m: string) => m.toLowerCase()),
+			);
+		} catch (_err) {
+			visionSupportingModels = new Set();
+		}
 		try {
 			installedModels = await window.ollama.listModels(clientUrl);
 			renderInstalledModels();
