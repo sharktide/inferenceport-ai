@@ -2889,7 +2889,7 @@ async function renderChat() {
 			}
 
 			if (msg.name === "generate_audio") {
-				const options = getAudioOptionsFromToolCall(msg);
+				const options = getAudioOptionsFromToolMessage(msg);
 				if (options) {
 					toolBubble.appendChild(
 						createToolSummaryElement([
@@ -3190,6 +3190,7 @@ function normalizeImageOptions(raw: unknown) {
 function normalizeAudioOptions(raw: unknown) {
 	const obj = raw && typeof raw === "object" ? raw : {};
 	const prompt = typeof obj.prompt === "string" ? obj.prompt.trim() : "";
+	console.log("PROMPT:", prompt);
 	return { prompt };
 }
 
@@ -3254,6 +3255,15 @@ function getAudioOptionsFromToolCall(call: any) {
 	const toolOptions = normalizeAudioOptions(call?.tool_options);
 	if (toolOptions.prompt) return toolOptions;
 	return normalizeAudioOptions(safeParseJSON(call?.arguments));
+}
+
+function getAudioOptionsFromToolMessage(call: any) {
+	const payload = safeParseJSON(call?.content);
+	if (payload && typeof payload === "object" && payload.options) {
+		const source = payload.status === "resolved" ? "user" : "model";
+		return normalizeAudioOptions(payload.options);
+	}
+	return null;
 }
 
 function getVideoOptionsFromToolMessage(msg: any) {
@@ -4135,6 +4145,7 @@ window.ollama.onToolCall((call) => {
 	}
 
 	if (call.name === "generate_image") {
+		console.log("Processing generate_image tool call:", call);
 		const options = getImageOptionsFromToolCall(call);
 		const payload = {
 			status: call.state,
@@ -4167,7 +4178,9 @@ window.ollama.onToolCall((call) => {
 	}
 
 	if (call.name === "generate_audio") {
+		console.log("Processing generate_audio tool call:", call);
 		const options = getAudioOptionsFromToolCall(call);
+		console.log(options)
 		const payload = {
 			status: call.state,
 			options,
