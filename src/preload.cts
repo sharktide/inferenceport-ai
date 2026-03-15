@@ -17,6 +17,7 @@ limitations under the License.
 const { contextBridge, ipcRenderer } = require("electron");
 
 import type { ChatAsset, ModelInfo, PullProgress, Sessions } from "./node-apis/types/index.types.d.ts";
+import type { MessageContent } from "./node-apis/types/index.types.d.ts";
 import type { ToolList } from "./node-apis/types/tools.types.d.ts";
 
 contextBridge.exposeInMainWorld("ollama", {
@@ -24,7 +25,8 @@ contextBridge.exposeInMainWorld("ollama", {
 	listModels: (clientUrl?: string): Promise<ModelInfo[]> => ipcRenderer.invoke("ollama:list", clientUrl),
 	deleteModel: (name: string, clientUrl?: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:delete", name, clientUrl),
-	resetChat: (): Promise<void> => ipcRenderer.invoke("ollama:reset"),
+	resetChat: (sessionId?: string): Promise<void> =>
+		ipcRenderer.invoke("ollama:reset", sessionId),
 	pullModel: (name: string, clientUrl?: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:pull", name, clientUrl),
 	onPullProgress: (cb: (data: PullProgress) => void): void => {
@@ -39,16 +41,18 @@ contextBridge.exposeInMainWorld("ollama", {
 
 	streamPrompt: (
 		model: string,
-		prompt: string,
+		prompt: MessageContent,
 		toolList: ToolList,
-		clientUrl?: string
+		clientUrl?: string,
+		sessionId?: string,
 	): void =>
 		ipcRenderer.send(
 			"ollama:chat-stream",
 			model,
 			prompt,
 			toolList,
-			clientUrl
+			clientUrl,
+			sessionId,
 		),
 	stop: (): void => ipcRenderer.send("ollama:stop"),
 	resolveVideoToolCall: (

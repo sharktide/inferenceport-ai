@@ -777,8 +777,8 @@ export function installWebSocketTransportFallback(): void {
 				clientUrl,
 			]);
 		},
-		resetChat: async () => {
-			await invokeOrDefault("ollama:reset", []);
+		resetChat: async (sessionId?: string) => {
+			await invokeOrDefault("ollama:reset", [sessionId]);
 		},
 		stop: () => {
 			void client.send("ollama:stop").catch(() => {
@@ -794,9 +794,10 @@ export function installWebSocketTransportFallback(): void {
 		},
 		streamPrompt: (
 			model: string,
-			prompt: string,
+			prompt: MessageContent,
 			toolList: {
 				search: boolean;
+				searchEngine: Array<string>;
 				imageGen: boolean;
 				videoGen: boolean;
 				audioGen: boolean;

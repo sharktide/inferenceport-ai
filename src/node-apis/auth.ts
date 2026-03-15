@@ -879,6 +879,30 @@ export default function register() {
 	});
 
 	// --- CHAT SYNC API ------------------------------------------------------
+	const RICH_CONTENT_PREFIX = "__ipai_json__:";
+
+	function encodeRemoteMessageContent(content: unknown): string {
+		if (typeof content === "string") return content;
+		try {
+			return RICH_CONTENT_PREFIX + JSON.stringify(content);
+		} catch {
+			// As a last resort, store something readable rather than crashing sync.
+			return RICH_CONTENT_PREFIX + JSON.stringify(String(content));
+		}
+	}
+
+	function decodeRemoteMessageContent(content: unknown): unknown {
+		if (typeof content !== "string") return content;
+		const trimmed = content.trim();
+		if (!trimmed.startsWith(RICH_CONTENT_PREFIX)) return content;
+		const json = trimmed.slice(RICH_CONTENT_PREFIX.length);
+		try {
+			return JSON.parse(json);
+		} catch {
+			return content;
+		}
+	}
+
 	ipcMain.handle("sync:getRemoteSessions", async (_event) => {
 		const { data: sessionData, error: sessionError } =
 			await supabase.auth.getSession();
@@ -913,7 +937,10 @@ export default function register() {
 				favorite: s.favorite,
 				history: safeMessages
 					.filter((m) => m.session_id === s.id)
-					.map((m) => ({ role: m.role, content: m.content })),
+					.map((m) => ({
+						role: m.role,
+						content: decodeRemoteMessageContent(m.content),
+					})),
 			};
 		}
 
@@ -988,7 +1015,7 @@ export default function register() {
 					id: crypto.randomUUID(),
 					session_id: sessionId,
 					role: m.role,
-					content: m.content,
+					content: encodeRemoteMessageContent(m.content),
 					created_at: new Date().toISOString(),
 					user_id: userId,
 				}));

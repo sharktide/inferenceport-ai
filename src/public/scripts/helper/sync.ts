@@ -1,7 +1,15 @@
 import { showNotification } from "./notification.js";
+
+// Minimal OpenAI Chat Completions-style multimodal content parts (vision input).
+export type UserContentPart =
+	| { type: "text"; text: string }
+	| { type: "image_url"; image_url: { url: string } };
+
+export type MessageContent = string | UserContentPart[];
+
 export interface ChatMessage {
-    role: "user" | "assistant";
-    content: string;
+    role: string;
+    content: MessageContent;
 }
 
 export interface ChatSession {
@@ -27,6 +35,15 @@ export function mergeLocalAndRemoteSessions(
 ): LocalSessionMap {
 
     const output: LocalSessionMap = { ...local };
+
+	function contentKey(content: MessageContent): string {
+		if (typeof content === "string") return content;
+		try {
+			return JSON.stringify(content);
+		} catch {
+			return "";
+		}
+	}
 
     for (const sessionId of Object.keys(remote)) {
         const remoteSession = remote[sessionId];
@@ -54,7 +71,7 @@ export function mergeLocalAndRemoteSessions(
 
         for (const l of localSession.history) {
             const exists = mergedHistory.some(
-                r => r.role === l.role && r.content === l.content
+                r => r.role === l.role && contentKey(r.content) === contentKey(l.content)
             );
             if (!exists) mergedHistory.push(l);
         }

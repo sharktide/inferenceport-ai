@@ -1949,7 +1949,7 @@ const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
     imgEnabled = settings.imageGen;
     videoEnabled = settings.videoGen;
     audioEnabled = settings.audioGen;
-    searchEngine = settings.searchEngines.length;
+    searchEngine = settings.searchEngines;
     currentToolSettings = settings;
     updateToolButtonVisibility();
     updateToolButtonActiveState();
@@ -2322,7 +2322,7 @@ form.addEventListener("submit", async (e) => {
 	}
 	window.ollama.streamPrompt(
 		model,
-		fullPromptText,
+		messageContent,
 		{
 			search: searchEnabled,
 			searchEngine: searchEngine,
