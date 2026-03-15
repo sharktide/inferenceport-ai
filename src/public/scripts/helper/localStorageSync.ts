@@ -100,6 +100,25 @@ export function installLocalStorageSync(): void {
 	window.storageSync.onChange((change) => {
 		applyRemoteChange(change);
 	});
+	const featureDefaults = {
+		tools_web_search: true,
+		tools_image_gen: true,
+		tools_video_gen: true,
+		tools_audio_gen: true,
+	};
+
+	for (const [key, value] of Object.entries(featureDefaults)) {
+		if (localStorage.getItem(key) === null) {
+		localStorage.setItem(key, JSON.stringify(value));
+		}
+	}
+
+	if (localStorage.getItem("tool_search_engines") === null) {
+		localStorage.setItem(
+		"tools_search_engines",
+		JSON.stringify(["duckduckgo", "ollama"])
+		);
+	}
 
 	void syncInitialState();
 }

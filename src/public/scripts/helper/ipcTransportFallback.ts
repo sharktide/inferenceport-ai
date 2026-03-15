@@ -802,9 +802,17 @@ export function installWebSocketTransportFallback(): void {
 				audioGen: boolean;
 			},
 			clientUrl?: string,
+			sessionId?: string,
 		) => {
 			void client
-				.send("ollama:chat-stream", model, prompt, toolList, clientUrl)
+				.send(
+					"ollama:chat-stream",
+					model,
+					prompt,
+					toolList,
+					clientUrl,
+					sessionId,
+				)
 				.catch((err) => {
 					queueMicrotask(() => {
 						const detail =
@@ -1026,6 +1034,17 @@ export function installWebSocketTransportFallback(): void {
 		verifyPassword: async (password: string) =>
 			invokeOrDefault("auth:verify-password", [{ password }]),
 		deleteAccount: async () => invokeOrDefault("auth:delete-account", []),
+		getSubscriptionInfo: async () =>
+			invokeOrDefault<AuthSubscriptionInfo>("auth:getSubscriptionInfo", []),
+		getSubscriptionTiers: async () =>
+			invokeOrDefault<AuthSubscriptionTier[]>(
+				"auth:getSubscriptionTiers",
+				[],
+			),
+		getTierConfig: async () =>
+			invokeOrDefault<AuthTierConfig | null>("auth:getTierConfig", []),
+		getUsage: async () =>
+			invokeOrDefault<AuthUsageInfo>("auth:getUsage", []),
 		setSessionFromTokens: async (
 			accessToken: string,
 			refreshToken: string,

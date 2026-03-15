@@ -1,8 +1,12 @@
 import { LOG, LOG_ERR } from "./log.js";
+import { convert } from "html-to-text";
+import { Client } from "@gradio/client";
 import fs from "fs";
 import path from "path"
+import { getSession } from "../auth.js";
+import { getLightningClientId } from "./lightningClient.js";
 export const cache ={
- 	cachedSupportsTools: null as string[] | null,
+  	cachedSupportsTools: null as string[] | null,
 	writeInProgress: null as Promise<void> | null
 }
 import { app } from "electron"
@@ -17,7 +21,12 @@ async function fetchWithRetry(
         try {
             const res = await fetch(url, options);
 
-            if (res.status === 500 || res.status === 429) {
+            if (res.status === 429) {
+                // 429 is an enforced limit condition; retrying can create confusing UX.
+                return res;
+            }
+
+            if (res.status >= 500) {
                 LOG_ERR(trace, `${res.status} ERROR ON ATTEMPT ${attempt}`, {
                     status: res.status,
                     statusText: res.statusText,
@@ -52,6 +61,25 @@ async function fetchWithRetry(
     throw new Error("Unreachable");
 }
 
+async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	const headers: Record<string, string> = {};
+	try {
+		headers["X-Client-ID"] = await getLightningClientId();
+	} catch (_err) {
+		void 0;
+	}
+
+	try {
+		const session = await getSession();
+		if (session?.access_token) {
+			headers.Authorization = `Bearer ${session.access_token}`;
+		}
+	} catch (_err) {
+		void 0;
+	}
+	return headers;
+}
+
 export type ImageGenerateRequest = {
 	prompt: string;
 	mode?: "auto" | "fantasy" | "realistic";
@@ -73,11 +101,15 @@ export async function GenerateImage(
 	try {
 		const body: Record<string, unknown> = { prompt: request.prompt };
 		if (request.mode) body.mode = request.mode;
+		const authHeaders = await getLightningAuthHeaders();
 
 		response = await fetch(url,
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+					"Content-Type": "application/json",
+					...authHeaders,
+				},
                 body: JSON.stringify(body),
             }
         );
@@ -138,6 +170,29 @@ export async function GenerateImage(
 	};
 }
 
+export async function ollamaSearch(query: string) {
+	const client = await Client.connect("incognitolm/Web-Search");
+	const result = await client.predict("/perform_search", {
+		query,
+	});
+	const data = await result.data;
+	return data;
+}
+
+export async function readWebPage(url: string): Promise<{ title: string | undefined; content: string }> {
+	const res = await fetch(url, {
+		method: "GET",
+	});
+	if (!res.ok) {
+		return { title: undefined, content: `Failed to fetch page: ${res.status} ${res.statusText}` };
+	}
+	const html = await res.text();
+	const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+	const title = titleMatch ? titleMatch[1] : "No title found";
+	const text = convert(html, { wordwrap: false, selectors: [{ selector: "table", format: "block", options: { uppercase: true } }], });
+	return { title, content: text };
+}
+
 export async function duckDuckGoSearch(query: string): Promise<{
     abstract: string;
     heading: string;
@@ -173,9 +228,13 @@ export async function generateAudioOrSFX(prompt: string): Promise<ArrayBuffer> {
 
 	let response: Response;
 	try {
+		const authHeaders = await getLightningAuthHeaders();
 		response = await fetchWithRetry(trace, url, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				...authHeaders,
+			},
 			body: JSON.stringify({ prompt: prompt }),
 		}, 6);
 		LOG(trace, "FETCH RESOLVED", {
@@ -251,9 +310,13 @@ export async function generateVideo(
 
 	let response: Response;
 	try {
+		const authHeaders = await getLightningAuthHeaders();
 		response = await fetchWithRetry(trace, url, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				...authHeaders,
+			},
 			body: JSON.stringify(body),
 		}, 6);
 		LOG(trace, "FETCH RESOLVED", {

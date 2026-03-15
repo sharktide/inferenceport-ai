@@ -1,4 +1,14 @@
 import { showNotification } from "./helper/notification.js";
+import {
+	BILLING_PORTAL_URL,
+	buildUpgradePlanCards,
+	escapeSubscriptionHtml,
+	getSubscriptionManagementCopy,
+	getSubscriptionManagementSteps,
+	installExternalUrlHandler,
+	normalizeUpgradePlanKey,
+} from "./helper/subscriptionUpgradeUi.js";
+import * as toolSettings from "./helper/toolSettings.js";
 
 const chipContainer = document.getElementById("email-chips") as HTMLDivElement;
 const emailInput = document.getElementById("email-input") as HTMLInputElement;
@@ -24,13 +34,12 @@ const RESTART_REQUIRED_KEY = "host_restart_required";
 
 const EMAIL_STORAGE_KEY = "host_emails_v2";
 const HOST_USERS_KEY = "host_users_v1";
+const startup = await window.startup.getSettings();
 
 const syncCheckbox = document.getElementById(
 	"sync-chats",
 ) as HTMLInputElement | null;
-const syncSection = document.querySelector(
-	"details:has(#sync-chats)",
-) as HTMLDetailsElement | null;
+const syncSection = document.getElementById("syncing") as HTMLDivElement | null;
 const startupRunAtLoginCheckbox = document.getElementById(
 	"startup-run-at-login",
 ) as HTMLInputElement | null;
@@ -49,6 +58,32 @@ const startupUiPortStatus = document.getElementById(
 const startupStatus = document.getElementById(
 	"startup-status",
 ) as HTMLParagraphElement | null;
+const searchEngineSelect = document.getElementById(
+	"search-engine-select",
+) as HTMLSelectElement | null;
+
+// Tool toggle elements
+const toolWebSearchToggle = document.getElementById(
+	"tool-web-search",
+) as HTMLElement | null;
+const toolImageGenToggle = document.getElementById(
+	"tool-image-gen",
+) as HTMLElement | null;
+const toolVideoGenToggle = document.getElementById(
+	"tool-video-gen",
+) as HTMLElement | null;
+const toolAudioGenToggle = document.getElementById(
+	"tool-audio-gen",
+) as HTMLElement | null;
+
+// Search engine checkboxes
+const searchEngineDuckduckgoCheckbox = document.getElementById(
+	"search-engine-duckduckgo",
+) as HTMLInputElement | null;
+const searchEngineOllamaCheckbox = document.getElementById(
+	"search-engine-ollama",
+) as HTMLInputElement | null;
+
 let emails: string[] = [];
 const RESERVED_PORT_MIN = 52440;
 const RESERVED_PORT_MAX = 52458;
@@ -57,12 +92,454 @@ let hostConfigModal: declarations["iInstance"]["iModal"];
 let renameModal: declarations["iInstance"]["iModal"];
 let deleteConfirmModal: declarations["iInstance"]["iModal"];
 let deletePasswordModal: declarations["iInstance"]["iModal"];
+let settingsUpgradeModal: declarations["iInstance"]["iModal"];
+let settingsUpgradeAuthModal: declarations["iInstance"]["iModal"];
+
+const settingsUpgradeBtn = document.getElementById(
+	"settings-upgrade-btn",
+) as HTMLButtonElement | null;
+const settingsUpgradePlanInfo = document.getElementById(
+	"upgrade-plan-info",
+) as HTMLParagraphElement | null;
+const settingsUpgradeLimitsEl = document.getElementById(
+	"upgrade-plan-limits",
+) as HTMLDivElement | null;
+const settingsPortalBtn = document.getElementById(
+	"settings-portal-btn",
+) as HTMLButtonElement | null;
+const subscriptionManagementCopyEl = document.getElementById(
+	"subscription-management-copy",
+) as HTMLParagraphElement | null;
+const subscriptionManagementStepsEl = document.getElementById(
+	"subscription-management-steps",
+) as HTMLOListElement | null;
+type PlanKey = "free" | "light" | "core" | "creator" | "professional";
+const PLAN_ORDER: PlanKey[] = [
+	"free",
+	"light",
+	"core",
+	"creator",
+	"professional",
+];
+const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
+	free: "Free Tier",
+	light: "InferencePort AI Light",
+	core: "InferencePort AI Core",
+	creator: "InferencePort AI Creator",
+	professional: "InferencePort AI Professional",
+};
+const EMPTY_PLAN_LIMITS: AuthTierLimits = {
+	cloudChatDaily: null,
+	imagesDaily: null,
+	videosDaily: null,
+	audioWeekly: null,
+};
+const PLAN_LIMITS: Record<PlanKey, AuthTierLimits> = {
+	free: { ...EMPTY_PLAN_LIMITS },
+	light: { ...EMPTY_PLAN_LIMITS },
+	core: { ...EMPTY_PLAN_LIMITS },
+	creator: { ...EMPTY_PLAN_LIMITS },
+	professional: { ...EMPTY_PLAN_LIMITS },
+};
+const LIMIT_COPY = {
+	cloudChatDaily: "Cloud chat/day",
+	imagesDaily: "Image generation/day",
+	videosDaily: "Video generation/day",
+	audioWeekly: "Audio generation/week",
+} as const;
+const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
+const DEFAULT_UPGRADE_TARGET = "settings.html#upgrade";
+let currentPlanKey: PlanKey = "free";
+let currentPlanName: string = PLAN_DISPLAY_NAMES.free;
+let subscriptionTiers: AuthSubscriptionTier[] = [];
+let isUpgradeUserAuthenticated = false;
+let currentTierConfig: AuthTierConfig | null = null;
+
+function escapeHtml(value: string): string {
+	return escapeSubscriptionHtml(value);
+}
+
+function isKnownPlanKey(value: string): value is PlanKey {
+	return (
+		value === "free" ||
+		value === "light" ||
+		value === "core" ||
+		value === "creator" ||
+		value === "professional"
+	);
+}
+
+function normalizePlanKey(planName: string): PlanKey {
+	return normalizeUpgradePlanKey(planName) as PlanKey;
+}
+
+function applyTierConfig(tierConfig: AuthTierConfig | null | undefined): void {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return;
+	currentTierConfig = tierConfig;
+	const orderedKeys: PlanKey[] = [];
+	tierConfig.plans
+		.slice()
+		.sort((a, b) => a.order - b.order)
+		.forEach((plan) => {
+			const key = (plan.key || "").toLowerCase();
+			if (!isKnownPlanKey(key)) return;
+			if (!orderedKeys.includes(key)) orderedKeys.push(key);
+			if (typeof plan.name === "string" && plan.name.trim()) {
+				PLAN_DISPLAY_NAMES[key] = plan.name.trim();
+			}
+			PLAN_LIMITS[key] = {
+				cloudChatDaily:
+					typeof plan.limits?.cloudChatDaily === "number"
+						? plan.limits.cloudChatDaily
+						: null,
+				imagesDaily:
+					typeof plan.limits?.imagesDaily === "number"
+						? plan.limits.imagesDaily
+						: null,
+				videosDaily:
+					typeof plan.limits?.videosDaily === "number"
+						? plan.limits.videosDaily
+						: null,
+				audioWeekly:
+					typeof plan.limits?.audioWeekly === "number"
+						? plan.limits.audioWeekly
+						: null,
+			};
+		});
+	if (orderedKeys.length > 0) {
+		const missing = (["free", "light", "core", "creator", "professional"] as PlanKey[]).filter(
+			(key) => !orderedKeys.includes(key),
+		);
+		PLAN_ORDER.splice(0, PLAN_ORDER.length, ...orderedKeys, ...missing);
+	}
+}
+
+function getPaidTiersFromConfig(
+	tierConfig: AuthTierConfig | null | undefined,
+): AuthSubscriptionTier[] {
+	if (!tierConfig || !Array.isArray(tierConfig.plans)) return [];
+	const defaultKey = normalizePlanKey(tierConfig.defaultPlanKey || "free");
+	return tierConfig.plans
+		.filter((plan) => normalizePlanKey(plan.key) !== defaultKey)
+		.map((plan) => ({
+			key: plan.key,
+			name: plan.name,
+			url: plan.url,
+			price: plan.price,
+			limits: plan.limits,
+		}));
+}
+
+function rememberUpgradeIntent(target: string = DEFAULT_UPGRADE_TARGET): void {
+	try {
+		localStorage.setItem(UPGRADE_INTENT_STORAGE_KEY, target);
+	} catch (_e) {
+		void 0;
+	}
+}
+
+function formatLimitValue(value: number | null): string {
+	return value === null ? "Unlimited" : String(value);
+}
+
+function getSortedTierCatalog(): AuthSubscriptionTier[] {
+	const weight = new Map(PLAN_ORDER.map((plan, index) => [plan, index]));
+	return [...subscriptionTiers].sort((a, b) => {
+		const aWeight =
+			weight.get(normalizePlanKey((a.key as string) || a.name)) ?? 999;
+		const bWeight =
+			weight.get(normalizePlanKey((b.key as string) || b.name)) ?? 999;
+		return aWeight - bWeight;
+	});
+}
+
+function getTierPrice(name: string): string | null {
+	const match = subscriptionTiers.find(
+		(tier) => normalizePlanKey((tier.key as string) || tier.name) === normalizePlanKey(name),
+	);
+	if (!match?.price) return null;
+	return `$${match.price}/mo`;
+}
+
+function getRecommendedUpgradePlan(): PlanKey | null {
+	const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
+	for (let i = Math.max(currentIndex + 1, 0); i < PLAN_ORDER.length; i++) {
+		const candidate = PLAN_ORDER[i];
+		if (!candidate) continue;
+		const candidateLimit = PLAN_LIMITS[candidate].cloudChatDaily;
+		if (candidateLimit == null || typeof candidateLimit === "number") {
+			return candidate;
+		}
+	}
+	return null;
+}
+
+function openBillingPortal(): void {
+	void window.utils.web_open(BILLING_PORTAL_URL);
+}
+
+function renderSettingsUpgradePanel() {
+	if (settingsUpgradePlanInfo) {
+		const price = getTierPrice(currentPlanName);
+		const suffix =
+			isUpgradeUserAuthenticated && currentPlanKey !== "free"
+				? "Compare the plans below, then use the Billing Portal to change or upgrade your subscription."
+				: "Compare paid plan benefits before opening checkout.";
+		settingsUpgradePlanInfo.textContent = `Current plan: ${currentPlanName}${price ? ` (${price})` : ""}. ${suffix}`;
+	}
+
+	if (!settingsUpgradeLimitsEl) return;
+	const limits = PLAN_LIMITS[currentPlanKey];
+	let html = "<strong>Rate Limits:</strong><ul>";
+	(Object.keys(limits) as Array<keyof typeof LIMIT_COPY>).forEach((key) => {
+		html += `<li>${LIMIT_COPY[key]}: ${formatLimitValue(limits[key])}</li>`;
+	});
+	html += "</ul>";
+	settingsUpgradeLimitsEl.innerHTML = html;
+	settingsUpgradeLimitsEl.classList.add("is-visible");
+
+	if (subscriptionManagementCopyEl) {
+		subscriptionManagementCopyEl.textContent = getSubscriptionManagementCopy(
+			isUpgradeUserAuthenticated,
+			currentPlanKey !== "free",
+			currentPlanName,
+		);
+	}
+
+	if (subscriptionManagementStepsEl) {
+		subscriptionManagementStepsEl.innerHTML = getSubscriptionManagementSteps(
+			isUpgradeUserAuthenticated,
+			currentPlanKey !== "free",
+		)
+			.map((step) => `<li>${escapeHtml(step)}</li>`)
+			.join("");
+	}
+
+	if (settingsPortalBtn) {
+		settingsPortalBtn.disabled = !isUpgradeUserAuthenticated;
+		settingsPortalBtn.title = isUpgradeUserAuthenticated
+			? "Open Stripe Billing Portal"
+			: "Sign in to manage your subscription";
+	}
+}
+
+async function refreshUpgradeSubscriptionData(force = false): Promise<void> {
+	if (!force && !isUpgradeUserAuthenticated) {
+		try {
+			applyTierConfig(await window.auth.getTierConfig());
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+		} catch (_err) {
+			void 0;
+		}
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		renderSettingsUpgradePanel();
+		return;
+	}
+
+	try {
+		const sessionRes = await window.auth.getSession();
+		isUpgradeUserAuthenticated = Boolean(sessionRes?.session?.isAuthenticated);
+		if (!isUpgradeUserAuthenticated) {
+			applyTierConfig(await window.auth.getTierConfig());
+			currentPlanKey = "free";
+			currentPlanName = PLAN_DISPLAY_NAMES.free;
+			subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+			renderSettingsUpgradePanel();
+			return;
+		}
+
+		const info = await window.auth.getSubscriptionInfo();
+		applyTierConfig(info?.tierConfig);
+		currentPlanKey =
+			typeof info?.planKey === "string" && info.planKey.trim()
+				? normalizePlanKey(info.planKey)
+				: normalizePlanKey(info?.planName || "");
+		currentPlanName = PLAN_DISPLAY_NAMES[currentPlanKey];
+		subscriptionTiers = Array.isArray(info?.tiers)
+			? info.tiers
+			: getPaidTiersFromConfig(info?.tierConfig);
+	} catch (_err) {
+		currentPlanKey = "free";
+		currentPlanName = PLAN_DISPLAY_NAMES.free;
+		subscriptionTiers = getPaidTiersFromConfig(currentTierConfig);
+	}
+
+	renderSettingsUpgradePanel();
+}
+
+function redirectToAuthForUpgrade(mode: "signin" | "signup") {
+	const params = new URLSearchParams();
+	params.set("upgrade", "1");
+	params.set("mode", mode);
+	params.set("next", DEFAULT_UPGRADE_TARGET);
+	rememberUpgradeIntent(DEFAULT_UPGRADE_TARGET);
+	window.location.href = `auth.html?${params.toString()}`;
+}
+
+function openUpgradeRequiresAccountModal() {
+	if (!settingsUpgradeAuthModal && window.ic && window.ic.iModal) {
+		settingsUpgradeAuthModal = new window.ic.iModal(
+			"settings-upgrade-auth-modal",
+			520,
+			undefined,
+			false,
+			false,
+		);
+	}
+	if (!settingsUpgradeAuthModal) {
+		redirectToAuthForUpgrade("signin");
+		return;
+	}
+
+	settingsUpgradeAuthModal.open({
+		html: `
+			<h3>Account required to upgrade</h3>
+			<p style="opacity:.85;margin:8px 0 10px;">
+				You need an account before you can upgrade your plan.
+			</p>
+		`,
+		actions: [
+			{
+				id: "settings-upgrade-auth-signin",
+				label: "Sign In",
+				onClick: () => {
+					settingsUpgradeAuthModal.close();
+					redirectToAuthForUpgrade("signin");
+				},
+			},
+			{
+				id: "settings-upgrade-auth-signup",
+				label: "Create Account",
+				onClick: () => {
+					settingsUpgradeAuthModal.close();
+					redirectToAuthForUpgrade("signup");
+				},
+			},
+			{
+				id: "settings-upgrade-auth-close",
+				label: "Close",
+				onClick: () => settingsUpgradeAuthModal.close(),
+			},
+		],
+	});
+}
+
+async function openSettingsUpgradeModal() {
+	await refreshUpgradeSubscriptionData(true);
+
+	if (!isUpgradeUserAuthenticated) {
+		openUpgradeRequiresAccountModal();
+		return;
+	}
+
+	if (!settingsUpgradeModal && window.ic && window.ic.iModal) {
+		settingsUpgradeModal = new window.ic.iModal(
+			"settings-upgrade-modal",
+			700,
+			undefined,
+			false,
+			false,
+		);
+	}
+	if (!settingsUpgradeModal) return;
+
+	const recommended = getRecommendedUpgradePlan();
+	const tiers = getSortedTierCatalog();
+	const plansToShow =
+		tiers.length > 0
+			? tiers
+			: PLAN_ORDER.filter((plan) => plan !== "free").map((plan) => ({
+					key: plan,
+					name: PLAN_DISPLAY_NAMES[plan],
+					url: "",
+					price: "",
+				}));
+
+	const cards = plansToShow
+		? buildUpgradePlanCards(plansToShow, {
+				currentPlanKey,
+				recommendedPlanKey: recommended,
+				allowDirectCheckout: currentPlanKey === "free",
+			})
+		: "";
+
+	settingsUpgradeModal.open({
+		html: `
+			<h3>Upgrade Your Plan</h3>
+			<div class="subscription-upgrade-layout">
+				<p class="subscription-current-plan">
+					Current plan: <strong>${escapeHtml(currentPlanName)}</strong>${getTierPrice(currentPlanName) ? ` (${escapeHtml(getTierPrice(currentPlanName) || "")})` : ""}.
+				</p>
+				<p class="subscription-upgrade-copy">
+					${currentPlanKey === "free"
+						? "Choose a paid plan to unlock higher limits, premium models, and priority support."
+						: "Review the available plan benefits below, then use the Billing Portal to change your active subscription in Stripe."}
+				</p>
+				<div class="subscription-plan-grid">
+					${cards || "<p class='subscription-empty'>No upgrade plans are available right now.</p>"}
+				</div>
+			</div>
+		`,
+		actions: [
+			...(currentPlanKey === "free"
+				? []
+				: [
+						{
+							id: "open-settings-billing-portal",
+							label: "Open Billing Portal",
+							onClick: () => openBillingPortal(),
+						},
+					]),
+			{
+				id: "close-settings-upgrade-dialog",
+				label: "Close",
+				onClick: () => settingsUpgradeModal.close(),
+			},
+		],
+	});
+}
 
 document.addEventListener("DOMContentLoaded", () => {
+	installExternalUrlHandler();
 	hostConfigModal = new window.ic.iModal("host-config-modal", 650);
 	renameModal = new window.ic.iModal("rename-modal", 400);
 	deleteConfirmModal = new window.ic.iModal("delete-confirm-modal", 420);
 	deletePasswordModal = new window.ic.iModal("delete-password-modal", 420);
+	settingsUpgradeModal = new window.ic.iModal(
+		"settings-upgrade-modal",
+		700,
+		undefined,
+		false,
+		false,
+	);
+	settingsUpgradeAuthModal = new window.ic.iModal(
+		"settings-upgrade-auth-modal",
+		520,
+		undefined,
+		false,
+		false,
+	);
+
+	settingsUpgradeBtn?.addEventListener("click", () => {
+		void openSettingsUpgradeModal();
+	});
+	settingsPortalBtn?.addEventListener("click", () => {
+		openBillingPortal();
+	});
+	void refreshUpgradeSubscriptionData(true);
+	window.auth.onAuthStateChange((session) => {
+		isUpgradeUserAuthenticated = Boolean(session?.isAuthenticated);
+		void refreshUpgradeSubscriptionData(true);
+	});
+
+	if (window.location.hash.replace(/^#/, "").toLowerCase() === "upgrade") {
+		const accountButton = document.querySelector(
+			'.tab-button[data-tab="account"]',
+		) as HTMLButtonElement | null;
+		accountButton?.click();
+		setTimeout(() => void openSettingsUpgradeModal(), 180);
+	}
 });
 
 (async () => {
@@ -105,7 +582,6 @@ document.addEventListener("DOMContentLoaded", () => {
 async function initStartupSettings() {
 	if (!startupRunAtLoginCheckbox || !startupAutoProxyCheckbox) return;
 	try {
-		const startup = await window.startup.getSettings();
 		startupRunAtLoginCheckbox.checked = Boolean(startup.runAtLogin);
 		startupAutoProxyCheckbox.checked = Boolean(startup.autoStartProxy);
 		if (startupUiPortInput) {
@@ -147,6 +623,10 @@ startupUiPortSaveBtn?.addEventListener("click", async () => {
 		}
 		return;
 	}
+    if (startupUiPortStatus) {
+        startupUiPortStatus.textContent =
+            "Changing the UI port may disconnect hosted clients. Disengaging is recommended before changing ports.";
+    }
 
 	if (isReservedPort(port)) {
 		if (startupUiPortStatus) {
@@ -159,7 +639,7 @@ startupUiPortSaveBtn?.addEventListener("click", async () => {
 		const updated = await window.startup.updateSettings({ uiPort: port });
 		startupUiPortInput.value = String(updated.uiPort);
 		if (startupUiPortStatus) {
-			startupUiPortStatus.textContent = `UI port saved: ${updated.uiPort}. Restart app to fully apply. If changes do not take effect, restart your computer. Make sure this port isn't already being used by nother process or changes may not take effect.`;
+			startupUiPortStatus.textContent = `UI port saved: ${updated.uiPort}. Restart computer and/or app to fully apply. Disengaging is recommended to clear browser data for the old port.`;
 		}
 	} catch (err: any) {
 		if (startupUiPortStatus) {
@@ -698,4 +1178,122 @@ async function performFinalDeletion(statusEl?: HTMLElement) {
 	}, 800);
 }
 
+toolSettings.initializeSettings();
+const currentSettings = toolSettings.getSettings();
+
+if (toolWebSearchToggle) {
+    (toolWebSearchToggle as any).checked = currentSettings.webSearch;
+
+    toolWebSearchToggle.addEventListener("change", () => {
+        const newState = Boolean((toolWebSearchToggle as any).checked);
+
+        const engines = toolSettings.getSettings().searchEngines;
+
+        if (newState && engines.length === 0) {
+            showNotification({
+                message: "Enable a search engine first.",
+                type: "warning",
+            });
+
+            (toolWebSearchToggle as any).checked = false;
+            return;
+        }
+
+        toolSettings.setToolEnabled("webSearch", newState);
+    });
+}
+if (toolImageGenToggle) {
+    (toolImageGenToggle as any).checked = currentSettings.imageGen;
+    toolImageGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolImageGenToggle as any).checked);
+        toolSettings.setToolEnabled("imageGen", newState);
+    });
+}
+
+if (toolVideoGenToggle) {
+    (toolVideoGenToggle as any).checked = currentSettings.videoGen;
+    toolVideoGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolVideoGenToggle as any).checked);
+        toolSettings.setToolEnabled("videoGen", newState);
+    });
+}
+
+if (toolAudioGenToggle) {
+    (toolAudioGenToggle as any).checked = currentSettings.audioGen;
+    toolAudioGenToggle.addEventListener("change", () => {
+        const newState = Boolean((toolAudioGenToggle as any).checked);
+        toolSettings.setToolEnabled("audioGen", newState);
+    });
+}
+
+if (searchEngineDuckduckgoCheckbox) {
+    searchEngineDuckduckgoCheckbox.checked = currentSettings.searchEngines.includes("duckduckgo");
+    searchEngineDuckduckgoCheckbox.addEventListener("change", () => {
+        const engines = [
+            ...(searchEngineDuckduckgoCheckbox.checked ? ["duckduckgo"] : []),
+            ...(searchEngineOllamaCheckbox?.checked ? ["ollama"] : []),
+        ];
+		if (engines.length === 0) {
+			toolSettings.setToolEnabled("webSearch", false);
+
+			if (toolWebSearchToggle) {
+				(toolWebSearchToggle as any).checked = false;
+			}
+		}
+        toolSettings.setSearchEngines(engines);
+    });
+}
+
+if (searchEngineOllamaCheckbox) {
+    searchEngineOllamaCheckbox.checked = currentSettings.searchEngines.includes("ollama");
+    searchEngineOllamaCheckbox.addEventListener("change", () => {
+        const engines = [
+            ...(searchEngineDuckduckgoCheckbox?.checked ? ["duckduckgo"] : []),
+            ...(searchEngineOllamaCheckbox.checked ? ["ollama"] : []),
+        ];
+		if (engines.length === 0) {
+			toolSettings.setToolEnabled("webSearch", false);
+
+			if (toolWebSearchToggle) {
+				(toolWebSearchToggle as any).checked = false;
+			}
+		}
+        toolSettings.setSearchEngines(engines);
+    });
+}
+
 setHostingUIRunning(false);
+
+document.querySelectorAll('.tab-button').forEach((button) => {
+	(button as HTMLButtonElement).addEventListener('click', () => {
+		document.querySelectorAll('.tab-button').forEach((btn) => btn.classList.remove('active'));
+		document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
+		
+		button.classList.add('active');
+		const tabId = (button as HTMLButtonElement).getAttribute('data-tab');
+		if (tabId) {
+			const pane = document.getElementById(tabId);
+			if (pane) pane.classList.add('active');
+		}
+	});
+});
+
+const disengageBtn = document.getElementById("startup-disengage-btn") as HTMLButtonElement | null;
+const disengageStatus = document.getElementById("startup-disengage-status") as HTMLParagraphElement | null;
+
+disengageBtn?.addEventListener("click", async () => {
+    try {
+        const port = startup.uiPort;
+
+        const url = `http://127.0.0.1:${port}/disengage.html`;
+        window.utils.web_open(url);
+
+        if (disengageStatus) {
+            disengageStatus.textContent = `Opening disengage page on port ${port}…`;
+        }
+    } catch (err) {
+        if (disengageStatus) {
+            disengageStatus.textContent = "Could not open disengage page.";
+        }
+    }
+});

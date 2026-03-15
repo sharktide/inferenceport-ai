@@ -39,6 +39,67 @@ declare global {
 		error?: string;
 	};
 
+	type AuthSubscriptionTier = {
+		key?: string;
+		name: string;
+		url: string;
+		price: string;
+		limits?: AuthTierLimits;
+	};
+
+	type AuthTierLimits = {
+		cloudChatDaily: number | null;
+		imagesDaily: number | null;
+		videosDaily: number | null;
+		audioWeekly: number | null;
+	};
+
+	type AuthTierConfigPlan = {
+		key: string;
+		name: string;
+		url: string;
+		price: string;
+		limits: AuthTierLimits;
+		order: number;
+	};
+
+	type AuthTierConfig = {
+		defaultPlanKey: string;
+		plans: AuthTierConfigPlan[];
+	};
+
+	type AuthSubscriptionInfo = {
+		planKey: string;
+		planName: string;
+		isPaid: boolean;
+		signedUp: string | null;
+		status: string | null;
+		tiers: AuthSubscriptionTier[];
+		tierConfig: AuthTierConfig | null;
+		error?: string;
+	};
+
+	type AuthUsageMetric = {
+		limit: number | null;
+		used: number;
+		remaining: number | null;
+		window: string;
+		period: string;
+	};
+
+	type AuthUsageInfo = {
+		planKey: string;
+		planName: string;
+		metrics: {
+			cloudChatDaily: AuthUsageMetric;
+			imagesDaily: AuthUsageMetric;
+			videosDaily: AuthUsageMetric;
+			audioWeekly: AuthUsageMetric;
+		};
+		generatedAt: string | null;
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -66,6 +127,7 @@ declare global {
 					audioGen: boolean;
 				},
 				clientUrl?: string,
+				sessionId?: string,
 			) => void;
 			onResponse: (cb: (token: string) => void) => void;
 			onError: (cb: (err: string) => void) => void;
@@ -160,6 +222,10 @@ declare global {
 				accessToken: string,
 				refreshToken: string,
 			) => Promise<AuthSessionResponse>;
+			getSubscriptionInfo: () => Promise<AuthSubscriptionInfo>;
+			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
+			getTierConfig: () => Promise<AuthTierConfig | null>;
+			getUsage: () => Promise<AuthUsageInfo>;
 		};
 
 		sync: {

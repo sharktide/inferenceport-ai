@@ -8,21 +8,43 @@ import toolSchema from "./assets/tools.json" with { type: "json" };
 import {
     GenerateImage,
     duckDuckGoSearch,
+    ollamaSearch,
+    readWebPage,
     generateVideo,
     generateAudioOrSFX,
     type ImageGenerateRequest,
     type VideoGenerateRequest,
 } from "./helper/tools.js";
+import { getLightningClientId } from "./helper/lightningClient.js";
 
 import {
 	save_stream, is52458,
 } from "./utils.js";
 
 import {
-    issueProxyToken
+    issueProxyToken,
+	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
-let chatHistory: ChatHistoryEntry[] = [];
+import type { Tool } from "openai/resources/responses/responses.mjs";
+const chatHistories = new Map<string, ChatHistoryEntry[]>();
+const DEFAULT_CHAT_HISTORY_KEY = "__default__";
+
+function normalizeHistoryKey(value: unknown): string {
+	if (typeof value !== "string") return DEFAULT_CHAT_HISTORY_KEY;
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : DEFAULT_CHAT_HISTORY_KEY;
+}
+
+function getChatHistoryForSession(sessionId: unknown): ChatHistoryEntry[] {
+	const key = normalizeHistoryKey(sessionId);
+	const existing = chatHistories.get(key);
+	if (existing) return existing;
+	const created: ChatHistoryEntry[] = [];
+	chatHistories.set(key, created);
+	return created;
+}
+
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
 export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
@@ -45,9 +67,25 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	}
 
 	if (baseURL == "lightning") {
+		let lightningApiKey = "public";
+		const defaultHeaders: Record<string, string> = {};
+		try {
+			defaultHeaders["X-Client-ID"] = await getLightningClientId();
+		} catch (_err) {
+			void 0;
+		}
+		try {
+			const session = await getSession();
+			if (session?.access_token) {
+				lightningApiKey = session.access_token;
+			}
+		} catch (_e) {
+			void 0;
+		}
 		return new OpenAI({
 			baseURL: "https://sharktide-lightning.hf.space/gen",
-			apiKey: "No key needed, rate limited by user",
+			apiKey: lightningApiKey,
+			defaultHeaders,
 		});
 	}
 
@@ -293,7 +331,7 @@ function waitForAudioRequestInput(
 }
 
 const systemPrompt =
-	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. Do not be technical with the user unless they ask for it.";
+	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. You can create SVG images by outputting the SVG code in a code block labeled with 'svg'. For example: ```svg <svg>...</svg>``` Always use the triple tick marks to close and open, and include the letters svg exactly like ```svg, then add a new line to render properly between all tick marks and xml. This will be rendered as an image for the user. Do not be technical with the user unless they ask for it.";
 
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
@@ -372,8 +410,12 @@ export default function registerChatStream() {
                 }
             },
         );
-        ipcMain.handle("ollama:reset", () => {
-            chatHistory = [];
+        ipcMain.handle("ollama:reset", (_event, sessionId?: string) => {
+            if (typeof sessionId === "string" && sessionId.trim()) {
+                chatHistories.delete(sessionId.trim());
+                return;
+            }
+            chatHistories.clear();
         });
     
         ipcMain.handle(
@@ -449,6 +491,7 @@ export default function registerChatStream() {
 			userMessage: string,
 			toolList: ToolList,
 			clientUrl?: string,
+			sessionId?: string,
 		) => {
             console.log(toolList)
 			/* ------------------------------------------------------------------
@@ -468,11 +511,35 @@ export default function registerChatStream() {
 			};
 
 			const tools = [];
-			if (toolList.search) tools.push(availableTools[0]!);
-			if (toolList.imageGen) tools.push(availableTools[1]!);
-			if (toolList.audioGen) tools.push(availableTools[2]!);
-			if (toolList.videoGen) tools.push(availableTools[3]!);
+			const toolsEnabled = toolList.search || toolList.imageGen || toolList.audioGen || toolList.videoGen;
+			
+			if (toolsEnabled) {
+				if (toolList.search) {
+					const readWebPageTool = availableTools.find(t => t.function.name === "read_web_page");
+					if (readWebPageTool) tools.push(readWebPageTool);
+				}
+				if (toolList.search) {
+					if (toolList.searchEngine.includes("ollama")) {
+						tools.push(availableTools.find(t => t.function.name === "ollama_search") as ToolDefinition);
+					}
+					if (toolList.searchEngine.includes("duckduckgo")) {
+						tools.push(availableTools.find(t => t.function.name === "duckduckgo_search") as ToolDefinition);
+					}
+					if (toolList.searchEngine.length === 0) console.warn("Search enabled, but no search engines provided")
+				}
+				if (toolList.imageGen) {
+					tools.push(availableTools.find(t => t.function.name === "generate_image") as ToolDefinition);
+				}
+				if (toolList.audioGen) {
+					tools.push(availableTools.find(t => t.function.name === "generate_audio") as ToolDefinition);
+				}
+				if (toolList.videoGen) {
+					tools.push(availableTools.find(t => t.function.name === "generate_video") as ToolDefinition);
+				}
+				console.log(tools)
+			}
 
+			const chatHistory = getChatHistoryForSession(sessionId);
 			chatHistory.push({ role: "user", content: userMessage });
 
 			const openai = await createOpenAIClient(clientUrl);
@@ -581,6 +648,32 @@ export default function registerChatStream() {
 							const query = typeof args.query === "string" ? args.query.trim() : "";
 							if (!query) throw new Error("Search query is required");
 							toolResult = await duckDuckGoSearch(query);
+						}
+
+						/* ---- Ollama search --------------------------------------------------- */
+						if (toolCall.function.name === "ollama_search") {
+							broadcastIpcEvent("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "pending",
+							});
+							const query = typeof args.query === "string" ? args.query.trim() : "";
+							if (!query) throw new Error("Search query is required");
+							toolResult = await ollamaSearch(query);
+						}
+
+						/* ---- Read web page --------------------------------------------------- */
+						if (toolCall.function.name === "read_web_page") {
+							broadcastIpcEvent("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "pending",
+							});
+							const url = typeof args.url === "string" ? args.url.trim() : "";
+							if (!url) throw new Error("URL is required");
+							toolResult = await readWebPage(url);
 						}
 
 						/* ---- Image generation ---------------------------------------------------- */

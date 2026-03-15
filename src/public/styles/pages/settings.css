@@ -36,61 +36,70 @@ Copyright 2025 Rihaan Meher
   letter-spacing: 0.01em;
 }
 
-.settings-section {
+.tab-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.tab-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  gap: 8px;
+}
+
+.tab-button {
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 20%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  color: var(--text-dark);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: color-mix(in srgb, var(--secondary-color) 60%, transparent);
+}
+
+.tab-button.active {
+  background: var(--secondary-color);
+  color: var(--bg-primary);
+  border-color: var(--secondary-color);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(1px);
+}
+
+.tab-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.tab-pane {
+  display: none;
+  padding: 16px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--text-dark) 10%, transparent);
   background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
-  overflow: clip;
+  gap: 12px;
 }
 
-[data-theme="dark"] .settings-section {
+[data-theme="dark"] .tab-pane {
   background: color-mix(in srgb, var(--bg-light) 78%, transparent);
 }
 
-.settings-section > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  padding: 14px 16px;
-  background: color-mix(in srgb, var(--secondary-color) 62%, transparent);
-  border-bottom: 1px solid transparent;
-}
-
-.settings-section > summary::-webkit-details-marker {
-  display: none;
-}
-
-.settings-section > summary::after {
-  content: "Expand";
-  float: right;
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--text-dark) 62%, transparent);
-}
-
-.settings-section[open] > summary {
-  border-bottom-color: color-mix(in srgb, var(--text-dark) 12%, transparent);
-}
-
-.settings-section[open] > summary::after {
-  content: "Open";
-}
-
-.settings-section-content {
+.tab-pane.active {
   display: grid;
-  gap: 12px;
-  padding: 14px 16px 16px;
 }
 
-.settings-container p {
+.tab-pane p {
   margin: 0;
 }
 
-.settings-container .muted {
+.tab-pane .muted {
   color: color-mix(in srgb, var(--text-dark) 68%, transparent);
   font-size: 0.94rem;
 }
@@ -117,7 +126,7 @@ Copyright 2025 Rihaan Meher
 
 .settings-inline-row label {
   font-weight: 600;
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .settings-container input[type="number"] {
@@ -137,6 +146,125 @@ Copyright 2025 Rihaan Meher
 #open-delete {
   color: var(--error);
   border-color: color-mix(in srgb, var(--error) 30%, transparent);
+}
+
+.settings-account-actions {
+  align-items: stretch;
+}
+
+.settings-subscription-card {
+  margin-top: 6px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--blue) 16%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-light) 92%, var(--blue) 8%),
+      color-mix(in srgb, var(--bg-light) 97%, transparent)
+    );
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 14px;
+}
+
+.settings-subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-subscription-kicker {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--blue) 70%, var(--text-dark) 30%);
+}
+
+.settings-subscription-copy {
+  margin: 8px 0 0;
+  color: color-mix(in srgb, var(--text-dark) 84%, transparent);
+  line-height: 1.55;
+}
+
+.settings-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-subscription-btn {
+  min-width: 180px;
+}
+
+.settings-subscription-btn--secondary {
+  background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+  color: var(--text-dark);
+  border-color: color-mix(in srgb, var(--blue) 22%, transparent);
+}
+
+.settings-subscription-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: color-mix(in srgb, var(--text-dark) 88%, transparent);
+}
+
+.settings-upgrade-section {
+  margin-top: 10px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-light) 86%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-upgrade-section h3 {
+  margin: 0 0 8px;
+}
+
+.settings-upgrade-section p {
+  margin: 0;
+}
+
+.settings-upgrade-limits {
+  margin: 10px 0 12px;
+  display: none;
+}
+
+.settings-upgrade-limits.is-visible {
+  display: block;
+}
+
+.settings-upgrade-limits ul {
+  margin: 6px 0 0 16px;
+  padding: 0;
+}
+
+.settings-upgrade-limits li {
+  margin: 4px 0;
+}
+
+.settings-upgrade-btn {
+  background: #2a4d7a;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .settings-subscription-actions,
+  .settings-account-actions {
+    width: 100%;
+  }
+
+  .settings-subscription-btn,
+  .settings-upgrade-btn {
+    flex: 1 1 100%;
+  }
 }
 
 .settings-proxy-form {
@@ -261,6 +389,26 @@ Copyright 2025 Rihaan Meher
   .settings-container {
     padding: 14px;
     border-radius: 12px;
+  }
+
+  .tab-container {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .tab-buttons {
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .tab-button {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 0.9rem;
   }
 
   .settings-inline-row {

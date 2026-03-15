@@ -3,6 +3,7 @@ class ToggleSwitch extends HTMLElement {
 
     private _internals: ElementInternals;
     private input!: HTMLInputElement;
+    private initialized = false;
 
     constructor() {
         super();
@@ -10,21 +11,32 @@ class ToggleSwitch extends HTMLElement {
     }
 
     connectedCallback(): void {
-        // Render only once
-        if (!this.input) {
-            this.innerHTML = `
-                <label class="switch">
-                    <input type="checkbox">
-                    <span class="slider"></span>
-                </label>
-            `;
+        if (!this.initialized) {
+            this.initialized = true;
 
-            const inputEl = this.querySelector("input");
-            if (!(inputEl instanceof HTMLInputElement)) {
-                throw new Error("Input element not found");
-            }
+            const userContent = Array.from(this.childNodes);
 
-            this.input = inputEl;
+            this.textContent = "";
+
+            const label = document.createElement("label");
+            label.className = "switch";
+            label.style.marginRight = "10px";
+            const input = document.createElement("input");
+            input.type = "checkbox";
+
+            const slider = document.createElement("span");
+            slider.className = "slider";
+
+            label.appendChild(input);
+            label.appendChild(slider);
+
+            const slot = document.createElement("slot");
+            this.appendChild(label);
+            this.appendChild(slot);
+
+            userContent.forEach(node => slot.appendChild(node));
+
+            this.input = input;
 
             this._upgradeProperty("checked");
             this._upgradeProperty("disabled");
@@ -48,14 +60,8 @@ class ToggleSwitch extends HTMLElement {
         return ["checked", "disabled", "name", "value"];
     }
 
-    attributeChangedCallback(
-        _name: string,
-        _oldVal: string | null,
-        _newVal: string | null
-    ): void {
-        if (this.input) {
-            this._syncToAttributes();
-        }
+    attributeChangedCallback(): void {
+        if (this.input) this._syncToAttributes();
     }
 
     private _syncToAttributes(): void {
@@ -71,9 +77,7 @@ class ToggleSwitch extends HTMLElement {
         this._internals.setFormValue(this.checked ? this.value : null);
     }
 
-    private _upgradeProperty(
-        prop: "checked" | "disabled" | "name" | "value"
-    ): void {
+    private _upgradeProperty(prop: "checked" | "disabled" | "name" | "value") {
         if (Object.prototype.hasOwnProperty.call(this, prop)) {
             const value = (this as any)[prop];
             delete (this as any)[prop];
@@ -81,49 +85,38 @@ class ToggleSwitch extends HTMLElement {
         }
     }
 
-    // --- Properties ---
-    get checked(): boolean {
-        return this.input?.checked ?? false;
-    }
+    get checked() { return this.input?.checked ?? false; }
     set checked(val: boolean) {
         const isChecked = Boolean(val);
         if (this.input) this.input.checked = isChecked;
         this._reflect("checked", isChecked);
     }
 
-    get disabled(): boolean {
-        return this.input?.disabled ?? false;
-    }
+    get disabled() { return this.input?.disabled ?? false; }
     set disabled(val: boolean) {
         const isDisabled = Boolean(val);
         if (this.input) this.input.disabled = isDisabled;
         this._reflect("disabled", isDisabled);
     }
 
-    get name(): string {
-        return this.input?.name ?? "";
-    }
+    get name() { return this.input?.name ?? ""; }
     set name(val: string) {
         if (this.input) this.input.name = val;
         this.setAttribute("name", val);
     }
 
-    get value(): string {
-        return this.input?.value ?? "on";
-    }
+    get value() { return this.input?.value ?? "on"; }
     set value(val: string) {
         if (this.input) this.input.value = val;
         this.setAttribute("value", val);
     }
 
-    get indeterminate(): boolean {
-        return this.input?.indeterminate ?? false;
-    }
+    get indeterminate() { return this.input?.indeterminate ?? false; }
     set indeterminate(val: boolean) {
         if (this.input) this.input.indeterminate = Boolean(val);
     }
 
-    private _reflect(attr: string, condition: boolean): void {
+    private _reflect(attr: string, condition: boolean) {
         if (condition) this.setAttribute(attr, "");
         else this.removeAttribute(attr);
     }

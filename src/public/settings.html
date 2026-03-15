@@ -13,74 +13,97 @@
 			<div class="settings-container">
 				<h1>Settings</h1>
 
-				<details open class="settings-section">
-					<summary>General</summary>
-					<div class="settings-section-content">
-						<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
+				<div class="tab-container">
+					<div class="tab-buttons">
+						<button class="tab-button active" data-tab="general">General</button>
+						<button class="tab-button" data-tab="startup">Startup</button>
+						<button class="tab-button" data-tab="account">Account</button>
+						<button class="tab-button" data-tab="syncing">Syncing</button>
+						<button class="tab-button" data-tab="host">Host (Proxy)</button>
+						<button class="tab-button" data-tab="tools">Tools (Functions)</button>
 					</div>
-				</details>
-
-				<details open class="settings-section">
-					<summary>Startup</summary>
-					<div class="settings-section-content">
-						<label class="settings-checkbox">
-							<input type="checkbox" id="startup-run-at-login">
-							Start background server on device startup
-						</label>
-						<label class="settings-checkbox">
-							<input type="checkbox" id="startup-auto-proxy">
-							Auto-start hosting proxy (uses saved host users)
-						</label>
-						<div class="settings-inline-row">
-							<label for="startup-ui-port">Web UI port</label>
-						<input
-							type="number"
-							id="startup-ui-port"
-							min="1"
-							max="65535"
-							step="1"
-						/>
-							<button id="startup-ui-port-save" class="theme-toggle">
-							Save UI Port
-						</button>
+					<div class="tab-content">
+						<div class="tab-pane active" id="general">
+							<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
 						</div>
-					<p id="startup-ui-port-status" class="muted">
-						Reserved ports: 52440-52458.
-					</p>
-					<p id="startup-status" class="muted"></p>
-					</div>
-				</details>
+						<div class="tab-pane" id="startup">
+							<label class="settings-checkbox">
+								<input type="checkbox" id="startup-run-at-login">
+								Start background server on device startup
+							</label>
+							<label class="settings-checkbox">
+								<input type="checkbox" id="startup-auto-proxy">
+								Auto-start hosting proxy (uses saved host users)
+							</label>
+							<div class="settings-inline-row">
+								<label for="startup-ui-port">Web UI port</label>
+							<input
+								type="number"
+								id="startup-ui-port"
+								min="1"
+								max="65535"
+								step="1"
+							/>
+								<button id="startup-ui-port-save" class="theme-toggle">
+									Save UI Port
+								</button>
+								<button id="startup-disengage-btn" class="theme-toggle">
+									Disengage
+								</button>
+							</div>
 
-				<details open id="account-settings" class="settings-section">
-					<summary>Account</summary>
-					<div class="settings-section-content">
-						<div class="settings-inline-row">
-						<button id="open-rename" class="theme-toggle">Change Username</button>
-							<button id="open-delete" class="theme-toggle">Delete Account</button>
+							<p id="startup-disengage-status" class="muted"></p>
+							<p id="startup-ui-port-status" class="muted">
+								Reserved ports: 52440-52458.
+							</p>
+							<p id="startup-status" class="muted"></p>
 						</div>
-					</div>
-				</details>
-				<!--
-		<div class="setting-item">
-			<label for="language-select">Language</label>
-			<select id="language-select">
-			<option value="en">English</option>
-			<option value="es">Spanish</option>
-			</select>
-		</div>
-		-->
-					<details open class="settings-section"><summary>Syncing</summary>
-						<div class="settings-section-content">
+						<div class="tab-pane" id="account">
+							<div id="account-settings">
+							<div class="settings-inline-row settings-account-actions">
+								<button id="open-rename" class="theme-toggle">Change Username</button>
+								<button id="open-delete" class="theme-toggle">Delete Account</button>
+							</div>
+							<hr style="margin:18px 0;">
+							<section class="settings-subscription-card">
+								<div class="settings-subscription-header">
+									<div>
+										<p class="settings-subscription-kicker">Subscription management</p>
+										<h3>Manage or upgrade in Stripe</h3>
+										<p id="subscription-management-copy" class="settings-subscription-copy">
+											Use the billing portal to review your current subscription, then change plans from Stripe when needed.
+										</p>
+									</div>
+									<div class="settings-subscription-actions">
+										<button id="settings-portal-btn" class="theme-toggle settings-subscription-btn settings-subscription-btn--secondary">
+											Open Billing Portal
+										</button>
+										<button id="settings-upgrade-btn" class="theme-toggle settings-upgrade-btn">
+											See Upgrade Options
+										</button>
+									</div>
+								</div>
+								<ol id="subscription-management-steps" class="settings-subscription-steps">
+									<li>Sign in or create an account.</li>
+									<li>Choose a plan from the upgrade dialog.</li>
+									<li>Use the billing portal later to change or upgrade your subscription.</li>
+								</ol>
+							</section>
+							<section id="upgrade-section" class="settings-upgrade-section">
+								<h3>Upgrade Plan</h3>
+								<p id="upgrade-plan-info">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>
+								<div id="upgrade-plan-limits" class="settings-upgrade-limits"></div>
+							</section>
+							</div>
+						</div>
+						<div class="tab-pane" id="syncing">
 							<label class="settings-checkbox">
 								<input type="checkbox" id="sync-chats"> Enable chat sync
 							</label>
 						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
 						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
 						</div>
-					</details>
-
-					<details open class="settings-section"><summary>Host (Proxy)</summary>
-						<div class="settings-section-content">
+						<div class="tab-pane" id="host">
 						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the comma-separated list of allowed emails, then click <strong>Start Hosting</strong>.</p>
 						<div class="settings-proxy-form">
 							<label>Port: 52458</label>
@@ -100,7 +123,6 @@
 							</div>
 							<textarea id="host-emails" hidden aria-hidden="true"></textarea>
 
-
 							<div class="modal-actions settings-actions">
 								<button id="host-start">Start Hosting</button>
 								<button id="host-stop" disabled>Stop Hosting</button>
@@ -113,7 +135,42 @@
 							<pre id="logs-output"></pre>
 						</div>
 						</div>
-					</details>
+						<div class="tab-pane" id="tools">
+							<h1>Enable or Disable Tools</h1>
+							<div class="tools-section" style="display: flex; gap:10px; flex-direction: column;">
+								<label class="tool-toggle-container">
+									<toggle-switch id="tool-web-search" class="tool-toggle"></toggle-switch>
+									<span class="tool-label">Web search</span>
+								</label>
+								<label class="tool-toggle-container">
+									<toggle-switch id="tool-image-gen" class="tool-toggle"></toggle-switch>
+									<span class="tool-label">Image Generation</span>
+								</label>
+								<label class="tool-toggle-container">
+									<toggle-switch id="tool-video-gen" class="tool-toggle"></toggle-switch>
+									<span class="tool-label">Video Generation</span>
+								</label>
+								<label class="tool-toggle-container">
+									<toggle-switch id="tool-audio-gen" class="tool-toggle"></toggle-switch>
+									<span class="tool-label">Music/SFX Generation</span>
+								</label>
+							</div>
+							<h2>Search Engines (select one or more)</h2>
+							<div class="search-engines-section" style="display: flex; gap:10px; flex-direction: column;">
+								<label class="search-engine-checkbox">
+									<toggle-switch id="search-engine-duckduckgo" value="duckduckgo" class="search-engine-selector"/>
+										DuckDuckGo
+									</toggle-switch>
+								</label>
+								<label class="search-engine-checkbox">
+									<toggle-switch id="search-engine-ollama" value="ollama" class="search-engine-selector"/>
+										Ollama
+									</toggle-switch>
+								</label>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 			<footer class="settings-footer">Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
 			<footer class="settings-footer"><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
