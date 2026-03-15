@@ -35,6 +35,95 @@ const dataDir = window.ollama.getPath();
 
 const sessionFile = `${dataDir}/sessions.json`;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** A single part of a user message content array. */
+type UserContentPart =
+	| { type: "text"; text: string }
+	| { type: "image_url"; image_url: { url: string } };
+
+/** An attached file that is plain text. */
+interface AttachedTextFile {
+	type: "text";
+	name: string;
+	content: string;
+}
+
+/** An attached file that is an image (stored as base64). */
+interface AttachedImageFile {
+	type: "image";
+	name: string;
+	mimeType: string;
+	base64: string;
+}
+
+type AttachedFile = AttachedTextFile | AttachedImageFile;
+
+// ─── Image-extension helpers ──────────────────────────────────────────────────
+
+const IMAGE_EXTENSIONS = new Set([
+	"jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "tiff", "tif", "avif",
+]);
+
+function getFileExtension(filename: string): string {
+	return filename.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isImageFile(filename: string): boolean {
+	return IMAGE_EXTENSIONS.has(getFileExtension(filename));
+}
+
+/**
+ * Read a File as a base64 DataURL and return the raw base64 string plus MIME
+ * type separately, so we can construct `data:<mime>;base64,<data>` ourselves.
+ */
+function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const result = reader.result as string;
+			// result looks like "data:<mimeType>;base64,<data>"
+			const commaIdx = result.indexOf(",");
+			const meta = result.slice(0, commaIdx); // "data:<mimeType>;base64"
+			const base64 = result.slice(commaIdx + 1);
+			const mimeType = meta.replace("data:", "").replace(";base64", "");
+			resolve({ base64, mimeType });
+		};
+		reader.onerror = () =>
+			reject(reader.error ?? new Error("Failed to read image file"));
+		reader.readAsDataURL(file);
+	});
+}
+
+// ─── Content helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Extract the plain-text string from a message's content field, which may now
+ * be either a legacy string or a UserContentPart[].
+ */
+function getMessageText(content: string | UserContentPart[]): string {
+	if (typeof content === "string") return content;
+	return content
+		.filter((p): p is { type: "text"; text: string } => p.type === "text")
+		.map((p) => p.text)
+		.join("\n");
+}
+
+/**
+ * Extract all image data-URLs from a message's content field.
+ */
+function getMessageImages(content: string | UserContentPart[]): string[] {
+	if (typeof content === "string") return [];
+	return content
+		.filter(
+			(p): p is { type: "image_url"; image_url: { url: string } } =>
+				p.type === "image_url",
+		)
+		.map((p) => p.image_url.url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function processTextForDisplay(text: string): string {
 	let result = '';
 	let i = 0;
@@ -1909,23 +1998,81 @@ audioBtn.addEventListener("click", () => {
 updateToolButtonVisibility();
 updateToolButtonActiveState();
 
-let attachedFiles = [];
+// ─── Attached-file state ──────────────────────────────────────────────────────
+
+let attachedFiles: AttachedFile[] = [];
 
 attachBtn.addEventListener("click", () => fileInput.click());
 
+// Accept all file types in the HTML; we detect images by extension at read time.
 fileInput.addEventListener("change", async (e) => {
-	const files = Array.from(e.target.files);
+	const files = Array.from((e.target as HTMLInputElement).files ?? []);
 	for (const file of files) {
-		const text = await file.text();
-		attachedFiles.push({ name: file.name, content: text });
+		if (isImageFile(file.name)) {
+			try {
+				const { base64, mimeType } = await readFileAsBase64(file);
+				attachedFiles.push({ type: "image", name: file.name, mimeType, base64 });
+			} catch (err: any) {
+				showNotification({
+					message: `Failed to read image "${file.name}": ${String(err)}`,
+					type: "error",
+				});
+			}
+		} else {
+			const text = await file.text();
+			attachedFiles.push({ type: "text", name: file.name, content: text });
+		}
 	}
+	// Reset the input so the same file can be re-selected if needed.
+	fileInput.value = "";
 	renderFileIndicator();
 });
 
-function formatAttachedFiles(files): string {
+// ─── Build the content array for a user message ───────────────────────────────
+
+/**
+ * Build a UserContentPart[] from the typed prompt text and any attached files.
+ *
+ * - Text files are folded into the text part as a markdown <details> block
+ *   (preserving the existing behaviour).
+ * - Image files become separate `image_url` parts.
+ *
+ * Returns a plain string when there are no images (backward-compatible with
+ * older sessions that stored content as a string).
+ */
+function buildUserMessageContent(
+	promptText: string,
+	files: AttachedFile[],
+): string | UserContentPart[] {
+	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
+	const imageFiles = files.filter((f): f is AttachedImageFile => f.type === "image");
+
+	// Compose the text portion (prompt + attached text files).
+	const fileBlock = formatAttachedTextFiles(textFiles);
+	const fullText = promptText + (fileBlock ? "\n\n" + fileBlock : "");
+
+	// If there are no images, keep the legacy flat-string format.
+	if (imageFiles.length === 0) {
+		return fullText;
+	}
+
+	// Otherwise return a content array.
+	const parts: UserContentPart[] = [{ type: "text", text: fullText }];
+	for (const img of imageFiles) {
+		parts.push({
+			type: "image_url",
+			image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+		});
+	}
+	return parts;
+}
+
+// ─── Text-file formatting (unchanged logic, extracted to its own function) ────
+
+function formatAttachedTextFiles(files: AttachedTextFile[]): string {
 	if (files.length === 0) return "";
 
-	let output: string = `<details><summary>Attached Files</summary>\n\n`;
+	let output = `<details><summary>Attached Files</summary>\n\n`;
 	for (const file of files) {
 		output += `\n<details><summary>${file.name}</summary>\n\n`;
 		output += "```\n" + file.content + "\n```\n";
@@ -1933,6 +2080,15 @@ function formatAttachedFiles(files): string {
 	}
 	output += `\n</details>\n`;
 	return output;
+}
+
+/**
+ * Legacy wrapper kept so any remaining callers still compile.
+ * @deprecated Use buildUserMessageContent instead.
+ */
+function formatAttachedFiles(files: AttachedFile[]): string {
+	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
+	return formatAttachedTextFiles(textFiles);
 }
 
 async function pullModel(name: string): Promise<void> {
@@ -2136,11 +2292,18 @@ form.addEventListener("submit", async (e) => {
 	const session = sessions[currentSessionId];
 	activeToolSessionId = currentSessionId;
 	session.model = model;
-	const fileBlock = formatAttachedFiles(attachedFiles);
-	const fullPrompt = prompt + "\n\n" + fileBlock;
+
+	// Build the content (string for text-only, array when images are attached).
+	const messageContent = buildUserMessageContent(prompt, attachedFiles);
+	// The text sent to the model for streaming is always the plain-text form.
+	const fullPromptText = typeof messageContent === "string"
+		? messageContent
+		: getMessageText(messageContent);
+
 	attachedFiles = [];
 	renderFileIndicator();
-	session.history.push({ role: "user", content: fullPrompt });
+
+	session.history.push({ role: "user", content: messageContent });
 	await renderChat();
 
 	const botBubble = document.createElement("div");
@@ -2159,7 +2322,7 @@ form.addEventListener("submit", async (e) => {
 	}
 	window.ollama.streamPrompt(
 		model,
-		fullPrompt,
+		fullPromptText,
 		{
 			search: searchEnabled,
 			searchEngine: searchEngine,
@@ -2301,7 +2464,20 @@ function renderFileIndicator() {
 	attachedFiles.forEach((file, index) => {
 		const icon = document.createElement("div");
 		icon.className = "file-icon";
-		icon.textContent = "📄";
+		// Show a thumbnail for images, document emoji for text files.
+		if (file.type === "image") {
+			const thumb = document.createElement("img");
+			thumb.src = `data:${file.mimeType};base64,${file.base64}`;
+			thumb.alt = file.name;
+			thumb.style.width = "32px";
+			thumb.style.height = "32px";
+			thumb.style.objectFit = "cover";
+			thumb.style.borderRadius = "4px";
+			thumb.style.pointerEvents = "none";
+			icon.appendChild(thumb);
+		} else {
+			icon.textContent = "📄";
+		}
 		icon.setAttribute("data-index", String(index));
 
 		icon.addEventListener("click", (e) => {
@@ -2397,18 +2573,36 @@ newSessionBtn.addEventListener("click", createNewSession);
 	document.getElementById("session-search") as HTMLInputElement
 ).addEventListener("input", renderSessionList);
 
-function openFilePreview(file) {
-	modal.open({
-		title: file.name,
-		html: `<pre class="file-preview">${file.content}</pre>`,
-		actions: [
-			{
-				id: "close-file-preview",
-				label: "Close",
-				onClick: () => modal.close(),
-			},
-		],
-	});
+function openFilePreview(file: AttachedFile) {
+	if (file.type === "image") {
+		modal.open({
+			title: file.name,
+			html: `<img
+				src="data:${file.mimeType};base64,${file.base64}"
+				alt="${escapeHtml(file.name)}"
+				style="max-width:100%;max-height:70vh;border-radius:6px;"
+			/>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	} else {
+		modal.open({
+			title: file.name,
+			html: `<pre class="file-preview">${escapeHtml(file.content)}</pre>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	}
 }
 
 async function setTitle() {
@@ -2460,9 +2654,10 @@ function createMessageActionButton(
 function openEditMessageDialog(messageIndex: number): void {
 	const history = getCurrentSessionMessages();
 	const message = history?.[messageIndex];
-	if (!message || typeof message.content !== "string") {
-		return;
-	}
+	if (!message) return;
+
+	// For array content, only allow editing the text part.
+	const currentText = getMessageText(message.content);
 
 	editModal.open({
 		title: "Edit Message",
@@ -2472,7 +2667,7 @@ function openEditMessageDialog(messageIndex: number): void {
 				class="modal-input"
 				rows="8"
 				style="width:100%; resize:vertical;"
-			>${escapeHtml(message.content)}</textarea>
+			>${escapeHtml(currentText)}</textarea>
 		`,
 		actions: [
 			{
@@ -2487,9 +2682,7 @@ function openEditMessageDialog(messageIndex: number): void {
 					const input = document.getElementById(
 						"edit-message-input",
 					) as HTMLTextAreaElement;
-					if (!input) {
-						return;
-					}
+					if (!input) return;
 
 					const updated = input.value;
 					if (!updated.trim()) {
@@ -2506,7 +2699,20 @@ function openEditMessageDialog(messageIndex: number): void {
 						return;
 					}
 
-					latestHistory[messageIndex].content = updated;
+					const existing = latestHistory[messageIndex];
+					if (Array.isArray(existing.content)) {
+						// Keep image parts, replace only the text part.
+						const imageParts = existing.content.filter(
+							(p: UserContentPart) => p.type === "image_url",
+						);
+						latestHistory[messageIndex].content = [
+							{ type: "text", text: updated },
+							...imageParts,
+						];
+					} else {
+						latestHistory[messageIndex].content = updated;
+					}
+
 					await persistSessionsAndSync();
 					await renderChat();
 					editModal.close();
@@ -2557,7 +2763,8 @@ function buildMessageActions(
 	const actions = document.createElement("div");
 	actions.className = "chat-message-actions";
 
-	const canEdit = typeof msg.content === "string" && msg.content.length > 0;
+	const contentText = getMessageText(msg.content);
+	const canEdit = contentText.length > 0;
 	if (canEdit) {
 		actions.appendChild(
 			createMessageActionButton("Edit", "Edit message", () =>
@@ -2574,7 +2781,7 @@ function buildMessageActions(
 
 	actions.appendChild(
 		createMessageActionButton("Copy", "Copy message", async () => {
-			const content = typeof msg.content === "string" ? msg.content : "";
+			const content = getMessageText(msg.content);
 			try {
 				await navigator.clipboard.writeText(content);
 				showNotification({
@@ -2627,10 +2834,49 @@ async function renderChat() {
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble has-message-actions";
+
+			// Render the text portion via markdown.
+			const textContent = getMessageText(msg.content);
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
-				msg.content || "",
+				textContent || "",
 			);
+
+			// Render any inline images that were attached to this message.
+			const imageUrls = getMessageImages(msg.content);
+			for (const url of imageUrls) {
+				const imgWrapper = document.createElement("div");
+				imgWrapper.className = "user-attached-image-wrapper";
+
+				const img = document.createElement("img");
+				img.src = url;
+				img.alt = "Attached image";
+				img.className = "user-attached-image";
+				img.style.maxWidth = "100%";
+				img.style.maxHeight = "320px";
+				img.style.borderRadius = "8px";
+				img.style.marginTop = "8px";
+				img.style.display = "block";
+				img.style.cursor = "pointer";
+				// Click to open full-size in a modal.
+				img.addEventListener("click", () => {
+					modal.open({
+						title: "Attached image",
+						html: `<img src="${url}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
+						actions: [
+							{
+								id: "close-img-modal",
+								label: "Close",
+								onClick: () => modal.close(),
+							},
+						],
+					});
+				});
+
+				imgWrapper.appendChild(img);
+				bubble.appendChild(imgWrapper);
+			}
+
 			const actions = buildMessageActions(msg, messageIndex);
 			if (actions) {
 				bubble.appendChild(actions);
