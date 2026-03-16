@@ -23,7 +23,7 @@
     "fix-path": "^5.0.0",
     "html-to-text": "^9.0.5",
     "markdown-it": "^14.1.1",
-    "openai": "^6.27.0",
+    "openai": "^6.29.0",
     "sanitize-html": "^2.17.1",
     "systeminformation": "^5.31.1",
     "@gradio/client": "^2.1.0"
