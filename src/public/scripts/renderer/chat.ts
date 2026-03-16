@@ -3158,6 +3158,11 @@ async function renderChat() {
 			);
 
 			// Render any inline images that were attached to this message.
+			/*
+			🚨 issue (security): Rendering attached images via string HTML interpolation is vulnerable to XSS if image_url.url is ever untrusted.
+
+			Since url comes from persisted session content (including remote sync), an attacker could inject something like " onerror="... and have it end up inside the <img> element if constructed via HTML strings. To prevent XSS, construct the modal DOM with document.createElement and element.src = url instead of string interpolation, or at least escape url before use. The same applies to the image-click modal; using safe DOM APIs consistently there would mitigate this risk.
+			*/
 			const imageUrls = getMessageImages(msg.content);
 			for (const url of imageUrls) {
 				const imgWrapper = document.createElement("div");
@@ -3175,9 +3180,10 @@ async function renderChat() {
 				img.style.cursor = "pointer";
 				// Click to open full-size in a modal.
 				img.addEventListener("click", () => {
+					const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 					modal.open({
 						title: "Attached image",
-						html: `<img src="${url}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
+						html: `<img src="${safeUrl}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
 						actions: [
 							{
 								id: "close-img-modal",

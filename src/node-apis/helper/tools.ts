@@ -433,9 +433,10 @@ export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }
 }
 
 export async function fetchSupportedVisionModels(): Promise<{ supportsVision: string[] }> {
-    const response = await fetch(
-        "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/visionSupportingModels.json"
-    );
+    const trace = `vision-models-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const response = await fetchWithRetry(trace, "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/visionSupportingModels.json", {
+        method: "GET",
+    });
 
     if (!response.ok) {
         throw new Error(`Failed to fetch vision-supporting models: ${response.statusText}`);
