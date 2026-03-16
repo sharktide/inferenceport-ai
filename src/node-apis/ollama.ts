@@ -32,7 +32,7 @@ import {
 	getServerLogs,
 } from "./helper/server.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
-import { cache, fetchSupportedTools } from "./helper/tools.js";
+import { cache, fetchSupportedTools, fetchSupportedVisionModels } from "./helper/tools.js";
 const execFileAsync = promisify(execFile);
 
 const isDev = !app.isPackaged;
@@ -57,6 +57,7 @@ const dataDir: string = path.join(app.getPath("userData"), "chat-sessions");
 const sessionFile: string = path.join(dataDir, "sessions.json");
 
 const dataFilePath = path.join(dataDir, "supportsTools.json");
+const visionDataFilePath = path.join(dataDir, "supportsVision.json");
 
 function isPortOpen(port: number, host = "127.0.0.1", timeout = 2000) {
 	return new Promise((resolve) => {
@@ -143,6 +144,29 @@ export default function register(): void {
 			return parsed;
 		} catch {
 			return { supportsTools: [] };
+		}
+	});
+
+	ipcMain.handle("ollama:fetch-vision-models", async () => {
+		return await fetchSupportedVisionModels();
+	});
+
+	ipcMain.handle("ollama:get-vision-models", async () => {
+		if (cache.cachedSupportsVision) {
+			return { supportsVision: cache.cachedSupportsVision };
+		}
+
+		if (cache.visionWriteInProgress) {
+			await cache.visionWriteInProgress;
+		}
+
+		try {
+			const data = await fs.promises.readFile(visionDataFilePath, "utf-8");
+			const parsed = JSON.parse(data) as { supportsVision: string[] };
+			cache.cachedSupportsVision = parsed.supportsVision;
+			return parsed;
+		} catch {
+			return { supportsVision: [] };
 		}
 	});
 

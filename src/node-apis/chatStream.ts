@@ -1,5 +1,11 @@
 import { ipcMain } from "electron";
-import type { ToolList, ToolDefinition, ChatHistoryEntry } from "./types/index.types.d.ts";
+import type {
+	ToolList,
+	ToolDefinition,
+	ChatHistoryEntry,
+	MessageContent,
+	UserContentPart,
+} from "./types/index.types.d.ts";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
@@ -333,13 +339,21 @@ function waitForAudioRequestInput(
 const systemPrompt =
 	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. You can create SVG images by outputting the SVG code in a code block labeled with 'svg'. For example: ```svg <svg>...</svg>``` Always use the triple tick marks to close and open, and include the letters svg exactly like ```svg, then add a new line to render properly between all tick marks and xml. This will be rendered as an image for the user. Do not be technical with the user unless they ask for it.";
 
+function flattenNonUserContent(content: MessageContent): string {
+	if (typeof content === "string") return content;
+	return content
+		.filter((p): p is Extract<UserContentPart, { type: "text" }> => p.type === "text")
+		.map((p) => p.text)
+		.join("\n");
+}
+
 function messagesForModel(history: ChatHistoryEntry[]): any[] {
 	return history.map((m) => {
 		if (m.role === "tool") {
 			return {
 				role: "tool",
 				tool_call_id: (m as any).tool_call_id,
-				content: m.content,
+				content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
 			};
 		}
 
@@ -351,7 +365,12 @@ function messagesForModel(history: ChatHistoryEntry[]): any[] {
 			};
 		}
 
-		return { role: m.role, content: m.content };
+		// Only user messages may legally be multimodal content arrays for Chat Completions.
+		if (m.role === "user") {
+			return { role: "user", content: m.content };
+		}
+
+		return { role: m.role, content: flattenNonUserContent(m.content) };
 	});
 }
 
@@ -488,7 +507,7 @@ export default function registerChatStream() {
 		async (
 			event: IpcMainEvent,
 			modelName: string,
-			userMessage: string,
+			userMessage: MessageContent,
 			toolList: ToolList,
 			clientUrl?: string,
 			sessionId?: string,

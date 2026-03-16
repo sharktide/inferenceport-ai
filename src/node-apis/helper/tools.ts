@@ -7,7 +7,9 @@ import { getSession } from "../auth.js";
 import { getLightningClientId } from "./lightningClient.js";
 export const cache ={
   	cachedSupportsTools: null as string[] | null,
-	writeInProgress: null as Promise<void> | null
+	cachedSupportsVision: null as string[] | null,
+	writeInProgress: null as Promise<void> | null,
+	visionWriteInProgress: null as Promise<void> | null
 }
 import { app } from "electron"
 async function fetchWithRetry(
@@ -428,4 +430,69 @@ export async function fetchSupportedTools(): Promise<{ supportsTools: string[] }
     cache.writeInProgress = null;
 
     return { supportsTools };
+}
+
+export async function fetchSupportedVisionModels(): Promise<{ supportsVision: string[] }> {
+    const trace = `vision-models-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const response = await fetchWithRetry(trace, "https://cdn.jsdelivr.net/gh/sharktide/inferenceport-ai@main/MISC/prod/visionSupportingModels.json", {
+        method: "GET",
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch vision-supporting models: ${response.statusText}`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") ?? "0");
+    if (contentLength > 50_000) {
+        throw new Error("Payload too large — rejecting for safety");
+    }
+
+    let data: unknown;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error("Failed to parse JSON");
+    }
+
+    if (!Array.isArray(data)) {
+        throw new Error("Invalid JSON: expected a string[]");
+    }
+
+    for (const item of data) {
+        if (typeof item !== "string") {
+            throw new Error("Invalid JSON: all items must be strings");
+        }
+
+        if (/[\u0000-\u001F]/.test(item)) {
+            throw new Error("Invalid JSON: contains control characters");
+        }
+
+        if (/[<>]/.test(item)) {
+            throw new Error("Invalid JSON: contains HTML-like characters");
+        }
+
+        if (item.length > 200) {
+            throw new Error("Invalid JSON: string too long");
+        }
+    }
+
+    if (data.length > 2000) {
+        throw new Error("Invalid JSON: too many entries");
+    }
+
+    const supportsVision = data as string[];
+
+    cache.cachedSupportsVision = supportsVision;
+
+    await ensureDir();
+    const writeTask = fs.promises.writeFile(
+        path.join(app.getPath("userData"), "chat-sessions", "supportsVision.json"),
+        JSON.stringify({ supportsVision }, null, 2),
+        "utf-8"
+    );
+    cache.visionWriteInProgress = writeTask;
+    await writeTask;
+    cache.visionWriteInProgress = null;
+
+    return { supportsVision };
 }

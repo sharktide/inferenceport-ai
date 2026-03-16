@@ -1,9 +1,18 @@
 export type Role = "user" | "assistant" | "tool" | "system" | "image" | "video" | "audio";
 export type AssetRole = "image" | "video" | "audio";
 
+// OpenAI Chat Completions-style multimodal user content parts (vision input).
+// We keep this minimal and JSON-serializable because it's persisted in sessions
+// and passed over Electron IPC.
+export type UserContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type MessageContent = string | UserContentPart[];
+
 export type ChatMessage = {
   role: Role;
-  content: string;
+  content: MessageContent;
   tool_calls?: ToolCall[];
 };
 
@@ -38,7 +47,7 @@ export type Sessions = Record<string, Session>;
 
 export type ChatHistoryEntry = {
 	role: "system" | "user" | "assistant" | "tool";
-	content: string;
+	content: MessageContent;
 	tool_call_id?: string;
 	tool_calls?: ToolCall[];
 };

@@ -35,6 +35,126 @@ const dataDir = window.ollama.getPath();
 
 const sessionFile = `${dataDir}/sessions.json`;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** A single part of a user message content array. */
+type UserContentPart =
+	| { type: "text"; text: string }
+	| { type: "image_url"; image_url: { url: string } };
+
+/** An attached file that is plain text. */
+interface AttachedTextFile {
+	type: "text";
+	name: string;
+	content: string;
+	/** Optional preview (used for SVG-as-XML attachments). */
+	previewDataUrl?: string;
+	previewMimeType?: string;
+}
+
+/** An attached file that is an image (stored as base64). */
+interface AttachedImageFile {
+	type: "image";
+	name: string;
+	mimeType: string;
+	base64: string;
+}
+
+type AttachedFile = AttachedTextFile | AttachedImageFile;
+
+// ─── Image-extension helpers ──────────────────────────────────────────────────
+
+const RASTER_IMAGE_EXTENSIONS = new Set([
+	"jpg",
+	"jpeg",
+	"png",
+	"gif",
+	"webp",
+	"bmp",
+	"ico",
+	"tiff",
+	"tif",
+	"avif",
+]);
+
+function getFileExtension(filename: string): string {
+	return filename.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isRasterImageFile(filename: string): boolean {
+	return RASTER_IMAGE_EXTENSIONS.has(getFileExtension(filename));
+}
+
+function isSvgFilename(filename: string): boolean {
+	return getFileExtension(filename) === "svg";
+}
+
+function isSvgFile(file: File): boolean {
+	return isSvgFilename(file.name) || file.type === "image/svg+xml";
+}
+
+function isNonSvgImageFile(file: File): boolean {
+	if (isSvgFile(file)) return false;
+	return file.type.startsWith("image/") || isRasterImageFile(file.name);
+}
+
+function svgTextToPreviewDataUrl(svgText: string): string {
+	// URL-encode to keep the preview safe and avoid Unicode/base64 pitfalls.
+	const encoded = encodeURIComponent(svgText);
+	return `data:image/svg+xml;charset=utf-8,${encoded}`;
+}
+
+/**
+ * Read a File as a base64 DataURL and return the raw base64 string plus MIME
+ * type separately, so we can construct `data:<mime>;base64,<data>` ourselves.
+ */
+function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const result = reader.result as string;
+			// result looks like "data:<mimeType>;base64,<data>"
+			const commaIdx = result.indexOf(",");
+			const meta = result.slice(0, commaIdx); // "data:<mimeType>;base64"
+			const base64 = result.slice(commaIdx + 1);
+			const mimeType = meta.replace("data:", "").replace(";base64", "");
+			resolve({ base64, mimeType });
+		};
+		reader.onerror = () =>
+			reject(reader.error ?? new Error("Failed to read image file"));
+		reader.readAsDataURL(file);
+	});
+}
+
+// ─── Content helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Extract the plain-text string from a message's content field, which may now
+ * be either a legacy string or a UserContentPart[].
+ */
+function getMessageText(content: string | UserContentPart[]): string {
+	if (typeof content === "string") return content;
+	return content
+		.filter((p): p is { type: "text"; text: string } => p.type === "text")
+		.map((p) => p.text)
+		.join("\n");
+}
+
+/**
+ * Extract all image data-URLs from a message's content field.
+ */
+function getMessageImages(content: string | UserContentPart[]): string[] {
+	if (typeof content === "string") return [];
+	return content
+		.filter(
+			(p): p is { type: "image_url"; image_url: { url: string } } =>
+				p.type === "image_url",
+		)
+		.map((p) => p.image_url.url);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function processTextForDisplay(text: string): string {
 	let result = '';
 	let i = 0;
@@ -78,6 +198,16 @@ const welcomeCards = document.getElementById(
 	"welcome-cards",
 ) as HTMLDivElement | null;
 const fileInput = document.getElementById("file-upload") as HTMLInputElement;
+let imageInput = document.getElementById("image-upload") as HTMLInputElement | null;
+if (!imageInput) {
+	imageInput = document.createElement("input");
+	imageInput.type = "file";
+	imageInput.id = "image-upload";
+	imageInput.multiple = true;
+	imageInput.accept = "image/*";
+	imageInput.style.display = "none";
+	fileInput.insertAdjacentElement("afterend", imageInput);
+}
 const attachBtn = document.getElementById("attach-btn") as HTMLButtonElement;
 const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
@@ -903,6 +1033,7 @@ function setLightningEnabled(enabled: boolean): void {
 	}
 	applyLightningState();
 	void setToolSupport();
+	setVisionSupport();
 }
 
 function initLightningToggleEvents(): void {
@@ -995,7 +1126,11 @@ document.addEventListener("DOMContentLoaded", () => {
 	svgSidePanel.style.resize = "horizontal";
 	document.body.appendChild(svgSidePanel);
 });
-modelSelect?.addEventListener("change", setTitle);
+modelSelect?.addEventListener("change", () => {
+	void setTitle();
+	void setToolSupport();
+	setVisionSupport();
+});
 const urlParams = new URLSearchParams(window.location.search);
 interface RemoteHost {
 	url: string;
@@ -1004,6 +1139,14 @@ interface RemoteHost {
 
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
+}
+
+function normalizeModelIdForCapabilities(modelValue: string): string {
+	return modelValue
+		.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
+		.split(":")[0]
+		.replace(/-gguf72$/i, "")
+		.toLowerCase();
 }
 
 function isSyncEnabled() {
@@ -1016,6 +1159,8 @@ function isSyncEnabled() {
 
 let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
+let modelsSupportsVision: string[] = [];
+let visionNotice: string | null = null;
 
 async function setToolSupport() {
 	if (lightningEnabled) {
@@ -1025,7 +1170,7 @@ async function setToolSupport() {
 	}
 
 	if (
-		modelsSupportsTools.includes(modelSelect.value.split(":")[0]) ||
+		modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelSelect.value)) ||
 		toolNotice
 	) {
 		typingBar.classList.remove("no-tools");
@@ -1034,6 +1179,39 @@ async function setToolSupport() {
 		typingBar.classList.add("no-tools");
 		featureWarning.style.display = "block";
 	}
+}
+
+function modelSupportsToolsForRequest(modelName: string): boolean {
+	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return true;
+	if (toolNotice) return true;
+	return modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelName));
+}
+
+function modelSupportsVisionForRequest(modelName: string): boolean {
+	if (modelName === LIGHTNING_MODEL_VALUE || lightningEnabled) return true;
+	return modelsSupportsVision.includes(normalizeModelIdForCapabilities(modelName));
+}
+
+function setVisionSupport(): void {
+	enforceVisionAttachmentPolicy();
+}
+
+function enforceVisionAttachmentPolicy(): void {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	const supportsVision = modelSupportsVisionForRequest(modelValue);
+	if (supportsVision) return;
+
+	const removedCount = attachedFiles.filter((f) => f.type === "image").length;
+	if (!removedCount) return;
+
+	attachedFiles = attachedFiles.filter((f) => f.type !== "image");
+	renderFileIndicator();
+
+	showNotification({
+		message:
+			`Removed ${removedCount} image attachment${removedCount === 1 ? "" : "s"} — the selected model does not support vision.`,
+		type: "warning",
+	});
 }
 
 let sessionProgress = 0;
@@ -1300,13 +1478,32 @@ async function loadOptions() {
 		try {
 			const { supportsTools } =
 				await window.ollama.getToolSupportingModels();
-			modelsSupportsTools = supportsTools || [];
+			modelsSupportsTools = (supportsTools || []).map((m) =>
+				String(m).toLowerCase(),
+			);
 		} catch (e) {
 			modelsSupportsTools = [];
 			toolNotice =
 				"Could not fetch model capabilities. Tool features may not work as expected.";
 			showNotification({
 				message: toolNotice,
+				type: "warning",
+				actions: [{ label: "Dismiss", onClick: () => void 0 }],
+			});
+		}
+
+		try {
+			const { supportsVision } =
+				await window.ollama.getVisionSupportingModels();
+			modelsSupportsVision = (supportsVision || []).map((m) =>
+				String(m).toLowerCase(),
+			);
+		} catch (e) {
+			modelsSupportsVision = [];
+			visionNotice =
+				"Could not fetch vision model capabilities. Image uploads are disabled.";
+			showNotification({
+				message: visionNotice,
 				type: "warning",
 				actions: [{ label: "Dismiss", onClick: () => void 0 }],
 			});
@@ -1420,6 +1617,7 @@ async function loadOptions() {
 			void 0;
 		}
 		void setToolSupport();
+		setVisionSupport();
 	} catch (err) {
 		console.error(err);
 		modelSelect.innerHTML = `<option>Error loading models</option>`;
@@ -1509,6 +1707,9 @@ async function reloadModelsForHost(hostValue: string) {
 		) {
 			modelSelect.selectedIndex = 0;
 		}
+
+		void setToolSupport();
+		setVisionSupport();
 	} catch (err: any) {
 		console.error("Model reload failed:", err);
 
@@ -1860,7 +2061,7 @@ const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
     imgEnabled = settings.imageGen;
     videoEnabled = settings.videoGen;
     audioEnabled = settings.audioGen;
-    searchEngine = settings.searchEngines.length;
+    searchEngine = settings.searchEngines;
     currentToolSettings = settings;
     updateToolButtonVisibility();
     updateToolButtonActiveState();
@@ -1909,23 +2110,240 @@ audioBtn.addEventListener("click", () => {
 updateToolButtonVisibility();
 updateToolButtonActiveState();
 
-let attachedFiles = [];
+// ─── Attached-file state ──────────────────────────────────────────────────────
 
-attachBtn.addEventListener("click", () => fileInput.click());
+let attachedFiles: AttachedFile[] = [];
 
-fileInput.addEventListener("change", async (e) => {
-	const files = Array.from(e.target.files);
-	for (const file of files) {
-		const text = await file.text();
-		attachedFiles.push({ name: file.name, content: text });
+let attachMenuEl: HTMLDivElement | null = null;
+let attachMenuDocHandler: ((event: MouseEvent) => void) | null = null;
+let attachMenuKeyHandler: ((event: KeyboardEvent) => void) | null = null;
+
+function canUploadImages(): boolean {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	return modelSupportsVisionForRequest(modelValue);
+}
+
+function ensureAttachMenu(): HTMLDivElement {
+	if (attachMenuEl) return attachMenuEl;
+	const menu = document.createElement("div");
+	menu.id = "attach-context-menu";
+	menu.className = "context-menu hidden";
+	menu.style.width = "190px";
+	document.body.appendChild(menu);
+	attachMenuEl = menu;
+	return menu;
+}
+
+function closeAttachMenu(): void {
+	if (!attachMenuEl) return;
+	attachMenuEl.classList.add("hidden");
+	if (attachMenuDocHandler) {
+		document.removeEventListener("click", attachMenuDocHandler);
+		attachMenuDocHandler = null;
 	}
+	if (attachMenuKeyHandler) {
+		document.removeEventListener("keydown", attachMenuKeyHandler);
+		attachMenuKeyHandler = null;
+	}
+}
+
+function openAttachMenu(): void {
+	const menu = ensureAttachMenu();
+	menu.innerHTML = "";
+
+	const addItem = (label: string, onClick: () => void) => {
+		const item = document.createElement("div");
+		item.className = "context-item";
+		item.textContent = label;
+		item.addEventListener("click", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			closeAttachMenu();
+			onClick();
+		});
+		menu.appendChild(item);
+	};
+
+	addItem("📄 Upload file", () => fileInput.click());
+	if (canUploadImages()) {
+		addItem("🖼️ Upload image", () => imageInput?.click());
+	}
+
+	menu.classList.remove("hidden");
+
+	const btnRect = attachBtn.getBoundingClientRect();
+	const menuRect = menu.getBoundingClientRect();
+
+	let left = btnRect.left + window.scrollX;
+	let top = btnRect.top + window.scrollY - menuRect.height - 8;
+
+	if (top < 8) {
+		top = btnRect.bottom + window.scrollY + 8;
+	}
+
+	if (left + menuRect.width > window.innerWidth - 8) {
+		left = Math.max(8, window.innerWidth - menuRect.width - 8);
+	}
+
+	menu.style.left = `${left}px`;
+	menu.style.top = `${top}px`;
+
+	attachMenuDocHandler = (event: MouseEvent) => {
+		const target = event.target as Node | null;
+		if (!target) {
+			closeAttachMenu();
+			return;
+		}
+		if (menu.contains(target)) return;
+		closeAttachMenu();
+	};
+
+	attachMenuKeyHandler = (event: KeyboardEvent) => {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			closeAttachMenu();
+		}
+	};
+
+	// Register handlers after this click stack finishes so the menu doesn't close
+	// immediately from the same click that opened it.
+	queueMicrotask(() => {
+		if (!attachMenuEl || attachMenuEl.classList.contains("hidden")) return;
+		if (attachMenuDocHandler) document.addEventListener("click", attachMenuDocHandler);
+		if (attachMenuKeyHandler)
+			document.addEventListener("keydown", attachMenuKeyHandler);
+	});
+}
+
+function toggleAttachMenu(): void {
+	const menu = ensureAttachMenu();
+	const isOpen = !menu.classList.contains("hidden");
+	if (isOpen) closeAttachMenu();
+	else openAttachMenu();
+}
+
+attachBtn.addEventListener("click", (event) => {
+	event.preventDefault();
+	event.stopPropagation();
+	toggleAttachMenu();
+});
+
+// "Upload file": attach text files, plus SVG-as-XML (with an image preview).
+fileInput.addEventListener("change", async (e) => {
+	const files = Array.from((e.target as HTMLInputElement).files ?? []);
+	for (const file of files) {
+		if (isNonSvgImageFile(file)) {
+			const visionAvailable = canUploadImages();
+			showNotification({
+				message: visionAvailable
+					? `Image "${file.name}" must be uploaded via "Upload image".`
+					: `Image "${file.name}" cannot be attached — the selected model does not support vision.`,
+				type: "warning",
+			});
+			continue;
+		}
+
+		const text = await file.text();
+		if (isSvgFile(file)) {
+			attachedFiles.push({
+				type: "text",
+				name: file.name,
+				content: text,
+				previewMimeType: "image/svg+xml",
+				previewDataUrl: svgTextToPreviewDataUrl(text),
+			});
+		} else {
+			attachedFiles.push({ type: "text", name: file.name, content: text });
+		}
+	}
+	// Reset the input so the same file can be re-selected if needed.
+	fileInput.value = "";
 	renderFileIndicator();
 });
 
-function formatAttachedFiles(files): string {
+// "Upload image": only available for vision-capable models.
+imageInput?.addEventListener("change", async (e) => {
+	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
+	if (!modelSupportsVisionForRequest(modelValue)) {
+		showNotification({
+			message: "The selected model does not support image input.",
+			type: "warning",
+		});
+		(imageInput as HTMLInputElement).value = "";
+		return;
+	}
+
+	const files = Array.from((e.target as HTMLInputElement).files ?? []);
+	for (const file of files) {
+		if (!file.type.startsWith("image/") && !isRasterImageFile(file.name) && !isSvgFile(file)) {
+			showNotification({
+				message: `Only image files are supported (got "${file.name}").`,
+				type: "warning",
+			});
+			continue;
+		}
+
+		try {
+			const { base64, mimeType } = await readFileAsBase64(file);
+			attachedFiles.push({ type: "image", name: file.name, mimeType, base64 });
+		} catch (err: any) {
+			showNotification({
+				message: `Failed to read image "${file.name}": ${String(err)}`,
+				type: "error",
+			});
+		}
+	}
+
+	// Reset the input so the same file can be re-selected if needed.
+	(imageInput as HTMLInputElement).value = "";
+	renderFileIndicator();
+});
+
+// ─── Build the content array for a user message ───────────────────────────────
+
+/**
+ * Build a UserContentPart[] from the typed prompt text and any attached files.
+ *
+ * - Text files are folded into the text part as a markdown <details> block
+ *   (preserving the existing behaviour).
+ * - Image files become separate `image_url` parts.
+ *
+ * Returns a plain string when there are no images (backward-compatible with
+ * older sessions that stored content as a string).
+ */
+function buildUserMessageContent(
+	promptText: string,
+	files: AttachedFile[],
+): string | UserContentPart[] {
+	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
+	const imageFiles = files.filter((f): f is AttachedImageFile => f.type === "image");
+
+	// Compose the text portion (prompt + attached text files).
+	const fileBlock = formatAttachedTextFiles(textFiles);
+	const fullText = promptText + (fileBlock ? "\n\n" + fileBlock : "");
+
+	// If there are no images, keep the legacy flat-string format.
+	if (imageFiles.length === 0) {
+		return fullText;
+	}
+
+	// Otherwise return a content array.
+	const parts: UserContentPart[] = [{ type: "text", text: fullText }];
+	for (const img of imageFiles) {
+		parts.push({
+			type: "image_url",
+			image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
+		});
+	}
+	return parts;
+}
+
+// ─── Text-file formatting (unchanged logic, extracted to its own function) ────
+
+function formatAttachedTextFiles(files: AttachedTextFile[]): string {
 	if (files.length === 0) return "";
 
-	let output: string = `<details><summary>Attached Files</summary>\n\n`;
+	let output = `<details><summary>Attached Files</summary>\n\n`;
 	for (const file of files) {
 		output += `\n<details><summary>${file.name}</summary>\n\n`;
 		output += "```\n" + file.content + "\n```\n";
@@ -1933,6 +2351,15 @@ function formatAttachedFiles(files): string {
 	}
 	output += `\n</details>\n`;
 	return output;
+}
+
+/**
+ * Legacy wrapper kept so any remaining callers still compile.
+ * @deprecated Use buildUserMessageContent instead.
+ */
+function formatAttachedFiles(files: AttachedFile[]): string {
+	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
+	return formatAttachedTextFiles(textFiles);
 }
 
 async function pullModel(name: string): Promise<void> {
@@ -2136,11 +2563,34 @@ form.addEventListener("submit", async (e) => {
 	const session = sessions[currentSessionId];
 	activeToolSessionId = currentSessionId;
 	session.model = model;
-	const fileBlock = formatAttachedFiles(attachedFiles);
-	const fullPrompt = prompt + "\n\n" + fileBlock;
+
+	// Build the content (string for text-only, array when images are attached).
+	const supportsVisionForRequest = modelSupportsVisionForRequest(model);
+	const droppedImages = supportsVisionForRequest
+		? 0
+		: attachedFiles.filter((f) => f.type === "image").length;
+	const effectiveAttachedFiles = supportsVisionForRequest
+		? attachedFiles
+		: attachedFiles.filter((f) => f.type !== "image");
+
+	if (droppedImages > 0) {
+		showNotification({
+			message:
+				`Removed ${droppedImages} image attachment${droppedImages === 1 ? "" : "s"} — the selected model does not support vision.`,
+			type: "warning",
+		});
+	}
+
+	const messageContent = buildUserMessageContent(prompt, effectiveAttachedFiles);
+	// The text sent to the model for streaming is always the plain-text form.
+	const fullPromptText = typeof messageContent === "string"
+		? messageContent
+		: getMessageText(messageContent);
+
 	attachedFiles = [];
 	renderFileIndicator();
-	session.history.push({ role: "user", content: fullPrompt });
+
+	session.history.push({ role: "user", content: messageContent });
 	await renderChat();
 
 	const botBubble = document.createElement("div");
@@ -2157,15 +2607,16 @@ form.addEventListener("submit", async (e) => {
 	if (!lightningEnabled) {
 		localStorage.setItem("host_select", hostChoice);
 	}
+	const supportsToolsForRequest = modelSupportsToolsForRequest(model);
 	window.ollama.streamPrompt(
 		model,
-		fullPrompt,
+		messageContent,
 		{
-			search: searchEnabled,
+			search: supportsToolsForRequest && searchEnabled,
 			searchEngine: searchEngine,
-			imageGen: imgEnabled,
-			videoGen: videoEnabled,
-			audioGen: audioEnabled,
+			imageGen: supportsToolsForRequest && imgEnabled,
+			videoGen: supportsToolsForRequest && videoEnabled,
+			audioGen: supportsToolsForRequest && audioEnabled,
 		},
 		clientUrl,
 		currentSessionId,
@@ -2301,7 +2752,30 @@ function renderFileIndicator() {
 	attachedFiles.forEach((file, index) => {
 		const icon = document.createElement("div");
 		icon.className = "file-icon";
-		icon.textContent = "📄";
+		// Show a thumbnail for images, document emoji for text files.
+		if (file.type === "image") {
+			const thumb = document.createElement("img");
+			thumb.src = `data:${file.mimeType};base64,${file.base64}`;
+			thumb.alt = file.name;
+			thumb.style.width = "32px";
+			thumb.style.height = "32px";
+			thumb.style.objectFit = "cover";
+			thumb.style.borderRadius = "4px";
+			thumb.style.pointerEvents = "none";
+			icon.appendChild(thumb);
+		} else if (file.previewDataUrl) {
+			const thumb = document.createElement("img");
+			thumb.src = file.previewDataUrl;
+			thumb.alt = file.name;
+			thumb.style.width = "32px";
+			thumb.style.height = "32px";
+			thumb.style.objectFit = "cover";
+			thumb.style.borderRadius = "4px";
+			thumb.style.pointerEvents = "none";
+			icon.appendChild(thumb);
+		} else {
+			icon.textContent = "📄";
+		}
 		icon.setAttribute("data-index", String(index));
 
 		icon.addEventListener("click", (e) => {
@@ -2397,18 +2871,53 @@ newSessionBtn.addEventListener("click", createNewSession);
 	document.getElementById("session-search") as HTMLInputElement
 ).addEventListener("input", renderSessionList);
 
-function openFilePreview(file) {
-	modal.open({
-		title: file.name,
-		html: `<pre class="file-preview">${file.content}</pre>`,
-		actions: [
-			{
-				id: "close-file-preview",
-				label: "Close",
-				onClick: () => modal.close(),
-			},
-		],
-	});
+function openFilePreview(file: AttachedFile) {
+	if (file.type === "image") {
+		modal.open({
+			title: file.name,
+			html: `<img
+				src="data:${file.mimeType};base64,${file.base64}"
+				alt="${escapeHtml(file.name)}"
+				style="max-width:100%;max-height:70vh;border-radius:6px;"
+			/>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	} else if (file.previewDataUrl) {
+		modal.open({
+			title: file.name,
+			html: `<img
+				src="${escapeHtml(file.previewDataUrl)}"
+				alt="${escapeHtml(file.name)}"
+				style="max-width:100%;max-height:45vh;border-radius:6px;margin-bottom:10px;"
+			/>
+			<pre class="file-preview">${escapeHtml(file.content)}</pre>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	} else {
+		modal.open({
+			title: file.name,
+			html: `<pre class="file-preview">${escapeHtml(file.content)}</pre>`,
+			actions: [
+				{
+					id: "close-file-preview",
+					label: "Close",
+					onClick: () => modal.close(),
+				},
+			],
+		});
+	}
 }
 
 async function setTitle() {
@@ -2460,9 +2969,10 @@ function createMessageActionButton(
 function openEditMessageDialog(messageIndex: number): void {
 	const history = getCurrentSessionMessages();
 	const message = history?.[messageIndex];
-	if (!message || typeof message.content !== "string") {
-		return;
-	}
+	if (!message) return;
+
+	// For array content, only allow editing the text part.
+	const currentText = getMessageText(message.content);
 
 	editModal.open({
 		title: "Edit Message",
@@ -2472,7 +2982,7 @@ function openEditMessageDialog(messageIndex: number): void {
 				class="modal-input"
 				rows="8"
 				style="width:100%; resize:vertical;"
-			>${escapeHtml(message.content)}</textarea>
+			>${escapeHtml(currentText)}</textarea>
 		`,
 		actions: [
 			{
@@ -2487,9 +2997,7 @@ function openEditMessageDialog(messageIndex: number): void {
 					const input = document.getElementById(
 						"edit-message-input",
 					) as HTMLTextAreaElement;
-					if (!input) {
-						return;
-					}
+					if (!input) return;
 
 					const updated = input.value;
 					if (!updated.trim()) {
@@ -2506,7 +3014,20 @@ function openEditMessageDialog(messageIndex: number): void {
 						return;
 					}
 
-					latestHistory[messageIndex].content = updated;
+					const existing = latestHistory[messageIndex];
+					if (Array.isArray(existing.content)) {
+						// Keep image parts, replace only the text part.
+						const imageParts = existing.content.filter(
+							(p: UserContentPart) => p.type === "image_url",
+						);
+						latestHistory[messageIndex].content = [
+							{ type: "text", text: updated },
+							...imageParts,
+						];
+					} else {
+						latestHistory[messageIndex].content = updated;
+					}
+
 					await persistSessionsAndSync();
 					await renderChat();
 					editModal.close();
@@ -2557,7 +3078,8 @@ function buildMessageActions(
 	const actions = document.createElement("div");
 	actions.className = "chat-message-actions";
 
-	const canEdit = typeof msg.content === "string" && msg.content.length > 0;
+	const contentText = getMessageText(msg.content);
+	const canEdit = contentText.length > 0;
 	if (canEdit) {
 		actions.appendChild(
 			createMessageActionButton("Edit", "Edit message", () =>
@@ -2574,7 +3096,7 @@ function buildMessageActions(
 
 	actions.appendChild(
 		createMessageActionButton("Copy", "Copy message", async () => {
-			const content = typeof msg.content === "string" ? msg.content : "";
+			const content = getMessageText(msg.content);
 			try {
 				await navigator.clipboard.writeText(content);
 				showNotification({
@@ -2627,10 +3149,55 @@ async function renderChat() {
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble has-message-actions";
+
+			// Render the text portion via markdown.
+			const textContent = getMessageText(msg.content);
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
-				msg.content || "",
+				textContent || "",
 			);
+
+			// Render any inline images that were attached to this message.
+			/*
+			🚨 issue (security): Rendering attached images via string HTML interpolation is vulnerable to XSS if image_url.url is ever untrusted.
+
+			Since url comes from persisted session content (including remote sync), an attacker could inject something like " onerror="... and have it end up inside the <img> element if constructed via HTML strings. To prevent XSS, construct the modal DOM with document.createElement and element.src = url instead of string interpolation, or at least escape url before use. The same applies to the image-click modal; using safe DOM APIs consistently there would mitigate this risk.
+			*/
+			const imageUrls = getMessageImages(msg.content);
+			for (const url of imageUrls) {
+				const imgWrapper = document.createElement("div");
+				imgWrapper.className = "user-attached-image-wrapper";
+
+				const img = document.createElement("img");
+				img.src = url;
+				img.alt = "Attached image";
+				img.className = "user-attached-image";
+				img.style.maxWidth = "100%";
+				img.style.maxHeight = "320px";
+				img.style.borderRadius = "8px";
+				img.style.marginTop = "8px";
+				img.style.display = "block";
+				img.style.cursor = "pointer";
+				// Click to open full-size in a modal.
+				img.addEventListener("click", () => {
+					const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+					modal.open({
+						title: "Attached image",
+						html: `<img src="${safeUrl}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
+						actions: [
+							{
+								id: "close-img-modal",
+								label: "Close",
+								onClick: () => modal.close(),
+							},
+						],
+					});
+				});
+
+				imgWrapper.appendChild(img);
+				bubble.appendChild(imgWrapper);
+			}
+
 			const actions = buildMessageActions(msg, messageIndex);
 			if (actions) {
 				bubble.appendChild(actions);

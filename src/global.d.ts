@@ -113,15 +113,16 @@ declare global {
 			listModels: (clientUrl?: string) => Promise<ModelInfo[]>;
 			runModel: (name: string) => Promise<string>;
 			deleteModel: (name: string, clientUrl?: string) => Promise<string>;
-			resetChat: () => Promise<void>;
+			resetChat: (sessionId?: string) => Promise<void>;
 			stop: () => void;
 			pullModel: (name: string, clientUrl?: string) => Promise<string>;
 			onPullProgress: (cb: (data: PullProgress) => void) => void;
 			streamPrompt: (
 				model: string,
-				prompt: string,
+				prompt: MessageContent,
 				toolList: {
 					search: boolean;
+					searchEngine: Array<string>;
 					imageGen: boolean;
 					videoGen: boolean;
 					audioGen: boolean;
@@ -142,6 +143,8 @@ declare global {
 			onNewAsset: (cb: (msg: any) => void) => void;
 			getToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
+			getVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
+			fetchVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
 			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
 			stopServer: () => Promise<void>;
 			onLogAppend: (callback: (chunk: string) => void) => void;
@@ -285,12 +288,20 @@ declare global {
 		output: string;
 	};
 
+	// OpenAI Chat Completions-style multimodal user content parts (vision input).
+	// Kept minimal + JSON-serializable since it's persisted and sent over IPC.
+	type UserContentPart =
+		| { type: "text"; text: string }
+		| { type: "image_url"; image_url: { url: string } };
+
+	type MessageContent = string | UserContentPart[];
+
 	type Session = {
 		model: string;
 		name: string;
 		history: Array<{
 			role: string;
-			content: string;
+			content: MessageContent;
 			tool_calls?: any[];
 		}>;
 		favorite: boolean;

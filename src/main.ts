@@ -21,7 +21,7 @@ import path from "path";
 import ollamaHandlers, {
 	serve,
 } from "./node-apis/ollama.js";
-import { fetchSupportedTools } from "./node-apis/helper/tools.js";
+import { fetchSupportedTools, fetchSupportedVisionModels } from "./node-apis/helper/tools.js";
 import utilsHandlers from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
@@ -479,6 +479,7 @@ app.whenReady().then(async () => {
 		"startWebUiServer",
 	);
 	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
+	fireAndForget(fetchSupportedVisionModels(), "fetchSupportedVisionModels");
 });
 
 app.on("before-quit", () => {
