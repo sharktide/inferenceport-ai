@@ -85,6 +85,7 @@ async function getLightningAuthHeaders(): Promise<Record<string, string>> {
 export type ImageGenerateRequest = {
 	prompt: string;
 	mode?: "auto" | "fantasy" | "realistic";
+	image_urls?: Array<string>;
 };
 
 export async function GenerateImage(
@@ -103,6 +104,10 @@ export async function GenerateImage(
 	try {
 		const body: Record<string, unknown> = { prompt: request.prompt };
 		if (request.mode) body.mode = request.mode;
+		if (Array.isArray(request.image_urls) && request.image_urls.length > 0) {
+			body.image_urls = request.image_urls;
+		}
+
 		const authHeaders = await getLightningAuthHeaders();
 
 		response = await fetch(url,
@@ -287,7 +292,7 @@ export type VideoGenerateRequest = {
 	ratio?: "3:2" | "2:3" | "1:1";
 	mode?: "normal" | "fun";
 	duration?: number;
-	image_urls?: string[];
+	image_urls?: Array<string>;
 };
 
 export async function generateVideo(
