@@ -3763,8 +3763,7 @@ function isAcceptableImageUrl(url: string): boolean {
 		url.startsWith("http://") ||
 		url.startsWith("https://") ||
 		url.startsWith("data:image/") ||
-		url.startsWith("blob:") ||
-		url.startsWith("file:")
+		url.startsWith("blob:")
 	);
 }
 

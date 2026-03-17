@@ -227,8 +227,7 @@ function normalizeImageUrls(value: unknown, type: "image" | "video"): string[] {
                 url.startsWith("http://") ||
                 url.startsWith("https://") ||
                 url.startsWith("data:image/") ||
-                url.startsWith("blob:") ||
-                url.startsWith("file:")
+                url.startsWith("blob:")
             );
         })
         .slice(0, limit);
