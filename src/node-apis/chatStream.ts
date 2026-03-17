@@ -372,8 +372,8 @@ const systemPrompt =
   "Video: provide prompt, ratio, mode, and duration; leave image_urls empty unless the user explicitly provides source images. " +
   "If the user wants to generate media from an image they have, tell them to provide a URL if it's online, or upload it after you call the tool. " +
 
-  "You can render SVG images by outputting SVG code in a code block tagged exactly as:\\n" +
-  "```svg\\n<svg>...</svg>\\n```\\n" +
+  "You can render SVG images by outputting SVG code in a code block tagged exactly as:\n" +
+  "```svg\n<svg>...</svg>\n```\n" +
   "(Always open with ```svg, then a newline, then the SVG XML, then a newline, then closing triple backticks.) " +
 
   "Never use single backslashes. Don't be overly technical unless the user asks. You may use emojis where appropriate. " +
