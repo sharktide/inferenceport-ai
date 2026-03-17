@@ -179,6 +179,31 @@ function preserveMathDelimiters(md: any) {
 
 mdit.use(detailsBlock);
 mdit.use(preserveMathDelimiters);
+
+// Escape HTML inside fenced and indented code blocks so that tags like
+// <div> render as literal text instead of being interpreted as HTML.
+function escapeHtmlInCode(str: string): string {
+	return str
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+mdit.renderer.rules.fence = (tokens, idx, options, _env, self) => {
+	const token = tokens[idx]!;
+	const info = token.info ? token.info.trim() : "";
+	const lang = info ? info.split(/\s+/)[0] : "";
+	const escaped = escapeHtmlInCode(token.content);
+	const langAttr = lang ? ` class="language-${escapeHtmlInCode(lang)}"` : "";
+	return `<pre><code${langAttr}>${escaped}</code></pre>\n`;
+};
+
+mdit.renderer.rules.code_block = (tokens, idx) => {
+	const escaped = escapeHtmlInCode(tokens[idx]!.content);
+	return `<pre><code>${escaped}</code></pre>\n`;
+};
 const defaultLinkOpenRenderer =
 	mdit.renderer.rules.link_open ||
 	function (tokens, idx, options, env, self) {
