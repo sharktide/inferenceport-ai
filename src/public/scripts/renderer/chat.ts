@@ -3416,12 +3416,25 @@ async function renderChat() {
 			if (msg.name === "generate_image") {
 				const options = getImageOptionsFromToolMessage(msg);
 				if (options) {
-					toolBubble.appendChild(
-						createToolSummaryElement([
-							["Prompt", options.prompt || "(none)"],
-							["Mode", options.mode || IMAGE_MODE_OPTIONS[0]],
-						]),
-					);
+					const summary = createToolSummaryElement([
+						["Prompt", options.prompt || "(none)"],
+						["Mode", options.mode || IMAGE_MODE_OPTIONS[0]],
+					]);
+
+					if (options.image_urls?.length) {
+						options.image_urls.forEach((item, i) => {
+							summary.appendChild(
+								createToolSummaryRow(
+									`Image ${i + 1}`,
+									createCopyableToolValueElement(item, 100),
+								),
+							);
+						});
+					} else {
+						summary.appendChild(createToolSummaryRow("Images", "None"));
+					}
+
+					toolBubble.appendChild(summary);
 				}
 			}
 
@@ -3745,13 +3758,30 @@ function attachAutoImageUpload(
 	});
 }
 
-function normalizeImageOptions(raw: unknown) {
+function isAcceptableImageUrl(url: string): boolean {
+	return (
+		url.startsWith("http://") ||
+		url.startsWith("https://") ||
+		url.startsWith("data:image/") ||
+		url.startsWith("blob:")
+	);
+}
+
+function normalizeImageOptions(raw: unknown, source: "model" | "user") {
 	const obj = raw && typeof raw === "object" ? raw : {};
 	const prompt = typeof obj.prompt === "string" ? obj.prompt.trim() : "";
 	const mode = IMAGE_MODE_OPTIONS.includes(obj.mode)
 		? obj.mode
 		: IMAGE_MODE_OPTIONS[0];
-	return { prompt, mode };
+	const image_urls =
+		source === "user" && Array.isArray(obj.image_urls)
+			? obj.image_urls
+					.filter((url) => typeof url === "string")
+					.map((url) => url.trim())
+					.filter((url) => url.length > 0 && isAcceptableImageUrl(url))
+					.slice(0, 4)
+			: [];
+	return { prompt, mode, image_urls };
 }
 
 function normalizeAudioOptions(raw: unknown) {
@@ -3788,7 +3818,7 @@ function normalizeVideoOptions(raw: unknown, source: "model" | "user") {
 			? obj.image_urls
 					.filter((url) => typeof url === "string")
 					.map((url) => url.trim())
-					.filter((url) => url.length > 0)
+					.filter((url) => url.length > 0 && isAcceptableImageUrl(url))
 					.slice(0, 2)
 			: [];
 
@@ -3802,20 +3832,17 @@ function normalizeVideoOptions(raw: unknown, source: "model" | "user") {
 }
 
 function getVideoOptionsFromToolCall(call: any) {
-	const toolOptions = normalizeVideoOptions(call?.tool_options, "user");
-	if (toolOptions.prompt) return toolOptions;
-
-	const parsedArgs = safeParseJSON(call?.arguments);
 	const source = call?.state === "awaiting_input" ? "model" : "user";
-	const normalized = normalizeVideoOptions(parsedArgs, source);
-	if (source === "model") normalized.image_urls = [];
-	return normalized;
+	const toolOptions = normalizeVideoOptions(call?.tool_options, source);
+	if (toolOptions.prompt) return toolOptions;
+	return normalizeVideoOptions(safeParseJSON(call?.arguments), source);
 }
 
 function getImageOptionsFromToolCall(call: any) {
-	const toolOptions = normalizeImageOptions(call?.tool_options);
+	const source = call?.state === "awaiting_input" ? "model" : "user";
+	const toolOptions = normalizeImageOptions(call?.tool_options, source);
 	if (toolOptions.prompt) return toolOptions;
-	return normalizeImageOptions(safeParseJSON(call?.arguments));
+	return normalizeImageOptions(safeParseJSON(call?.arguments), source);
 }
 
 function getAudioOptionsFromToolCall(call: any) {
@@ -3827,7 +3854,6 @@ function getAudioOptionsFromToolCall(call: any) {
 function getAudioOptionsFromToolMessage(call: any) {
 	const payload = safeParseJSON(call?.content);
 	if (payload && typeof payload === "object" && payload.options) {
-		const source = payload.status === "resolved" ? "user" : "model";
 		return normalizeAudioOptions(payload.options);
 	}
 	return null;
@@ -3836,7 +3862,7 @@ function getAudioOptionsFromToolMessage(call: any) {
 function getVideoOptionsFromToolMessage(msg: any) {
 	const payload = safeParseJSON(msg?.content);
 	if (payload && typeof payload === "object" && payload.options) {
-		const source = payload.status === "resolved" ? "user" : "model";
+		const source = payload.status === "awaiting_input" ? "model" : "user";
 		return normalizeVideoOptions(payload.options, source);
 	}
 	return null;
@@ -3845,7 +3871,8 @@ function getVideoOptionsFromToolMessage(msg: any) {
 function getImageOptionsFromToolMessage(msg: any) {
 	const payload = safeParseJSON(msg?.content);
 	if (payload && typeof payload === "object" && payload.options) {
-		return normalizeImageOptions(payload.options);
+		const source = payload.status === "awaiting_input" ? "model" : "user";
+		return normalizeImageOptions(payload.options, source);
 	}
 	return null;
 }
@@ -3967,8 +3994,24 @@ function applyImageOptionsToBubble(bubble: HTMLDivElement, options: any): void {
 	const modeEl = bubble.querySelector(
 		'[data-image-field="mode"]',
 	) as HTMLSelectElement | null;
+	const image1El = bubble.querySelector(
+		'[data-image-field="image-1"]',
+	) as HTMLInputElement | null;
+	const image2El = bubble.querySelector(
+		'[data-image-field="image-2"]',
+	) as HTMLInputElement | null;
+	const image3El = bubble.querySelector(
+		'[data-image-field="image-3"]',
+	) as HTMLInputElement | null;
+	const image4El = bubble.querySelector(
+		'[data-image-field="image-4"]',
+	) as HTMLInputElement | null;
 	if (promptEl) promptEl.value = options.prompt || "";
 	if (modeEl) modeEl.value = options.mode || IMAGE_MODE_OPTIONS[0];
+	if (image1El) image1El.value = options.image_urls?.[0] || "";
+	if (image2El) image2El.value = options.image_urls?.[1] || "";
+	if (image3El) image3El.value = options.image_urls?.[2] || "";
+	if (image4El) image4El.value = options.image_urls?.[3] || "";
 }
 
 function collectImageOptionsFromBubble(bubble: HTMLDivElement) {
@@ -3978,10 +4021,31 @@ function collectImageOptionsFromBubble(bubble: HTMLDivElement) {
 	const modeEl = bubble.querySelector(
 		'[data-image-field="mode"]',
 	) as HTMLSelectElement | null;
-	return normalizeImageOptions({
-		prompt: promptEl?.value ?? "",
-		mode: modeEl?.value ?? IMAGE_MODE_OPTIONS[0],
-	});
+	const image1El = bubble.querySelector(
+		'[data-image-field="image-1"]',
+	) as HTMLInputElement | null;
+	const image2El = bubble.querySelector(
+		'[data-image-field="image-2"]',
+	) as HTMLInputElement | null;
+	const image3El = bubble.querySelector(
+		'[data-image-field="image-3"]',
+	) as HTMLInputElement | null;
+	const image4El = bubble.querySelector(
+		'[data-image-field="image-4"]',
+	) as HTMLInputElement | null;
+	return normalizeImageOptions(
+		{
+			prompt: promptEl?.value ?? "",
+			mode: modeEl?.value ?? IMAGE_MODE_OPTIONS[0],
+			image_urls: [
+				image1El?.value ?? "",
+				image2El?.value ?? "",
+				image3El?.value ?? "",
+				image4El?.value ?? "",
+			],
+		},
+		"user",
+	);
 }
 
 function applyAudioOptionsToBubble(bubble: HTMLDivElement, options: any): void {
@@ -4032,7 +4096,7 @@ function setLiveToolBubbleState(
 	if (state === "awaiting_input") {
 		setVideoBubbleControlsDisabled(bubble, false);
 		if (toolName === "generate_image") {
-			setVideoBubbleStatus(bubble, "Review prompt and mode, then generate.");
+			setVideoBubbleStatus(bubble, "Review options, optionally upload images, then generate.");
 			return;
 		}
 		if (toolName === "generate_audio") {
@@ -4155,7 +4219,8 @@ function createCopyableToolValueElement(
 	const text = document.createElement("span");
 	text.className = "video-tool-copyable-text";
 	text.textContent = truncateToolValue(value, maxChars);
-	text.title = value;
+	// Avoid huge titles (e.g., data URIs) that can bog down the DOM/tooltip.
+	text.title = value.length <= 2048 ? value : `${value.slice(0, 2048)}...`;
 
 	const copyBtn = document.createElement("button");
 	copyBtn.type = "button";
@@ -4395,7 +4460,7 @@ function createLiveImageToolBubble(
 
 	const status = document.createElement("div");
 	status.className = "video-tool-status";
-	status.textContent = "Review prompt and mode, then generate.";
+	status.textContent = "Review options, optionally upload images, then generate.";
 
 	const promptLabel = document.createElement("label");
 	promptLabel.className = "video-tool-field";
@@ -4419,6 +4484,58 @@ function createLiveImageToolBubble(
 		modeSelect.appendChild(opt);
 	}
 	modeLabel.appendChild(modeSelect);
+
+	const imageGrid = document.createElement("div");
+	imageGrid.className = "video-tool-grid video-tool-images";
+
+	const image1Wrap = document.createElement("label");
+	image1Wrap.className = "video-tool-field";
+	image1Wrap.textContent = "Image 1";
+	const image1Input = document.createElement("input");
+	image1Input.className = "video-tool-input";
+	image1Input.type = "text";
+	image1Input.placeholder = "https://... or data URI";
+	image1Input.setAttribute("data-image-field", "image-1");
+	image1Wrap.appendChild(image1Input);
+	attachAutoImageUpload(image1Wrap, image1Input);
+
+	const image2Wrap = document.createElement("label");
+	image2Wrap.className = "video-tool-field";
+	image2Wrap.textContent = "Image 2";
+	const image2Input = document.createElement("input");
+	image2Input.className = "video-tool-input";
+	image2Input.type = "text";
+	image2Input.placeholder = "https://... or data URI";
+	image2Input.setAttribute("data-image-field", "image-2");
+	image2Wrap.appendChild(image2Input);
+	attachAutoImageUpload(image2Wrap, image2Input);
+
+	const image3Wrap = document.createElement("label");
+	image3Wrap.className = "video-tool-field";
+	image3Wrap.textContent = "Image 3";
+	const image3Input = document.createElement("input");
+	image3Input.className = "video-tool-input";
+	image3Input.type = "text";
+	image3Input.placeholder = "https://... or data URI";
+	image3Input.setAttribute("data-image-field", "image-3");
+	image3Wrap.appendChild(image3Input);
+	attachAutoImageUpload(image3Wrap, image3Input);
+
+	const image4Wrap = document.createElement("label");
+	image4Wrap.className = "video-tool-field";
+	image4Wrap.textContent = "Image 4";
+	const image4Input = document.createElement("input");
+	image4Input.className = "video-tool-input";
+	image4Input.type = "text";
+	image4Input.placeholder = "https://... or data URI";
+	image4Input.setAttribute("data-image-field", "image-4");
+	image4Wrap.appendChild(image4Input);
+	attachAutoImageUpload(image4Wrap, image4Input);
+
+	imageGrid.appendChild(image1Wrap);
+	imageGrid.appendChild(image2Wrap);
+	imageGrid.appendChild(image3Wrap);
+	imageGrid.appendChild(image4Wrap);
 
 	const actions = document.createElement("div");
 	actions.className = "video-tool-actions";
@@ -4507,6 +4624,7 @@ function createLiveImageToolBubble(
 	bubble.appendChild(status);
 	bubble.appendChild(promptLabel);
 	bubble.appendChild(modeLabel);
+	bubble.appendChild(imageGrid);
 	bubble.appendChild(actions);
 	applyImageOptionsToBubble(bubble, options);
 	return bubble;

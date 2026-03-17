@@ -112,7 +112,6 @@
 	line-height: 1.5;
 	overflow-x: auto;
 	word-break: break-word;
-	white-space: pre-line;
 	word-wrap: break-word;
 }
 .user-message, .bot-message {
@@ -212,23 +211,86 @@
 	background: var(--gray);
 	color: var(--text-dark);
 	padding: 10px;
-	border-radius: 6px;
+	border-radius: 8px;
 	max-width: 90%;
-  	border-radius: 8px;
- 	transition: box-shadow 0.8s ease, opacity 0.8s ease;
+	overflow: visible;
+	transition: box-shadow 0.8s ease, opacity 0.8s ease;
+}
+
+/* When bot-bubble contains ONLY a code bubble, strip its own
+   background and padding so the code bubble stands alone cleanly */
+.bot-bubble:has(> .ai-code-bubble:only-child) {
+	background: transparent;
+	padding: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+/* Code bubble sits naturally inside bot-bubble, full width */
+.bot-bubble > .ai-code-bubble {
+	max-width: 100%;
+	width: 100%;
+	margin-top: 10px;
+	margin-left: 0;
+	margin-right: 0;
+}
+
+.bot-bubble > .ai-code-bubble:first-child {
+	margin-top: 0;
+}
+
+/* Dark mode HR: thicker and much lighter so it's visible */
+[data-theme="dark"] .chat-bubble hr {
+	background: rgba(255, 255, 255, 0.55);
+	height: 2px;
+	border: none;
+}
+
+/* ── Code bubble CSS variables — exact match to table palette ── */
+:root {
+	--code-bg: #1a1a1a;
+	--code-header-bg: color-mix(in srgb, var(--primary-color) 24%, #0a0a0a 76%);
+	--code-header-border: color-mix(in srgb, var(--primary-color) 30%, #1a1a1a 70%);
+	--code-lang-bg: color-mix(in srgb, var(--primary-color) 12%, #0a0a0a 88%);
+	--code-lang-color: #b3b3b3;
+	--code-text: #e0e0e0;
+	--code-copy-bg: color-mix(in srgb, var(--primary-color) 20%, #1a1a1a 80%);
+	--code-copy-hover: color-mix(in srgb, var(--primary-color) 32%, #1a1a1a 68%);
+}
+
+[data-theme="dark"] {
+	--code-bg: #1a1a1a;
+	--code-header-bg: color-mix(in srgb, var(--primary-color) 24%, #0a0a0a 76%);
+	--code-header-border: color-mix(in srgb, var(--primary-color) 30%, #1a1a1a 70%);
+	--code-lang-bg: color-mix(in srgb, var(--primary-color) 12%, #0a0a0a 88%);
+	--code-lang-color: #b3b3b3;
+	--code-text: #e0e0e0;
+	--code-copy-bg: color-mix(in srgb, var(--primary-color) 20%, #1a1a1a 80%);
+	--code-copy-hover: color-mix(in srgb, var(--primary-color) 32%, #1a1a1a 68%);
+}
+
+[data-theme="light"] {
+	--code-bg: var(--bg-light);
+	--code-header-bg: color-mix(in srgb, var(--primary-color) 12%, var(--bg-light) 88%);
+	--code-header-border: color-mix(in srgb, var(--primary-color) 20%, var(--bg-light) 80%);
+	--code-lang-bg: color-mix(in srgb, var(--primary-color) 12%, var(--bg-light) 88%);
+	--code-lang-color: var(--text-dark);
+	--code-text: var(--text-dark);
+	--code-copy-bg: color-mix(in srgb, var(--primary-color) 12%, var(--bg-light) 88%);
+	--code-copy-hover: color-mix(in srgb, var(--primary-color) 20%, var(--bg-light) 80%);
 }
 
 /* AI code block bubble container */
 .ai-code-bubble {
-	background: var(--bg-light);
-	border-radius: var(--border-radius);
-	box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
+	background: var(--code-bg);
+	border-radius: 10px;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 	margin-bottom: 18px;
 	margin-top: 8px;
 	padding: 0;
 	position: relative;
 	max-width: 90%;
-	overflow: visible;
+	overflow: hidden;
 	display: flex;
 	flex-direction: column;
 }
@@ -252,20 +314,20 @@
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	background: #353f4d;
+	background: var(--code-header-bg);
 	color: #fff;
 	font-size: 13px;
 	font-family: monospace;
-	border-top-left-radius: var(--border-radius);
-	border-top-right-radius: var(--border-radius);
+	border-radius: 10px 10px 0 0;
 	padding: 6px 12px;
 	min-height: 28px;
 	position: relative;
+	border-bottom: 1px solid var(--code-header-border);
 }
 
 .ai-code-lang {
-	background: #2d3541;
-	color: #b3b3b3;
+	background: var(--code-lang-bg);
+	color: var(--code-lang-color);
 	border-radius: 6px;
 	padding: 2px 8px;
 	font-size: 12px;
@@ -274,7 +336,7 @@
 }
 
 .ai-copy-btn {
-	background: #445566;
+	background: var(--code-copy-bg);
 	color: #fff;
 	border: none;
 	border-radius: 4px;
@@ -296,21 +358,16 @@
 	text-align: center;
 }
 
-.ai-code-bubble {
-	position: relative;
-	overflow: hidden;
-}
-
 .ai-copy-btn:hover {
-	background: #525d6d;
+	background: var(--code-copy-hover);
 }
 
 .ai-code-bubble pre {
-	background: transparent;
-	color: var(--text-dark);
-	border-radius: 0 0 var(--border-radius) var(--border-radius);
+	background: var(--code-bg);
+	color: var(--code-text);
+	border-radius: 0 0 10px 10px;
 	margin: 0;
-	padding: 16px 18px 16px 18px;
+	padding: 16px 18px;
 	font-size: 15px;
 	overflow: auto;
 	white-space: pre;
@@ -318,6 +375,7 @@
 	max-height: 420px;
 	font-family: "Fira Mono", "Consolas", "Menlo", monospace;
 	box-shadow: none;
+	flex: 1;
 }
 
 .ai-code-bubble pre code {

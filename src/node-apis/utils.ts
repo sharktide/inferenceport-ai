@@ -23,8 +23,12 @@ import path from "path";
 import { shell, app, ipcMain } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
+import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
+
+// @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
+import mdFootnote from "markdown-it-footnote";
 
 const dataDir: string = app.getPath("userData");
 
@@ -141,11 +145,15 @@ function detailsBlock(md: any): void {
 }
 
 const mdit = MDIT({
-	html: false,
+	html: true,
 	linkify: true,
-	breaks: false,
+	breaks: true,
 	typographer: true
 });
+
+// Add markdown-it plugins
+mdit.use(mdTable as any);
+mdit.use(mdFootnote as any);
 
 function preserveMathDelimiters(md: any) {
     const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
@@ -171,6 +179,31 @@ function preserveMathDelimiters(md: any) {
 
 mdit.use(detailsBlock);
 mdit.use(preserveMathDelimiters);
+
+// Escape HTML inside fenced and indented code blocks so that tags like
+// <div> render as literal text instead of being interpreted as HTML.
+function escapeHtmlInCode(str: string): string {
+	return str
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+mdit.renderer.rules.fence = (tokens, idx, options, _env, self) => {
+	const token = tokens[idx]!;
+	const info = token.info ? token.info.trim() : "";
+	const lang = info ? info.split(/\s+/)[0] : "";
+	const escaped = escapeHtmlInCode(token.content);
+	const langAttr = lang ? ` class="language-${escapeHtmlInCode(lang)}"` : "";
+	return `<pre><code${langAttr}>${escaped}</code></pre>\n`;
+};
+
+mdit.renderer.rules.code_block = (tokens, idx) => {
+	const escaped = escapeHtmlInCode(tokens[idx]!.content);
+	return `<pre><code>${escaped}</code></pre>\n`;
+};
 const defaultLinkOpenRenderer =
 	mdit.renderer.rules.link_open ||
 	function (tokens, idx, options, env, self) {
@@ -328,6 +361,20 @@ export default function register() {
 					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
 						"details",
 						"summary",
+						"table",
+						"thead",
+						"tbody",
+						"tfoot",
+						"tr",
+						"th",
+						"td",
+						"blockquote",
+						"hr",
+						"br",
+						"sub",
+						"sup",
+						"del",
+						"s",
 					]),
 
 					allowedAttributes: {
@@ -337,9 +384,17 @@ export default function register() {
 								[]),
 							"class",
 							"id",
+							"style",
 						],
 						a: ["href"],
 						details: ["open"],
+						table: ["align"],
+						tr: ["align"],
+						th: ["align", "style"],
+						td: ["align", "style", "colspan", "rowspan"],
+						span: ["style"],
+						div: ["style"],
+						p: ["style"],
 					},
 
 					allowedSchemesByTag: {
@@ -380,6 +435,20 @@ export default function register() {
 					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
 						"details",
 						"summary",
+						"table",
+						"thead",
+						"tbody",
+						"tfoot",
+						"tr",
+						"th",
+						"td",
+						"blockquote",
+						"hr",
+						"br",
+						"sub",
+						"sup",
+						"del",
+						"s",
 					]),
 					allowedAttributes: Object.assign(
 						{},
@@ -388,8 +457,15 @@ export default function register() {
 							"*": (
 								sanitizeHtml.defaults.allowedAttributes["*"] ||
 								[]
-							).concat(["class", "id"]),
+							).concat(["class", "id", "style"]),
 							details: ["open"],
+							table: ["align"],
+							tr: ["align"],
+							th: ["align", "style"],
+							td: ["align", "style", "colspan", "rowspan"],
+							span: ["style"],
+							div: ["style"],
+							p: ["style"],
 						},
 					),
 					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(
