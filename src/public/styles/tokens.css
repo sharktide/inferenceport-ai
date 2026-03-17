@@ -82,3 +82,25 @@ Copyright 2025 Rihaan Meher
 	--gradient-mid: #1a1f3a;
 	--gradient-to: #2a1f4a;
 }
+
+[data-theme="light"] span[data-color="green"]  { color: #2f7d32; }
+[data-theme="light"] span[data-color="pink"]   { color: #c2185b; }
+[data-theme="light"] span[data-color="blue"]   { color: #1565c0; }
+[data-theme="light"] span[data-color="red"]    { color: #c62828; }
+[data-theme="light"] span[data-color="orange"] { color: #ef6c00; }
+[data-theme="light"] span[data-color="yellow"] { color: #bfa000; }
+[data-theme="light"] span[data-color="purple"] { color: #6a1b9a; }
+[data-theme="light"] span[data-color="teal"]   { color: #00796b; }
+[data-theme="light"] span[data-color="gold"]   { color: #b8860b; }
+[data-theme="light"] span[data-color="coral"]  { color: #d65f4a; }
+
+[data-theme="dark"] span[data-color="green"]  { color: #7edc8d; }
+[data-theme="dark"] span[data-color="pink"]   { color: #ff8ab8; }
+[data-theme="dark"] span[data-color="blue"]   { color: #82baff; }
+[data-theme="dark"] span[data-color="red"]    { color: #ff6b6b; }
+[data-theme="dark"] span[data-color="orange"] { color: #ff9e57; }
+[data-theme="dark"] span[data-color="yellow"] { color: #ffe066; }
+[data-theme="dark"] span[data-color="purple"] { color: #d1a6ff; }
+[data-theme="dark"] span[data-color="teal"]   { color: #6fe7d2; }
+[data-theme="dark"] span[data-color="gold"]   { color: #ffd27f; }
+[data-theme="dark"] span[data-color="coral"]  { color: #ff8f7a; }
