@@ -349,6 +349,146 @@ function waitForAudioRequestInput(
     );
 }
 
+async function runDirectImageToolCall(
+	toolCallId: string,
+	payload?: unknown,
+): Promise<void> {
+	const suggested = normalizeImageRequest(payload ?? {}, "model");
+	let toolState: "resolved" | "canceled" = "resolved";
+	let toolResult: string | undefined;
+	let resolvedToolOptions: NormalizedImageRequest | null = suggested;
+	const abortController = new AbortController();
+
+	try {
+		broadcastIpcEvent("ollama:new_tool_call", {
+			id: toolCallId,
+			name: "generate_image",
+			arguments: JSON.stringify(suggested),
+			tool_options: suggested,
+			state: "awaiting_input",
+		});
+
+		const selected = await waitForImageRequestInput(
+			toolCallId,
+			suggested,
+			abortController.signal,
+		);
+
+		if (!selected) {
+			toolState = "canceled";
+			toolResult = "Image generation was canceled before execution.";
+		} else if (!selected.prompt) {
+			toolState = "canceled";
+			toolResult =
+				"Image generation was canceled because a prompt was not provided.";
+			resolvedToolOptions = selected;
+		} else {
+			resolvedToolOptions = selected;
+			broadcastIpcEvent("ollama:new_tool_call", {
+				id: toolCallId,
+				name: "generate_image",
+				arguments: JSON.stringify(selected),
+				tool_options: selected,
+				state: "pending",
+			});
+
+			const { dataUrl } = await GenerateImage(selected);
+			broadcastIpcEvent("ollama:new-asset", {
+				role: "image",
+				content: dataUrl,
+			});
+			toolResult = "Image generated successfully and shown to the user.";
+		}
+	} catch (err: any) {
+		toolState = "canceled";
+		toolResult = `Image generation failed: ${String(err)}`;
+	}
+
+	broadcastIpcEvent("ollama:new_tool_call", {
+		id: toolCallId,
+		name: "generate_image",
+		result: toolResult ?? "Tool completed.",
+		state: toolState,
+		...(resolvedToolOptions
+			? {
+					arguments: JSON.stringify(resolvedToolOptions),
+					tool_options: resolvedToolOptions,
+			  }
+			: {}),
+	});
+}
+
+async function runDirectVideoToolCall(
+	toolCallId: string,
+	payload?: unknown,
+): Promise<void> {
+	const suggested = normalizeVideoRequest(payload ?? {}, "model");
+	let toolState: "resolved" | "canceled" = "resolved";
+	let toolResult: string | undefined;
+	let resolvedToolOptions: NormalizedVideoRequest | null = suggested;
+	const abortController = new AbortController();
+
+	try {
+		broadcastIpcEvent("ollama:new_tool_call", {
+			id: toolCallId,
+			name: "generate_video",
+			arguments: JSON.stringify(suggested),
+			tool_options: suggested,
+			state: "awaiting_input",
+		});
+
+		const selected = await waitForVideoRequestInput(
+			toolCallId,
+			suggested,
+			abortController.signal,
+		);
+
+		if (!selected) {
+			toolState = "canceled";
+			toolResult = "Video generation was canceled before execution.";
+		} else if (!selected.prompt) {
+			toolState = "canceled";
+			toolResult =
+				"Video generation was canceled because a prompt was not provided.";
+			resolvedToolOptions = selected;
+		} else {
+			resolvedToolOptions = selected;
+			broadcastIpcEvent("ollama:new_tool_call", {
+				id: toolCallId,
+				name: "generate_video",
+				arguments: JSON.stringify(selected),
+				tool_options: selected,
+				state: "pending",
+			});
+
+			const video = await generateVideo(selected);
+			const videoBlob = new Blob([video], { type: "video/mp4" });
+			const assetID = await save_stream(videoBlob);
+			broadcastIpcEvent("ollama:new-asset", {
+				role: "video",
+				content: assetID,
+			});
+			toolResult = "Video generated successfully and shown to the user.";
+		}
+	} catch (err: any) {
+		toolState = "canceled";
+		toolResult = `Video generation failed: ${String(err)}`;
+	}
+
+	broadcastIpcEvent("ollama:new_tool_call", {
+		id: toolCallId,
+		name: "generate_video",
+		result: toolResult ?? "Tool completed.",
+		state: toolState,
+		...(resolvedToolOptions
+			? {
+					arguments: JSON.stringify(resolvedToolOptions),
+					tool_options: resolvedToolOptions,
+			  }
+			: {}),
+	});
+}
+
 const systemPrompt =
   "CRITICAL RULE: Every response MUST use HTML <span data-color=\\\"{COLOR NAME}\\\"> tags to color main points and headings. " +
   "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION. " +
@@ -374,8 +514,7 @@ const systemPrompt =
   "Media generation rules: " +
   "Images: provide prompt and mode (auto/fantasy/realistic; default: auto). " +
   "Video: provide prompt, ratio, mode, and duration; leave image_urls empty unless the user explicitly provides source images. " +
-  "If the user wants to generate media from an image they have, tell them to provide a URL if it's online, or upload it after you call the tool. " +
-
+  "CRITICAL RULE: Never ask the user to upload an image or video before you call the tool. Always call the tool first, then the user can automatically upload if needed. " +
   "You can render SVG images by outputting SVG code in a code block tagged exactly as:\n" +
   "```svg\n<svg>...</svg>\n```\n" +
   "(Always open with ```svg, then a newline, then the SVG XML, then a newline, then closing triple backticks.) " +
@@ -549,6 +688,30 @@ export default function registerChatStream() {
                 return true;
             },
         );
+        ipcMain.handle(
+            "ollama:start-image-tool-call",
+            async (
+                _event: IpcMainInvokeEvent,
+                payload?: unknown,
+            ): Promise<string> => {
+                const toolCallId = `call_${crypto.randomUUID()}`;
+                void runDirectImageToolCall(toolCallId, payload);
+                return toolCallId;
+            },
+        );
+
+        ipcMain.handle(
+            "ollama:start-video-tool-call",
+            async (
+                _event: IpcMainInvokeEvent,
+                payload?: unknown,
+            ): Promise<string> => {
+                const toolCallId = `call_${crypto.randomUUID()}`;
+                void runDirectVideoToolCall(toolCallId, payload);
+                return toolCallId;
+            },
+        );
+
 	ipcMain.on(
 		"ollama:chat-stream",
 		async (
