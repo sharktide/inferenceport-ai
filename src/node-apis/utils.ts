@@ -23,8 +23,12 @@ import path from "path";
 import { shell, app, ipcMain } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
+import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
+
+// @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
+import mdFootnote from "markdown-it-footnote";
 
 const dataDir: string = app.getPath("userData");
 
@@ -141,11 +145,15 @@ function detailsBlock(md: any): void {
 }
 
 const mdit = MDIT({
-	html: false,
+	html: true,
 	linkify: true,
-	breaks: false,
+	breaks: true,
 	typographer: true
 });
+
+// Add markdown-it plugins
+mdit.use(mdTable as any);
+mdit.use(mdFootnote as any);
 
 function preserveMathDelimiters(md: any) {
     const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
@@ -328,6 +336,20 @@ export default function register() {
 					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
 						"details",
 						"summary",
+						"table",
+						"thead",
+						"tbody",
+						"tfoot",
+						"tr",
+						"th",
+						"td",
+						"blockquote",
+						"hr",
+						"br",
+						"sub",
+						"sup",
+						"del",
+						"s",
 					]),
 
 					allowedAttributes: {
@@ -337,9 +359,17 @@ export default function register() {
 								[]),
 							"class",
 							"id",
+							"style",
 						],
 						a: ["href"],
 						details: ["open"],
+						table: ["align"],
+						tr: ["align"],
+						th: ["align", "style"],
+						td: ["align", "style", "colspan", "rowspan"],
+						span: ["style"],
+						div: ["style"],
+						p: ["style"],
 					},
 
 					allowedSchemesByTag: {
@@ -380,6 +410,20 @@ export default function register() {
 					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
 						"details",
 						"summary",
+						"table",
+						"thead",
+						"tbody",
+						"tfoot",
+						"tr",
+						"th",
+						"td",
+						"blockquote",
+						"hr",
+						"br",
+						"sub",
+						"sup",
+						"del",
+						"s",
 					]),
 					allowedAttributes: Object.assign(
 						{},
@@ -388,8 +432,15 @@ export default function register() {
 							"*": (
 								sanitizeHtml.defaults.allowedAttributes["*"] ||
 								[]
-							).concat(["class", "id"]),
+							).concat(["class", "id", "style"]),
 							details: ["open"],
+							table: ["align"],
+							tr: ["align"],
+							th: ["align", "style"],
+							td: ["align", "style", "colspan", "rowspan"],
+							span: ["style"],
+							div: ["style"],
+							p: ["style"],
 						},
 					),
 					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(

@@ -19,14 +19,17 @@
   "license": "Apache 2.0",
   "description": "AI, anywhere",
   "dependencies": {
+    "@gradio/client": "^2.1.0",
     "@supabase/supabase-js": "^2.99.0",
     "fix-path": "^5.0.0",
     "html-to-text": "^9.0.5",
     "markdown-it": "^14.1.1",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-multimd-table": "^4.2.3",
+    "markdown-it-table": "^4.1.1",
     "openai": "^6.27.0",
     "sanitize-html": "^2.17.1",
-    "systeminformation": "^5.31.1",
-    "@gradio/client": "^2.1.0"
+    "systeminformation": "^5.31.1"
   },
   "devDependencies": {
     "@types/dompurify": "^3.2.0",
