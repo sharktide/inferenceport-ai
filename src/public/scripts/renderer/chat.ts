@@ -275,6 +275,7 @@ let imgEnabled = currentToolSettings.imageGen;
 let videoEnabled = currentToolSettings.videoGen;
 let audioEnabled = currentToolSettings.audioGen;
 let sessions = {};
+let sessionSortOrder: string[] | null = null;
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
 
@@ -1948,16 +1949,8 @@ function handleSessionClick(sessionId): void {
 	return void 0;
 }
 
-function renderSessionList(): void {
-	sessionList.innerHTML = "";
-
-	const searchTerm =
-		document.getElementById("session-search")?.value?.toLowerCase() || "";
-
-	const sortedSessions = Object.entries(sessions)
-		.filter(([, session]) =>
-			session.name?.toLowerCase().includes(searchTerm),
-		)
+function computeSessionSortOrder(): string[] {
+	return Object.entries(sessions)
 		.sort(([idA, a], [idB, b]) => {
 			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
 
@@ -1966,7 +1959,39 @@ function renderSessionList(): void {
 			if (at !== bt) return bt - at;
 
 			return (a.name || "").localeCompare(b.name || "");
-		});
+		})
+		.map(([id]) => id);
+}
+
+function getSessionSortOrder(): string[] {
+	if (!sessionSortOrder) {
+		sessionSortOrder = computeSessionSortOrder();
+		return sessionSortOrder;
+	}
+
+	const known = new Set(sessionSortOrder);
+	Object.keys(sessions).forEach((id) => {
+		if (!known.has(id)) sessionSortOrder.push(id);
+	});
+
+	sessionSortOrder = sessionSortOrder.filter((id) =>
+		Object.prototype.hasOwnProperty.call(sessions, id),
+	);
+
+	return sessionSortOrder;
+}
+
+function renderSessionList(): void {
+	sessionList.innerHTML = "";
+
+	const searchTerm =
+		document.getElementById("session-search")?.value?.toLowerCase() || "";
+
+	const sortedSessions = getSessionSortOrder()
+		.map((id) => [id, sessions[id]] as const)
+		.filter(([, session]) =>
+			session?.name?.toLowerCase().includes(searchTerm),
+		);
 
 	sortedSessions.forEach(([id, session]) => {
 		const li = document.createElement("li");
