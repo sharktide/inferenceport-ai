@@ -32,7 +32,7 @@ import {
 	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
-import type { Tool } from "openai/resources/responses/responses.mjs";
+
 const chatHistories = new Map<string, ChatHistoryEntry[]>();
 const DEFAULT_CHAT_HISTORY_KEY = "__default__";
 
@@ -115,6 +115,7 @@ type AudioGenerateRequest = { prompt: string };
 type NormalizedImageRequest = ImageGenerateRequest & {
 	prompt: string;
 	mode: ImageMode;
+	image_urls: string[];
 };
 
 type NormalizedVideoRequest = VideoGenerateRequest & {
@@ -177,6 +178,7 @@ function normalizeImageRequest(
     return {
         prompt: normalizePrompt(obj.prompt, "Image prompt is required", source),
         mode: normalizeImageMode(obj.mode),
+	    image_urls: normalizeImageUrls(obj.image_urls, "image"),
     };
 }
 
@@ -210,13 +212,26 @@ function normalizeVideoDuration(value: unknown): number {
     return Math.min(30, Math.max(1, parsed));
 }
 
-function normalizeImageUrls(value: unknown): string[] {
+function normalizeImageUrls(value: unknown, type: "image" | "video"): string[] {
     if (!Array.isArray(value)) return [];
+
+    const limit = type === "image" ? 4 : 2;
+
     return value
         .filter((item): item is string => typeof item === "string")
         .map((item) => item.trim())
-        .filter((item) => item.length > 0)
-        .slice(0, 2);
+        .filter((url) => {
+            if (!url) return false;
+
+            return (
+                url.startsWith("http://") ||
+                url.startsWith("https://") ||
+                url.startsWith("data:image/") ||
+                url.startsWith("blob:") ||
+                url.startsWith("file:")
+            );
+        })
+        .slice(0, limit);
 }
 
 function normalizeVideoRequest(
@@ -233,8 +248,7 @@ function normalizeVideoRequest(
         ratio: normalizeVideoRatio(obj.ratio),
         mode: normalizeVideoMode(obj.mode),
         duration: normalizeVideoDuration(obj.duration),
-        image_urls:
-            source === "user" ? normalizeImageUrls(obj.image_urls) : [],
+        image_urls: normalizeImageUrls(obj.image_urls, "video"),
     };
 }
 
@@ -337,7 +351,25 @@ function waitForAudioRequestInput(
 }
 
 const systemPrompt =
-	"You are a helpful assistant that does what the user wants and uses tools when appropriate. Don't use single backslashes! Use tools to help the user with their requests. You have the abilities to search the web and generate images/video/audio if the user enables them and you should tell the user to enable them if they are asking for them and you don't have access to the tool. When you generate media, it is automatically displayed to the user, so do not include URLs in your responses. For image generation, fill prompt and mode (auto/fantasy/realistic), using auto by default unless the user asks for a style. For video generation, fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. You can create SVG images by outputting the SVG code in a code block labeled with 'svg'. For example: ```svg <svg>...</svg>``` Always use the triple tick marks to close and open, and include the letters svg exactly like ```svg, then add a new line to render properly between all tick marks and xml. This will be rendered as an image for the user. Do not be technical with the user unless they ask for it.";
+	"You are a helpful assistant that does what the user wants \
+	and uses tools when appropriate. Don't use single backslashes! \
+	Use tools to help the user with their requests. You have the \
+	abilities to search the web and generate images/video/audio \
+	if the user enables them and you should tell the user to \
+	enable them if they are asking for them and you don't have \
+	access to the tool. When you generate media, it is automatically \
+	displayed to the user, so do not include URLs in your responses. \
+	For image generation, fill prompt and mode (auto/fantasy/realistic), \
+	using auto by default unless the user asks for a style. For video generation, \
+	fill prompt/ratio/mode/duration, and leave image_urls empty unless the user explicitly provided source images. \
+	If the user seems to ask you to generate a video or image from a provided image, tell them to either provide a link \
+	if it is available on the internet, or leave it blank if it isn't, because once you call the tool, the user can add \
+	image files or URLs later. \
+	You can create SVG images by outputting the SVG code in a code block labeled \
+	with 'svg'. For example: ```svg <svg>...</svg>``` Always use the triple tick marks to close and open, \
+	and include the letters svg exactly like ```svg, then add a new line to render properly between all \
+	tick marks and xml. This will be rendered as an image for the user. \
+	Do not be technical with the user unless they ask for it.";
 
 function flattenNonUserContent(content: MessageContent): string {
 	if (typeof content === "string") return content;

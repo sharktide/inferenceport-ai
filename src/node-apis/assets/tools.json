@@ -72,7 +72,7 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 2,
+            "maxItems": 4,
             "description": "Optional conditioning image URLs. Only include if the user explicitly provided real URLs; never invent URLs."
           }
         },
