@@ -197,6 +197,7 @@
 
 .user-bubble {
 	background-color: var(--light-blue);
+	border-radius: 20px !important;
 	align-self: flex-end;
 	color: var(--text-dark);
 	box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
@@ -1648,7 +1649,8 @@ select {
 }
 
 [data-theme="dark"] .user-bubble {
-	background: #a9cef619;
+	/* background: #a9cef619; */
+	color: color-mix(in srgb, var(--text-dark) 52%, transparent);
 	color: #fff;
 }
 
