@@ -945,6 +945,8 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<string>("ollama:start-image-tool-call", [payload]),
 		startVideoToolCall: async (payload?: Record<string, unknown>) =>
 			invokeOrDefault<string>("ollama:start-video-tool-call", [payload]),
+		startAudioToolCall: async (payload?: Record<string, unknown>) =>
+			invokeOrDefault<string>("ollama:start-audio-tool-call", [payload]),
 	};
 
 	window.utils = {

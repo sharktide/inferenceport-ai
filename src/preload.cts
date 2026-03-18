@@ -90,6 +90,10 @@ contextBridge.exposeInMainWorld("ollama", {
 		payload?: Record<string, unknown>,
 	): Promise<string> =>
 		ipcRenderer.invoke("ollama:start-video-tool-call", payload),
+	startAudioToolCall: (
+		payload?: Record<string, unknown>,
+	): Promise<string> =>
+		ipcRenderer.invoke("ollama:start-audio-tool-call", payload),
 
 	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
 		ipcRenderer.on(

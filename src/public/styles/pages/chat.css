@@ -1369,6 +1369,52 @@ select {
 	z-index: 1;
 }
 
+.studio-launch-button {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.95);
+	color: #0e2b4f;
+	font-weight: 700;
+	text-decoration: none;
+	box-shadow: 0 12px 24px rgba(9, 41, 92, 0.28);
+	border: 1px solid rgba(255, 255, 255, 0.6);
+	position: relative;
+	z-index: 1;
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.studio-launch-button:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 16px 28px rgba(9, 41, 92, 0.35);
+	text-decoration: none;
+}
+
+.studio-launch-title {
+	font-size: 14px;
+	letter-spacing: 0.01em;
+}
+
+.studio-launch-subtitle {
+	font-size: 11px;
+	font-weight: 500;
+	color: #1e4d80;
+}
+
+.lightning-toggle-inline.lightning-toggle-compact {
+	font-size: 11px;
+	padding: 4px 8px;
+	gap: 6px;
+	align-self: flex-start;
+}
+
+.lightning-toggle-inline.lightning-toggle-compact toggle-switch {
+	transform: scale(0.88);	
+	transform-origin: left center;
+}
+
 .lightning-sidebar-banner .lightning-toggle-inline {
 	background: rgba(5, 29, 86, 0.36);
 	border-color: rgba(255, 255, 255, 0.22);

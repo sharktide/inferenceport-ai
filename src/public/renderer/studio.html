@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Studio - InferencePortAI</title>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<script type="module" src="../Components.js"></script>
+	</head>
+	<body class="studio-page">
+		<type1-navbar></type1-navbar>
+		<main class="studio-shell">
+			<section class="studio-config">
+				<div class="studio-header">
+					<div>
+						<p class="studio-kicker">Configuration</p>
+						<h1 class="studio-title">Studio</h1>
+						<p class="studio-subtitle">Media generation, tuned for speed.</p>
+					</div>
+					<div id="studio-status" class="studio-status">Lightning stack ready</div>
+				</div>
+
+				<input
+					class="studio-mode-input"
+					type="radio"
+					name="studio-mode"
+					id="studio-mode-image"
+					checked
+				/>
+				<input
+					class="studio-mode-input"
+					type="radio"
+					name="studio-mode"
+					id="studio-mode-edit"
+				/>
+				<input
+					class="studio-mode-input"
+					type="radio"
+					name="studio-mode"
+					id="studio-mode-video"
+				/>
+				<input
+					class="studio-mode-input"
+					type="radio"
+					name="studio-mode"
+					id="studio-mode-audio"
+				/>
+
+				<div class="studio-mode">
+					<label for="studio-mode-image">Image</label>
+					<label for="studio-mode-edit">Edit</label>
+					<label for="studio-mode-video">Video</label>
+					<label for="studio-mode-audio">Audio</label>
+				</div>
+
+				<div class="studio-sections">
+					<section class="studio-section studio-section-image">
+						<div class="studio-field">
+							<label for="studio-image-mode">Mode</label>
+							<select id="studio-image-mode">
+								<option value="auto">Auto</option>
+								<option value="fantasy">Fantasy</option>
+								<option value="realistic">Realistic</option>
+							</select>
+						</div>
+						<div class="studio-field">
+							<label for="studio-image-prompt">Prompt</label>
+							<textarea
+								id="studio-image-prompt"
+								placeholder="Describe the scene, mood, and style you want."
+							></textarea>
+							<span class="studio-field-hint">Tip: call out lighting, camera angle, and color palette.</span>
+						</div>
+						<div class="studio-actions">
+							<button id="studio-image-generate" class="studio-primary-btn" type="button">Generate image</button>
+							<button id="studio-image-preset" class="studio-secondary-btn" type="button">Save preset</button>
+						</div>
+					</section>
+
+					<section class="studio-section studio-section-edit">
+						<div class="studio-field">
+							<label for="studio-edit-upload">Image inputs</label>
+							<label class="studio-upload" for="studio-edit-upload">
+								<strong>Drop an image</strong>
+								<span>PNG or JPG · up to 10 MB</span>
+								<input id="studio-edit-upload" type="file" accept="image/*" />
+							</label>
+						</div>
+						<div class="studio-field">
+							<label for="studio-edit-mode">Mode</label>
+							<select id="studio-edit-mode">
+								<option value="auto">Auto</option>
+								<option value="fantasy">Fantasy</option>
+								<option value="realistic">Realistic</option>
+							</select>
+						</div>
+						<div class="studio-field">
+							<label for="studio-edit-prompt">Edit prompt</label>
+							<textarea
+								id="studio-edit-prompt"
+								placeholder="Describe what to change or add."
+							></textarea>
+						</div>
+						<div class="studio-actions">
+							<button id="studio-edit-generate" class="studio-primary-btn" type="button">Generate edit</button>
+							<button id="studio-edit-reset" class="studio-secondary-btn" type="button">Reset</button>
+						</div>
+					</section>
+
+					<section class="studio-section studio-section-video">
+						<div class="studio-field">
+							<label for="studio-video-upload">Image inputs (optional)</label>
+							<label class="studio-upload" for="studio-video-upload">
+								<strong>Drop a reference frame</strong>
+								<span>PNG or JPG · up to 10 MB</span>
+								<input id="studio-video-upload" type="file" accept="image/*" />
+							</label>
+						</div>
+						<div class="studio-field">
+							<label for="studio-video-ratio">Ratio</label>
+							<select id="studio-video-ratio">
+								<option value="">Auto</option>
+								<option value="3:2">3:2</option>
+								<option value="2:3">2:3</option>
+								<option value="1:1">1:1</option>
+							</select>
+						</div>
+						<div class="studio-field">
+							<label for="studio-video-mode">Mode</label>
+							<select id="studio-video-mode">
+								<option value="normal">Normal</option>
+								<option value="fun">Fun</option>
+							</select>
+						</div>
+						<div class="studio-field">
+							<label for="studio-video-duration">Duration (seconds)</label>
+							<input id="studio-video-duration" type="number" min="1" step="1" placeholder="8" />
+							<span class="studio-field-hint">Leave blank to use the default.</span>
+						</div>
+						<div class="studio-field">
+							<label for="studio-video-prompt">Prompt</label>
+							<textarea
+								id="studio-video-prompt"
+								placeholder="Describe the scene, action, and camera motion."
+							></textarea>
+						</div>
+						<div class="studio-actions">
+							<button id="studio-video-generate" class="studio-primary-btn" type="button">Generate video</button>
+							<button id="studio-video-storyboard" class="studio-secondary-btn" type="button">Storyboard</button>
+						</div>
+					</section>
+
+					<section class="studio-section studio-section-audio">
+						<div class="studio-field">
+							<label for="studio-audio-prompt">Prompt</label>
+							<textarea
+								id="studio-audio-prompt"
+								placeholder="Describe the sound or SFX you want."
+							></textarea>
+							<span class="studio-field-hint">Audio generation currently supports prompt-only requests.</span>
+						</div>
+						<div class="studio-actions">
+							<button id="studio-audio-generate" class="studio-primary-btn" type="button">Generate audio</button>
+							<button id="studio-audio-mixdown" class="studio-secondary-btn" type="button">Mixdown</button>
+						</div>
+					</section>
+				</div>
+			</section>
+
+			<section class="studio-preview">
+				<div class="studio-preview-header">
+					<div>
+						<p class="studio-kicker">Result</p>
+						<h2 id="studio-preview-title" class="studio-preview-title">Ready to create.</h2>
+					</div>
+					<div class="studio-preview-actions">
+						<button id="studio-preview-clear" class="studio-preview-action" type="button">Clear</button>
+						<button id="studio-preview-history" class="studio-preview-action" type="button">History</button>
+					</div>
+				</div>
+				<div id="studio-preview-canvas" class="studio-canvas">
+					<div class="studio-placeholder">
+						<div class="studio-placeholder-icon" aria-hidden="true">
+							<svg
+								width="34"
+								height="34"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<rect x="3" y="5" width="18" height="14" rx="3" />
+								<circle cx="9" cy="10" r="2" />
+								<path d="M21 15l-5-5-5 6-3-3-5 6" />
+							</svg>
+						</div>
+						<p>Enter a prompt and generate to see your media here.</p>
+						<p class="studio-field-hint">Outputs support images, video clips, and audio waveforms.</p>
+					</div>
+				</div>
+				<div class="studio-preview-footer">
+					<span>Queue:</span>
+					<span class="studio-tag">Image draft</span>
+					<span class="studio-tag">Audio intro</span>
+				</div>
+			</section>
+		</main>
+	<script type="module" src="../scripts/renderer/studio.js"></script>
+	</body>
+</html>
