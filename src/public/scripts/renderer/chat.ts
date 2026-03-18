@@ -34,25 +34,19 @@ import * as toolSettings from "../helper/toolSettings.js";
 const dataDir = window.ollama.getPath();
 
 const sessionFile = `${dataDir}/sessions.json`;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/** A single part of a user message content array. */
+const LAST_ACCESS_KEY = "session-last-access";
 type UserContentPart =
 	| { type: "text"; text: string }
 	| { type: "image_url"; image_url: { url: string } };
 
-/** An attached file that is plain text. */
 interface AttachedTextFile {
 	type: "text";
 	name: string;
 	content: string;
-	/** Optional preview (used for SVG-as-XML attachments). */
 	previewDataUrl?: string;
 	previewMimeType?: string;
 }
 
-/** An attached file that is an image (stored as base64). */
 interface AttachedImageFile {
 	type: "image";
 	name: string;
@@ -61,8 +55,6 @@ interface AttachedImageFile {
 }
 
 type AttachedFile = AttachedTextFile | AttachedImageFile;
-
-// ─── Image-extension helpers ──────────────────────────────────────────────────
 
 const RASTER_IMAGE_EXTENSIONS = new Set([
 	"jpg",
@@ -99,7 +91,6 @@ function isNonSvgImageFile(file: File): boolean {
 }
 
 function svgTextToPreviewDataUrl(svgText: string): string {
-	// URL-encode to keep the preview safe and avoid Unicode/base64 pitfalls.
 	const encoded = encodeURIComponent(svgText);
 	return `data:image/svg+xml;charset=utf-8,${encoded}`;
 }
@@ -113,9 +104,8 @@ function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: strin
 		const reader = new FileReader();
 		reader.onload = () => {
 			const result = reader.result as string;
-			// result looks like "data:<mimeType>;base64,<data>"
 			const commaIdx = result.indexOf(",");
-			const meta = result.slice(0, commaIdx); // "data:<mimeType>;base64"
+			const meta = result.slice(0, commaIdx);
 			const base64 = result.slice(commaIdx + 1);
 			const mimeType = meta.replace("data:", "").replace(";base64", "");
 			resolve({ base64, mimeType });
@@ -126,7 +116,21 @@ function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: strin
 	});
 }
 
-// ─── Content helpers ──────────────────────────────────────────────────────────
+function loadLastAccessMap(): Record<string, number> {
+	try {
+		return JSON.parse(localStorage.getItem(LAST_ACCESS_KEY) || "{}");
+	} catch {
+		return {};
+	}
+}
+
+function saveLastAccessMap() {
+	try {
+		localStorage.setItem(LAST_ACCESS_KEY, JSON.stringify(lastAccessMap));
+	} catch {}
+}
+
+let lastAccessMap = loadLastAccessMap();
 
 /**
  * Extract the plain-text string from a message's content field, which may now
@@ -271,6 +275,7 @@ let imgEnabled = currentToolSettings.imageGen;
 let videoEnabled = currentToolSettings.videoGen;
 let audioEnabled = currentToolSettings.audioGen;
 let sessions = {};
+let sessionSortOrder: string[] | null = null;
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
 
@@ -1913,6 +1918,8 @@ function openReportDialog(): void {
 function createNewSession(): void {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
+	lastAccessMap[id] = Date.now();
+	saveLastAccessMap();
 	sessions[id] = {
 		model: lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value,
 		name,
@@ -1935,9 +1942,43 @@ function createNewSession(): void {
 
 function handleSessionClick(sessionId): void {
 	currentSessionId = sessionId;
+	lastAccessMap[sessionId] = Date.now();
+	saveLastAccessMap();
 	renderSessionList();
 	renderChat();
 	return void 0;
+}
+
+function computeSessionSortOrder(): string[] {
+	return Object.entries(sessions)
+		.sort(([idA, a], [idB, b]) => {
+			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
+
+			const at = lastAccessMap[idA] || 0;
+			const bt = lastAccessMap[idB] || 0;
+			if (at !== bt) return bt - at;
+
+			return (a.name || "").localeCompare(b.name || "");
+		})
+		.map(([id]) => id);
+}
+
+function getSessionSortOrder(): string[] {
+	if (!sessionSortOrder) {
+		sessionSortOrder = computeSessionSortOrder();
+		return sessionSortOrder;
+	}
+
+	const known = new Set(sessionSortOrder);
+	Object.keys(sessions).forEach((id) => {
+		if (!known.has(id)) sessionSortOrder.push(id);
+	});
+
+	sessionSortOrder = sessionSortOrder.filter((id) =>
+		Object.prototype.hasOwnProperty.call(sessions, id),
+	);
+
+	return sessionSortOrder;
 }
 
 function renderSessionList(): void {
@@ -1946,14 +1987,11 @@ function renderSessionList(): void {
 	const searchTerm =
 		document.getElementById("session-search")?.value?.toLowerCase() || "";
 
-	const sortedSessions = Object.entries(sessions)
+	const sortedSessions = getSessionSortOrder()
+		.map((id) => [id, sessions[id]] as const)
 		.filter(([, session]) =>
-			session.name?.toLowerCase().includes(searchTerm),
-		)
-		.sort(([, a], [, b]) => {
-			if (a.favorite !== b.favorite) return b.favorite - a.favorite;
-			return (a.name || "").localeCompare(b.name || "");
-		});
+			session?.name?.toLowerCase().includes(searchTerm),
+		);
 
 	sortedSessions.forEach(([id, session]) => {
 		const li = document.createElement("li");
@@ -2147,6 +2185,43 @@ function closeAttachMenu(): void {
 	}
 }
 
+async function startDirectImageToolCall(): Promise<void> {
+	if (!currentToolSettings.imageGen) {
+		showNotification({
+			message: "Image generation is disabled in settings.",
+			type: "warning",
+		});
+		return;
+	}
+	try {
+		await window.ollama.startImageToolCall?.();
+	} catch (err: any) {
+		showNotification({
+			message: `Failed to start image generation: ${String(err)}`,
+			type: "error",
+		});
+	}
+}
+
+async function startDirectVideoToolCall(): Promise<void> {
+	if (!currentToolSettings.videoGen) {
+		showNotification({
+			message: "Video generation is disabled in settings.",
+			type: "warning",
+		});
+		return;
+	}
+	try {
+		await window.ollama.startVideoToolCall?.();
+	} catch (err: any) {
+		showNotification({
+			message: `Failed to start video generation: ${String(err)}`,
+			type: "error",
+		});
+	}
+}
+
+
 function openAttachMenu(): void {
 	const menu = ensureAttachMenu();
 	menu.innerHTML = "";
@@ -2168,6 +2243,17 @@ function openAttachMenu(): void {
 	if (canUploadImages()) {
 		addItem("🖼️ Upload image", () => imageInput?.click());
 	}
+	if (currentToolSettings.imageGen) {
+		addItem("✏️Edit/Generate Image", () => {
+			void startDirectImageToolCall();
+		});
+	}
+	if (currentToolSettings.videoGen) {
+		addItem("🎬Image-Text To Video", () => {
+			void startDirectVideoToolCall();
+		});
+	}
+
 
 	menu.classList.remove("hidden");
 
