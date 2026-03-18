@@ -2244,12 +2244,12 @@ function openAttachMenu(): void {
 		addItem("🖼️ Upload image", () => imageInput?.click());
 	}
 	if (currentToolSettings.imageGen) {
-		addItem("⚡Edit/Gen Image", () => {
+		addItem("✏️Edit/Generate Image", () => {
 			void startDirectImageToolCall();
 		});
 	}
 	if (currentToolSettings.videoGen) {
-		addItem("⚡Img/Text To Video", () => {
+		addItem("🎬Image-Text To Video", () => {
 			void startDirectVideoToolCall();
 		});
 	}
