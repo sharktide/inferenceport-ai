@@ -1,0 +1,26 @@
+/*
+Copyright 2025 Rihaan Meher
+*/
+.model-tag {
+  display: inline-block;
+  background-color: #ddf4ff;
+  color: #0366d6;
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+a.model-link {
+  display: inline-block;
+  margin-top: 8px;
+  margin-bottom: 15px;
+  font-size: 15px;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+a.model-link:hover {
+  text-decoration: underline;
+}

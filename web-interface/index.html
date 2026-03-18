@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Chat - InferencePortAI</title>
+		<link rel="stylesheet" href="../styles/styles.css" />
+		<script type="module" src="../Components.js"></script>
+		<script type="module" src="../scripts/staticload/index.js"></script>
+		<link
+			rel="stylesheet"
+			href="../publicvendor/katex/katex.min.css"
+			crossorigin="anonymous"
+		/>
+		<script
+			defer
+			src="../publicvendor/katex/katex.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script
+			defer
+			src="../publicvendor/katex/auto-render.min.js"
+			crossorigin="anonymous"
+		></script>
+		<script>
+			document.addEventListener("DOMContentLoaded", function () {
+				renderMathInElement(document.body, {
+					delimiters: [
+						{ left: "$$", right: "$$", display: true },
+						{ left: "$", right: "$", display: false },
+						{ left: "\\(", right: "\\)", display: false },
+						{ left: "\\[", right: "\\]", display: true },
+					],
+					throwOnError: false,
+				});
+			});
+		</script>
+		<style>
+			.search-btn {
+				margin-top: 6px;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 6px 12px;
+				font-size: 14px;
+				border-radius: 6px;
+				border: 1px solid #ccc;
+				background: #f9f9f9;
+				cursor: pointer;
+				display: inline-flex;
+				width: auto;
+			}
+
+			.search-btn:hover {
+				background: #f0f0f0;
+			}
+
+			.search-icon {
+				font-size: 14px;
+			}
+			.session-loader {
+				position: fixed;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: var(--bg-light);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 9000;
+				opacity: 1;
+				transition: opacity 2s ease;
+			}
+			.session-loader.fading {
+				opacity: 0;
+			}
+			.session-loader.hidden {
+				display: none;
+			}
+			.loader-card {
+				width: min(420px, 80%);
+				display: flex;
+				flex-direction: column;
+				gap: 14px;
+			}
+			.loader-track {
+				width: 100%;
+				height: 12px;
+				border-radius: 999px;
+				background: rgba(255, 255, 255, 0.08);
+				overflow: hidden;
+			}
+
+			#session-progress-bar {
+				height: 100%;
+				width: 0%;
+				border-radius: 999px;
+				background: linear-gradient(90deg, #e5c846, #f1d763, #d5e546);
+				background-size: 200% 100%;
+				transition: width 420ms cubic-bezier(0.4, 0, 0.2, 1);
+				animation: shimmer 1.6s linear infinite;
+			}
+
+			@keyframes shimmer {
+				0% {
+					background-position: 0% 0;
+				}
+				100% {
+					background-position: 200% 0;
+				}
+			}
+
+			.loader-text {
+				text-align: center;
+				font-size: 13px;
+				opacity: 0.7;
+				letter-spacing: 0.3px;
+			}
+
+			.user-profile-section {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 10px;
+				border-top: 1px solid #ddd;
+				margin-top: auto;
+			}
+
+			.settings-btn {
+				background: none;
+				border: none;
+				font-size: 18px;
+				cursor: pointer;
+				padding: 5px;
+			}
+
+			.user-profile-btn {
+				width: 32px;
+				height: 32px;
+				border-radius: 50%;
+				background: #007bff;
+				color: white;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				cursor: pointer;
+				font-size: 16px;
+			}
+
+			#settings-modal {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.5);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 10000;
+			}
+
+			.settings-content {
+				background: white;
+				padding: 20px;
+				border-radius: 8px;
+				max-width: 400px;
+				width: 90%;
+			}
+
+			#user-menu {
+				position: absolute;
+				bottom: 50px;
+				right: 10px;
+				background: white;
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+				z-index: 1000;
+				min-width: 150px;
+			}
+
+			.user-menu-item {
+				padding: 10px 15px;
+				cursor: pointer;
+				border-bottom: 1px solid #eee;
+			}
+
+			.user-menu-item:last-child {
+				border-bottom: none;
+			}
+
+			.user-menu-item:hover {
+				background: #f5f5f5;
+			}
+
+			.sign-out {
+				color: red;
+			}
+
+			.sign-in-btn {
+				position: absolute;
+				bottom: 10px;
+				right: 10px;
+			}
+
+			.sign-in-btn button {
+				padding: 10px 20px;
+				background: #007bff;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+			}
+
+			html {
+				overflow: hidden;
+			}
+
+			body {
+				overflow-y: hidden;
+				overflow-x: visible;
+			}
+
+			.welcome-hero {
+				display: block;
+			}
+
+			.welcome-cards {
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="session-loader" class="session-loader hidden">
+			<div class="loader-card">
+				<div class="loader-track">
+					<div id="session-progress-bar"></div>
+				</div>
+				<div class="loader-text">Loading sessions…</div>
+			</div>
+		</div>
+
+		<div id="settings-modal" class="hidden">
+			<div class="settings-content">
+				<h2>Settings</h2>
+				<p>Settings panel (placeholder)</p>
+				<button id="close-settings">Close</button>
+			</div>
+		</div>
+
+		<div id="user-menu" class="hidden">
+			<div class="user-menu-item" data-action="profile">Profile</div>
+			<div class="user-menu-item" data-action="subscriptions">Subscriptions</div>
+			<div class="user-menu-item sign-out" data-action="sign-out">Sign Out</div>
+		</div>
+
+		<div id="sign-in-section" class="sign-in-btn">
+			<button id="sign-in-btn">Sign In</button>
+		</div>
+
+		<div id="app-root">
+			<div class="chat-container">
+				<aside class="sidebar">
+					<button id="new-session-btn" type="button">+ New chat</button>
+					<details id="usage-panel-details" style="margin-bottom:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+						<summary id="usage-panel-summary" style="font-size:15px;cursor:pointer;padding:10px 16px;border-radius:10px 0 0;display:flex;align-items:center;gap:10px;outline:none;user-select:none;">
+						<span style="font-weight:600;">Plan:</span>
+						<span id="usage-panel-tier" style="color:#2a4d7a;padding:2px 10px;border-radius:6px;font-size:13px;">Free Tier</span>
+					</summary>
+  					<section id="usage-panel" class="usage-panel" aria-live="polite">
+						<div class="usage-panel-header">
+							<div>
+								<p class="usage-kicker">Current plan</p>
+								<p id="usage-plan-name" class="usage-plan-name">Free Tier</p>
+							</div>
+							<div class="usage-panel-actions">
+								<button id="usage-refresh-btn" type="button" class="usage-btn subtle">
+									Refresh
+								</button>
+								<button id="usage-upgrade-btn" type="button" class="usage-btn">
+									Upgrade
+								</button>
+							</div>
+						</div>
+						<p id="usage-plan-meta" class="usage-plan-meta">
+							Checking subscription limits...
+						</p>
+						<div class="usage-grid">
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Cloud Chat</span>
+									<span id="usage-cloud-value">0 / 50 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-cloud-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Images</span>
+									<span id="usage-image-value">0 / 10 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-image-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Videos</span>
+									<span id="usage-video-value">0 / 3 today</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-video-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+							<div class="usage-item">
+								<div class="usage-item-top">
+									<span>Audio</span>
+									<span id="usage-audio-value">0 / 1 this week</span>
+								</div>
+								<div class="usage-meter">
+									<div id="usage-audio-fill" class="usage-meter-fill"></div>
+								</div>
+							</div>
+						</div>
+						<p id="usage-reset-note" class="usage-reset-note">
+							Daily limits reset at local midnight. Audio resets every week.
+						</p>
+					</section>
+  </details>
+					<input
+						type="hidden"
+						id="session-search"
+					/>
+					<ul id="session-list"></ul>
+					<div class="sidebar-controls" id="sidebar-controls">
+						<div id="standard-model-controls">
+							<label for="host-select">Host</label>
+							<select id="host-select"></select>
+							<label for="model-select">Model</label>
+							<select id="model-select"></select>
+						</div>
+						<div class="user-profile-section">
+							<button id="settings-btn" class="settings-btn">⚙️</button>
+							<div id="user-profile-btn" class="user-profile-btn">👤</div>
+						</div>
+					</div>
+				</aside>
+
+				<section class="chat-panel">
+					<div id="chat-box"></div>
+					<div id="welcome-hero" class="welcome-hero">
+						<h1 class="welcome-title">What's on your mind today?</h1>
+					</div>
+					<chat-box></chat-box>
+					<div id="welcome-cards" class="welcome-cards">
+						<button type="button" class="welcome-card" data-prompt="Create images for a blog post concept.">
+							<span class="welcome-card-icon">🖼️</span>
+							<span>Create images</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Teach me something useful in 5 minutes.">
+							<span class="welcome-card-icon">📖</span>
+							<span>Learn something</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Help me write and edit this draft clearly.">
+							<span class="welcome-card-icon">✏️</span>
+							<span>Write or edit</span>
+						</button>
+						<button type="button" class="welcome-card" data-prompt="Walk me through this task step by step.">
+							<span class="welcome-card-icon">💡</span>
+							<span>Step-by-step help</span>
+						</button>
+					</div>
+				</section>
+			</div>
+			<div id="notification-container"></div>
+		</main>
+		<script type="module" src="script.js"></script>
+	</body>
+</html>
+
+<!--
+Copyright 2025 Rihaan Meher
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
