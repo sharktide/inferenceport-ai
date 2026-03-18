@@ -208,7 +208,7 @@
 }
 
 .bot-bubble {
-	background: var(--gray);
+	background: transparent;
 	color: var(--text-dark);
 	padding: 10px;
 	border-radius: 8px;
