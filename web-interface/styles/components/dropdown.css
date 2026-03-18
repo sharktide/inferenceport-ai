@@ -1,0 +1,46 @@
+/*
+Copyright 2025 Rihaan Meher
+*/
+#user-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#profile-btn {
+  background-color: var(--text-dark);
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background-color: var(--gray);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  display: none;
+  flex-direction: column;
+  min-width: 150px;
+  z-index: 1000;
+}
+
+.dropdown-menu li {
+  list-style: none;
+}
+
+.dropdown-menu a {
+  display: block;
+  padding: 10px;
+  color: var(--dark-text);
+  text-decoration: none;
+}
+
+.dropdown-menu a:hover {
+  background-color: var(--gray);
+}

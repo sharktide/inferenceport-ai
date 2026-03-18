@@ -11,8 +11,6 @@
 	display: flex;
 	flex: 1;
 	min-height: 0;
-	min-width: 0;
-	overflow-x: hidden;
 }
 
 .lightning-banner-copy {
@@ -88,9 +86,7 @@
 
 .chat-panel {
 	flex: 1;
-	min-width: 0;
 	padding: 40px;
-	padding-right: 0px;
 	padding-top: 0px;
 	padding-bottom: 0px;
 	display: flex;
@@ -100,17 +96,12 @@
 
 #chat-box {
 	flex: 1;
-	min-width: 0;
 	overflow-y: auto;
 	background: var(--bg-light);
-	padding: 20px 20px 20px 20px;
-	padding-right: 0px;
+	padding: 20px;
 	border-radius: var(--border-radius);
 	margin-bottom: 20px;
 	box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
-	box-sizing: border-box;
-	padding-right: 25px;
-	max-width: calc(100% - 25px);
 }
 
 .chat-bubble {
@@ -206,7 +197,6 @@
 
 .user-bubble {
 	background-color: var(--light-blue);
-	border-radius: 20px !important;
 	align-self: flex-end;
 	color: var(--text-dark);
 	box-shadow: 0 2px 8px rgba(49, 120, 198, 0.08);
@@ -218,7 +208,7 @@
 }
 
 .bot-bubble {
-	background: transparent;
+	background: var(--gray);
 	color: var(--text-dark);
 	padding: 10px;
 	border-radius: 8px;
@@ -234,15 +224,6 @@
 	padding: 0;
 	border-radius: 0;
 	box-shadow: none;
-	/* allow code bubbles to grow full width instead of being capped by the normal chat bubble max-width */
-	max-width: 100%;
-	width: 100%;
-}
-
-/* When the *outer* chat bubble contains only a code-only bot bubble, allow it to expand too */
-.chat-bubble:has(> .bot-bubble:has(> .ai-code-bubble:only-child)) {
-	max-width: 100%;
-	width: 100%;
 }
 
 /* Code bubble sits naturally inside bot-bubble, full width */
@@ -308,6 +289,7 @@
 	margin-top: 8px;
 	padding: 0;
 	position: relative;
+	max-width: 90%;
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
@@ -389,21 +371,18 @@
 	font-size: 15px;
 	overflow: auto;
 	white-space: pre;
-	width: 100% !important;
-	max-width: 100% !important;
+	max-width: 100%;
 	max-height: 420px;
 	font-family: "Fira Mono", "Consolas", "Menlo", monospace;
 	box-shadow: none;
 	flex: 1;
-	box-sizing: border-box;
 }
 
 .ai-code-bubble pre code {
 	display: block;
 	white-space: pre;
 	padding: 0;
-	width: 100% !important;
-	min-width: 0 !important;
+	min-width: max-content;
 	background: transparent;
 	color: inherit;
 	border-radius: 0;
@@ -1669,8 +1648,7 @@ select {
 }
 
 [data-theme="dark"] .user-bubble {
-	/* background: #a9cef619; */
-	color: color-mix(in srgb, var(--text-dark) 52%, transparent);
+	background: #a9cef619;
 	color: #fff;
 }
 

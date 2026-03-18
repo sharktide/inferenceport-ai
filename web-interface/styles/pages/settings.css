@@ -1,0 +1,432 @@
+/*
+Copyright 2025 Rihaan Meher
+*/
+
+.settings-main {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 28px 20px 20px;
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background:
+    linear-gradient(
+      140deg,
+      color-mix(in srgb, var(--secondary-color) 82%, transparent) 0%,
+      color-mix(in srgb, var(--bg-light) 92%, transparent) 50%,
+      color-mix(in srgb, var(--secondary-color) 76%, transparent) 100%
+    );
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 color-mix(in srgb, var(--bg-primary) 50%, transparent);
+}
+
+.settings-container h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.tab-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.tab-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  gap: 8px;
+}
+
+.tab-button {
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 20%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+  color: var(--text-dark);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: color-mix(in srgb, var(--secondary-color) 60%, transparent);
+}
+
+.tab-button.active {
+  background: var(--secondary-color);
+  color: var(--bg-primary);
+  border-color: var(--secondary-color);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(1px);
+}
+
+.tab-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.tab-pane {
+  display: none;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 10%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  gap: 12px;
+}
+
+[data-theme="dark"] .tab-pane {
+  background: color-mix(in srgb, var(--bg-light) 78%, transparent);
+}
+
+.tab-pane.active {
+  display: grid;
+}
+
+.tab-pane p {
+  margin: 0;
+}
+
+.tab-pane .muted {
+  color: color-mix(in srgb, var(--text-dark) 68%, transparent);
+  font-size: 0.94rem;
+}
+
+.settings-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+}
+
+.settings-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.settings-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-inline-row label {
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.settings-container input[type="number"] {
+  width: 170px;
+  margin: 0;
+}
+
+.settings-container button,
+.theme-toggle {
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+  padding: 9px 14px;
+  font-size: 0.95rem;
+}
+
+#open-delete {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 30%, transparent);
+}
+
+.settings-account-actions {
+  align-items: stretch;
+}
+
+.settings-subscription-card {
+  margin-top: 6px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--blue) 16%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-light) 92%, var(--blue) 8%),
+      color-mix(in srgb, var(--bg-light) 97%, transparent)
+    );
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 14px;
+}
+
+.settings-subscription-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-subscription-kicker {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--blue) 70%, var(--text-dark) 30%);
+}
+
+.settings-subscription-copy {
+  margin: 8px 0 0;
+  color: color-mix(in srgb, var(--text-dark) 84%, transparent);
+  line-height: 1.55;
+}
+
+.settings-subscription-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-subscription-btn {
+  min-width: 180px;
+}
+
+.settings-subscription-btn--secondary {
+  background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+  color: var(--text-dark);
+  border-color: color-mix(in srgb, var(--blue) 22%, transparent);
+}
+
+.settings-subscription-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: color-mix(in srgb, var(--text-dark) 88%, transparent);
+}
+
+.settings-upgrade-section {
+  margin-top: 10px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-light) 86%, transparent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-upgrade-section h3 {
+  margin: 0 0 8px;
+}
+
+.settings-upgrade-section p {
+  margin: 0;
+}
+
+.settings-upgrade-limits {
+  margin: 10px 0 12px;
+  display: none;
+}
+
+.settings-upgrade-limits.is-visible {
+  display: block;
+}
+
+.settings-upgrade-limits ul {
+  margin: 6px 0 0 16px;
+  padding: 0;
+}
+
+.settings-upgrade-limits li {
+  margin: 4px 0;
+}
+
+.settings-upgrade-btn {
+  background: #2a4d7a;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .settings-subscription-actions,
+  .settings-account-actions {
+    width: 100%;
+  }
+
+  .settings-subscription-btn,
+  .settings-upgrade-btn {
+    flex: 1 1 100%;
+  }
+}
+
+.settings-proxy-form {
+  display: grid;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 0.84rem;
+  color: color-mix(in srgb, var(--text-dark) 60%, transparent);
+  font-weight: 500;
+}
+
+.email-chip-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--blue) 60%, transparent);
+  border-radius: 12px;
+  background: var(--input-bg);
+  cursor: text;
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.email-chip-input input {
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 190px;
+  background: transparent;
+  color: var(--text-dark);
+  font-size: 0.92rem;
+  margin: 0;
+  padding: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--blue) 88%, #245a93 12%);
+  color: #fff;
+  font-size: 0.81rem;
+}
+
+.chip.invalid {
+  background: color-mix(in srgb, var(--error) 82%, #8d1f1f 18%);
+}
+
+.chip button {
+  min-width: 0;
+  width: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.92rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0;
+}
+
+.settings-container button:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.server-logs-panel {
+  margin-top: 6px;
+  max-width: 760px;
+  display: none;
+}
+
+.server-logs-panel pre {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text-dark);
+  border: 1px solid color-mix(in srgb, var(--blue) 55%, transparent);
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.settings-footer {
+  margin: 18px 4px 0;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--text-dark) 68%, transparent);
+}
+
+@media (max-width: 700px) {
+  .settings-main {
+    padding: 14px 10px 12px;
+  }
+
+  .settings-container {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .tab-container {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .tab-buttons {
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .tab-button {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .settings-inline-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-inline-row label {
+    min-width: 0;
+  }
+
+  .settings-container input[type="number"],
+  .settings-container button,
+  .theme-toggle {
+    width: 100%;
+  }
+
+  .settings-actions {
+    flex-direction: column;
+  }
+}

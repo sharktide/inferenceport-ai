@@ -1,0 +1,327 @@
+/*
+Copyright 2026 Rihaan Meher
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/* ───── Lists ───── */
+.chat-bubble ul,
+.chat-bubble ol {
+	margin: 8px 0;
+	padding-left: 24px;
+	list-style: inherit;
+}
+
+.chat-bubble ul {
+	list-style-type: disc;
+}
+
+.chat-bubble ul ul {
+	list-style-type: circle;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+.chat-bubble ul ul ul {
+	list-style-type: square;
+}
+
+.chat-bubble ol {
+	list-style-type: decimal;
+}
+
+.chat-bubble ol ol {
+	list-style-type: lower-alpha;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+
+.chat-bubble ol ol ol {
+	list-style-type: lower-roman;
+}
+
+.chat-bubble li {
+	margin: 2px 0;
+	line-height: 1.5;
+}
+
+.chat-bubble li p {
+	margin: 0;
+	display: inline;
+}
+
+.chat-bubble li > *:first-child {
+	margin-top: 0;
+}
+
+.chat-bubble li > *:last-child {
+	margin-bottom: 0;
+}
+
+/* ───── Tables ───── */
+.chat-bubble table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 12px 0;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	background: var(--bg-light);
+}
+
+.chat-bubble table thead {
+	background: color-mix(in srgb, var(--primary-color) 12%, var(--bg-light) 88%);
+}
+
+.chat-bubble table th {
+	padding: 12px 16px;
+	text-align: left;
+	font-weight: 600;
+	border-bottom: 2px solid color-mix(in srgb, var(--primary-color) 20%, var(--bg-light) 80%);
+	color: var(--text-dark);
+}
+
+.chat-bubble table td {
+	padding: 10px 16px;
+	border-bottom: 1px solid color-mix(in srgb, var(--text-dark) 10%, var(--bg-light) 90%);
+}
+
+.chat-bubble table tbody tr:hover {
+	background: color-mix(in srgb, var(--primary-color) 4%, var(--bg-light) 96%);
+	transition: background 0.2s ease;
+}
+
+.chat-bubble table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+/* Dark theme table adjustments */
+[data-theme="dark"] .chat-bubble table {
+	background: #1a1a1a;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .chat-bubble table thead {
+	background: color-mix(in srgb, var(--primary-color) 24%, #0a0a0a 76%);
+}
+
+[data-theme="dark"] .chat-bubble table th {
+	border-bottom-color: color-mix(in srgb, var(--primary-color) 30%, #1a1a1a 70%);
+	color: #fff;
+}
+
+[data-theme="dark"] .chat-bubble table td {
+	border-bottom-color: color-mix(in srgb, #fff 12%, #1a1a1a 88%);
+}
+
+[data-theme="dark"] .chat-bubble table tbody tr:hover {
+	background: color-mix(in srgb, var(--primary-color) 12%, #0a0a0a 88%);
+}
+
+/* ───── Block Quotes ───── */
+.chat-bubble blockquote {
+	margin: 8px 0;
+	padding: 12px 16px;
+	border-left: 4px solid var(--primary-color);
+	background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-light) 92%);
+	border-radius: 0 6px 6px 0;
+	color: color-mix(in srgb, var(--text-dark) 90%, transparent);
+	font-style: italic;
+	line-height: 1.5;
+}
+
+.chat-bubble blockquote > *:first-child {
+	margin-top: 0;
+}
+
+.chat-bubble blockquote > *:last-child {
+	margin-bottom: 0;
+}
+
+.chat-bubble blockquote p {
+	margin: 0;
+}
+
+[data-theme="dark"] .chat-bubble blockquote {
+	background: color-mix(in srgb, var(--primary-color) 16%, #0a0a0a 84%);
+	border-left-color: color-mix(in srgb, var(--primary-color) 60%, transparent);
+}
+
+/* ───── Inline Code ───── */
+.chat-bubble code:not(pre code) {
+	background: color-mix(in srgb, var(--text-dark) 8%, var(--bg-light) 92%);
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-family: "Courier New", monospace;
+	font-size: 0.9em;
+	color: color-mix(in srgb, var(--text-dark) 85%, transparent);
+}
+
+[data-theme="dark"] .chat-bubble code:not(pre code) {
+	background: color-mix(in srgb, #fff 16%, #0a0a0a 84%);
+	color: #e0e0e0;
+}
+
+/* ───── Headings ───── */
+.chat-bubble h1,
+.chat-bubble h2,
+.chat-bubble h3,
+.chat-bubble h4,
+.chat-bubble h5,
+.chat-bubble h6 {
+	margin-top: 16px;
+	margin-bottom: 8px;
+	line-height: 1.4;
+	font-weight: 600;
+	color: var(--text-dark);
+}
+
+.chat-bubble h1 {
+	font-size: 1.8em;
+	border-bottom: 2px solid color-mix(in srgb, var(--text-dark) 12%, var(--bg-light) 88%);
+	padding-bottom: 6px;
+}
+
+.chat-bubble h2 {
+	font-size: 1.5em;
+	border-bottom: 1px solid color-mix(in srgb, var(--text-dark) 8%, var(--bg-light) 92%);
+	padding-bottom: 4px;
+}
+
+.chat-bubble h3 {
+	font-size: 1.2em;
+}
+
+/* ───── Horizontal Rule ───── */
+.chat-bubble hr {
+	border: none;
+	height: 1px;
+	background: color-mix(in srgb, var(--text-dark) 20%, var(--bg-light) 80%);
+	margin: 12px 0;
+	border-radius: 1px;
+}
+
+[data-theme="dark"] .chat-bubble hr {
+	background: rgba(255, 255, 255, 0.55);
+	height: 2px;
+}
+
+/* ───── Strikethrough ───── */
+.chat-bubble del,
+.chat-bubble s {
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+/* ───── Strong and Em ───── */
+.chat-bubble strong {
+	font-weight: 600;
+	color: inherit;
+}
+
+.chat-bubble em {
+	font-style: italic;
+	color: inherit;
+}
+
+/* Ensure all inline elements inside colored spans inherit the color */
+.chat-bubble span[style] strong,
+.chat-bubble span[style] em,
+.chat-bubble span[style] a,
+.chat-bubble span[style] code,
+.chat-bubble p[style] strong,
+.chat-bubble p[style] em {
+	color: inherit;
+}
+
+/* ───── Links ───── */
+.chat-bubble a {
+	color: var(--primary-color);
+	text-decoration: underline;
+	transition: opacity 0.2s ease;
+}
+
+.chat-bubble a:hover {
+	opacity: 0.8;
+}
+
+/* ───── Pre/Code Blocks (standalone, not inside .ai-code-bubble) ───── */
+.chat-bubble pre {
+	background: color-mix(in srgb, var(--text-dark) 4%, var(--bg-light) 96%);
+	border: 1px solid color-mix(in srgb, var(--text-dark) 8%, var(--bg-light) 92%);
+	border-radius: 6px;
+	padding: 12px;
+	overflow-x: auto;
+	margin: 8px 0;
+	line-height: 1.4;
+}
+
+.chat-bubble pre code {
+	background: transparent;
+	padding: 0;
+	border-radius: 0;
+	font-size: 0.95em;
+	color: var(--text-dark);
+	font-family: "Courier New", monospace;
+}
+
+[data-theme="dark"] .chat-bubble pre {
+	background: #1a1a1a;
+	border-color: color-mix(in srgb, #fff 12%, #0a0a0a 88%);
+}
+
+[data-theme="dark"] .chat-bubble pre code {
+	color: #e0e0e0;
+}
+
+/* ───── Override: pre inside .ai-code-bubble must have no border or radius ───── */
+.ai-code-bubble .chat-bubble pre,
+.ai-code-bubble pre {
+	border: none !important;
+	border-radius: 0 0 10px 10px !important;
+	margin: 0 !important;
+	background: var(--code-bg) !important;
+	color: var(--code-text) !important;
+}
+
+/* ───── Definition Lists ───── */
+.chat-bubble dt {
+	font-weight: 600;
+	margin-top: 8px;
+	color: var(--text-dark);
+}
+
+.chat-bubble dd {
+	margin-left: 20px;
+	margin-bottom: 8px;
+	color: color-mix(in srgb, var(--text-dark) 85%, transparent);
+}
+
+/* ───── Images ───── */
+.chat-bubble img {
+	max-width: 100%;
+	height: auto;
+	border-radius: 6px;
+	margin: 12px 0;
+	display: block;
+}
+
+/* ───── Paragraph ───── */
+.chat-bubble p {
+	margin: 0 0 8px 0;
+	line-height: 1.5;
+}
+
+.chat-bubble p:last-child {
+	margin-bottom: 0;
+}
