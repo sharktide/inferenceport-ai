@@ -46,6 +46,17 @@ interface PersistentHistoryItem {
     title: string;
 }
 
+// --- FIX 1: Declare missing module-level state variables ---
+let isGenerating = false;
+let activeToolCallId: string | null = null;
+let activeRole: AssetRole | null = null;
+const pendingResolutions = new Map<string, { name: string; payload: Record<string, unknown> }>();
+
+// --- FIX 2: Declare missing generateId utility function ---
+function generateId(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 async function loadHistoryFromStorage(): Promise<PersistentHistoryItem[]> {
     try {
         await mediaDB.open();
@@ -332,7 +343,7 @@ function attachUploadHandler(input: HTMLInputElement | null): void {
 async function getAssetObjectUrl(assetId: string, mimeType: string): Promise<string> {
 	const cacheKey = `${mimeType}:${assetId}`;
 	if (assetObjectUrlCache.has(cacheKey)) return assetObjectUrlCache.get(cacheKey)!;
-	const rawBuffer = await window.utils.getAsset(assetId);
+	const rawBuffer = await window.utils.getAsset(assetId) as Uint8Array<ArrayBuffer>;
 	const uint8 = rawBuffer instanceof Uint8Array ? rawBuffer : new Uint8Array(rawBuffer);
 	const typedBlob = new Blob([uint8], { type: mimeType });
 	const objectUrl = URL.createObjectURL(typedBlob);
@@ -589,16 +600,16 @@ videoGenerateBtn?.addEventListener("click", () => {
 	const ratioValue = videoRatioSelect?.value.trim() ?? "";
 	const mode = (videoModeSelect?.value ?? "normal") as VideoMode;
 	const durationValue = videoDurationInput?.value.trim() ?? "";
-	const duration = durationValue ? Number(durationValue) : undefined;
+	const durationNum = durationValue ? Number(durationValue) : NaN;
 	const imageUrl = videoUploadInput?.dataset.imageUrl;
 	const image_urls = imageUrl ? [imageUrl] : [];
 
 	void runVideoGeneration({
 		prompt,
-		ratio: ratioValue ? (ratioValue as VideoRatio) : undefined,
 		mode,
-		duration: Number.isFinite(duration as number) ? duration : undefined,
 		image_urls,
+		...(ratioValue ? { ratio: ratioValue as VideoRatio } : {}),
+		...(Number.isFinite(durationNum) ? { duration: durationNum } : {}),
 	});
 });
 
