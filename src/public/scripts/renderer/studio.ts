@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { MediaDB } from "./db.js";
+import { MediaDB } from './db.js';
 
 const mediaDB = new MediaDB();
 
@@ -27,164 +27,107 @@ type VideoMode = "normal" | "fun";
 type VideoRatio = "3:2" | "2:3" | "1:1";
 const HISTORY_LIMIT = 50;
 interface HistoryItem {
-	id: string;
-	role: AssetRole;
-	content: string;
-	mimeType: string;
-	timestamp: number;
-	title: string;
+    id: string;
+    role: AssetRole;
+    content: string;
+    mimeType: string;
+    timestamp: number;
+    title: string;
 }
 
 type ContentMode = "data" | "blob" | "asset";
 interface PersistentHistoryItem {
-	id: string;
-	role: AssetRole;
-	content: string;
-	mode: ContentMode;
-	mimeType: string;
-	timestamp: number;
-	title: string;
+    id: string;
+    role: AssetRole;
+    content: string;
+    mode: ContentMode;
+    mimeType: string;
+    timestamp: number;
+    title: string;
 }
 
-// --- FIX 1: Declare missing module-level state variables ---
 let isGenerating = false;
 let activeToolCallId: string | null = null;
 let activeRole: AssetRole | null = null;
-const pendingResolutions = new Map<
-	string,
-	{ name: string; payload: Record<string, unknown> }
->();
+const pendingResolutions = new Map<string, { name: string; payload: Record<string, unknown> }>();
 
-// --- FIX 2: Declare missing generateId utility function ---
 function generateId(): string {
-	return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 async function loadHistoryFromStorage(): Promise<PersistentHistoryItem[]> {
-	try {
-		await mediaDB.open();
-		const records = (await mediaDB.getAll()) as PersistentHistoryItem[];
-		return records
-			.filter(
-				(h) =>
-					h.id &&
-					h.role &&
-					h.content &&
-					h.mimeType &&
-					h.timestamp &&
-					h.title,
-			)
-			.sort((a, b) => b.timestamp - a.timestamp);
-	} catch (e) {
-		console.warn("Failed to load history from IndexedDB", e);
-		return [];
-	}
+    try {
+        await mediaDB.open();
+        const records = (await mediaDB.getAll()) as PersistentHistoryItem[];
+        return records
+            .filter(h => h.id && h.role && h.content && h.mimeType && h.timestamp && h.title)
+            .sort((a, b) => b.timestamp - a.timestamp);
+    } catch (e) {
+        console.warn("Failed to load history from IndexedDB", e);
+        return [];
+    }
 }
 
 const historyStore: PersistentHistoryItem[] = [];
 
-void loadHistoryFromStorage().then((items) => {
-	historyStore.push(...items);
-	renderHistoryList();
+void loadHistoryFromStorage().then(items => {
+    historyStore.push(...items);
+    renderHistoryList();
 });
 
-const historyModal = document.getElementById(
-	"history-modal",
-) as HTMLDialogElement | null;
-const historyListEl = document.getElementById(
-	"history-list",
-) as HTMLUListElement | null;
-const historyCloseBtn = document.getElementById(
-	"history-close",
-) as HTMLButtonElement | null;
+const historyModal = document.getElementById("history-modal") as HTMLDialogElement | null;
+const historyListEl = document.getElementById("history-list") as HTMLUListElement | null;
+const historyCloseBtn = document.getElementById("history-close") as HTMLButtonElement | null;
+const historyClearAllBtn = document.getElementById("history-clear-all") as HTMLButtonElement | null;
 
-const statusEl = document.getElementById(
-	"studio-status",
-) as HTMLDivElement | null;
-const previewTitle = document.getElementById(
-	"studio-preview-title",
-) as HTMLHeadingElement | null;
-const previewCanvas = document.getElementById(
-	"studio-preview-canvas",
-) as HTMLDivElement | null;
-const previewClearBtn = document.getElementById(
-	"studio-preview-clear",
-) as HTMLButtonElement | null;
+const statusEl = document.getElementById("studio-status") as HTMLDivElement | null;
+const previewTitle = document.getElementById("studio-preview-title") as HTMLHeadingElement | null;
+const previewCanvas = document.getElementById("studio-preview-canvas") as HTMLDivElement | null;
+const previewClearBtn = document.getElementById("studio-preview-clear") as HTMLButtonElement | null;
 
-const imageGenerateBtn = document.getElementById(
-	"studio-image-generate",
-) as HTMLButtonElement | null;
-const editGenerateBtn = document.getElementById(
-	"studio-edit-generate",
-) as HTMLButtonElement | null;
-const videoGenerateBtn = document.getElementById(
-	"studio-video-generate",
-) as HTMLButtonElement | null;
-const audioGenerateBtn = document.getElementById(
-	"studio-audio-generate",
-) as HTMLButtonElement | null;
+const imageGenerateBtn = document.getElementById("studio-image-generate") as HTMLButtonElement | null;
+const editGenerateBtn = document.getElementById("studio-edit-generate") as HTMLButtonElement | null;
+const videoGenerateBtn = document.getElementById("studio-video-generate") as HTMLButtonElement | null;
+const audioGenerateBtn = document.getElementById("studio-audio-generate") as HTMLButtonElement | null;
 
-const imageModeSelect = document.getElementById(
-	"studio-image-mode",
-) as HTMLSelectElement | null;
-const imagePromptInput = document.getElementById(
-	"studio-image-prompt",
-) as HTMLTextAreaElement | null;
+const imageModeSelect = document.getElementById("studio-image-mode") as HTMLSelectElement | null;
+const imagePromptInput = document.getElementById("studio-image-prompt") as HTMLTextAreaElement | null;
 
-const editModeSelect = document.getElementById(
-	"studio-edit-mode",
-) as HTMLSelectElement | null;
-const editPromptInput = document.getElementById(
-	"studio-edit-prompt",
-) as HTMLTextAreaElement | null;
-const editUploadInput = document.getElementById(
-	"studio-edit-upload",
-) as HTMLInputElement | null;
+const editModeSelect = document.getElementById("studio-edit-mode") as HTMLSelectElement | null;
+const editPromptInput = document.getElementById("studio-edit-prompt") as HTMLTextAreaElement | null;
+const editUploadInput = document.getElementById("studio-edit-upload") as HTMLInputElement | null;
 
-const videoRatioSelect = document.getElementById(
-	"studio-video-ratio",
-) as HTMLSelectElement | null;
-const videoModeSelect = document.getElementById(
-	"studio-video-mode",
-) as HTMLSelectElement | null;
-const videoDurationInput = document.getElementById(
-	"studio-video-duration",
-) as HTMLInputElement | null;
-const videoPromptInput = document.getElementById(
-	"studio-video-prompt",
-) as HTMLTextAreaElement | null;
-const videoUploadInput = document.getElementById(
-	"studio-video-upload",
-) as HTMLInputElement | null;
-const previewHistoryBtn = document.getElementById(
-	"studio-preview-history",
-) as HTMLButtonElement | null;
-const previewCopyBtn = document.getElementById(
-	"studio-preview-copy",
-) as HTMLButtonElement | null;
-const previewDownloadBtn = document.getElementById(
-	"studio-preview-download",
-) as HTMLButtonElement | null;
+const videoRatioSelect = document.getElementById("studio-video-ratio") as HTMLSelectElement | null;
+const videoModeSelect = document.getElementById("studio-video-mode") as HTMLSelectElement | null;
+const videoDurationInput = document.getElementById("studio-video-duration") as HTMLInputElement | null;
+const videoPromptInput = document.getElementById("studio-video-prompt") as HTMLTextAreaElement | null;
+const videoUploadInput = document.getElementById("studio-video-upload") as HTMLInputElement | null;
+const previewHistoryBtn = document.getElementById("studio-preview-history") as HTMLButtonElement | null;
+const previewCopyBtn    = document.getElementById("studio-preview-copy")    as HTMLButtonElement | null;
+const previewDownloadBtn= document.getElementById("studio-preview-download") as HTMLButtonElement | null;
 
-const audioPromptInput = document.getElementById(
-	"studio-audio-prompt",
-) as HTMLTextAreaElement | null;
+const audioPromptInput = document.getElementById("studio-audio-prompt") as HTMLTextAreaElement | null;
 
 const initialCanvasMarkup = previewCanvas?.innerHTML ?? "";
 const assetObjectUrlCache = new Map<string, string>();
 
 previewHistoryBtn?.addEventListener("click", () => {
-	if (!historyModal) {
-		setStatus("History feature not available.", true);
-		return;
-	}
-	if (!historyModal.open) {
-		historyModal.showModal();
-	}
+    if (!historyModal) {
+        setStatus("History feature not available.", true);
+        return;
+    }
+    if (!historyModal.open) {
+        historyModal.showModal();
+    }
 });
 
 historyCloseBtn?.addEventListener("click", () => {
-	historyModal?.close();
+    historyModal?.close();
+});
+
+historyClearAllBtn?.addEventListener("click", () => {
+    void clearHistory();
+    setStatus("History cleared.");
 });
 
 function setStatus(message: string, isError = false): void {
@@ -194,14 +137,12 @@ function setStatus(message: string, isError = false): void {
 }
 
 function getCurrentMediaElement(): HTMLElement | null {
-	if (!previewCanvas) return null;
-	return previewCanvas.querySelector(
-		".studio-preview-media",
-	) as HTMLElement | null;
+    if (!previewCanvas) return null;
+    return previewCanvas.querySelector(".studio-preview-media") as HTMLElement | null;
 }
 
 function truncateString(str: string, n: number): string {
-	return str.length > n ? str.slice(0, n) + "..." : str;
+    return str.length > n ? str.slice(0, n) + "..." : str;
 }
 
 function setPreviewTitle(text: string): void {
@@ -215,147 +156,150 @@ function setPreviewContent(node: HTMLElement): void {
 }
 
 async function copyCurrentMedia(): Promise<void> {
-	const el = getCurrentMediaElement();
-	if (!el) {
-		setStatus("Nothing to copy.", true);
-		return;
-	}
+    const el = getCurrentMediaElement();
+    if (!el) {
+        setStatus("Nothing to copy.", true);
+        return;
+    }
 
-	let src = "";
-	if (
-		el instanceof HTMLImageElement ||
-		el instanceof HTMLVideoElement ||
-		el instanceof HTMLAudioElement
-	) {
-		src = el.src;
-	}
+    let src = "";
+    if (el instanceof HTMLImageElement || el instanceof HTMLVideoElement || el instanceof HTMLAudioElement) {
+        src = el.src;
+    }
 
-	try {
-		await navigator.clipboard.writeText(src);
-		setStatus("Media URL copied to clipboard.");
-	} catch (e) {
-		setStatus("Copy failed.", true);
-	}
+    try {
+        await navigator.clipboard.writeText(src);
+        setStatus("Media URL copied to clipboard.");
+    } catch (e) {
+        setStatus("Copy failed.", true);
+    }
 }
 
 previewCopyBtn?.addEventListener("click", () => {
-	void copyCurrentMedia();
+    void copyCurrentMedia();
 });
 
 previewDownloadBtn?.addEventListener("click", () => {
-	downloadCurrentMedia();
+    downloadCurrentMedia();
 });
 
 function downloadCurrentMedia(): void {
-	const el = getCurrentMediaElement();
-	if (!el) {
-		setStatus("Nothing to download.", true);
-		return;
-	}
+    const el = getCurrentMediaElement();
+    if (!el) {
+        setStatus("Nothing to download.", true);
+        return;
+    }
 
-	let src = "";
-	let filename = "download";
-	if (el instanceof HTMLImageElement) {
-		src = el.src;
-		filename = "image.png";
-	} else if (el instanceof HTMLVideoElement) {
-		src = el.src;
-		filename = "video.mp4";
-	} else if (el instanceof HTMLAudioElement) {
-		src = el.src;
-		filename = "audio.mp3";
-	}
+    let src = "";
+    let filename = "download";
+    if (el instanceof HTMLImageElement) {
+        src = el.src;
+        filename = "image.png";
+    } else if (el instanceof HTMLVideoElement) {
+        src = el.src;
+        filename = "video.mp4";
+    } else if (el instanceof HTMLAudioElement) {
+        src = el.src;
+        filename = "audio.mp3";
+    }
 
-	const a = document.createElement("a");
-	a.href = src;
-	a.download = filename;
-	a.style.display = "none";
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	setStatus(`${filename} download started.`);
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setStatus(`${filename} download started.`);
 }
 
 function renderHistoryList(): void {
-	if (!historyListEl) return;
-	if (historyStore.length === 0) {
-		historyListEl.innerHTML = `<li class="empty">No items in history yet.</li>`;
-		return;
-	}
+    if (!historyListEl) return;
 
-	historyListEl.innerHTML = "";
+    if (historyStore.length === 0) {
+        historyListEl.innerHTML = `<li class="empty">No items in history yet.</li>`;
+        return;
+    }
 
-	for (const item of historyStore) {
-		const li = document.createElement("li");
-		li.dataset.id = item.id;
+    historyListEl.innerHTML = "";
 
-		let iconEl;
+    for (const item of historyStore) {
+        const li = document.createElement("li");
+        li.dataset.id = item.id;
 
-		if (item.role === "image" && item.mode !== "asset") {
-			const img = document.createElement("img");
-			img.className = "studio-history-image";
-			img.alt = "";
-			img.src = item.content;
-			iconEl = img;
-		} else if (item.role === "image" && item.mode === "asset") {
-			const span = document.createElement("span");
-			span.className = "studio-history-icon";
-			span.textContent = "🖼️";
-			iconEl = span;
-		} else if (item.role === "video") {
-			const span = document.createElement("span");
-			span.className = "studio-history-icon";
-			span.textContent = "▶️";
-			iconEl = span;
-		} else {
-			const span = document.createElement("span");
-			span.className = "studio-history-icon";
-			span.textContent = "🔊";
-			iconEl = span;
-		}
+        let iconEl: HTMLElement;
 
-		if (iconEl) {
-			li.appendChild(iconEl);
-		}
+        if (item.role === "image" && item.mode !== "asset") {
+            const img = document.createElement("img");
+            img.className = "studio-history-image";
+            img.alt = "";
+            img.src = item.content;
+            iconEl = img;
+        } else {
+            const span = document.createElement("span");
+            span.className = "studio-history-icon";
+            span.textContent =
+                item.role === "image" ? "🖼️" :
+                item.role === "video" ? "▶️" :
+                "🔊";
+            iconEl = span;
+        }
 
-		const infoDiv = document.createElement("div");
-		infoDiv.className = "studio-history-info";
+        li.appendChild(iconEl);
 
-		const titleEl = document.createElement("strong");
-		titleEl.textContent = item.title;
-		infoDiv.appendChild(titleEl);
+        const info = document.createElement("div");
+        info.className = "studio-history-info";
 
-		const timeEl = document.createElement("span");
-		timeEl.textContent = new Date(item.timestamp).toLocaleTimeString();
-		infoDiv.appendChild(timeEl);
+        const titleEl = document.createElement("strong");
+        titleEl.textContent = item.title; // safe
 
-		li.appendChild(infoDiv);
+        const timeEl = document.createElement("span");
+        timeEl.textContent = new Date(item.timestamp).toLocaleTimeString(); // safe
 
-		li.addEventListener("click", async () => {
-			let src = item.content;
-			if (item.mode === "asset") {
-				try {
-					showPreviewMessage(`Restoring from asset ${src}...`);
-					src = await getAssetObjectUrl(item.content, item.mimeType);
-				} catch (err) {
-					showPreviewMessage(`Failed to restore asset: ${err}`);
-					return;
-				}
-			}
+        info.appendChild(titleEl);
+        info.appendChild(timeEl);
+        li.appendChild(info);
 
-			setPreviewTitle(`History: ${item.title}`);
-			const el =
-				item.role === "image"
-					? createImageElement(src)
-					: item.role === "video"
-						? createVideoElement(src)
-						: createAudioElement(src);
-			setPreviewContent(el);
-			historyModal?.close();
-			setStatus("Restored from history.");
-		});
-		historyListEl.appendChild(li);
-	}
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "studio-history-delete";
+        deleteBtn.type = "button";
+        deleteBtn.setAttribute("aria-label", "Delete item");
+        deleteBtn.textContent = "Delete";
+		deleteBtn.style.fontSize = "1rem";
+        deleteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            void deleteHistoryItem(item.id);
+        });
+
+        li.appendChild(deleteBtn);
+
+        li.addEventListener("click", async () => {
+            let src = item.content;
+
+            if (item.mode === "asset") {
+                try {
+                    showPreviewMessage(`Restoring from asset ${src}...`);
+                    src = await getAssetObjectUrl(item.content, item.mimeType);
+                } catch (err) {
+                    showPreviewMessage(`Failed to restore asset: ${err}`);
+                    return;
+                }
+            }
+
+            setPreviewTitle(`History: ${item.title}`);
+
+            const el =
+                item.role === "image" ? createImageElement(src) :
+                item.role === "video" ? createVideoElement(src) :
+                createAudioElement(src);
+
+            setPreviewContent(el);
+            historyModal?.close();
+            setStatus("Restored from history.");
+        });
+
+        historyListEl.appendChild(li);
+    }
 }
 
 function showPreviewMessage(text: string): void {
@@ -368,22 +312,22 @@ function showPreviewMessage(text: string): void {
 }
 
 async function saveToHistory(item: PersistentHistoryItem): Promise<void> {
-	historyStore.unshift(item);
+    historyStore.unshift(item);
+    
+    if (historyStore.length > HISTORY_LIMIT) {
+        const removed = historyStore.splice(HISTORY_LIMIT);
+        for (const oldItem of removed) {
+            await mediaDB.delete(oldItem.id);
+        }
+    }
 
-	if (historyStore.length > HISTORY_LIMIT) {
-		const removed = historyStore.splice(HISTORY_LIMIT);
-		for (const oldItem of removed) {
-			await mediaDB.delete(oldItem.id);
-		}
-	}
+    try {
+        await mediaDB.add(item);
+    } catch (e) {
+        console.error("Failed to save item to IndexedDB", e);
+    }
 
-	try {
-		await mediaDB.add(item);
-	} catch (e) {
-		console.error("Failed to save item to IndexedDB", e);
-	}
-
-	if (historyListEl) renderHistoryList();
+    if (historyListEl) renderHistoryList();
 }
 
 function resetPreview(): void {
@@ -405,8 +349,7 @@ function fileToDataUri(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onload = () => resolve(String(reader.result || ""));
-		reader.onerror = () =>
-			reject(reader.error || new Error("Failed to read image file"));
+		reader.onerror = () => reject(reader.error || new Error("Failed to read image file"));
 		reader.readAsDataURL(file);
 	});
 }
@@ -419,8 +362,7 @@ function attachUploadHandler(input: HTMLInputElement | null): void {
 		const file = input.files?.[0];
 		if (!file) return;
 		if (!file.type.startsWith("image/")) {
-			if (infoSpan)
-				infoSpan.textContent = "Only image files are supported.";
+			if (infoSpan) infoSpan.textContent = "Only image files are supported.";
 			return;
 		}
 		if (infoSpan) infoSpan.textContent = "Uploading image...";
@@ -435,18 +377,11 @@ function attachUploadHandler(input: HTMLInputElement | null): void {
 	});
 }
 
-async function getAssetObjectUrl(
-	assetId: string,
-	mimeType: string,
-): Promise<string> {
+async function getAssetObjectUrl(assetId: string, mimeType: string): Promise<string> {
 	const cacheKey = `${mimeType}:${assetId}`;
-	if (assetObjectUrlCache.has(cacheKey))
-		return assetObjectUrlCache.get(cacheKey)!;
-	const rawBuffer = (await window.utils.getAsset(
-		assetId,
-	)) as Uint8Array<ArrayBuffer>;
-	const uint8 =
-		rawBuffer instanceof Uint8Array ? rawBuffer : new Uint8Array(rawBuffer);
+	if (assetObjectUrlCache.has(cacheKey)) return assetObjectUrlCache.get(cacheKey)!;
+	const rawBuffer = await window.utils.getAsset(assetId) as Uint8Array<ArrayBuffer>;
+	const uint8 = rawBuffer instanceof Uint8Array ? rawBuffer : new Uint8Array(rawBuffer);
 	const typedBlob = new Blob([uint8], { type: mimeType });
 	const objectUrl = URL.createObjectURL(typedBlob);
 	assetObjectUrlCache.set(cacheKey, objectUrl);
@@ -480,106 +415,86 @@ function createAudioElement(src: string): HTMLElement {
 }
 
 function renderAsset(role: AssetRole, source: string): void {
-	if (role === "image") {
-		setPreviewTitle("Image ready.");
-		const img = createImageElement(source);
-		setPreviewContent(img);
+    if (role === "image") {
+        setPreviewTitle("Image ready.");
+        const img = createImageElement(source);
+        setPreviewContent(img);
 
-		const title = truncateString(
-			imagePromptInput?.value.trim() || "Unnamed image",
-			30,
-		);
-		let mode: ContentMode = "data";
-		let content = source;
+        const title = truncateString(imagePromptInput?.value.trim() || "Unnamed image", 30);
+        let mode: ContentMode = "data";
+        let content = source;
 
-		if (source.startsWith("blob:")) {
-			mode = "blob";
-			// Try to capture asset ID from cache if possible (advanced)
-		} else if (/^asset:[a-z]+:[\w-]+$/.test(source)) {
-			mode = "asset";
-			content = source; // keep pure asset ID
-		}
+        if (source.startsWith("blob:")) {
+            mode = "blob";
+            // Try to capture asset ID from cache if possible (advanced)
+        } else if (/^asset:[a-z]+:[\w-]+$/.test(source)) {
+            mode = "asset";
+            content = source; // keep pure asset ID
+        }
 
-		saveToHistory({
-			id: generateId(),
-			role,
-			content,
-			mode,
-			mimeType: "image/png",
-			timestamp: Date.now(),
-			title,
-		});
+        saveToHistory({
+            id: generateId(),
+            role,
+            content,
+            mode,
+            mimeType: "image/png",
+            timestamp: Date.now(),
+            title,
+        });
 
-		setGeneratingState(false);
-		return;
-	}
+        setGeneratingState(false);
+        return;
+    }
 
-	const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
-	const title =
-		role === "video"
-			? truncateString(
-					videoPromptInput?.value.trim() || "Unnamed video",
-					30,
-				)
-			: truncateString(
-					audioPromptInput?.value.trim() || "Unnamed audio",
-					30,
-				);
+    const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
+    const title = role === "video"
+        ? truncateString(videoPromptInput?.value.trim() || "Unnamed video", 30)
+        : truncateString(audioPromptInput?.value.trim() || "Unnamed audio", 30);
 
-	if (source.startsWith("data:") || source.startsWith("blob:")) {
-		setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
-		const el =
-			role === "video"
-				? createVideoElement(source)
-				: createAudioElement(source);
-		setPreviewContent(el);
-		setGeneratingState(false);
+    if (source.startsWith("data:") || source.startsWith("blob:")) {
+        setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
+        const el = role === "video" ? createVideoElement(source) : createAudioElement(source);
+        setPreviewContent(el);
+        setGeneratingState(false);
 
-		saveToHistory({
-			id: generateId(),
-			role,
-			content: source,
-			mode: source.startsWith("blob:") ? "blob" : "data",
-			mimeType,
-			timestamp: Date.now(),
-			title,
-		});
-		return;
-	}
+        saveToHistory({
+            id: generateId(),
+            role,
+            content: source,
+            mode: source.startsWith("blob:") ? "blob" : "data",
+            mimeType,
+            timestamp: Date.now(),
+            title,
+        });
+        return;
+    }
 
-	showPreviewMessage(`Loading ${role} asset...`);
+    showPreviewMessage(`Loading ${role} asset...`);
 
-	void getAssetObjectUrl(source, mimeType)
-		.then((objectUrl) => {
-			setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
-			const el =
-				role === "video"
-					? createVideoElement(objectUrl)
-					: createAudioElement(objectUrl);
-			setPreviewContent(el);
+    void getAssetObjectUrl(source, mimeType)
+        .then((objectUrl) => {
+            setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
+            const el = role === "video" ? createVideoElement(objectUrl) : createAudioElement(objectUrl);
+            setPreviewContent(el);
 
-			saveToHistory({
-				id: generateId(),
-				role,
-				content: source,
-				mode: "asset",
-				mimeType,
-				timestamp: Date.now(),
-				title,
-			});
-			setGeneratingState(false);
-		})
-		.catch((err) => {
-			showPreviewMessage(`Failed to load ${role}: ${String(err)}`);
-			setGeneratingState(false);
-		});
+            saveToHistory({
+                id: generateId(),
+                role,
+                content: source,
+                mode: "asset",
+                mimeType,
+                timestamp: Date.now(),
+                title,
+            });
+            setGeneratingState(false);
+        })
+        .catch((err) => {
+            showPreviewMessage(`Failed to load ${role}: ${String(err)}`);
+            setGeneratingState(false);
+        });
 }
 
-async function runImageGeneration(options: {
-	prompt: string;
-	mode: ImageMode;
-	image_urls?: string[];
-}): Promise<void> {
+async function runImageGeneration(options: { prompt: string; mode: ImageMode; image_urls?: string[] }): Promise<void> {
 	if (!options.prompt.trim()) {
 		setStatus("Prompt is required.", true);
 		return;
@@ -605,18 +520,11 @@ async function runImageGeneration(options: {
 		activeToolCallId = toolCallId;
 		activeRole = "image";
 		pendingResolutions.set(toolCallId, { name: "generate_image", payload });
-		const accepted = await window.ollama.resolveImageToolCall(
-			toolCallId,
-			payload,
-		);
+		const accepted = await window.ollama.resolveImageToolCall(toolCallId, payload);
 		if (accepted) {
 			pendingResolutions.delete(toolCallId);
 		}
-		setStatus(
-			accepted
-				? "Submitting generation request..."
-				: "Awaiting generation queue...",
-		);
+		setStatus(accepted ? "Submitting generation request..." : "Awaiting generation queue...");
 	} catch (err: any) {
 		setStatus(`Image generation failed: ${String(err)}`, true);
 		setGeneratingState(false);
@@ -651,25 +559,17 @@ async function runVideoGeneration(options: {
 			mode: options.mode,
 		};
 		if (options.ratio) payload.ratio = options.ratio;
-		if (typeof options.duration === "number")
-			payload.duration = options.duration;
+		if (typeof options.duration === "number") payload.duration = options.duration;
 		if (options.image_urls?.length) payload.image_urls = options.image_urls;
 		const toolCallId = await window.ollama.startVideoToolCall(payload);
 		activeToolCallId = toolCallId;
 		activeRole = "video";
 		pendingResolutions.set(toolCallId, { name: "generate_video", payload });
-		const accepted = await window.ollama.resolveVideoToolCall(
-			toolCallId,
-			payload,
-		);
+		const accepted = await window.ollama.resolveVideoToolCall(toolCallId, payload);
 		if (accepted) {
 			pendingResolutions.delete(toolCallId);
 		}
-		setStatus(
-			accepted
-				? "Submitting generation request..."
-				: "Awaiting generation queue...",
-		);
+		setStatus(accepted ? "Submitting generation request..." : "Awaiting generation queue...");
 	} catch (err: any) {
 		setStatus(`Video generation failed: ${String(err)}`, true);
 		setGeneratingState(false);
@@ -698,28 +598,29 @@ async function runAudioGeneration(prompt: string): Promise<void> {
 		activeToolCallId = toolCallId;
 		activeRole = "audio";
 		pendingResolutions.set(toolCallId, { name: "generate_audio", payload });
-		const accepted = await window.ollama.resolveAudioToolCall(
-			toolCallId,
-			payload,
-		);
+		const accepted = await window.ollama.resolveAudioToolCall(toolCallId, payload);
 		if (accepted) {
 			pendingResolutions.delete(toolCallId);
 		}
-		setStatus(
-			accepted
-				? "Submitting generation request..."
-				: "Awaiting generation queue...",
-		);
+		setStatus(accepted ? "Submitting generation request..." : "Awaiting generation queue...");
 	} catch (err: any) {
 		setStatus(`Audio generation failed: ${String(err)}`, true);
 		setGeneratingState(false);
 	}
 }
 
+async function deleteHistoryItem(id: string): Promise<void> {
+    const idx = historyStore.findIndex(item => item.id === id);
+    if (idx !== -1) historyStore.splice(idx, 1);
+    await mediaDB.delete(id);
+    renderHistoryList();
+    setStatus("Item removed from history.");
+}
+
 async function clearHistory(): Promise<void> {
-	historyStore.length = 0;
-	await mediaDB.clear();
-	renderHistoryList();
+    historyStore.length = 0;
+    await mediaDB.clear();
+    renderHistoryList();
 }
 
 attachUploadHandler(editUploadInput);
@@ -778,26 +679,19 @@ window.ollama.onToolCall((call) => {
 					: pending.name === "generate_video"
 						? window.ollama.resolveVideoToolCall
 						: window.ollama.resolveAudioToolCall;
-			void resolver(call.id, pending.payload).then(
-				(accepted: boolean) => {
-					if (!accepted) {
-						setStatus("Request expired. Try again.", true);
-						setGeneratingState(false);
-					}
-				},
-			);
+			void resolver(call.id, pending.payload).then((accepted: boolean) => {
+				if (!accepted) {
+					setStatus("Request expired. Try again.", true);
+					setGeneratingState(false);
+				}
+			});
 			pendingResolutions.delete(call.id);
 		}
 		setStatus("Submitting generation request...");
 		return;
 	}
 	if (call.state === "pending") {
-		const label =
-			call.name === "generate_video"
-				? "video"
-				: call.name === "generate_audio"
-					? "audio"
-					: "image";
+		const label = call.name === "generate_video" ? "video" : call.name === "generate_audio" ? "audio" : "image";
 		setStatus(`Generating ${label}...`);
 		return;
 	}
@@ -814,14 +708,13 @@ window.ollama.onToolCall((call) => {
 
 window.ollama.onNewAsset((msg) => {
 	if (!msg || !msg.role || !msg.content) return;
-	if (!(["image", "video", "audio"] as AssetRole[]).includes(msg.role))
-		return;
+	if (!(["image", "video", "audio"] as AssetRole[]).includes(msg.role)) return;
 	renderAsset(msg.role as AssetRole, msg.content as string);
 });
 
 window.addEventListener("beforeunload", () => {
-	for (const [key, url] of assetObjectUrlCache) {
-		URL.revokeObjectURL(url);
-	}
-	assetObjectUrlCache.clear();
+    for (const [key, url] of assetObjectUrlCache) {
+        URL.revokeObjectURL(url);
+    }
+    assetObjectUrlCache.clear();
 });
