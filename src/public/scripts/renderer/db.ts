@@ -1,8 +1,7 @@
 const DB_NAME = "StudioMediaDB";
 const STORE_NAME = "history";
-const DB_VERSION = 2; // Incremented to handle migrations
+const DB_VERSION = 2;
 
-interface MediaDBType {}
 export class MediaDB {
 	db: IDBDatabase | null;
 	constructor() {
@@ -67,7 +66,7 @@ export class MediaDB {
 					"prev",
 				);
 
-			const results: Array<string> = [];
+			const results: Array<any> = [];
 			request.onsuccess = () => {
 				const cursor = request.result;
 				if (cursor) {
