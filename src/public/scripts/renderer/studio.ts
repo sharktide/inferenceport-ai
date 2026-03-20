@@ -233,13 +233,26 @@ function renderHistoryList(): void {
             iconHtml = `<span class="studio-history-icon">🔊</span>`;
         }
 
-        li.innerHTML = `
-            ${iconHtml}
-            <div class="studio-history-info">
-                <strong>${item.title}</strong>
-                <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
-            </div>
-        `;
+        // Insert the icon HTML first
+        if (iconHtml) {
+            const iconWrapper = document.createElement("span");
+            iconWrapper.innerHTML = iconHtml;
+            li.appendChild(iconWrapper.firstElementChild ?? iconWrapper);
+        }
+
+        // Safely add history info with textContent to avoid XSS
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "studio-history-info";
+
+        const titleEl = document.createElement("strong");
+        titleEl.textContent = item.title;
+        infoDiv.appendChild(titleEl);
+
+        const timeEl = document.createElement("span");
+        timeEl.textContent = new Date(item.timestamp).toLocaleTimeString();
+        infoDiv.appendChild(timeEl);
+
+        li.appendChild(infoDiv);
 
         li.addEventListener("click", async () => {
             let src = item.content;
