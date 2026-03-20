@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//@ts-nocheck
+import { MediaDB } from './db.js';
+
+const mediaDB = new MediaDB();
 
 type AssetRole = "image" | "video" | "audio";
 
@@ -23,6 +25,50 @@ type ImageMode = "auto" | "fantasy" | "realistic";
 type VideoMode = "normal" | "fun";
 
 type VideoRatio = "3:2" | "2:3" | "1:1";
+const HISTORY_LIMIT = 50;
+interface HistoryItem {
+    id: string;
+    role: AssetRole;
+    content: string;
+    mimeType: string;
+    timestamp: number;
+    title: string;
+}
+
+type ContentMode = "data" | "blob" | "asset";
+interface PersistentHistoryItem {
+    id: string;
+    role: AssetRole;
+    content: string;
+    mode: ContentMode;
+    mimeType: string;
+    timestamp: number;
+    title: string;
+}
+
+async function loadHistoryFromStorage(): Promise<PersistentHistoryItem[]> {
+    try {
+        await mediaDB.open();
+        const records = (await mediaDB.getAll()) as PersistentHistoryItem[];
+        return records
+            .filter(h => h.id && h.role && h.content && h.mimeType && h.timestamp && h.title)
+            .sort((a, b) => b.timestamp - a.timestamp);
+    } catch (e) {
+        console.warn("Failed to load history from IndexedDB", e);
+        return [];
+    }
+}
+
+const historyStore: PersistentHistoryItem[] = [];
+
+void loadHistoryFromStorage().then(items => {
+    historyStore.push(...items);
+    renderHistoryList();
+});
+
+const historyModal = document.getElementById("history-modal") as HTMLDialogElement | null;
+const historyListEl = document.getElementById("history-list") as HTMLUListElement | null;
+const historyCloseBtn = document.getElementById("history-close") as HTMLButtonElement | null;
 
 const statusEl = document.getElementById("studio-status") as HTMLDivElement | null;
 const previewTitle = document.getElementById("studio-preview-title") as HTMLHeadingElement | null;
@@ -31,7 +77,6 @@ const previewClearBtn = document.getElementById("studio-preview-clear") as HTMLB
 
 const imageGenerateBtn = document.getElementById("studio-image-generate") as HTMLButtonElement | null;
 const editGenerateBtn = document.getElementById("studio-edit-generate") as HTMLButtonElement | null;
-const editResetBtn = document.getElementById("studio-edit-reset") as HTMLButtonElement | null;
 const videoGenerateBtn = document.getElementById("studio-video-generate") as HTMLButtonElement | null;
 const audioGenerateBtn = document.getElementById("studio-audio-generate") as HTMLButtonElement | null;
 
@@ -47,24 +92,42 @@ const videoModeSelect = document.getElementById("studio-video-mode") as HTMLSele
 const videoDurationInput = document.getElementById("studio-video-duration") as HTMLInputElement | null;
 const videoPromptInput = document.getElementById("studio-video-prompt") as HTMLTextAreaElement | null;
 const videoUploadInput = document.getElementById("studio-video-upload") as HTMLInputElement | null;
+const previewHistoryBtn = document.getElementById("studio-preview-history") as HTMLButtonElement | null;
+const previewCopyBtn    = document.getElementById("studio-preview-copy")    as HTMLButtonElement | null;
+const previewDownloadBtn= document.getElementById("studio-preview-download") as HTMLButtonElement | null;
 
 const audioPromptInput = document.getElementById("studio-audio-prompt") as HTMLTextAreaElement | null;
 
 const initialCanvasMarkup = previewCanvas?.innerHTML ?? "";
 const assetObjectUrlCache = new Map<string, string>();
 
-let activeToolCallId: string | null = null;
-let activeRole: AssetRole | null = null;
-let isGenerating = false;
-const pendingResolutions = new Map<
-	string,
-	{ name: "generate_image" | "generate_video" | "generate_audio"; payload: Record<string, unknown> },
->();
+previewHistoryBtn?.addEventListener("click", () => {
+    if (!historyModal) {
+        setStatus("History feature not available.", true);
+        return;
+    }
+    if (!historyModal.open) {
+        historyModal.showModal();
+    }
+});
+
+historyCloseBtn?.addEventListener("click", () => {
+    historyModal?.close();
+});
 
 function setStatus(message: string, isError = false): void {
 	if (!statusEl) return;
 	statusEl.textContent = message;
 	statusEl.classList.toggle("is-error", isError);
+}
+
+function getCurrentMediaElement(): HTMLElement | null {
+    if (!previewCanvas) return null;
+    return previewCanvas.querySelector(".studio-preview-media") as HTMLElement | null;
+}
+
+function truncateString(str: string, n: number): string {
+    return str.length > n ? str.slice(0, n) + "..." : str;
 }
 
 function setPreviewTitle(text: string): void {
@@ -77,6 +140,121 @@ function setPreviewContent(node: HTMLElement): void {
 	previewCanvas.appendChild(node);
 }
 
+async function copyCurrentMedia(): Promise<void> {
+    const el = getCurrentMediaElement();
+    if (!el) {
+        setStatus("Nothing to copy.", true);
+        return;
+    }
+
+    let src = "";
+    if (el instanceof HTMLImageElement || el instanceof HTMLVideoElement || el instanceof HTMLAudioElement) {
+        src = el.src;
+    }
+
+    try {
+        await navigator.clipboard.writeText(src);
+        setStatus("Media URL copied to clipboard.");
+    } catch (e) {
+        setStatus("Copy failed.", true);
+    }
+}
+
+previewCopyBtn?.addEventListener("click", () => {
+    void copyCurrentMedia();
+});
+
+previewDownloadBtn?.addEventListener("click", () => {
+    downloadCurrentMedia();
+});
+
+function downloadCurrentMedia(): void {
+    const el = getCurrentMediaElement();
+    if (!el) {
+        setStatus("Nothing to download.", true);
+        return;
+    }
+
+    let src = "";
+    let filename = "download";
+    if (el instanceof HTMLImageElement) {
+        src = el.src;
+        filename = "image.png";
+    } else if (el instanceof HTMLVideoElement) {
+        src = el.src;
+        filename = "video.mp4";
+    } else if (el instanceof HTMLAudioElement) {
+        src = el.src;
+        filename = "audio.mp3";
+    }
+
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setStatus(`${filename} download started.`);
+}
+
+function renderHistoryList(): void {
+    if (!historyListEl) return;
+    if (historyStore.length === 0) {
+        historyListEl.innerHTML = `<li class="empty">No items in history yet.</li>`;
+        return;
+    }
+
+    historyListEl.innerHTML = "";
+
+    for (const item of historyStore) {
+        const li = document.createElement("li");
+        li.dataset.id = item.id;
+
+        let iconHtml = "";
+        if (item.role === "image" && item.mode !== "asset") {
+            iconHtml = `<img class="studio-history-image" src="${item.content}" alt="" />`;
+        } else if (item.role === "image" && item.mode === "asset") {
+            iconHtml = `<span class="studio-history-icon">🖼️</span>`;
+        } else if (item.role === "video") {
+            iconHtml = `<span class="studio-history-icon">▶️</span>`;
+        } else {
+            iconHtml = `<span class="studio-history-icon">🔊</span>`;
+        }
+
+        li.innerHTML = `
+            ${iconHtml}
+            <div class="studio-history-info">
+                <strong>${item.title}</strong>
+                <span>${new Date(item.timestamp).toLocaleTimeString()}</span>
+            </div>
+        `;
+
+        li.addEventListener("click", async () => {
+            let src = item.content;
+            if (item.mode === "asset") {
+                try {
+                    showPreviewMessage(`Restoring from asset ${src}...`);
+                    src = await getAssetObjectUrl(item.content, item.mimeType);
+                } catch (err) {
+                    showPreviewMessage(`Failed to restore asset: ${err}`);
+                    return;
+                }
+            }
+
+            setPreviewTitle(`History: ${item.title}`);
+            const el =
+                item.role === "image" ? createImageElement(src) :
+                item.role === "video" ? createVideoElement(src) :
+                createAudioElement(src);
+            setPreviewContent(el);
+            historyModal?.close();
+            setStatus("Restored from history.");
+        });
+        historyListEl.appendChild(li);
+    }
+}
+
 function showPreviewMessage(text: string): void {
 	const wrapper = document.createElement("div");
 	wrapper.className = "studio-placeholder";
@@ -84,6 +262,25 @@ function showPreviewMessage(text: string): void {
 	message.textContent = text;
 	wrapper.appendChild(message);
 	setPreviewContent(wrapper);
+}
+
+async function saveToHistory(item: PersistentHistoryItem): Promise<void> {
+    historyStore.unshift(item);
+    
+    if (historyStore.length > HISTORY_LIMIT) {
+        const removed = historyStore.splice(HISTORY_LIMIT);
+        for (const oldItem of removed) {
+            await mediaDB.delete(oldItem.id);
+        }
+    }
+
+    try {
+        await mediaDB.add(item);
+    } catch (e) {
+        console.error("Failed to save item to IndexedDB", e);
+    }
+
+    if (historyListEl) renderHistoryList();
 }
 
 function resetPreview(): void {
@@ -169,33 +366,84 @@ function createAudioElement(src: string): HTMLElement {
 	return audio;
 }
 
-function renderAsset(role: AssetRole, content: string): void {
-	if (role === "image") {
-		setPreviewTitle("Image ready.");
-		setPreviewContent(createImageElement(content));
-		setGeneratingState(false);
-		return;
-	}
+function renderAsset(role: AssetRole, source: string): void {
+    if (role === "image") {
+        setPreviewTitle("Image ready.");
+        const img = createImageElement(source);
+        setPreviewContent(img);
 
-	if (content.startsWith("data:") || content.startsWith("blob:")) {
-		setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
-		setPreviewContent(role === "video" ? createVideoElement(content) : createAudioElement(content));
-		setGeneratingState(false);
-		return;
-	}
+        const title = truncateString(imagePromptInput?.value.trim() || "Unnamed image", 30);
+        let mode: ContentMode = "data";
+        let content = source;
 
-	showPreviewMessage(`Loading ${role} asset...`);
-	const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
-	void getAssetObjectUrl(content, mimeType)
-		.then((objectUrl) => {
-			setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
-			setPreviewContent(role === "video" ? createVideoElement(objectUrl) : createAudioElement(objectUrl));
-			setGeneratingState(false);
-		})
-		.catch((err) => {
-			showPreviewMessage(`Failed to load ${role}: ${String(err)}`);
-			setGeneratingState(false);
-		});
+        if (source.startsWith("blob:")) {
+            mode = "blob";
+            // Try to capture asset ID from cache if possible (advanced)
+        } else if (/^asset:[a-z]+:[\w-]+$/.test(source)) {
+            mode = "asset";
+            content = source; // keep pure asset ID
+        }
+
+        saveToHistory({
+            id: generateId(),
+            role,
+            content,
+            mode,
+            mimeType: "image/png",
+            timestamp: Date.now(),
+            title,
+        });
+
+        setGeneratingState(false);
+        return;
+    }
+
+    const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
+    const title = role === "video"
+        ? truncateString(videoPromptInput?.value.trim() || "Unnamed video", 30)
+        : truncateString(audioPromptInput?.value.trim() || "Unnamed audio", 30);
+
+    if (source.startsWith("data:") || source.startsWith("blob:")) {
+        setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
+        const el = role === "video" ? createVideoElement(source) : createAudioElement(source);
+        setPreviewContent(el);
+        setGeneratingState(false);
+
+        saveToHistory({
+            id: generateId(),
+            role,
+            content: source,
+            mode: source.startsWith("blob:") ? "blob" : "data",
+            mimeType,
+            timestamp: Date.now(),
+            title,
+        });
+        return;
+    }
+
+    showPreviewMessage(`Loading ${role} asset...`);
+
+    void getAssetObjectUrl(source, mimeType)
+        .then((objectUrl) => {
+            setPreviewTitle(role === "video" ? "Video ready." : "Audio ready.");
+            const el = role === "video" ? createVideoElement(objectUrl) : createAudioElement(objectUrl);
+            setPreviewContent(el);
+
+            saveToHistory({
+                id: generateId(),
+                role,
+                content: source,
+                mode: "asset",
+                mimeType,
+                timestamp: Date.now(),
+                title,
+            });
+            setGeneratingState(false);
+        })
+        .catch((err) => {
+            showPreviewMessage(`Failed to load ${role}: ${String(err)}`);
+            setGeneratingState(false);
+        });
 }
 
 async function runImageGeneration(options: { prompt: string; mode: ImageMode; image_urls?: string[] }): Promise<void> {
@@ -313,6 +561,12 @@ async function runAudioGeneration(prompt: string): Promise<void> {
 	}
 }
 
+async function clearHistory(): Promise<void> {
+    historyStore.length = 0;
+    await mediaDB.clear();
+    renderHistoryList();
+}
+
 attachUploadHandler(editUploadInput);
 attachUploadHandler(videoUploadInput);
 
@@ -328,20 +582,6 @@ editGenerateBtn?.addEventListener("click", () => {
 	const imageUrl = editUploadInput?.dataset.imageUrl;
 	const image_urls = imageUrl ? [imageUrl] : [];
 	void runImageGeneration({ prompt, mode, image_urls });
-});
-
-editResetBtn?.addEventListener("click", () => {
-	if (editPromptInput) editPromptInput.value = "";
-	if (editModeSelect) editModeSelect.value = "auto";
-	if (editUploadInput) {
-		editUploadInput.value = "";
-		delete editUploadInput.dataset.imageUrl;
-		delete editUploadInput.dataset.fileName;
-		const label = editUploadInput.closest("label");
-		const infoSpan = label?.querySelector("span");
-		if (infoSpan) infoSpan.textContent = "PNG or JPG · up to 10 MB";
-	}
-	setStatus("Edit inputs cleared.");
 });
 
 videoGenerateBtn?.addEventListener("click", () => {
@@ -414,4 +654,11 @@ window.ollama.onNewAsset((msg) => {
 	if (!msg || !msg.role || !msg.content) return;
 	if (!(["image", "video", "audio"] as AssetRole[]).includes(msg.role)) return;
 	renderAsset(msg.role as AssetRole, msg.content as string);
+});
+
+window.addEventListener("beforeunload", () => {
+    for (const [key, url] of assetObjectUrlCache) {
+        URL.revokeObjectURL(url);
+    }
+    assetObjectUrlCache.clear();
 });

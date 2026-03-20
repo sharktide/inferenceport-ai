@@ -6,6 +6,101 @@
 		<link rel="stylesheet" href="../styles/styles.css" />
 		<script type="module" src="../Components.js"></script>
 		<script type="module" src="../scripts/staticload/index.js"></script>
+		<style>
+			.studio-history-modal {
+				padding: 0;
+				width: 90vw;
+				max-width: 600px;
+				border: none;
+				border-radius: 12px;
+				box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+				overflow: hidden;
+			}
+
+			.studio-history-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 16px 24px;
+				background: #f3f4f6;
+				border-bottom: 1px solid #e5e7eb;
+			}
+
+			.studio-history-header h3 {
+				margin: 0;
+				font-size: 1.25rem;
+				font-weight: 600;
+				color: #1f2937;
+			}
+
+			.studio-btn-close {
+				background: none;
+				border: none;
+				font-size: 1.75rem;
+				color: #6b7280;
+				cursor: pointer;
+				width: 40px;
+				height: 40px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.studio-btn-close:hover {
+				color: #111;
+			}
+
+			.studio-history-list {
+				list-style: none;
+				margin: 0;
+				padding: 0;
+				max-height: 50vh;
+				overflow-y: auto;
+			}
+
+			.studio-history-list li {
+				padding: 12px 24px;
+				border-bottom: 1px solid #e5e7eb;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				transition: background 0.2s;
+			}
+
+			.studio-history-list li:hover {
+				background-color: #f9fafb;
+			}
+
+			.studio-history-list li.empty {
+				color: #6b7280;
+				text-align: center;
+				cursor: default;
+			}
+
+			.studio-history-image {
+				width: 40px;
+				height: 40px;
+				object-fit: cover;
+				border-radius: 6px;
+				flex-shrink: 0;
+			}
+
+			.studio-history-info {
+				flex: 1;
+				font-size: 0.875rem;
+				line-height: 1.4;
+			}
+
+			.studio-history-info strong {
+				display: block;
+				color: #1f2937;
+			}
+
+			.studio-history-info span {
+				color: #6b7280;
+			}
+		</style>
 	</head>
 	<body class="studio-page">
 		<type1-navbar></type1-navbar>
@@ -73,7 +168,6 @@
 						</div>
 						<div class="studio-actions">
 							<button id="studio-image-generate" class="studio-primary-btn" type="button">Generate image</button>
-							<button id="studio-image-preset" class="studio-secondary-btn" type="button">Save preset</button>
 						</div>
 					</section>
 
@@ -103,7 +197,6 @@
 						</div>
 						<div class="studio-actions">
 							<button id="studio-edit-generate" class="studio-primary-btn" type="button">Generate edit</button>
-							<button id="studio-edit-reset" class="studio-secondary-btn" type="button">Reset</button>
 						</div>
 					</section>
 
@@ -146,7 +239,6 @@
 						</div>
 						<div class="studio-actions">
 							<button id="studio-video-generate" class="studio-primary-btn" type="button">Generate video</button>
-							<button id="studio-video-storyboard" class="studio-secondary-btn" type="button">Storyboard</button>
 						</div>
 					</section>
 
@@ -161,7 +253,6 @@
 						</div>
 						<div class="studio-actions">
 							<button id="studio-audio-generate" class="studio-primary-btn" type="button">Generate audio</button>
-							<button id="studio-audio-mixdown" class="studio-secondary-btn" type="button">Mixdown</button>
 						</div>
 					</section>
 				</div>
@@ -176,6 +267,8 @@
 					<div class="studio-preview-actions">
 						<button id="studio-preview-clear" class="studio-preview-action" type="button">Clear</button>
 						<button id="studio-preview-history" class="studio-preview-action" type="button">History</button>
+    					<button id="studio-preview-copy" class="studio-preview-action" type="button">Copy</button>
+    					<button id="studio-preview-download" class="studio-preview-action" type="button">Download</button>
 					</div>
 				</div>
 				<div id="studio-preview-canvas" class="studio-canvas">
@@ -206,6 +299,15 @@
 					<span class="studio-tag">Audio intro</span>
 				</div>
 			</section>
+			<dialog id="history-modal" class="studio-history-modal">
+				<header class="studio-history-header">
+					<h3>Generation History</h3>
+					<button id="history-close" class="studio-btn-close" aria-label="Close">&times;</button>
+				</header>
+				<ul id="history-list" class="studio-history-list">
+					<li class="empty">No items in history yet.</li>
+				</ul>
+			</dialog>
 		</main>
 	<script type="module" src="../scripts/renderer/studio.js"></script>
 	</body>
