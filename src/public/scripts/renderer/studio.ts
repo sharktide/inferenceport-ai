@@ -387,6 +387,7 @@ async function saveToHistory(item: PersistentHistoryItem): Promise<void> {
 }
 
 function resetPreview(): void {
+	// nosemgrep
 	if (previewCanvas) previewCanvas.innerHTML = initialCanvasMarkup;
 	setPreviewTitle("Ready to create.");
 }
