@@ -45,13 +45,23 @@ export class MediaDB {
 	}
 
     async add(item: any) {
-        if (!this.db) return;
+        if (!this.db) return new Promise((resolve, reject) => reject(new Error("Database not initialized")));
         const tx = this.db.transaction(STORE_NAME, "readwrite");
         const store = tx.objectStore(STORE_NAME);
         const now = new Date().toISOString();
         const record = item instanceof Object ? { ...item, createdAt: now } : null;
         await store.add(record);
-        return new Promise((resolve, reject) => { tx.oncomplete = () => resolve(tx); });
+		return new Promise((resolve, reject) => {
+			tx.oncomplete = () => resolve(tx);
+
+			tx.onerror = () => {
+				reject(tx.error);
+			};
+
+			tx.onabort = () => {
+				reject(tx.error || new Error("Transaction aborted"));
+			};
+		});
     }
 
 	async getAll() {
@@ -80,18 +90,26 @@ export class MediaDB {
 	}
 
 	async delete(id: string) {
-        if (!this.db) return;
+        if (!this.db) return new Promise((resolve, reject) => reject(new Error("Database not initialized")));
 		const tx = this.db.transaction(STORE_NAME, "readwrite");
 		const store = tx.objectStore(STORE_NAME);
 		await store.delete(id);
-        return new Promise((resolve, reject) => { tx.oncomplete = () => resolve(tx); });
+		return new Promise((resolve, reject) => {
+			tx.oncomplete = () => resolve(tx);
+			tx.onerror = () => reject(tx.error);
+			tx.onabort = () => reject(tx.error || new Error("Transaction aborted"));
+		});
 	}
 
 	async clear() {
-        if (!this.db) return;
+        if (!this.db) return new Promise((resolve, reject) => reject(new Error("Database not initialized")));
 		const tx = this.db.transaction(STORE_NAME, "readwrite");
 		const store = tx.objectStore(STORE_NAME);
 		await store.clear();
-        return new Promise((resolve, reject) => { tx.oncomplete = () => resolve(tx); });
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve(tx);
+            tx.onerror = () => reject(tx.error);
+		    tx.onabort = () => reject(tx.error || new Error("Transaction aborted"));
+        });
 	}
 }
