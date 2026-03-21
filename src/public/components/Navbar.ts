@@ -61,6 +61,7 @@ export class RootNavbar extends HTMLElement {
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="renderer/chat.html">Chat</a></li>
+                    <li><a href="renderer/studio.html">Studio</a></li>
                     <li><a href="index.html">Home</a></li>
                     <li><a href="marketplace.html">Explore</a></li>
                     <li><a href="installed.html">Installed</a></li>
@@ -81,6 +82,7 @@ export class Type1Navbar extends HTMLElement {
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="chat.html">Chat</a></li>
+                    <li><a href="studio.html">Studio</a></li>
                     <li><a href="../index.html">Home</a></li>
                     <li><a href="../marketplace.html">Explore</a></li>
                     <li><a href="../installed.html">Installed</a></li>
@@ -101,6 +103,7 @@ export class MarketplaceNavbar extends HTMLElement {
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="../renderer/chat.html">Chat</a></li>
+                    <li><a href="../renderer/studio.html">Studio</a></li>
                     <li><a href="../index.html">Home</a></li>
                     <li><a href="../marketplace.html">Explore</a></li>
                     <li><a href="../installed.html">Installed</a></li>

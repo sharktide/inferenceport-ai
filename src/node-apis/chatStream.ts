@@ -489,6 +489,78 @@ async function runDirectVideoToolCall(
 	});
 }
 
+async function runDirectAudioToolCall(
+	toolCallId: string,
+	payload?: unknown,
+): Promise<void> {
+	const suggested = normalizeAudioRequest(payload ?? {}, "model");
+	let toolState: "resolved" | "canceled" = "resolved";
+	let toolResult: string | undefined;
+	let resolvedToolOptions: NormalizedAudioRequest | null = suggested;
+	const abortController = new AbortController();
+
+	try {
+		broadcastIpcEvent("ollama:new_tool_call", {
+			id: toolCallId,
+			name: "generate_audio",
+			arguments: JSON.stringify(suggested),
+			tool_options: suggested,
+			state: "awaiting_input",
+		});
+
+		const selected = await waitForAudioRequestInput(
+			toolCallId,
+			suggested,
+			abortController.signal,
+		);
+
+		if (!selected) {
+			toolState = "canceled";
+			toolResult = "Audio generation was canceled before execution.";
+		} else if (!selected.prompt) {
+			toolState = "canceled";
+			toolResult =
+				"Audio generation was canceled because a prompt was not provided.";
+			resolvedToolOptions = selected;
+		} else {
+			resolvedToolOptions = selected;
+			broadcastIpcEvent("ollama:new_tool_call", {
+				id: toolCallId,
+				name: "generate_audio",
+				arguments: JSON.stringify(selected),
+				tool_options: selected,
+				state: "pending",
+			});
+
+			const audio = await generateAudioOrSFX(selected.prompt);
+			const audioBlob = new Blob([audio], { type: "audio/mpeg" });
+			const assetID = await save_stream(audioBlob);
+			broadcastIpcEvent("ollama:new-asset", {
+				role: "audio",
+				content: assetID,
+			});
+			toolResult = "Audio generated successfully and shown to the user.";
+		}
+	} catch (err: any) {
+		toolState = "canceled";
+		toolResult = `Audio generation failed: ${String(err)}`;
+	}
+
+	broadcastIpcEvent("ollama:new_tool_call", {
+		id: toolCallId,
+		name: "generate_audio",
+		result: toolResult ?? "Tool completed.",
+		state: toolState,
+		...(resolvedToolOptions
+			? {
+				arguments: JSON.stringify(resolvedToolOptions),
+				tool_options: resolvedToolOptions,
+			}
+			: {}),
+	});
+}
+
+
 const systemPrompt =
   "CRITICAL RULE: Every response MUST use HTML <span data-color=\\\"{COLOR NAME}\\\"> tags to color main points and headings. " +
   "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION. " +
@@ -708,6 +780,18 @@ export default function registerChatStream() {
             ): Promise<string> => {
                 const toolCallId = `call_${crypto.randomUUID()}`;
                 void runDirectVideoToolCall(toolCallId, payload);
+                return toolCallId;
+            },
+        );
+
+        ipcMain.handle(
+            "ollama:start-audio-tool-call",
+            async (
+                _event: IpcMainInvokeEvent,
+                payload?: unknown,
+            ): Promise<string> => {
+                const toolCallId = `call_${crypto.randomUUID()}`;
+                void runDirectAudioToolCall(toolCallId, payload);
                 return toolCallId;
             },
         );
