@@ -156,6 +156,7 @@ declare global {
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			startImageToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startVideoToolCall: (payload?: Record<string, unknown>) => Promise<string>;
+			startAudioToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 		};
 

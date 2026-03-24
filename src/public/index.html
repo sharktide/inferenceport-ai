@@ -651,11 +651,16 @@
 <body>
 	<root-navbar></root-navbar>
 	<main>
-		<h1>Welcome to InferencePortAI</h1>
-		<p>Your gateway to seamless AI model management and interaction.</p>
-		<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'"
-			style="width: 100%; height: 78px; font-size: 18px;">Chat Now</button>
-
+		<div>
+			<h1>Welcome to InferencePortAI</h1>
+			<p>Your gateway to seamless AI model management and interaction.</p>
+		</div>
+		<div style="display: flex; justify-content: space-between;">
+			<button class="lightning-btn" onclick="window.location.href='renderer/studio.html'"
+				style="width: 49.5%; height: 90px; font-size: 18px;">Studio</button>
+			<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'"
+				style="width: 49.5%; height: 90px; font-size: 18px;">Chat Now</button>
+		</div>
 		<div class="lightning-section" id="adCarousel">
 			<div class="ad-carousel-viewport">
 				<div class="ad-carousel-track" id="adCarouselTrack">
