@@ -1,6 +1,6 @@
 {
   "name": "InferencePortAI",
-  "version": "2.7.2",
+  "version": "2.8.0",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
