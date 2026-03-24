@@ -37,6 +37,10 @@ Copyright 2026 Rihaan Meher
 	overflow: hidden;
 }
 
+.studio-config {
+	overflow-y: scroll;
+}
+
 [data-theme="dark"] .studio-config,
 [data-theme="dark"] .studio-preview {
 	background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
