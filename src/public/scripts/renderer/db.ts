@@ -66,7 +66,7 @@ export class MediaDB {
 
 	async getAll() {
 		return new Promise((resolve, reject) => {
-            if (this.db === null) return;
+            if (this.db === null) return new Promise((resolve, reject) => reject(new Error("Database not initialized")));;
 			const tx = this.db.transaction(STORE_NAME, "readonly");
 			const store = tx.objectStore(STORE_NAME);
 			const request = store
