@@ -1,3 +1,0 @@
-Create a system where you give me Dockerfile, server.js, files for a public folder, tell me what environment variables to use, and use appropriate styling to recreate a similar version of this chat interface. This system will run on a Docker huggingface space.
-
-The main page (the landing page) is just the regular chat page. You have chat.ts, chatPanel.ts, and chat.html, which create the main interface and connect to the electron app's backend. Recreate the whole chat page to use local browser storage with access tokens to access the huggingface server, mainly over websocket. 
