@@ -46,6 +46,9 @@ const startupRunAtLoginCheckbox = document.getElementById(
 const startupAutoProxyCheckbox = document.getElementById(
 	"startup-auto-proxy",
 ) as HTMLInputElement | null;
+const startupSnipHotkeyCheckbox = document.getElementById(
+	"startup-snip-hotkey",
+) as HTMLInputElement | null;
 const startupUiPortInput = document.getElementById(
 	"startup-ui-port",
 ) as HTMLInputElement | null;
@@ -57,6 +60,9 @@ const startupUiPortStatus = document.getElementById(
 ) as HTMLParagraphElement | null;
 const startupStatus = document.getElementById(
 	"startup-status",
+) as HTMLParagraphElement | null;
+const startupSnipStatus = document.getElementById(
+	"startup-snip-status",
 ) as HTMLParagraphElement | null;
 const searchEngineSelect = document.getElementById(
 	"search-engine-select",
@@ -584,6 +590,11 @@ async function initStartupSettings() {
 	try {
 		startupRunAtLoginCheckbox.checked = Boolean(startup.runAtLogin);
 		startupAutoProxyCheckbox.checked = Boolean(startup.autoStartProxy);
+		if (startupSnipHotkeyCheckbox) {
+			startupSnipHotkeyCheckbox.checked = Boolean(
+				startup.snipHotkeyInBackground,
+			);
+		}
 		if (startupUiPortInput) {
 			startupUiPortInput.value = String(startup.uiPort);
 		}
@@ -594,6 +605,13 @@ async function initStartupSettings() {
 			startupStatus.textContent = startup.runAtLogin
 				? "Background startup is enabled."
 				: "Background startup is disabled.";
+		}
+		if (startupSnipStatus) {
+			startupSnipStatus.textContent = startup.snipHotkeyInBackground
+				? (startup.runAtLogin
+					? "Screen snip hotkey is enabled in the background."
+					: "Screen snip hotkey is enabled, but requires background startup to work when the app is closed.")
+				: "Screen snip hotkey is disabled when the app is closed.";
 		}
 	} catch (err) {
 		console.warn("Could not load startup settings", err);
@@ -665,6 +683,13 @@ startupRunAtLoginCheckbox?.addEventListener("change", async () => {
 				? "Background startup is enabled."
 				: "Background startup is disabled.";
 		}
+		if (startupSnipStatus) {
+			startupSnipStatus.textContent = updated.snipHotkeyInBackground
+				? (updated.runAtLogin
+					? "Screen snip hotkey is enabled in the background."
+					: "Screen snip hotkey is enabled, but requires background startup to work when the app is closed.")
+				: "Screen snip hotkey is disabled when the app is closed.";
+		}
 	} catch (err) {
 		console.warn("Could not update run-at-login setting", err);
 	}
@@ -691,6 +716,27 @@ startupAutoProxyCheckbox?.addEventListener("change", async () => {
 		console.warn("Could not update auto proxy startup setting", err);
 		showNotification({
 			message: "Could not update auto proxy startup setting",
+			type: "warning",
+		});
+	}
+});
+
+startupSnipHotkeyCheckbox?.addEventListener("change", async () => {
+	try {
+		const updated = await window.startup.updateSettings({
+			snipHotkeyInBackground: startupSnipHotkeyCheckbox.checked,
+		});
+		if (startupSnipStatus) {
+			startupSnipStatus.textContent = updated.snipHotkeyInBackground
+				? (updated.runAtLogin
+					? "Screen snip hotkey is enabled in the background."
+					: "Screen snip hotkey is enabled, but requires background startup to work when the app is closed.")
+				: "Screen snip hotkey is disabled when the app is closed.";
+		}
+	} catch (err) {
+		console.warn("Could not update snip hotkey setting", err);
+		showNotification({
+			message: "Could not update snip hotkey setting",
 			type: "warning",
 		});
 	}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Screen Snip</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			:root {
+				--snip-border: #4fc3f7;
+				--snip-shadow: rgba(0, 0, 0, 0.45);
+				--snip-bg: rgba(10, 12, 18, 0.55);
+				--snip-text: #f5f7fb;
+				--snip-muted: rgba(245, 247, 251, 0.65);
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				background: transparent;
+				cursor: crosshair;
+				user-select: none;
+				font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+			}
+
+			#snip-root {
+				position: fixed;
+				inset: 0;
+				background: transparent;
+			}
+
+			#snip-canvas {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+			}
+
+			#selection-box {
+				position: absolute;
+				border: 2px solid var(--snip-border);
+				box-shadow: 0 0 0 9999px var(--snip-shadow);
+				background: rgba(79, 195, 247, 0.08);
+				display: none;
+			}
+
+			#snip-hint {
+				position: fixed;
+				top: 18px;
+				left: 50%;
+				transform: translateX(-50%);
+				padding: 10px 16px;
+				border-radius: 999px;
+				background: var(--snip-bg);
+				color: var(--snip-text);
+				font-size: 13px;
+				letter-spacing: 0.02em;
+				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+				backdrop-filter: blur(8px);
+			}
+
+			#snip-hint span {
+				color: var(--snip-muted);
+				margin-left: 8px;
+			}
+
+			#snip-error {
+				position: fixed;
+				inset: 0;
+				display: none;
+				align-items: center;
+				justify-content: center;
+				color: var(--snip-text);
+				background: rgba(5, 6, 10, 0.75);
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="snip-root">
+			<canvas id="snip-canvas"></canvas>
+			<div id="selection-box"></div>
+			<div id="snip-hint">
+				Drag to capture
+				<span>Esc to cancel</span>
+			</div>
+			<div id="snip-error">Unable to capture the screen.</div>
+		</div>
+		<script type="module" src="../scripts/renderer/snip.js"></script>
+	</body>
+</html>

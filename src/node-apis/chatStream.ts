@@ -53,6 +53,7 @@ function getChatHistoryForSession(sessionId: unknown): ChatHistoryEntry[] {
 
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
+let snipAbortController: AbortController | null = null;
 export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	console.log("Creating openai client");
 	console.log(baseURL);
@@ -1214,6 +1215,73 @@ export default function registerChatStream() {
 			}
 		},
 	);
+
+	ipcMain.on(
+		"snip:chat-stream",
+		async (
+			event: IpcMainEvent,
+			modelName: string,
+			userMessage: MessageContent,
+			clientUrl?: string,
+			sessionId?: string,
+		) => {
+			const abortController = new AbortController();
+			snipAbortController = abortController;
+
+			const abortIfNeeded = () => {
+				if (abortController.signal.aborted) {
+					throw new DOMException("Chat aborted", "AbortError");
+				}
+			};
+
+			const chatHistory = getChatHistoryForSession(sessionId);
+			chatHistory.push({ role: "user", content: userMessage });
+
+			const openai = await createOpenAIClient(clientUrl);
+
+			try {
+				const messages = [
+					{ role: "system", content: systemPrompt },
+					...messagesForModel(chatHistory),
+				];
+
+				const stream = await openai.chat.completions.create(
+					{
+						model: modelName,
+						messages,
+						stream: true,
+					},
+					{ signal: abortController.signal },
+				);
+
+				let assistantMessage = "";
+
+				for await (const chunk of stream) {
+					abortIfNeeded();
+					const delta = chunk.choices?.[0]?.delta;
+					if (!delta) continue;
+
+					if (delta.content) {
+						assistantMessage += delta.content;
+						event.sender.send("snip:chat-token", delta.content);
+					}
+				}
+
+				chatHistory.push({ role: "assistant", content: assistantMessage });
+				event.sender.send("snip:chat-done");
+			} catch (err: any) {
+				if (err?.name === "AbortError") {
+					event.sender.send("snip:chat-done");
+					return;
+				}
+				event.sender.send("snip:chat-error", String(err?.message || err));
+			}
+		},
+	);
+
+	ipcMain.on("snip:chat-stop", () => {
+		snipAbortController?.abort();
+	});
     ipcMain.on("ollama:stop", (): void => {
         if (chatAbortController) {
             console.log("[CHAT] Aborting chat stream");

@@ -252,6 +252,51 @@ contextBridge.exposeInMainWorld("startup", {
 		autoStartProxy?: boolean;
 		proxyPort?: number;
 		uiPort?: number;
+		snipHotkeyInBackground?: boolean;
 		proxyUsers?: { email: string; role: string }[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),
+});
+
+// ===== Screen Snip =====
+contextBridge.exposeInMainWorld("snip", {
+	getTarget: () => ipcRenderer.invoke("snip:get-target"),
+	captureScreen: async (target?: {
+		displayId?: number;
+		width?: number;
+		height?: number;
+		scaleFactor?: number;
+	}) => {
+		return ipcRenderer.invoke("snip:capture", target);
+	},
+	readyToShow: () => ipcRenderer.send("snip:ready"),
+	complete: (payload: { dataUrl: string; width?: number; height?: number }) =>
+		ipcRenderer.invoke("snip:complete", payload),
+	cancel: () => ipcRenderer.invoke("snip:cancel"),
+	onImage: (cb: (payload: { dataUrl: string; width?: number; height?: number }) => void) =>
+		ipcRenderer.on("snip:image", (_e: Electron.IpcRendererEvent, payload: { dataUrl: string; width?: number; height?: number }) => cb(payload)),
+});
+
+// ===== Snip Chat =====
+contextBridge.exposeInMainWorld("snipChat", {
+	streamPrompt: (
+		model: string,
+		prompt: MessageContent,
+		clientUrl?: string,
+		sessionId?: string,
+	): void => ipcRenderer.send("snip:chat-stream", model, prompt, clientUrl, sessionId),
+	onResponse: (cb: (token: string) => void): void => {
+		ipcRenderer.on("snip:chat-token", (_e: Electron.IpcRendererEvent, token: string) => cb(token));
+	},
+	onError: (cb: (err: string) => void): void => {
+		ipcRenderer.on("snip:chat-error", (_e: Electron.IpcRendererEvent, err: string) => cb(err));
+	},
+	onDone: (cb: () => void): void => {
+		ipcRenderer.on("snip:chat-done", cb);
+	},
+	stop: (): void => ipcRenderer.send("snip:chat-stop"),
+	removeAllListeners: (): void => {
+		ipcRenderer.removeAllListeners("snip:chat-token");
+		ipcRenderer.removeAllListeners("snip:chat-error");
+		ipcRenderer.removeAllListeners("snip:chat-done");
+	},
 });

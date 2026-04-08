@@ -262,12 +262,14 @@ declare global {
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
 				uiPort: number;
+				snipHotkeyInBackground: boolean;
 			}>;
 			updateSettings: (patch: {
 				runAtLogin?: boolean;
 				autoStartProxy?: boolean;
 				proxyPort?: number;
 				uiPort?: number;
+				snipHotkeyInBackground?: boolean;
 				proxyUsers?: { email: string; role: string }[];
 			}) => Promise<{
 				runAtLogin: boolean;
@@ -275,7 +277,46 @@ declare global {
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
 				uiPort: number;
+				snipHotkeyInBackground: boolean;
 			}>;
+		};
+
+		snip: {
+			getTarget: () => Promise<{
+				displayId: number;
+				bounds: { x: number; y: number; width: number; height: number };
+				scaleFactor: number;
+			} | null>;
+			captureScreen: (target?: {
+				displayId?: number;
+				width?: number;
+				height?: number;
+				scaleFactor?: number;
+			}) => Promise<{
+				dataUrl: string;
+				width: number;
+				height: number;
+				displayId?: number;
+				scaleFactor?: number;
+			}>;
+			readyToShow: () => void;
+			complete: (payload: { dataUrl: string; width?: number; height?: number }) => Promise<boolean>;
+			cancel: () => Promise<boolean>;
+			onImage: (cb: (payload: { dataUrl: string; width?: number; height?: number }) => void) => void;
+		};
+
+		snipChat: {
+			streamPrompt: (
+				model: string,
+				prompt: MessageContent,
+				clientUrl?: string,
+				sessionId?: string,
+			) => void;
+			onResponse: (cb: (token: string) => void) => void;
+			onError: (cb: (err: string) => void) => void;
+			onDone: (cb: () => void) => void;
+			stop: () => void;
+			removeAllListeners: () => void;
 		};
 	}
 

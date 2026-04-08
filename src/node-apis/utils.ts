@@ -20,7 +20,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import fs from "fs";
 import { constants } from "fs";
 import path from "path";
-import { shell, app, ipcMain } from "electron";
+import { shell, app, ipcMain, screen, desktopCapturer } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
 import MDIT from "markdown-it";
 import mdTable from "markdown-it-multimd-table";
@@ -31,6 +31,18 @@ import { getSession } from "./auth.js";
 import mdFootnote from "markdown-it-footnote";
 
 const dataDir: string = app.getPath("userData");
+
+type SnipTarget = {
+	displayId: number;
+	bounds: Electron.Rectangle;
+	scaleFactor: number;
+};
+
+let snipTarget: SnipTarget | null = null;
+
+export function setSnipTarget(target: SnipTarget | null): void {
+	snipTarget = target;
+}
 
 export function is52458(url: string): boolean {
 	try {
@@ -270,6 +282,65 @@ function resetFirstLaunch(): void {
 
 export default function register() {
 	initHardwareInfo();
+	ipcMain.handle("snip:get-target", () => snipTarget);
+	ipcMain.handle(
+		"snip:capture",
+		async (
+			_event: IpcMainInvokeEvent,
+			target?: {
+				displayId?: number;
+				width?: number;
+				height?: number;
+				scaleFactor?: number;
+			},
+		) => {
+			const resolved = target ?? undefined;
+			const displayId = resolved?.displayId ?? snipTarget?.displayId;
+			const display =
+				(displayId != null
+					? screen.getAllDisplays().find((d) => d.id === displayId)
+					: null) ?? screen.getPrimaryDisplay();
+
+			const scale = resolved?.scaleFactor ?? display.scaleFactor ?? 1;
+			const width = Math.max(
+				1,
+				Math.round((resolved?.width ?? display.bounds.width) * scale),
+			);
+			const height = Math.max(
+				1,
+				Math.round((resolved?.height ?? display.bounds.height) * scale),
+			);
+
+			const sources = await desktopCapturer.getSources({
+				types: ["screen"],
+				thumbnailSize: { width, height },
+			});
+
+			if (!sources || sources.length === 0) {
+				throw new Error(
+					"No screen sources available. On macOS, enable Screen Recording in System Settings > Privacy & Security.",
+				);
+			}
+
+			const source =
+				(displayId != null
+					? sources.find((s) => s.display_id === String(displayId))
+					: null) ?? sources[0];
+
+			if (!source) {
+				throw new Error("No screen sources available for snipping.");
+			}
+
+			const thumb = source.thumbnail;
+			return {
+				dataUrl: thumb.toDataURL(),
+				width: thumb.getSize().width,
+				height: thumb.getSize().height,
+				displayId,
+				scaleFactor: scale,
+			};
+		},
+	);
 	ipcMain.handle(
 		"utils:getAsset",
 		async (_event: IpcMainInvokeEvent, assetId: UUID): Promise<Buffer> => {
