@@ -299,6 +299,11 @@ function openSnipOverlay(): void {
 	snipWindow.setAlwaysOnTop(true, "screen-saver");
 
 	snipWindow.on("closed", () => {
+		setSnipTarget(null);
+		snipWindow = null;
+	});
+
+	snipWindow.on("closed", () => {
 		snipWindow = null;
 	});
 
