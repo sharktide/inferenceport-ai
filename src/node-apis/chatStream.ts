@@ -53,7 +53,8 @@ function getChatHistoryForSession(sessionId: unknown): ChatHistoryEntry[] {
 
 const availableTools = toolSchema as ToolDefinition[];
 let chatAbortController: AbortController | null = null;
-let snipAbortController: AbortController | null = null;
+const snipAbortControllers = new Map<string, AbortController>();
+
 export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	console.log("Creating openai client");
 	console.log(baseURL);
@@ -1225,8 +1226,12 @@ export default function registerChatStream() {
 			clientUrl?: string,
 			sessionId?: string,
 		) => {
+			const key = normalizeHistoryKey(sessionId);
+
+			snipAbortControllers.get(key)?.abort();
+
 			const abortController = new AbortController();
-			snipAbortController = abortController;
+			snipAbortControllers.set(key, abortController);
 
 			const abortIfNeeded = () => {
 				if (abortController.signal.aborted) {
@@ -1275,13 +1280,13 @@ export default function registerChatStream() {
 					return;
 				}
 				event.sender.send("snip:chat-error", String(err?.message || err));
+			} finally {
+				if (snipAbortControllers.get(key) === abortController) {
+					snipAbortControllers.delete(key);
+				}
 			}
 		},
 	);
-
-	ipcMain.on("snip:chat-stop", () => {
-		snipAbortController?.abort();
-	});
     ipcMain.on("ollama:stop", (): void => {
         if (chatAbortController) {
             console.log("[CHAT] Aborting chat stream");

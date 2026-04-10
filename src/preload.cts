@@ -293,7 +293,6 @@ contextBridge.exposeInMainWorld("snipChat", {
 	onDone: (cb: () => void): void => {
 		ipcRenderer.on("snip:chat-done", cb);
 	},
-	stop: (): void => ipcRenderer.send("snip:chat-stop"),
 	removeAllListeners: (): void => {
 		ipcRenderer.removeAllListeners("snip:chat-token");
 		ipcRenderer.removeAllListeners("snip:chat-error");
