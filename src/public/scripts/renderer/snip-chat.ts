@@ -64,11 +64,20 @@ function buildContent(text: string, includeImage: boolean): MessageContent {
 	];
 }
 
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
 async function renderMarkdown(markdown: string): Promise<string> {
 	try {
 		return await window.utils.markdown_parse_and_purify(markdown);
 	} catch {
-		return markdown;
+		return escapeHtml(markdown);
 	}
 }
 
