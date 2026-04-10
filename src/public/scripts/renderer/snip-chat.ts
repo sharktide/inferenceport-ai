@@ -18,7 +18,10 @@ const formEl = document.getElementById("snip-form") as HTMLFormElement;
 const inputEl = document.getElementById("snip-input") as HTMLTextAreaElement;
 const sendBtn = document.getElementById("snip-send") as HTMLButtonElement;
 
-const sessionId = `snip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const secureRandomHex = Array.from(window.crypto.getRandomValues(new Uint8Array(8)))
+	.map((b) => b.toString(16).padStart(2, "0"))
+	.join("");
+const sessionId = `snip-${Date.now()}-${secureRandomHex}`;
 const DEFAULT_PROMPT =
 	"Analyze the image, extract any text, and determine whether the user expects a description, an answer, or a solution. If the image contains a question or problem, solve it. If it contains objects or scenes, describe only what is visually evident. Do not infer identity, emotions, or private details.";
 const MODEL = "lightning";
