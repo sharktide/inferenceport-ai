@@ -322,16 +322,24 @@ export default function register() {
 				);
 			}
 
-			const source =
-				(displayId != null
-					? sources.find((s) => s.display_id === String(displayId))
-					: null) ?? sources[0];
+			const source = (displayId != null
+				? sources.find((s) => s.display_id === String(displayId))
+				: null) ?? (displayId == null ? sources[0] : undefined);
 
 			if (!source) {
 				throw new Error("No screen sources available for snipping.");
 			}
 
-			const thumb = source.thumbnail;
+			if (displayId != null && !source) {
+				throw new Error(
+					`Screen source for displayId ${displayId} not found. ` +
+					"Check that the requested monitor is available and that your app has the necessary permissions.",
+				);
+			}
+
+			const finalSource = source ?? sources[0];
+			
+			const thumb = finalSource.thumbnail;
 			return {
 				dataUrl: thumb.toDataURL(),
 				width: thumb.getSize().width,
