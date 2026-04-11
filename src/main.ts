@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell } from "electron";
+import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell, globalShortcut } from "electron";
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
 
@@ -22,7 +22,7 @@ import ollamaHandlers, {
 	serve,
 } from "./node-apis/ollama.js";
 import { fetchSupportedTools, fetchSupportedVisionModels } from "./node-apis/helper/tools.js";
-import utilsHandlers from "./node-apis/utils.js";
+import utilsHandlers, { setSnipTarget } from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
@@ -32,7 +32,7 @@ import {
 } from "./node-apis/helper/ipcBridge.js";
 import storageSyncHandlers from "./node-apis/storageSync.js";
 import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
-import startupHandlers, { getStartupSettings } from "./node-apis/startup.js";
+import startupHandlers, { getStartupSettings, onStartupSettingsChange } from "./node-apis/startup.js";
 import { startProxyServer } from "./node-apis/helper/server.js";
 
 import fixPath from "fix-path";
@@ -51,6 +51,14 @@ const DEFAULT_WEB_UI_PORT = 52459;
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
 const backgroundServerMode = process.argv.includes("--background-server");
+const SNIP_HOTKEY =
+	process.platform === "darwin"
+		? "Command+Shift+/"
+		: "Control+Shift+/";
+
+let snipWindow: BrowserWindow | null = null;
+let snipChatWindow: BrowserWindow | null = null;
+let snipHotkeyRegistered = false;
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
@@ -234,6 +242,121 @@ function createWindow() {
 	Menu.setApplicationMenu(menu);
 }
 
+function updateSnipHotkey(shouldEnable: boolean): void {
+	if (snipHotkeyRegistered) {
+		globalShortcut.unregister(SNIP_HOTKEY);
+		snipHotkeyRegistered = false;
+	}
+
+	if (!shouldEnable) return;
+
+	const registered = globalShortcut.register(SNIP_HOTKEY, () => {
+		openSnipOverlay();
+	});
+
+	if (!registered) {
+		console.warn("Failed to register snip hotkey:", SNIP_HOTKEY);
+		return;
+	}
+
+	snipHotkeyRegistered = true;
+}
+
+function openSnipOverlay(): void {
+	if (snipWindow) {
+		snipWindow.focus();
+		return;
+	}
+
+	const cursorPoint = screen.getCursorScreenPoint();
+	const display = screen.getDisplayNearestPoint(cursorPoint);
+	setSnipTarget({
+		displayId: display.id,
+		bounds: display.bounds,
+		scaleFactor: display.scaleFactor,
+	});
+
+	snipWindow = new BrowserWindow({
+		x: display.bounds.x,
+		y: display.bounds.y,
+		width: display.bounds.width,
+		height: display.bounds.height,
+		frame: false,
+		transparent: true,
+		resizable: false,
+		movable: false,
+		skipTaskbar: true,
+		alwaysOnTop: true,
+		fullscreenable: false,
+		show: false,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.cjs"),
+			sandbox: false,
+		},
+	});
+
+	snipWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+	snipWindow.setAlwaysOnTop(true, "screen-saver");
+
+	snipWindow.on("closed", () => {
+		setSnipTarget(null);
+		snipWindow = null;
+	});
+
+	snipWindow.on("closed", () => {
+		snipWindow = null;
+	});
+
+	const snipPath = path.join(__dirname, "public", "renderer", "snip.html");
+	snipWindow.loadFile(snipPath);
+}
+
+function closeSnipOverlay(): void {
+	if (!snipWindow) return;
+	snipWindow.close();
+	snipWindow = null;
+	setSnipTarget(null);
+}
+
+function openSnipChat(payload: { dataUrl: string; width?: number; height?: number }): void {
+	if (snipChatWindow) {
+		snipChatWindow.show();
+		snipChatWindow.focus();
+		snipChatWindow.webContents.send("snip:image", payload);
+		return;
+	}
+
+	snipChatWindow = new BrowserWindow({
+		width: 460,
+		height: 640,
+		minWidth: 360,
+		minHeight: 480,
+		resizable: true,
+		alwaysOnTop: true,
+		autoHideMenuBar: true,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.cjs"),
+		},
+	});
+	snipChatWindow.center();
+
+	snipChatWindow.on("closed", () => {
+		snipChatWindow = null;
+	});
+
+	const chatPath = path.join(
+		__dirname,
+		"public",
+		"renderer",
+		"snip-chat.html",
+	);
+	snipChatWindow.loadFile(chatPath);
+
+	snipChatWindow.webContents.once("did-finish-load", () => {
+		snipChatWindow?.webContents.send("snip:image", payload);
+	});
+}
+
 function openFromDeepLink(url: string) {
 	if (!mainWindow) return;
 	try {
@@ -390,6 +513,33 @@ app.whenReady().then(async () => {
 	storageSyncHandlers();
 	startupHandlers();
 
+	ipcMain.on("snip:ready", (event) => {
+		if (!snipWindow || event.sender !== snipWindow.webContents) return;
+		snipWindow.show();
+		snipWindow.focus();
+	});
+	ipcMain.handle("snip:complete", (_event, payload: { dataUrl: string; width?: number; height?: number }) => {
+		if (payload?.dataUrl) {
+			openSnipChat(payload);
+		}
+		closeSnipOverlay();
+		return true;
+	});
+	ipcMain.handle("snip:cancel", () => {
+		closeSnipOverlay();
+		return true;
+	});
+
+	const applySnipHotkeySetting = (settings: { snipHotkeyInBackground?: boolean }) => {
+		const shouldEnable = backgroundServerMode
+			? Boolean(settings?.snipHotkeyInBackground)
+			: true;
+		updateSnipHotkey(shouldEnable);
+	};
+
+	applySnipHotkeySetting(startupSettings);
+	onStartupSettingsChange(applySnipHotkeySetting);
+
 	if (
 		startupSettings.autoStartProxy &&
 		startupSettings.proxyUsers.length > 0
@@ -485,6 +635,10 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => {
 	stopWebUiServer();
 	stopIpcWebSocketBridge();
+});
+
+app.on("will-quit", () => {
+	globalShortcut.unregisterAll();
 });
 
 app.on("window-all-closed", () => {

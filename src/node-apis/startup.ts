@@ -13,6 +13,7 @@ export type StartupSettings = {
 	proxyPort: number;
 	proxyUsers: StartupProxyUser[];
 	uiPort: number;
+	snipHotkeyInBackground: boolean;
 };
 
 const RESERVED_PORT_MIN = 52440;
@@ -29,7 +30,27 @@ const defaultSettings: StartupSettings = {
 	proxyPort: 52458,
 	proxyUsers: [],
 	uiPort: 52459,
+	snipHotkeyInBackground: false,
 };
+
+type StartupSettingsListener = (settings: StartupSettings) => void;
+
+const startupSettingsListeners = new Set<StartupSettingsListener>();
+
+export function onStartupSettingsChange(listener: StartupSettingsListener): () => void {
+	startupSettingsListeners.add(listener);
+	return () => startupSettingsListeners.delete(listener);
+}
+
+function notifyStartupSettingsChange(settings: StartupSettings): void {
+	for (const listener of startupSettingsListeners) {
+		try {
+			listener(settings);
+		} catch (err) {
+			console.warn("Startup settings listener failed", err);
+		}
+	}
+}
 
 function sanitizeUsers(users: unknown): StartupProxyUser[] {
 	if (!Array.isArray(users)) return [];
@@ -65,6 +86,7 @@ function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
 			raw.uiPort > 0
 				? Math.round(raw.uiPort)
 				: defaultSettings.uiPort,
+		snipHotkeyInBackground: Boolean(raw.snipHotkeyInBackground),
 	};
 }
 
@@ -151,7 +173,9 @@ export function updateStartupSettings(
 		setOpenAtLogin(Boolean(merged.runAtLogin));
 	}
 
-	return getStartupSettings();
+	const updated = getStartupSettings();
+	notifyStartupSettingsChange(updated);
+	return updated;
 }
 
 export default function registerStartupHandlers(): void {

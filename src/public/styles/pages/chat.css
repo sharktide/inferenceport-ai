@@ -7,6 +7,36 @@
 	gap: 10px;
 }
 
+.snip-mode #app-root {
+	padding: 12px;
+}
+
+.snip-mode type1-navbar {
+	display: none;
+}
+
+.snip-mode .sidebar {
+	display: none;
+}
+
+.snip-mode .chat-container {
+	padding: 0;
+}
+
+.snip-mode .chat-panel {
+	padding: 0;
+}
+
+.snip-mode #chat-box {
+	margin-bottom: 12px;
+	max-width: 100%;
+	padding: 14px;
+}
+
+.snip-mode #session-context-menu {
+	display: none;
+}
+
 .chat-container {
 	display: flex;
 	flex: 1;

@@ -267,6 +267,15 @@ let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
 
+const urlParams = new URLSearchParams(window.location.search);
+const isSnipMode = urlParams.get("snip") === "1";
+const forceLightning = isSnipMode || urlParams.get("lightning") === "1";
+
+if (isSnipMode) {
+	document.documentElement.classList.add("snip-mode");
+	document.body.classList.add("snip-mode");
+}
+
 toolSettings.initializeSettings();
 let currentToolSettings = toolSettings.getSettings();
 let searchEnabled = currentToolSettings.webSearch;
@@ -283,7 +292,7 @@ const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
-let lightningEnabled = readLightningSetting();
+let lightningEnabled = forceLightning ? true : readLightningSetting();
 const assetObjectUrlCache = new Map<string, string>();
 const IMAGE_MODE_OPTIONS = ["auto", "fantasy", "realistic"];
 const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
@@ -1030,6 +1039,11 @@ function applyLightningState(): void {
 }
 
 function setLightningEnabled(enabled: boolean): void {
+	if (forceLightning) {
+		lightningEnabled = true;
+		applyLightningState();
+		return;
+	}
 	lightningEnabled = enabled;
 	try {
 		localStorage.setItem(LIGHTNING_ENABLED_KEY, String(enabled));
@@ -1042,6 +1056,19 @@ function setLightningEnabled(enabled: boolean): void {
 }
 
 function initLightningToggleEvents(): void {
+	if (forceLightning) {
+		syncLightningToggles(true);
+		[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
+			(toggle) => {
+				if (!toggle) return;
+				toggle.checked = true;
+				toggle.setAttribute("aria-disabled", "true");
+				toggle.setAttribute("tabindex", "-1");
+			},
+		);
+		applyLightningState();
+		return;
+	}
 	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
 		(toggle) => {
 			toggle?.addEventListener("change", () => {
@@ -1136,7 +1163,6 @@ modelSelect?.addEventListener("change", () => {
 	void setToolSupport();
 	setVisionSupport();
 });
-const urlParams = new URLSearchParams(window.location.search);
 interface RemoteHost {
 	url: string;
 	alias: string;
@@ -2151,6 +2177,41 @@ updateToolButtonActiveState();
 // ─── Attached-file state ──────────────────────────────────────────────────────
 
 let attachedFiles: AttachedFile[] = [];
+
+function parseImageDataUrl(dataUrl: string): { mimeType: string; base64: string } | null {
+	const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+	if (!match) return null;
+	return { mimeType: match[1], base64: match[2] };
+}
+
+function attachSnipImage(payload: { dataUrl: string; width?: number; height?: number }): void {
+	const parsed = parseImageDataUrl(payload.dataUrl);
+	if (!parsed) {
+		showNotification({
+			message: "Failed to attach snipped image.",
+			type: "warning",
+		});
+		return;
+	}
+
+	attachedFiles.push({
+		type: "image",
+		name: `screen-snip-${Date.now()}.png`,
+		mimeType: parsed.mimeType,
+		base64: parsed.base64,
+	});
+	renderFileIndicator();
+	textarea.focus();
+	showNotification({
+		message: "Screen snip attached.",
+		type: "success",
+	});
+}
+
+window.snip?.onImage?.((payload) => {
+	if (!payload?.dataUrl) return;
+	attachSnipImage(payload);
+});
 
 let attachMenuEl: HTMLDivElement | null = null;
 let attachMenuDocHandler: ((event: MouseEvent) => void) | null = null;
@@ -3575,7 +3636,7 @@ async function renderChat() {
 	renderMathInElement(document.body, {
 		delimiters: [
 			{ left: "$$", right: "$$", display: true },
-			{ left: "$", right: "$", display: true },
+			{ left: "$", right: "$", display: false },
 			{ left: "\\(", right: "\\)", display: false },
 			{ left: "\\[", right: "\\]", display: true },
 		],
