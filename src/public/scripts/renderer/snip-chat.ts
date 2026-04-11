@@ -4,12 +4,7 @@ type SnipImagePayload = {
 	height?: number;
 };
 
-type MessageContent =
-	| string
-	| Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
-
 const statusEl = document.getElementById("snip-status") as HTMLDivElement;
-const previewEl = document.getElementById("snip-preview") as HTMLDivElement;
 
 const messagesEl = document.getElementById(
 	"snip-messages",
