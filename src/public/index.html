@@ -664,7 +664,38 @@
 		<div class="lightning-section" id="adCarousel">
 			<div class="ad-carousel-viewport">
 				<div class="ad-carousel-track" id="adCarouselTrack">
-
+					<div class="ad-carousel-slide">
+						<h2>⚡ Now Introducing: Screen Snip</h2>
+						<div class="tagline">Search anything on your screen</div>
+						<p>
+							Lightning Snip Chat allows you to search any aspect of your screen
+							with the speeds of Lightning.
+						</p>
+						<button class="lightning-btn" id="trysnip">Try it Now</button>
+						<div class="lightning-models-grid">
+							<div class="lightning-model-card">
+								<h3>⚡Powered by Lightning</h3>
+								<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses
+									instantly for chat, coding, or long-form writing from images.</p>
+								<ul>
+									<li>Up to 1000 words per second</li>
+									<li>Low-latency streaming output</li>
+									<li>Optimized image recognition</li>
+									<li>Perfect for complex problems and image reasoning</li>
+								</ul>
+							</div>
+							<div class="lightning-model-card">
+								<h3>⚡Advanced Spatial Reasoning</h3>
+								<p>Lightning Text v2 can now process attached images!</p>
+								<ul>
+									<li>Complex spatial understanding</li>
+									<li>Exceptional problem solving skills</li>
+									<li>Unmatched speeds at up to 1000 TPS</li>
+									<li>Faster generation than ever before</li>
+								</ul>
+							</div>
+						</div>
+					</div>
 					<div class="ad-carousel-slide">
 						<h2>⚡ Lightning Models Are Here</h2>
 						<div class="tagline">Up to 1000 Words / Second</div>
@@ -736,6 +767,7 @@
 			<div class="ad-carousel-dots">
 				<button class="ad-carousel-dot active" data-index="0"></button>
 				<button class="ad-carousel-dot" data-index="1"></button>
+				<button class="ad-carousel-dot" data-index="2"></button>
 			</div>
 		</div><!-- end carousel -->
 
@@ -1014,14 +1046,27 @@
 		})();
 	</script>
 	<script>
+		let snipModal;
 		(function () {
 			const tryBtn = document.getElementById('trylight');
-			if (!tryBtn) return;
-
+			const trySnip = document.getElementById('trysnip');
+			if (!tryBtn || !trySnip) throw new Error("Could not find try buttons");
+			document.addEventListener('DOMContentLoaded', () => {
+				snipModal = new window.ic.iModal(
+					"snip-info",
+					undefined,
+					{
+						html: "<h3>Screen Snip</h3><p>To screen snip, press</p><p><code>Control+Shift+/</code> on Windows/Linux</p><p><code>Command(⌘)+Shift+/</code> on MacOS</p>"
+					},
+					true,
+					true
+				)
+			})
 			tryBtn.addEventListener('click', () => {
 				localStorage.setItem('lightning_enabled', 'true');
 				window.location.href = 'renderer/chat.html';
 			});
+			trySnip.addEventListener('click', () => {snipModal.open()})
 		})();
 	</script>
 
