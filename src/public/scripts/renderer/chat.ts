@@ -3018,32 +3018,45 @@ try {
 	void 1;
 }
 
-const LINE_HEIGHT = 1.6 * 16;
-const BASE_PADDING = 32;
-const MAX_LINES = 6;
-
 function updateTextareaState() {
-	const value = textarea.value;
-	const hasValue = value.length > 0;
-	typingBar.classList.toggle("empty", !hasValue);
+    const MAX_LINES = 6;
+    const EXTRA_PADDING = 10;
 
-	const collapsedHeight = LINE_HEIGHT;
-	const maxHeight = LINE_HEIGHT * MAX_LINES + BASE_PADDING;
+    const styles = window.getComputedStyle(textarea);
+    const fontSize = parseFloat(styles.fontSize);
+    const lineHeight = parseFloat(styles.lineHeight);
+    const paddingTop = parseFloat(styles.paddingTop);
+    const paddingBottom = parseFloat(styles.paddingBottom);
 
-	textarea.style.height = "auto";
-	const scrollHeight = textarea.scrollHeight;
-	const targetHeight = Math.max(
-		collapsedHeight,
-		Math.min(scrollHeight, maxHeight),
-	);
-	const isExpanded = targetHeight > collapsedHeight + 1;
-	const isScrollable = scrollHeight > maxHeight + 1;
+    const collapsedHeight = lineHeight + paddingTop + paddingBottom;
+    const maxHeight =
+        lineHeight * MAX_LINES +
+        paddingTop +
+        paddingBottom +
+        EXTRA_PADDING;
 
-	textarea.style.height = `${targetHeight}px`;
-	textarea.style.overflowY = isScrollable ? "auto" : "hidden";
-	typingBar.classList.toggle("is-expanded", isExpanded);
-	typingBar.classList.toggle("is-scrollable", isScrollable);
+    const value = textarea.value;
+    const hasValue = value.length > 0;
+    typingBar.classList.toggle("empty", !hasValue);
+
+    textarea.style.height = "auto";
+    const scrollHeight = textarea.scrollHeight;
+
+    const targetHeight = Math.max(
+        collapsedHeight,
+        Math.min(scrollHeight, maxHeight)
+    );
+
+    const isExpanded = targetHeight > collapsedHeight + 1;
+    const isScrollable = scrollHeight > maxHeight + 1;
+
+    textarea.style.height = `${targetHeight}px`;
+    textarea.style.overflowY = isScrollable ? "auto" : "hidden";
+
+    typingBar.classList.toggle("is-expanded", isExpanded);
+    typingBar.classList.toggle("is-scrollable", isScrollable);
 }
+
 
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {
