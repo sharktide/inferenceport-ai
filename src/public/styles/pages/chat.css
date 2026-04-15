@@ -922,8 +922,7 @@ select {
 	min-height: calc(1.6em + 32px);
 	max-height: calc(1.6em * 3 + 32px);
 
-	padding: 14px 18px 10px;
-	padding-bottom: 5px;
+	padding: 10px 18px;
 	resize: none;
 	overflow-y: hidden;
 
@@ -1921,5 +1920,446 @@ select {
 		padding: 14px 16px;
 		font-size: 15px;
 		gap: 10px;
+	}
+}
+
+/* Webchat-like composer refinements */
+.composer-shell {
+	border: 1px solid color-mix(in srgb, var(--text-dark) 16%, transparent);
+	border-radius: 20px;
+	padding: 6px 10px 8px;
+	background: color-mix(in srgb, var(--footer-bg) 92%, transparent);
+	box-shadow:
+		0 6px 20px rgba(0, 0, 0, 0.08),
+		inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+}
+
+.composer-shell:focus-within {
+	border-color: color-mix(in srgb, var(--blue) 58%, transparent);
+	box-shadow:
+		0 10px 26px rgba(0, 0, 0, 0.14),
+		0 0 0 3px color-mix(in srgb, var(--blue) 15%, transparent);
+}
+
+.composer-shell textarea#chat-input {
+	min-height: calc(1.45em + 10px);
+	max-height: calc(1.45em * 6 + 10px);
+	padding: 10px 12px 4px;
+	font-size: 15px;
+	line-height: 1.45;
+}
+
+.tool-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 0 10px 8px;
+}
+
+.tool-btn-wrap {
+	display: inline-flex;
+}
+
+.tool-btn-sm {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 10px;
+	border-radius: 999px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 16%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+.tool-btn-sm .tool-icon {
+	font-size: 12px;
+	line-height: 1;
+}
+
+.tool-btn-sm.active {
+	background: color-mix(in srgb, var(--blue) 18%, var(--bg-light) 82%);
+	border-color: color-mix(in srgb, var(--blue) 48%, transparent);
+	color: color-mix(in srgb, var(--blue) 85%, var(--text-dark) 15%);
+}
+
+.composer-actions {
+	align-items: flex-end;
+	gap: 10px;
+	padding-bottom: 6px;
+}
+
+.composer-attach-btn,
+.composer-send-btn {
+	width: 46px;
+	height: 46px;
+	font-size: 16px;
+	border-radius: 14px;
+}
+
+.composer-send-btn img {
+	width: 18px;
+	height: 18px;
+}
+
+.composer-attach-btn {
+	background: color-mix(in srgb, var(--bg-light) 90%, transparent);
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+}
+
+[data-theme="dark"] .composer-shell {
+	background: color-mix(in srgb, var(--footer-bg) 90%, #000 10%);
+	border-color: color-mix(in srgb, #fff 14%, transparent);
+}
+
+[data-theme="dark"] .tool-btn-sm {
+	border-color: color-mix(in srgb, #fff 18%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 78%, #000 22%);
+}
+
+#chat-form .composer-shell {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	border-radius: 28px;
+	padding: 8px 10px 10px;
+}
+
+#chat-form .composer-shell #chat-input {
+    min-height: 10px;
+    padding-left: 52px;
+    padding-right: 228px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-radius: 24px;
+}
+
+#chat-form .composer-shell #file-preview-bar {
+	order: 0;
+	flex: 1 1 100%;
+	padding: 2px 4px 0;
+}
+
+#chat-form .composer-shell .feature-btns.tool-row {
+	order: 2;
+	flex: 1 1 auto;
+	justify-content: flex-end;
+	padding: 0 2px 0 0;
+	gap: 7px;
+}
+
+#chat-form .composer-shell .tool-btn-wrap {
+	display: inline-flex;
+}
+
+#chat-form .composer-shell .tool-btn-sm {
+	min-width: 34px;
+	height: 34px;
+	padding: 0 11px;
+	border-radius: 999px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 92%, transparent);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+#chat-form .composer-shell .tool-btn-sm .tool-icon {
+	font-size: 12px;
+}
+
+#chat-form .composer-shell .tool-btn-sm.active {
+	background: color-mix(in srgb, #f2dd84 40%, var(--bg-light) 60%);
+	border-color: color-mix(in srgb, #e4c74a 62%, transparent);
+	color: color-mix(in srgb, #8a7409 60%, var(--text-dark) 40%);
+}
+
+#chat-form .composer-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding-bottom: 8px;
+}
+
+#chat-form .composer-attach-btn,
+#chat-form .composer-send-btn {
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#chat-form .composer-attach-btn {
+	background: color-mix(in srgb, var(--bg-light) 90%, transparent);
+	border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+}
+
+#chat-form .composer-send-btn {
+	background: #e7ca3a;
+	border: 1px solid color-mix(in srgb, #ad9426 60%, transparent);
+	box-shadow: 0 6px 16px color-mix(in srgb, #a88c1e 28%, transparent);
+}
+
+#chat-form .composer-send-btn img {
+	width: 18px;
+	height: 18px;
+	filter: brightness(0) saturate(100%);
+}
+
+[data-theme="dark"] #chat-form .composer-shell .tool-btn-sm {
+	background: color-mix(in srgb, var(--bg-light) 74%, #000 26%);
+	border-color: color-mix(in srgb, #fff 16%, transparent);
+}
+
+[data-theme="dark"] #chat-form .composer-attach-btn {
+	background: color-mix(in srgb, var(--bg-light) 78%, #000 22%);
+	border-color: color-mix(in srgb, #fff 16%, transparent);
+}
+
+/* Input controls fully inside textarea shell */
+#chat-form .composer-shell {
+	position: relative;
+	padding: 5px 10px;
+	border-radius: 34px;
+}
+
+#chat-form .composer-shell #chat-input {
+	min-height: 50px;
+	padding-left: 52px;
+	padding-right: 228px;
+	padding-top: 11px;
+	padding-bottom: 9px;
+	border-radius: 24px;
+}
+
+#chat-form .composer-shell .feature-btns.tool-row {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	overflow: hidden !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+#chat-form .composer-actions-inside {
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	pointer-events: none;
+	padding: 0;
+}
+
+#chat-form .composer-actions-inside > * {
+	pointer-events: auto;
+}
+
+#chat-form .composer-tools-right {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+}
+
+#chat-form .tool-btn-mini {
+	width: 40px;
+	min-width: 40px;
+	height: 40px;
+	padding: 0;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#chat-form .tool-btn-mini .tool-icon {
+	font-size: 13px;
+}
+
+#chat-form .tool-btn-mini span:not(.tool-icon) {
+	display: none;
+}
+
+#chat-form .composer-send-btn {
+	margin-left: 2px;
+}
+
+#chat-form .composer-attach-btn,
+#chat-form .composer-send-btn,
+#chat-form .tool-btn-mini {
+	width: 40px;
+	min-width: 40px;
+	height: 40px;
+}
+
+#chat-form .composer-attach-btn {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#chat-form .composer-shell.is-expanded .composer-actions-inside,
+#chat-form .composer-shell.is-scrollable .composer-actions-inside {
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+#chat-form .composer-shell #chat-input::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+#chat-form .composer-shell.is-expanded #chat-input::-webkit-scrollbar,
+#chat-form .composer-shell.is-scrollable #chat-input::-webkit-scrollbar {
+	width: 4px;
+}
+
+#chat-form .composer-shell.is-expanded #chat-input::-webkit-scrollbar-thumb,
+#chat-form .composer-shell.is-scrollable #chat-input::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--text-dark) 26%, transparent);
+	border-radius: 999px;
+}
+
+#chat-form .composer-shell.is-expanded #chat-input::-webkit-scrollbar-track,
+#chat-form .composer-shell.is-scrollable #chat-input::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* Override legacy empty-state hiding/repositioning for new inline composer */
+#chat-form .composer-shell.empty .composer-actions-inside,
+#chat-form .composer-shell .composer-actions-inside {
+	opacity: 1 !important;
+	pointer-events: none;
+}
+
+#chat-form .composer-shell.empty .composer-actions-inside > *,
+#chat-form .composer-shell .composer-actions-inside > * {
+	pointer-events: auto;
+}
+
+#chat-form .composer-shell.empty #attach-btn,
+#chat-form .composer-shell.empty .composer-tools-right,
+#chat-form .composer-shell #attach-btn,
+#chat-form .composer-shell .composer-tools-right {
+	opacity: 1 !important;
+	transform: none !important;
+	position: static !important;
+	right: auto !important;
+	bottom: auto !important;
+	pointer-events: auto !important;
+}
+
+@media (max-width: 900px) {
+	#chat-form .composer-shell #chat-input {
+		padding-right: 196px;
+	}
+}
+
+@media (max-width: 720px) {
+	#chat-form .composer-shell #chat-input {
+		padding-right: 182px;
+	}
+
+	#chat-form .composer-tools-right {
+		gap: 5px;
+	}
+
+	#chat-form .tool-btn-mini {
+		width: 36px;
+		min-width: 36px;
+		height: 36px;
+	}
+
+	#chat-form .composer-send-btn,
+	#chat-form .composer-attach-btn {
+		width: 36px;
+		height: 36px;
+	}
+}
+
+/* Unified sizing + clear enabled/disabled tool indicators */
+#chat-form .composer-shell {
+	--composer-btn-size: 40px;
+	--composer-btn-size-mobile: 36px;
+}
+
+#chat-form .composer-attach-btn,
+#chat-form .composer-send-btn,
+#chat-form .tool-btn-mini {
+	width: var(--composer-btn-size) !important;
+	min-width: var(--composer-btn-size) !important;
+	height: var(--composer-btn-size) !important;
+}
+
+#chat-form .composer-attach-btn {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	padding: 0 !important;
+}
+
+#chat-form .composer-attach-btn svg {
+	display: block;
+	width: 18px;
+	height: 18px;
+}
+
+#chat-form .tool-btn-mini {
+	position: relative;
+	transition:
+		background-color 0.16s ease,
+		border-color 0.16s ease,
+		opacity 0.16s ease,
+		transform 0.16s ease;
+}
+
+#chat-form .tool-btn-mini:not(.active) {
+	opacity: 0.72;
+	background: color-mix(in srgb, var(--bg-light) 90%, transparent);
+	border-color: color-mix(in srgb, var(--text-dark) 12%, transparent);
+}
+
+#chat-form .tool-btn-mini.active {
+	opacity: 1;
+	background: color-mix(in srgb, #f2dd84 54%, var(--bg-light) 46%);
+	border-color: color-mix(in srgb, #d9ba35 70%, transparent);
+	box-shadow: 0 3px 10px color-mix(in srgb, #d5b325 24%, transparent);
+}
+
+#chat-form .tool-btn-mini::after {
+	content: "";
+	position: absolute;
+	right: 2px;
+	bottom: 2px;
+	width: 7px;
+	height: 7px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--text-dark) 32%, transparent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, #fff 70%, transparent);
+}
+
+#chat-form .tool-btn-mini.active::after {
+	background: #30c95a;
+}
+
+@media (max-width: 720px) {
+	#chat-form .composer-attach-btn,
+	#chat-form .composer-send-btn,
+	#chat-form .tool-btn-mini {
+		width: var(--composer-btn-size-mobile) !important;
+		min-width: var(--composer-btn-size-mobile) !important;
+		height: var(--composer-btn-size-mobile) !important;
 	}
 }

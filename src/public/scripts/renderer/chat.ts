@@ -2974,33 +2974,29 @@ try {
 
 const LINE_HEIGHT = 1.6 * 16;
 const BASE_PADDING = 32;
-const MAX_LINES = 3;
+const MAX_LINES = 6;
 
 function updateTextareaState() {
 	const value = textarea.value;
+	const hasValue = value.length > 0;
+	typingBar.classList.toggle("empty", !hasValue);
 
-	if (value.length === 0) {
-		typingBar.classList.add("empty");
-
-		textarea.style.overflowY = "hidden";
-		textarea.style.height = `${LINE_HEIGHT + BASE_PADDING}px`;
-		return;
-	}
-
-	typingBar.classList.remove("empty");
-
-	textarea.style.height = "auto";
-
-	const scrollHeight = textarea.scrollHeight;
+	const collapsedHeight = LINE_HEIGHT;
 	const maxHeight = LINE_HEIGHT * MAX_LINES + BASE_PADDING;
 
-	if (scrollHeight > maxHeight) {
-		textarea.style.height = `${maxHeight}px`;
-		textarea.style.overflowY = "auto";
-	} else {
-		textarea.style.height = `${scrollHeight}px`;
-		textarea.style.overflowY = "hidden";
-	}
+	textarea.style.height = "auto";
+	const scrollHeight = textarea.scrollHeight;
+	const targetHeight = Math.max(
+		collapsedHeight,
+		Math.min(scrollHeight, maxHeight),
+	);
+	const isExpanded = targetHeight > collapsedHeight + 1;
+	const isScrollable = scrollHeight > maxHeight + 1;
+
+	textarea.style.height = `${targetHeight}px`;
+	textarea.style.overflowY = isScrollable ? "auto" : "hidden";
+	typingBar.classList.toggle("is-expanded", isExpanded);
+	typingBar.classList.toggle("is-scrollable", isScrollable);
 }
 
 textarea.addEventListener("keydown", (e) => {

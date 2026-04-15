@@ -3,35 +3,95 @@ export class ChatBox extends HTMLElement {
 		this.innerHTML = `
             <input type="file" id="file-upload" multiple style="display:none" />
             <form id="chat-form" role="form">
-                <div class="typing-bar">
-
+                <div class="typing-bar composer-shell">
                     <div id="file-preview-bar" class="file-preview-bar"></div>
                     <textarea
                         id="chat-input"
-                        placeholder="Ask anything - try 'Hey! Search for Cookie Recipes'"
-                        rows="4"></textarea>
+                        placeholder="Ask anything..."
+                        rows="1"></textarea>
 
-                    <div class="feature-btns">
-                    <button type="button" id="search-btn" class="search-btn" aria-label="Search">
-                        <span id="search-text">Web Search</span>
-                    </button>
-                    <button type="button" id="img-btn" class="search-btn" aria-label="Search">
-                        <span id="img-text">Image Generation</span>
-                    </button>
-                    <button type="button" id="video-btn" class="search-btn" aria-label="Video generation">
-                        <span id="video-text">Video Generation</span>
-                    </button>
-                    <button type="button" id="audio-btn" class="search-btn" aria-label="Audio or SFX generation">
-                        <span id="audio-text">Music/SFX Generation</span>
-                    </button>
+                    <div class="feature-btns tool-row">
+                        <div class="tool-btn-wrap">
+                            <button type="button" id="search-btn" class="search-btn tool-btn-sm" data-tool="webSearch" aria-label="Toggle web search">
+                                <span class="tool-icon" aria-hidden="true">🔍</span>
+                                <span id="search-text">Web Search</span>
+                            </button>
+                        </div>
+                        <div class="tool-btn-wrap">
+                            <button type="button" id="img-btn" class="search-btn tool-btn-sm" data-tool="imageGen" aria-label="Toggle image generation">
+                                <span class="tool-icon" aria-hidden="true">🖼️</span>
+                                <span id="img-text">Image Generation</span>
+                            </button>
+                        </div>
+                        <div class="tool-btn-wrap">
+                            <button type="button" id="video-btn" class="search-btn tool-btn-sm" data-tool="videoGen" aria-label="Toggle video generation">
+                                <span class="tool-icon" aria-hidden="true">🎬</span>
+                                <span id="video-text">Video Generation</span>
+                            </button>
+                        </div>
+                        <div class="tool-btn-wrap">
+                            <button type="button" id="audio-btn" class="search-btn tool-btn-sm" data-tool="audioGen" aria-label="Toggle audio and SFX generation">
+                                <span class="tool-icon" aria-hidden="true">🎵</span>
+                                <span id="audio-text">Music/SFX</span>
+                            </button>
+                        </div>
                     </div>
                     <p style="display:none;" id="feature-warning">The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
                     <p id="rate-limit-box" style="display:none;">Rate Limit Information</p>
+                    <div class="typing-actions composer-actions composer-actions-inside">
+                        <button type="button" class="icon-btn composer-attach-btn" aria-label="Attach file" id="attach-btn">
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        <div class="composer-tools-right" aria-label="Tool toggles">
+                            <button type="button" id="search-btn-mini" class="search-btn tool-btn-sm tool-btn-mini" data-mirror-target="search-btn" aria-label="Toggle web search">
+                                <span class="tool-icon" aria-hidden="true">🔍</span>
+                            </button>
+                            <button type="button" id="img-btn-mini" class="search-btn tool-btn-sm tool-btn-mini" data-mirror-target="img-btn" aria-label="Toggle image generation">
+                                <span class="tool-icon" aria-hidden="true">🖼️</span>
+                            </button>
+                            <button type="button" id="video-btn-mini" class="search-btn tool-btn-sm tool-btn-mini" data-mirror-target="video-btn" aria-label="Toggle video generation">
+                                <span class="tool-icon" aria-hidden="true">🎬</span>
+                            </button>
+                            <button type="button" id="audio-btn-mini" class="search-btn tool-btn-sm tool-btn-mini" data-mirror-target="audio-btn" aria-label="Toggle audio and SFX generation">
+                                <span class="tool-icon" aria-hidden="true">🎵</span>
+                            </button>
+                            <button type="submit" class="stop-btn composer-send-btn" aria-label="Send" id="send"><img src="../assets/img/up-arrow.svg" alt="send" width="40" height="40" /></button>
+                        </div>
+                    </div>
                     <script>
                         const rateLimitBox = document.getElementById("rate-limit-box");
                         const modelSelect = document.getElementById("model-select");
                         modelSelect.addEventListener("change", () => {
                             rateLimitBox.style.display = rateLimitBox.style.display === "none" ? "block" : "none";
+                        });
+
+                        const mirrorPairs = [
+                            ["search-btn", "search-btn-mini"],
+                            ["img-btn", "img-btn-mini"],
+                            ["video-btn", "video-btn-mini"],
+                            ["audio-btn", "audio-btn-mini"],
+                        ];
+                        mirrorPairs.forEach(([sourceId, mirrorId]) => {
+                            const source = document.getElementById(sourceId);
+                            const mirror = document.getElementById(mirrorId);
+                            if (!source || !mirror) return;
+                            mirror.addEventListener("click", () => source.click());
+
+                            const syncMirrorState = () => {
+                                mirror.classList.toggle("active", source.classList.contains("active"));
+                                const sourceWrap = source.closest(".tool-btn-wrap");
+                                mirror.style.display = sourceWrap && sourceWrap.style.display === "none" ? "none" : "";
+                            };
+
+                            syncMirrorState();
+                            const observer = new MutationObserver(syncMirrorState);
+                            observer.observe(source, { attributes: true, attributeFilter: ["class", "style"] });
+                            const sourceWrap = source.closest(".tool-btn-wrap");
+                            if (sourceWrap) {
+                                observer.observe(sourceWrap, { attributes: true, attributeFilter: ["style", "class"] });
+                            }
                         });
                     </script>
 
@@ -44,10 +104,6 @@ export class ChatBox extends HTMLElement {
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="typing-actions">
-                    <button type="button" class="icon-btn" aria-label="Attach file" id="attach-btn">📎</button>
-                    <button type="submit" class="stop-btn" aria-label="Send" id="send"><img src="../assets/img/up-arrow.svg" alt="send" width="40" height="40" /></button>
                 </div>
             </form>
         `;
