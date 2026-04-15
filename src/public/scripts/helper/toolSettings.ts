@@ -24,15 +24,21 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS: ToolSettings = {
-	webSearch: false,
-	imageGen: false,
-	videoGen: false,
-	audioGen: false,
+	webSearch: true,
+	imageGen: true,
+	videoGen: true,
+	audioGen: true,
 	searchEngines: ["duckduckgo"],
 };
 
 let currentSettings: ToolSettings = DEFAULT_SETTINGS;
 const changeListeners: Set<SettingsChangeCallback> = new Set();
+
+function readBooleanSetting(key: string, fallback: boolean): boolean {
+	const raw = localStorage.getItem(key);
+	if (raw === null) return fallback;
+	return raw === "true";
+}
 
 /**
  * Initialize settings from localStorage
@@ -40,10 +46,22 @@ const changeListeners: Set<SettingsChangeCallback> = new Set();
  */
 export function initializeSettings(): ToolSettings {
 	const settings: ToolSettings = {
-		webSearch: localStorage.getItem(STORAGE_KEYS.WEB_SEARCH) === "true",
-		imageGen: localStorage.getItem(STORAGE_KEYS.IMAGE_GEN) === "true",
-		videoGen: localStorage.getItem(STORAGE_KEYS.VIDEO_GEN) === "true",
-		audioGen: localStorage.getItem(STORAGE_KEYS.AUDIO_GEN) === "true",
+		webSearch: readBooleanSetting(
+			STORAGE_KEYS.WEB_SEARCH,
+			DEFAULT_SETTINGS.webSearch,
+		),
+		imageGen: readBooleanSetting(
+			STORAGE_KEYS.IMAGE_GEN,
+			DEFAULT_SETTINGS.imageGen,
+		),
+		videoGen: readBooleanSetting(
+			STORAGE_KEYS.VIDEO_GEN,
+			DEFAULT_SETTINGS.videoGen,
+		),
+		audioGen: readBooleanSetting(
+			STORAGE_KEYS.AUDIO_GEN,
+			DEFAULT_SETTINGS.audioGen,
+		),
 		searchEngines: parseSearchEngines(),
 	};
 

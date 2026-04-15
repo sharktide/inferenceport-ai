@@ -217,19 +217,28 @@ const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
 	"remote-host-alias",
 ) as HTMLInputElement | null;
-const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
-const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
-const videoBtn = document.getElementById("video-btn") as HTMLButtonElement;
-const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement;
-const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
-const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
-const videoLabel = document.getElementById("video-text") as HTMLSpanElement;
-const audioLabel = document.getElementById("audio-text") as HTMLSpanElement;
+const searchBtn = document.getElementById("search-btn") as HTMLButtonElement | null;
+const imgBtn = document.getElementById("img-btn") as HTMLButtonElement | null;
+const videoBtn = document.getElementById("video-btn") as HTMLButtonElement | null;
+const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement | null;
+const searchBtnMini = document.getElementById(
+	"search-btn-mini",
+) as HTMLButtonElement | null;
+const imgBtnMini = document.getElementById("img-btn-mini") as HTMLButtonElement | null;
+const videoBtnMini = document.getElementById(
+	"video-btn-mini",
+) as HTMLButtonElement | null;
+const audioBtnMini = document.getElementById(
+	"audio-btn-mini",
+) as HTMLButtonElement | null;
+const searchLabel = document.getElementById("search-text") as HTMLSpanElement | null;
+const imageLabel = document.getElementById("img-text") as HTMLSpanElement | null;
+const videoLabel = document.getElementById("video-text") as HTMLSpanElement | null;
+const audioLabel = document.getElementById("audio-text") as HTMLSpanElement | null;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
-const featureWarning = document.getElementById(
-	"feature-warning",
-) as HTMLParagraphElement;
+const TOOLS_UNSUPPORTED_HTML =
+	'The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.';
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -1192,11 +1201,32 @@ let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
 let modelsSupportsVision: string[] = [];
 let visionNotice: string | null = null;
+let toolsSupportedInUi = true;
+
+function showToolsUnsupportedModal(): void {
+	modal.open({
+		html: `
+			<h3>Tools Not Supported</h3>
+			<p style="margin-top:10px; line-height:1.5;">${TOOLS_UNSUPPORTED_HTML}</p>
+			<div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+				<button id="tools-unsupported-close">Close</button>
+			</div>
+		`,
+	});
+
+	document.getElementById("tools-unsupported-close")?.addEventListener("click", () => {
+		modal.close();
+	});
+}
 
 async function setToolSupport() {
 	if (lightningEnabled) {
-		typingBar.classList.remove("no-tools");
-		featureWarning.style.display = "none";
+		toolsSupportedInUi = true;
+		searchEnabled = currentToolSettings.webSearch;
+		imgEnabled = currentToolSettings.imageGen;
+		videoEnabled = currentToolSettings.videoGen;
+		audioEnabled = currentToolSettings.audioGen;
+		updateToolButtonActiveState();
 		return;
 	}
 
@@ -1204,11 +1234,19 @@ async function setToolSupport() {
 		modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelSelect.value)) ||
 		toolNotice
 	) {
-		typingBar.classList.remove("no-tools");
-		featureWarning.style.display = "none";
+		toolsSupportedInUi = true;
+		searchEnabled = currentToolSettings.webSearch;
+		imgEnabled = currentToolSettings.imageGen;
+		videoEnabled = currentToolSettings.videoGen;
+		audioEnabled = currentToolSettings.audioGen;
+		updateToolButtonActiveState();
 	} else {
-		typingBar.classList.add("no-tools");
-		featureWarning.style.display = "block";
+		toolsSupportedInUi = false;
+		searchEnabled = false;
+		imgEnabled = false;
+		videoEnabled = false;
+		audioEnabled = false;
+		updateToolButtonActiveState();
 	}
 }
 
@@ -2095,29 +2133,56 @@ function renderSessionList(): void {
 }
 
 function updateToolButtonVisibility(): void {
-    const searchContainer = (searchBtn.closest('.tool-btn-wrap') ?? searchBtn) as HTMLElement;
-    const imgContainer = (imgBtn.closest('.tool-btn-wrap') ?? imgBtn) as HTMLElement;
-    const videoContainer = (videoBtn.closest('.tool-btn-wrap') ?? videoBtn) as HTMLElement;
-    const audioContainer = (audioBtn.closest('.tool-btn-wrap') ?? audioBtn) as HTMLElement;
+	const setVisible = (el: HTMLElement | null, visible: boolean) => {
+		if (!el) return;
+		el.style.display = visible ? "" : "none";
+	};
 
-    searchContainer.style.display = currentToolSettings.webSearch ? '' : 'none';
-    imgContainer.style.display = currentToolSettings.imageGen ? '' : 'none';
-    videoContainer.style.display = currentToolSettings.videoGen ? '' : 'none';
-    audioContainer.style.display = currentToolSettings.audioGen ? '' : 'none';
+	const searchContainer = (searchBtn?.closest(".tool-btn-wrap") ??
+		searchBtn) as HTMLElement | null;
+	const imgContainer = (imgBtn?.closest(".tool-btn-wrap") ??
+		imgBtn) as HTMLElement | null;
+	const videoContainer = (videoBtn?.closest(".tool-btn-wrap") ??
+		videoBtn) as HTMLElement | null;
+	const audioContainer = (audioBtn?.closest(".tool-btn-wrap") ??
+		audioBtn) as HTMLElement | null;
+
+	setVisible(searchContainer, currentToolSettings.webSearch);
+	setVisible(imgContainer, currentToolSettings.imageGen);
+	setVisible(videoContainer, currentToolSettings.videoGen);
+	setVisible(audioContainer, currentToolSettings.audioGen);
+
+	setVisible(searchBtnMini, currentToolSettings.webSearch);
+	setVisible(imgBtnMini, currentToolSettings.imageGen);
+	setVisible(videoBtnMini, currentToolSettings.videoGen);
+	setVisible(audioBtnMini, currentToolSettings.audioGen);
 }
 
 function updateToolButtonActiveState(): void {
-    searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
-    searchBtn.classList.toggle("active", searchEnabled);
+	const syncActive = (
+		btn: HTMLButtonElement | null,
+		enabled: boolean,
+	) => {
+		if (!btn) return;
+		btn.classList.toggle("active", enabled);
+		btn.setAttribute("aria-pressed", String(enabled));
+	};
 
-    imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
-    imgBtn.classList.toggle("active", imgEnabled);
+	if (searchLabel) searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
+	syncActive(searchBtn, searchEnabled);
+	syncActive(searchBtnMini, searchEnabled);
 
-    videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
-    videoBtn.classList.toggle("active", videoEnabled);
+	if (imageLabel) imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
+	syncActive(imgBtn, imgEnabled);
+	syncActive(imgBtnMini, imgEnabled);
 
-    audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
-    audioBtn.classList.toggle("active", audioEnabled);
+	if (videoLabel) videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
+	syncActive(videoBtn, videoEnabled);
+	syncActive(videoBtnMini, videoEnabled);
+
+	if (audioLabel) audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
+	syncActive(audioBtn, audioEnabled);
+	syncActive(audioBtnMini, audioEnabled);
 }
 
 const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
@@ -2148,28 +2213,53 @@ chatBox.addEventListener("scroll", () => {
 	}
 });
 
-searchBtn.addEventListener("click", () => {
-    searchEnabled = !searchEnabled;
-    updateToolButtonActiveState();
-});
+const toggleWebSearch = () => {
+	if (!toolsSupportedInUi && !searchEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
+	searchEnabled = !searchEnabled;
+	updateToolButtonActiveState();
+};
 
-imgBtn.addEventListener("click", () => {
-    if (!imgEnabled && !enforceLimit("imagesDaily")) return;
-    imgEnabled = !imgEnabled;
-    updateToolButtonActiveState();
-});
+const toggleImageGen = () => {
+	if (!toolsSupportedInUi && !imgEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
+	if (!imgEnabled && !enforceLimit("imagesDaily")) return;
+	imgEnabled = !imgEnabled;
+	updateToolButtonActiveState();
+};
 
-videoBtn.addEventListener("click", () => {
-    if (!videoEnabled && !enforceLimit("videosDaily")) return;
-    videoEnabled = !videoEnabled;
-    updateToolButtonActiveState();
-});
+const toggleVideoGen = () => {
+	if (!toolsSupportedInUi && !videoEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
+	if (!videoEnabled && !enforceLimit("videosDaily")) return;
+	videoEnabled = !videoEnabled;
+	updateToolButtonActiveState();
+};
 
-audioBtn.addEventListener("click", () => {
-    if (!audioEnabled && !enforceLimit("audioWeekly")) return;
-    audioEnabled = !audioEnabled;
-    updateToolButtonActiveState();
-});
+const toggleAudioGen = () => {
+	if (!toolsSupportedInUi && !audioEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
+	if (!audioEnabled && !enforceLimit("audioWeekly")) return;
+	audioEnabled = !audioEnabled;
+	updateToolButtonActiveState();
+};
+
+searchBtn?.addEventListener("click", toggleWebSearch);
+searchBtnMini?.addEventListener("click", toggleWebSearch);
+imgBtn?.addEventListener("click", toggleImageGen);
+imgBtnMini?.addEventListener("click", toggleImageGen);
+videoBtn?.addEventListener("click", toggleVideoGen);
+videoBtnMini?.addEventListener("click", toggleVideoGen);
+audioBtn?.addEventListener("click", toggleAudioGen);
+audioBtnMini?.addEventListener("click", toggleAudioGen);
 
 updateToolButtonVisibility();
 updateToolButtonActiveState();
@@ -2972,36 +3062,45 @@ try {
 	void 1;
 }
 
-const LINE_HEIGHT = 1.6 * 16;
-const BASE_PADDING = 32;
-const MAX_LINES = 3;
-
 function updateTextareaState() {
-	const value = textarea.value;
+    const MAX_LINES = 6;
+    const EXTRA_PADDING = 10;
 
-	if (value.length === 0) {
-		typingBar.classList.add("empty");
+    const styles = window.getComputedStyle(textarea);
+    const fontSize = parseFloat(styles.fontSize);
+    const lineHeight = parseFloat(styles.lineHeight);
+    const paddingTop = parseFloat(styles.paddingTop);
+    const paddingBottom = parseFloat(styles.paddingBottom);
 
-		textarea.style.overflowY = "hidden";
-		textarea.style.height = `${LINE_HEIGHT + BASE_PADDING}px`;
-		return;
-	}
+    const collapsedHeight = lineHeight + paddingTop + paddingBottom;
+    const maxHeight =
+        lineHeight * MAX_LINES +
+        paddingTop +
+        paddingBottom +
+        EXTRA_PADDING;
 
-	typingBar.classList.remove("empty");
+    const value = textarea.value;
+    const hasValue = value.length > 0;
+    typingBar.classList.toggle("empty", !hasValue);
 
-	textarea.style.height = "auto";
+    textarea.style.height = "auto";
+    const scrollHeight = textarea.scrollHeight;
 
-	const scrollHeight = textarea.scrollHeight;
-	const maxHeight = LINE_HEIGHT * MAX_LINES + BASE_PADDING;
+    const targetHeight = Math.max(
+        collapsedHeight,
+        Math.min(scrollHeight, maxHeight)
+    );
 
-	if (scrollHeight > maxHeight) {
-		textarea.style.height = `${maxHeight}px`;
-		textarea.style.overflowY = "auto";
-	} else {
-		textarea.style.height = `${scrollHeight}px`;
-		textarea.style.overflowY = "hidden";
-	}
+    const isExpanded = targetHeight > collapsedHeight + 1;
+    const isScrollable = scrollHeight > maxHeight + 1;
+
+    textarea.style.height = `${targetHeight}px`;
+    textarea.style.overflowY = isScrollable ? "auto" : "hidden";
+
+    typingBar.classList.toggle("is-expanded", isExpanded);
+    typingBar.classList.toggle("is-scrollable", isScrollable);
 }
+
 
 textarea.addEventListener("keydown", (e) => {
 	if (e.key === "Enter" && !e.shiftKey) {

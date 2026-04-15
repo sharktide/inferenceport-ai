@@ -101,22 +101,22 @@ export function installLocalStorageSync(): void {
 		applyRemoteChange(change);
 	});
 	const featureDefaults = {
-		tools_web_search: false,
-		tools_image_gen: false,
-		tools_video_gen: false,
-		tools_audio_gen: false,
+		tools_web_search: true,
+		tools_image_gen: true,
+		tools_video_gen: true,
+		tools_audio_gen: true,
 	};
 
 	for (const [key, value] of Object.entries(featureDefaults)) {
 		if (localStorage.getItem(key) === null) {
-		localStorage.setItem(key, JSON.stringify(value));
+			localStorage.setItem(key, JSON.stringify(value));
 		}
 	}
 
 	if (localStorage.getItem("tools_search_engines") === null) {
 		localStorage.setItem(
-		"tools_search_engines",
-		JSON.stringify(["duckduckgo"])
+			"tools_search_engines",
+			JSON.stringify(["duckduckgo"]),
 		);
 	}
 
