@@ -1975,8 +1975,15 @@ select {
 }
 
 .tool-btn-sm .tool-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	font-size: 12px;
 	line-height: 1;
+}
+
+.tool-btn-sm .tool-icon svg {
+	display: block;
 }
 
 .tool-btn-sm.active {
@@ -2068,6 +2075,10 @@ select {
 
 #chat-form .composer-shell .tool-btn-sm .tool-icon {
 	font-size: 12px;
+}
+
+#chat-form .composer-shell .tool-btn-sm .tool-icon svg {
+	display: block;
 }
 
 #chat-form .composer-shell .tool-btn-sm.active {
@@ -2181,7 +2192,14 @@ select {
 }
 
 #chat-form .tool-btn-mini .tool-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	font-size: 13px;
+}
+
+#chat-form .tool-btn-mini .tool-icon svg {
+	display: block;
 }
 
 #chat-form .tool-btn-mini span:not(.tool-icon) {
@@ -2336,6 +2354,19 @@ select {
 	background: color-mix(in srgb, #f2dd84 54%, var(--bg-light) 46%);
 	border-color: color-mix(in srgb, #d9ba35 70%, transparent);
 	box-shadow: 0 3px 10px color-mix(in srgb, #d5b325 24%, transparent);
+}
+
+[data-theme="dark"] #chat-form .tool-btn-mini.active {
+	background: color-mix(in srgb, #f2dd84 22%, var(--bg-light) 78%);
+	border-color: color-mix(in srgb, #e4c74a 40%, transparent);
+	box-shadow: none;
+	color: #ab8302;
+}
+
+[data-theme="dark"] #chat-form .composer-shell .tool-btn-sm.active {
+	color: #ab8302;
+	background: color-mix(in srgb, #f2dd84 18%, var(--bg-light) 82%);
+	border-color: color-mix(in srgb, #e4c74a 34%, transparent);
 }
 
 #chat-form .tool-btn-mini::after {
