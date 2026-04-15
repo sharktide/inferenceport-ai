@@ -57,47 +57,13 @@ export class ChatBox extends HTMLElement {
                             <button type="button" id="audio-btn-mini" class="search-btn tool-btn-sm tool-btn-mini" data-mirror-target="audio-btn" aria-label="Toggle audio and SFX generation">
                                 <span class="tool-icon" aria-hidden="true">🎵</span>
                             </button>
-                            <button type="submit" class="stop-btn composer-send-btn" aria-label="Send" id="send"><img src="../assets/img/up-arrow.svg" alt="send" width="40" height="40" /></button>
-                        </div>
-                    </div>
-                    <script>
-                        const rateLimitBox = document.getElementById("rate-limit-box");
-                        const modelSelect = document.getElementById("model-select");
-                        modelSelect.addEventListener("change", () => {
-                            rateLimitBox.style.display = rateLimitBox.style.display === "none" ? "block" : "none";
-                        });
+                         <button type="submit" class="stop-btn composer-send-btn" aria-label="Send" id="send"><img src="../assets/img/up-arrow.svg" alt="send" width="40" height="40" /></button>
+                         </div>
+                     </div>
 
-                        const mirrorPairs = [
-                            ["search-btn", "search-btn-mini"],
-                            ["img-btn", "img-btn-mini"],
-                            ["video-btn", "video-btn-mini"],
-                            ["audio-btn", "audio-btn-mini"],
-                        ];
-                        mirrorPairs.forEach(([sourceId, mirrorId]) => {
-                            const source = document.getElementById(sourceId);
-                            const mirror = document.getElementById(mirrorId);
-                            if (!source || !mirror) return;
-                            mirror.addEventListener("click", () => source.click());
-
-                            const syncMirrorState = () => {
-                                mirror.classList.toggle("active", source.classList.contains("active"));
-                                const sourceWrap = source.closest(".tool-btn-wrap");
-                                mirror.style.display = sourceWrap && sourceWrap.style.display === "none" ? "none" : "";
-                            };
-
-                            syncMirrorState();
-                            const observer = new MutationObserver(syncMirrorState);
-                            observer.observe(source, { attributes: true, attributeFilter: ["class", "style"] });
-                            const sourceWrap = source.closest(".tool-btn-wrap");
-                            if (sourceWrap) {
-                                observer.observe(sourceWrap, { attributes: true, attributeFilter: ["style", "class"] });
-                            }
-                        });
-                    </script>
-
-                    <div id="file-preview-modal" class="modal hidden">
-                        <div class="modal-content full-screen">
-                            <h3 id="file-preview-title"></h3>
+                     <div id="file-preview-modal" class="modal hidden">
+                         <div class="modal-content full-screen">
+                             <h3 id="file-preview-title"></h3>
                             <pre id="file-preview-content"></pre>
                             <div class="modal-actions">
                                 <button id="file-preview-close">Close</button>

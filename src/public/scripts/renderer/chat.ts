@@ -217,14 +217,24 @@ const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
 	"remote-host-alias",
 ) as HTMLInputElement | null;
-const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
-const imgBtn = document.getElementById("img-btn") as HTMLButtonElement;
-const videoBtn = document.getElementById("video-btn") as HTMLButtonElement;
-const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement;
-const searchLabel = document.getElementById("search-text") as HTMLSpanElement;
-const imageLabel = document.getElementById("img-text") as HTMLSpanElement;
-const videoLabel = document.getElementById("video-text") as HTMLSpanElement;
-const audioLabel = document.getElementById("audio-text") as HTMLSpanElement;
+const searchBtn = document.getElementById("search-btn") as HTMLButtonElement | null;
+const imgBtn = document.getElementById("img-btn") as HTMLButtonElement | null;
+const videoBtn = document.getElementById("video-btn") as HTMLButtonElement | null;
+const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement | null;
+const searchBtnMini = document.getElementById(
+	"search-btn-mini",
+) as HTMLButtonElement | null;
+const imgBtnMini = document.getElementById("img-btn-mini") as HTMLButtonElement | null;
+const videoBtnMini = document.getElementById(
+	"video-btn-mini",
+) as HTMLButtonElement | null;
+const audioBtnMini = document.getElementById(
+	"audio-btn-mini",
+) as HTMLButtonElement | null;
+const searchLabel = document.getElementById("search-text") as HTMLSpanElement | null;
+const imageLabel = document.getElementById("img-text") as HTMLSpanElement | null;
+const videoLabel = document.getElementById("video-text") as HTMLSpanElement | null;
+const audioLabel = document.getElementById("audio-text") as HTMLSpanElement | null;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const featureWarning = document.getElementById(
@@ -2095,29 +2105,56 @@ function renderSessionList(): void {
 }
 
 function updateToolButtonVisibility(): void {
-    const searchContainer = (searchBtn.closest('.tool-btn-wrap') ?? searchBtn) as HTMLElement;
-    const imgContainer = (imgBtn.closest('.tool-btn-wrap') ?? imgBtn) as HTMLElement;
-    const videoContainer = (videoBtn.closest('.tool-btn-wrap') ?? videoBtn) as HTMLElement;
-    const audioContainer = (audioBtn.closest('.tool-btn-wrap') ?? audioBtn) as HTMLElement;
+	const setVisible = (el: HTMLElement | null, visible: boolean) => {
+		if (!el) return;
+		el.style.display = visible ? "" : "none";
+	};
 
-    searchContainer.style.display = currentToolSettings.webSearch ? '' : 'none';
-    imgContainer.style.display = currentToolSettings.imageGen ? '' : 'none';
-    videoContainer.style.display = currentToolSettings.videoGen ? '' : 'none';
-    audioContainer.style.display = currentToolSettings.audioGen ? '' : 'none';
+	const searchContainer = (searchBtn?.closest(".tool-btn-wrap") ??
+		searchBtn) as HTMLElement | null;
+	const imgContainer = (imgBtn?.closest(".tool-btn-wrap") ??
+		imgBtn) as HTMLElement | null;
+	const videoContainer = (videoBtn?.closest(".tool-btn-wrap") ??
+		videoBtn) as HTMLElement | null;
+	const audioContainer = (audioBtn?.closest(".tool-btn-wrap") ??
+		audioBtn) as HTMLElement | null;
+
+	setVisible(searchContainer, currentToolSettings.webSearch);
+	setVisible(imgContainer, currentToolSettings.imageGen);
+	setVisible(videoContainer, currentToolSettings.videoGen);
+	setVisible(audioContainer, currentToolSettings.audioGen);
+
+	setVisible(searchBtnMini, currentToolSettings.webSearch);
+	setVisible(imgBtnMini, currentToolSettings.imageGen);
+	setVisible(videoBtnMini, currentToolSettings.videoGen);
+	setVisible(audioBtnMini, currentToolSettings.audioGen);
 }
 
 function updateToolButtonActiveState(): void {
-    searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
-    searchBtn.classList.toggle("active", searchEnabled);
+	const syncActive = (
+		btn: HTMLButtonElement | null,
+		enabled: boolean,
+	) => {
+		if (!btn) return;
+		btn.classList.toggle("active", enabled);
+		btn.setAttribute("aria-pressed", String(enabled));
+	};
 
-    imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
-    imgBtn.classList.toggle("active", imgEnabled);
+	if (searchLabel) searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
+	syncActive(searchBtn, searchEnabled);
+	syncActive(searchBtnMini, searchEnabled);
 
-    videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
-    videoBtn.classList.toggle("active", videoEnabled);
+	if (imageLabel) imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
+	syncActive(imgBtn, imgEnabled);
+	syncActive(imgBtnMini, imgEnabled);
 
-    audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
-    audioBtn.classList.toggle("active", audioEnabled);
+	if (videoLabel) videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
+	syncActive(videoBtn, videoEnabled);
+	syncActive(videoBtnMini, videoEnabled);
+
+	if (audioLabel) audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
+	syncActive(audioBtn, audioEnabled);
+	syncActive(audioBtnMini, audioEnabled);
 }
 
 const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
@@ -2148,28 +2185,37 @@ chatBox.addEventListener("scroll", () => {
 	}
 });
 
-searchBtn.addEventListener("click", () => {
-    searchEnabled = !searchEnabled;
-    updateToolButtonActiveState();
-});
+const toggleWebSearch = () => {
+	searchEnabled = !searchEnabled;
+	updateToolButtonActiveState();
+};
 
-imgBtn.addEventListener("click", () => {
-    if (!imgEnabled && !enforceLimit("imagesDaily")) return;
-    imgEnabled = !imgEnabled;
-    updateToolButtonActiveState();
-});
+const toggleImageGen = () => {
+	if (!imgEnabled && !enforceLimit("imagesDaily")) return;
+	imgEnabled = !imgEnabled;
+	updateToolButtonActiveState();
+};
 
-videoBtn.addEventListener("click", () => {
-    if (!videoEnabled && !enforceLimit("videosDaily")) return;
-    videoEnabled = !videoEnabled;
-    updateToolButtonActiveState();
-});
+const toggleVideoGen = () => {
+	if (!videoEnabled && !enforceLimit("videosDaily")) return;
+	videoEnabled = !videoEnabled;
+	updateToolButtonActiveState();
+};
 
-audioBtn.addEventListener("click", () => {
-    if (!audioEnabled && !enforceLimit("audioWeekly")) return;
-    audioEnabled = !audioEnabled;
-    updateToolButtonActiveState();
-});
+const toggleAudioGen = () => {
+	if (!audioEnabled && !enforceLimit("audioWeekly")) return;
+	audioEnabled = !audioEnabled;
+	updateToolButtonActiveState();
+};
+
+searchBtn?.addEventListener("click", toggleWebSearch);
+searchBtnMini?.addEventListener("click", toggleWebSearch);
+imgBtn?.addEventListener("click", toggleImageGen);
+imgBtnMini?.addEventListener("click", toggleImageGen);
+videoBtn?.addEventListener("click", toggleVideoGen);
+videoBtnMini?.addEventListener("click", toggleVideoGen);
+audioBtn?.addEventListener("click", toggleAudioGen);
+audioBtnMini?.addEventListener("click", toggleAudioGen);
 
 updateToolButtonVisibility();
 updateToolButtonActiveState();
