@@ -237,9 +237,8 @@ const videoLabel = document.getElementById("video-text") as HTMLSpanElement | nu
 const audioLabel = document.getElementById("audio-text") as HTMLSpanElement | null;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
-const featureWarning = document.getElementById(
-	"feature-warning",
-) as HTMLParagraphElement;
+const TOOLS_UNSUPPORTED_HTML =
+	'The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.';
 const lightningToggleTop = document.getElementById(
 	"lightning-toggle-top",
 ) as ToggleSwitchElement | null;
@@ -1202,11 +1201,32 @@ let modelsSupportsTools: string[] = [];
 let toolNotice: string | null = null;
 let modelsSupportsVision: string[] = [];
 let visionNotice: string | null = null;
+let toolsSupportedInUi = true;
+
+function showToolsUnsupportedModal(): void {
+	modal.open({
+		html: `
+			<h3>Tools Not Supported</h3>
+			<p style="margin-top:10px; line-height:1.5;">${TOOLS_UNSUPPORTED_HTML}</p>
+			<div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
+				<button id="tools-unsupported-close">Close</button>
+			</div>
+		`,
+	});
+
+	document.getElementById("tools-unsupported-close")?.addEventListener("click", () => {
+		modal.close();
+	});
+}
 
 async function setToolSupport() {
 	if (lightningEnabled) {
-		typingBar.classList.remove("no-tools");
-		featureWarning.style.display = "none";
+		toolsSupportedInUi = true;
+		searchEnabled = currentToolSettings.webSearch;
+		imgEnabled = currentToolSettings.imageGen;
+		videoEnabled = currentToolSettings.videoGen;
+		audioEnabled = currentToolSettings.audioGen;
+		updateToolButtonActiveState();
 		return;
 	}
 
@@ -1214,11 +1234,19 @@ async function setToolSupport() {
 		modelsSupportsTools.includes(normalizeModelIdForCapabilities(modelSelect.value)) ||
 		toolNotice
 	) {
-		typingBar.classList.remove("no-tools");
-		featureWarning.style.display = "none";
+		toolsSupportedInUi = true;
+		searchEnabled = currentToolSettings.webSearch;
+		imgEnabled = currentToolSettings.imageGen;
+		videoEnabled = currentToolSettings.videoGen;
+		audioEnabled = currentToolSettings.audioGen;
+		updateToolButtonActiveState();
 	} else {
-		typingBar.classList.add("no-tools");
-		featureWarning.style.display = "block";
+		toolsSupportedInUi = false;
+		searchEnabled = false;
+		imgEnabled = false;
+		videoEnabled = false;
+		audioEnabled = false;
+		updateToolButtonActiveState();
 	}
 }
 
@@ -2186,23 +2214,39 @@ chatBox.addEventListener("scroll", () => {
 });
 
 const toggleWebSearch = () => {
+	if (!toolsSupportedInUi && !searchEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
 	searchEnabled = !searchEnabled;
 	updateToolButtonActiveState();
 };
 
 const toggleImageGen = () => {
+	if (!toolsSupportedInUi && !imgEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
 	if (!imgEnabled && !enforceLimit("imagesDaily")) return;
 	imgEnabled = !imgEnabled;
 	updateToolButtonActiveState();
 };
 
 const toggleVideoGen = () => {
+	if (!toolsSupportedInUi && !videoEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
 	if (!videoEnabled && !enforceLimit("videosDaily")) return;
 	videoEnabled = !videoEnabled;
 	updateToolButtonActiveState();
 };
 
 const toggleAudioGen = () => {
+	if (!toolsSupportedInUi && !audioEnabled) {
+		showToolsUnsupportedModal();
+		return;
+	}
 	if (!audioEnabled && !enforceLimit("audioWeekly")) return;
 	audioEnabled = !audioEnabled;
 	updateToolButtonActiveState();

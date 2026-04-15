@@ -36,8 +36,7 @@ export class ChatBox extends HTMLElement {
                              </button>
                          </div>
                      </div>
-                    <p style="display:none;" id="feature-warning">The selected model does not support tools (web search, image generation, video generation, or audio/SFX generation). Get a model that does from the <a href="../marketplace/ollama.html">marketplace</a>.</p>
-                    <p id="rate-limit-box" style="display:none;">Rate Limit Information</p>
+                     <p id="rate-limit-box" style="display:none;">Rate Limit Information</p>
                      <div class="typing-actions composer-actions composer-actions-inside">
                          <button type="button" class="icon-btn composer-attach-btn" aria-label="Attach file" id="attach-btn">
                              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
