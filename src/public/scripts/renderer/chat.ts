@@ -390,9 +390,15 @@ type ToggleSwitchElement = HTMLElement & {
 
 function readLightningSetting(): boolean {
 	try {
-		return localStorage.getItem(LIGHTNING_ENABLED_KEY) === "true";
+		if (localStorage.getItem(LIGHTNING_ENABLED_KEY) === "false") {
+			return false;
+		} else return true;
 	} catch (e) {
-		return false;
+		showNotification({
+			message: "Could not read Lightning setting. Defaulting to enabled.",
+			type: "warning",
+		});
+		return true;
 	}
 }
 
