@@ -394,6 +394,10 @@ function readLightningSetting(): boolean {
 			return false;
 		} else return true;
 	} catch (e) {
+		showNotification({
+			message: "Could not read Lightning setting. Defaulting to enabled.",
+			type: "warning",
+		});
 		return true;
 	}
 }
