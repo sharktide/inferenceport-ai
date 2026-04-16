@@ -281,7 +281,6 @@ function resetFirstLaunch(): void {
 }
 
 export default function register() {
-	initHardwareInfo();
 	ipcMain.handle("snip:get-target", () => snipTarget);
 	ipcMain.handle(
 		"snip:capture",

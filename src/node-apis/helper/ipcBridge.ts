@@ -125,7 +125,14 @@ function loadOrCreateWsAuthToken(): string {
 	}
 }
 
-const WS_AUTH_TOKEN = loadOrCreateWsAuthToken();
+let WS_AUTH_TOKEN: string | null = null;
+
+function getWsAuthToken(): string {
+	if (!WS_AUTH_TOKEN) {
+		WS_AUTH_TOKEN = loadOrCreateWsAuthToken();
+	}
+	return WS_AUTH_TOKEN;
+}
 
 type WsAuthMessage = {
 	type: "auth_challenge" | "auth_response" | "auth_ok" | "auth_error";
@@ -250,7 +257,7 @@ function generateChallenge(): string {
 }
 
 export function signWsAuthChallenge(challenge: string): string {
-	return createHmac("sha256", WS_AUTH_TOKEN)
+	return createHmac("sha256", getWsAuthToken())
 		.update(challenge)
 		.digest("base64url");
 }
@@ -415,8 +422,8 @@ function normalizeOrigin(origin: string): string {
 	}
 }
 
-export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
-	trackIpcChannels();
+	export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
+		trackIpcChannels();
 
 	if (wsServer) return;
 
@@ -478,13 +485,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 					(message as WsAuthMessage).type === "auth_response" &&
 					typeof (message as WsAuthMessage).signature === "string"
 				) {
-					if (
-						verifyHmac(
-							WS_AUTH_TOKEN,
-							challenge,
-							(message as WsAuthMessage).signature!,
-						)
-					) {
+					if (verifyHmac(getWsAuthToken(), challenge, (message as WsAuthMessage).signature!)) {
 						authenticated = true;
 						wsClients.add(ws);
 						sendWs(ws, { type: "auth_ok" } as unknown as WsEvent);

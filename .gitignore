@@ -1094,6 +1094,14 @@ node-apis\helper\tools.d.ts
 node-apis\helper\tools.d.ts.map
 node-apis\helper\tools.js
 node-apis\helper\tools.js.map
+node-apis\helper\toolsCache.d.d.ts
+node-apis\helper\toolsCache.d.d.ts.map
+node-apis\helper\toolsCache.d.js
+node-apis\helper\toolsCache.d.js.map
+node-apis\helper\toolsCache.d.ts
+node-apis\helper\toolsCache.d.ts.map
+node-apis\helper\toolsCache.js
+node-apis\helper\toolsCache.js.map
 node-apis\helper\webUiServer.d.d.ts
 node-apis\helper\webUiServer.d.d.ts.map
 node-apis\helper\webUiServer.d.js

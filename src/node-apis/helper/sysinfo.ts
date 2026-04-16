@@ -67,27 +67,56 @@ function is52458(url: string): boolean {
 
 export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string) {
 	const modelSize = parseModelSize(modelSizeRaw);
-    let cpu = globalcpu;
-    let mem = globalmem;
-    let flags = globalflags
-    console.log(clientUrl)
-    if (clientUrl) {
-        if (is52458(clientUrl)) {
-            console.log("got it")
-            const res = await fetch(`${clientUrl}/sysinfo`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${await issueProxyToken()}`
-                },
-                body: JSON.stringify({ modelSizeRaw })
-            })
-            if (res.ok) {
-                return await res.json()
-            } else {
-                void 0
-            }
-        }
-    }
+	if (clientUrl && is52458(clientUrl)) {
+		try {
+			const res = await fetch(`${clientUrl}/sysinfo`, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${await issueProxyToken()}`,
+				},
+				body: JSON.stringify({ modelSizeRaw }),
+			});
+			if (res.ok) {
+				return await res.json();
+			}
+		} catch {
+			void 0;
+		}
+	}
+
+	try {
+		await initHardwareInfo();
+	} catch (err) {
+		return {
+			modelSizeRaw,
+			modelSizeB: Number.isFinite(modelSize) ? modelSize : null,
+			cpu: "unknown",
+			cores: null,
+			ramGB: null,
+			avx2: false,
+			avx512: false,
+			warning:
+				"⚠️ Unable to read system hardware info. Performance guidance may be inaccurate.",
+			error: String((err as Error)?.message || err),
+		};
+	}
+
+	const cpu = globalcpu;
+	const mem = globalmem;
+	const flags = globalflags;
+	if (!cpu || !mem || !flags) {
+		return {
+			modelSizeRaw,
+			modelSizeB: Number.isFinite(modelSize) ? modelSize : null,
+			cpu: "unknown",
+			cores: null,
+			ramGB: null,
+			avx2: false,
+			avx512: false,
+			warning:
+				"⚠️ System hardware info is not available yet. Try again in a moment.",
+		};
+	}
 
 	const ramGB = mem!.total / 1e9;
 	const hasAVX2 = flags!.includes("avx2");

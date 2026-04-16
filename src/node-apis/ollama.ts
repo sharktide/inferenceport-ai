@@ -32,7 +32,7 @@ import {
 	getServerLogs,
 } from "./helper/server.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
-import { cache, fetchSupportedTools, fetchSupportedVisionModels } from "./helper/tools.js";
+import { cache } from "./helper/toolsCache.js";
 const execFileAsync = promisify(execFile);
 
 const isDev = !app.isPackaged;
@@ -100,11 +100,6 @@ export async function serve(): Promise<string> {
 }
 
 export default function register(): void {
-	try {
-		execFileAsync(ollamaPath);
-	} catch {
-		void 0;
-	}
 	ipcMain.handle("ollama:get-server-logs", async (): Promise<string> => {
 		return await getServerLogs();
 	});
@@ -125,6 +120,7 @@ export default function register(): void {
 		return "Stopping server...";
 	});
 	ipcMain.handle("ollama:fetch-tool-models", async () => {
+		const { fetchSupportedTools } = await import("./helper/tools.js");
 		return await fetchSupportedTools();
 	});
 
@@ -148,6 +144,7 @@ export default function register(): void {
 	});
 
 	ipcMain.handle("ollama:fetch-vision-models", async () => {
+		const { fetchSupportedVisionModels } = await import("./helper/tools.js");
 		return await fetchSupportedVisionModels();
 	});
 

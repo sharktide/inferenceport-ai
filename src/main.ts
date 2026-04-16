@@ -18,23 +18,6 @@ import { app, BrowserWindow, ipcMain, screen, Menu, dialog, shell, globalShortcu
 import type { MenuItemConstructorOptions } from "electron";
 import path from "path";
 
-import ollamaHandlers, {
-	serve,
-} from "./node-apis/ollama.js";
-import { fetchSupportedTools, fetchSupportedVisionModels } from "./node-apis/helper/tools.js";
-import utilsHandlers, { setSnipTarget } from "./node-apis/utils.js";
-import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
-import chatStreamHandlers from "./node-apis/chatStream.js";
-import spacesHandlers from "./node-apis/spaces.js";
-import {
-	initIpcWebSocketBridge,
-	stopIpcWebSocketBridge,
-} from "./node-apis/helper/ipcBridge.js";
-import storageSyncHandlers from "./node-apis/storageSync.js";
-import { startWebUiServer, stopWebUiServer } from "./node-apis/helper/webUiServer.js";
-import startupHandlers, { getStartupSettings, onStartupSettingsChange } from "./node-apis/startup.js";
-import { startProxyServer } from "./node-apis/helper/server.js";
-
 import fixPath from "fix-path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -42,11 +25,12 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-fixPath();
-const supabase = supabaseClient;
 const IPC_WS_PORT_HEADLESS = 52456;
 const IPC_WS_PORT_FOREGROUND = 52457;
 const DEFAULT_WEB_UI_PORT = 52459;
+
+let stopWebUiServer: (() => void) | null = null;
+let stopIpcWebSocketBridge: (() => void) | null = null;
 
 let mainWindow: any = null;
 let pendingDeepLink: string | null = null;
@@ -59,14 +43,21 @@ const SNIP_HOTKEY =
 let snipWindow: BrowserWindow | null = null;
 let snipChatWindow: BrowserWindow | null = null;
 let snipHotkeyRegistered = false;
+let setSnipTarget: (target: unknown) => void = () => void 0;
+
+const LOG_BACKGROUND_TASKS =
+	!app.isPackaged ||
+	process.env.INFERENCEPORT_DEBUG_BG_TASKS === "1";
 
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
 		.then((result) => {
-			console.info(
-				`[fireAndForget] [${label}] resolved:`,
-				result === undefined ? "<no value>" : result,
-			);
+			if (LOG_BACKGROUND_TASKS) {
+				console.info(
+					`[fireAndForget] [${label}] resolved:`,
+					result === undefined ? "<no value>" : result,
+				);
+			}
 		})
 		.catch((err) => {
 			const stackLine = (err?.stack || String(err)).split("\n")[0];
@@ -91,6 +82,8 @@ async function handleAuthCallback(url: string): Promise<boolean> {
 	try {
 		const parsed = new URL(url);
 		if (!isAuthCallbackDeepLink(parsed)) return false;
+
+		const { supabase } = await import("./node-apis/auth.js");
 
 		const hashParams = new URLSearchParams(parsed.hash.slice(1));
 		const queryParams = parsed.searchParams;
@@ -130,10 +123,20 @@ function createWindow() {
 	mainWindow = new BrowserWindow({
 		width: width,
 		height: height,
+		show: false,
+		backgroundColor: "#0b0f17",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.cjs"),
 		},
 		icon: path.join(__dirname, "public", "assets", "img", "logo.png"),
+	});
+
+	mainWindow.once("ready-to-show", () => {
+		try {
+			mainWindow?.show();
+		} catch {
+			void 0;
+		}
 	});
 
 	const template: MenuItemConstructorOptions[] = [
@@ -209,7 +212,6 @@ function createWindow() {
 				{
 					label: "GitHub",
 					click: async () => {
-						const { shell } = require("electron");
 						await shell.openExternal(
 							"https://github.com/sharktide/inferenceport-ai",
 						);
@@ -218,7 +220,6 @@ function createWindow() {
 				{
 					label: "Report Bug",
 					click: async () => {
-						const { shell } = require("electron");
 						await shell.openExternal(
 							"https://github.com/sharktide/inferenceport-ai/issues/new",
 						);
@@ -227,7 +228,6 @@ function createWindow() {
 				{
 					label: "Pull Request",
 					click: async () => {
-						const { shell } = require("electron");
 						await shell.openExternal(
 							"https://github.com/sharktide/inferenceport-ai/pulls/new",
 						);
@@ -237,7 +237,8 @@ function createWindow() {
 		},
 	];
 
-	mainWindow.loadFile("public/index.html");
+	const publicDir = path.join(__dirname, "public");
+	mainWindow.loadFile(path.join(publicDir, "boot.html"));
 	const menu = Menu.buildFromTemplate(template);
 	Menu.setApplicationMenu(menu);
 }
@@ -300,10 +301,6 @@ function openSnipOverlay(): void {
 
 	snipWindow.on("closed", () => {
 		setSnipTarget(null);
-		snipWindow = null;
-	});
-
-	snipWindow.on("closed", () => {
 		snipWindow = null;
 	});
 
@@ -413,6 +410,227 @@ function safeWriteJSONAtomic(filePath: string, data: any) {
     }
 }
 
+function isNewerVersion(b: string, a: string): boolean {
+	const pa = a.split(".").map(Number);
+	const pb = b.split(".").map(Number);
+
+	for (let i = 0; i < 3; ++i) {
+		const av = pa[i] || 0;
+		const bv = pb[i] || 0;
+		if (bv > av) return true;
+		if (bv < av) return false;
+	}
+	return false;
+}
+
+async function checkForUpdate(): Promise<void> {
+	try {
+		const res = await fetch("https://sharktide-lightning.hf.space/status");
+		if (!res.ok) return;
+		const data = await res.json();
+		const latest = data.latest;
+		if (
+			typeof latest !== "string" ||
+			!isNewerVersion(latest, app.getVersion())
+		) {
+			return;
+		}
+
+		const skipKey = `skip-update-${latest}`;
+		const storePath = path.join(app.getPath("userData"), "update-skips.json");
+		let skipData: Record<string, boolean> = {};
+		if (fs.existsSync(storePath)) {
+			try {
+				skipData = JSON.parse(fs.readFileSync(storePath, "utf8"));
+			} catch {
+				skipData = {};
+			}
+		}
+		if (skipData[skipKey]) return;
+
+		if (!mainWindow) return;
+		const result = await dialog.showMessageBox(mainWindow, {
+			type: "info",
+			buttons:
+				process.platform !== "win32"
+					? ["Open Link", "Cancel", "Skip This Release"]
+					: [
+							"Open Link",
+							"Microsoft Store",
+							"Cancel",
+							"Skip This Release",
+						],
+			defaultId: 0,
+			cancelId: 1,
+			title: "Update Available",
+			message: `A new version (${latest}) is available!\nDownload it from our website\n${process.platform === "win32" ? "or from the Microsoft Store" : ""}`,
+			detail:
+				"Link: https://inference.js.org/install.html\nYou can skip this release to not be notified again.",
+		});
+		if (result.response === 0) {
+			await shell.openExternal("https://inference.js.org/install.html");
+		} else if (
+			(process.platform !== "win32" && result.response === 2) ||
+			(process.platform === "win32" && result.response === 3)
+		) {
+			skipData[skipKey] = true;
+			safeWriteJSONAtomic(storePath, skipData);
+		} else if (process.platform === "win32" && result.response === 1) {
+			await shell.openExternal("https://apps.microsoft.com/detail/9p5d3xx84l28");
+		}
+
+		mainWindow?.focus();
+	} catch {
+		void 0;
+	}
+}
+
+let backendInitPromise: Promise<void> | null = null;
+let fixPathApplied = false;
+
+function maybeApplyFixPath(): void {
+	if (fixPathApplied) return;
+	if (process.platform !== "darwin") return;
+	fixPathApplied = true;
+	try {
+		fixPath();
+	} catch (err) {
+		console.warn("fix-path failed", err);
+	}
+}
+
+async function initBackend(): Promise<void> {
+	if (backendInitPromise) return backendInitPromise;
+
+	backendInitPromise = (async () => {
+		maybeApplyFixPath();
+
+		const chatDir = path.join(app.getPath("userData"), "chat-sessions");
+
+		const startupModule = await import("./node-apis/startup.js");
+		const startupSettings = startupModule.getStartupSettings();
+		const uiPort = startupSettings.uiPort || DEFAULT_WEB_UI_PORT;
+		const wsPort = backgroundServerMode
+			? IPC_WS_PORT_HEADLESS
+			: IPC_WS_PORT_FOREGROUND;
+
+		const bridgeModule = await import("./node-apis/helper/ipcBridge.js");
+		stopIpcWebSocketBridge = bridgeModule.stopIpcWebSocketBridge;
+		bridgeModule.initIpcWebSocketBridge({
+			port: wsPort,
+			allowedOrigins: [
+				`http://127.0.0.1:${uiPort}`,
+				`http://localhost:${uiPort}`,
+			],
+		});
+
+		const webUiModule = await import("./node-apis/helper/webUiServer.js");
+		stopWebUiServer = webUiModule.stopWebUiServer;
+
+		ipcMain.handle("session:getPath", () => chatDir);
+
+		const [authModule, chatStreamModule, ollamaModule, utilsModule, spacesModule, storageSyncModule] =
+			await Promise.all([
+				import("./node-apis/auth.js"),
+				import("./node-apis/chatStream.js"),
+				import("./node-apis/ollama.js"),
+				import("./node-apis/utils.js"),
+				import("./node-apis/spaces.js"),
+				import("./node-apis/storageSync.js"),
+			]);
+
+		authModule.default();
+		chatStreamModule.default();
+		ollamaModule.default();
+		utilsModule.default();
+		spacesModule.default();
+		storageSyncModule.default();
+		startupModule.default();
+
+		setSnipTarget = utilsModule.setSnipTarget as unknown as (target: unknown) => void;
+
+		ipcMain.on("snip:ready", (event) => {
+			if (!snipWindow || event.sender !== snipWindow.webContents) return;
+			snipWindow.show();
+			snipWindow.focus();
+		});
+		ipcMain.handle(
+			"snip:complete",
+			(_event, payload: { dataUrl: string; width?: number; height?: number }) => {
+				if (payload?.dataUrl) {
+					openSnipChat(payload);
+				}
+				closeSnipOverlay();
+				return true;
+			},
+		);
+		ipcMain.handle("snip:cancel", () => {
+			closeSnipOverlay();
+			return true;
+		});
+
+		const applySnipHotkeySetting = (settings: { snipHotkeyInBackground?: boolean }) => {
+			const shouldEnable = backgroundServerMode
+				? Boolean(settings?.snipHotkeyInBackground)
+				: true;
+			updateSnipHotkey(shouldEnable);
+		};
+
+		applySnipHotkeySetting(startupSettings);
+		startupModule.onStartupSettingsChange(applySnipHotkeySetting);
+
+		if (
+			startupSettings.autoStartProxy &&
+			startupSettings.proxyUsers.length > 0
+		) {
+			try {
+				const serverModule = await import("./node-apis/helper/server.js");
+				serverModule.startProxyServer(
+					startupSettings.proxyPort || 52458,
+					startupSettings.proxyUsers,
+				);
+				console.info("Auto-started proxy server from startup settings");
+			} catch (err) {
+				console.warn("Failed to auto-start proxy server", err);
+			}
+		}
+
+		if (pendingDeepLink) {
+			const handled = await handleAuthCallback(pendingDeepLink);
+			if (!handled) {
+				if (!mainWindow && !backgroundServerMode) createWindow();
+				openFromDeepLink(pendingDeepLink);
+			}
+			pendingDeepLink = null;
+		} else if (!backgroundServerMode && mainWindow) {
+			const publicDir = path.join(__dirname, "public");
+			mainWindow.loadFile(path.join(publicDir, "index.html"));
+		}
+
+		// Background services: start after UI is responsive.
+		setTimeout(() => {
+			void checkForUpdate();
+		}, 8_000);
+
+		setTimeout(() => {
+			fireAndForget(webUiModule.startWebUiServer(uiPort, "127.0.0.1", wsPort), "startWebUiServer");
+		}, 500);
+
+		setTimeout(() => {
+			fireAndForget(ollamaModule.serve(), "serve");
+		}, 15_000);
+
+		setTimeout(() => {
+			void import("./node-apis/helper/tools.js").then((toolsModule) => {
+				fireAndForget(toolsModule.fetchSupportedTools(), "fetchSupportedTools");
+				fireAndForget(toolsModule.fetchSupportedVisionModels(), "fetchSupportedVisionModels");
+			});
+		}, 20_000);
+	})();
+
+	return backendInitPromise;
+}
+
 if (!backgroundServerMode) {
 	const gotLock = app.requestSingleInstanceLock();
 	if (!gotLock) {
@@ -430,6 +648,8 @@ if (deeplinkArg) {
 
 app.on("second-instance", async (_event, argv) => {
 	if (backgroundServerMode) return;
+	await app.whenReady();
+	await initBackend();
     const urlArg = argv.find(a => a?.startsWith("inferenceport-ai://"));
     if (!urlArg) {
 		if (!mainWindow) createWindow();
@@ -463,6 +683,8 @@ app.on("second-instance", async (_event, argv) => {
 
 app.on("open-url", async (event, url) => {
 	event.preventDefault();
+	await app.whenReady();
+	await initBackend();
 
 	if (await handleAuthCallback(url)) return;
 
@@ -475,19 +697,9 @@ app.on("open-url", async (event, url) => {
 });
 
 app.whenReady().then(async () => {
-	const chatDir = path.join(app.getPath("userData"), "chat-sessions");
-	const startupSettings = getStartupSettings();
-	const uiPort = startupSettings.uiPort || DEFAULT_WEB_UI_PORT;
-	const wsPort = backgroundServerMode
-		? IPC_WS_PORT_HEADLESS
-		: IPC_WS_PORT_FOREGROUND;
-	initIpcWebSocketBridge({
-		port: wsPort,
-		allowedOrigins: [
-			`http://127.0.0.1:${uiPort}`,
-			`http://localhost:${uiPort}`,
-		],
-	});
+	if (!backgroundServerMode) {
+		createWindow();
+	}
 
 	try {
 		if (process.defaultApp) {
@@ -503,138 +715,20 @@ app.whenReady().then(async () => {
 		console.warn("Unable to set protocol client", e);
 	}
 
-	ipcMain.handle("session:getPath", () => chatDir);
-
-	authHandlers();
-	chatStreamHandlers();
-	ollamaHandlers();
-	utilsHandlers();
-	spacesHandlers();
-	storageSyncHandlers();
-	startupHandlers();
-
-	ipcMain.on("snip:ready", (event) => {
-		if (!snipWindow || event.sender !== snipWindow.webContents) return;
-		snipWindow.show();
-		snipWindow.focus();
-	});
-	ipcMain.handle("snip:complete", (_event, payload: { dataUrl: string; width?: number; height?: number }) => {
-		if (payload?.dataUrl) {
-			openSnipChat(payload);
-		}
-		closeSnipOverlay();
-		return true;
-	});
-	ipcMain.handle("snip:cancel", () => {
-		closeSnipOverlay();
-		return true;
-	});
-
-	const applySnipHotkeySetting = (settings: { snipHotkeyInBackground?: boolean }) => {
-		const shouldEnable = backgroundServerMode
-			? Boolean(settings?.snipHotkeyInBackground)
-			: true;
-		updateSnipHotkey(shouldEnable);
-	};
-
-	applySnipHotkeySetting(startupSettings);
-	onStartupSettingsChange(applySnipHotkeySetting);
-
-	if (
-		startupSettings.autoStartProxy &&
-		startupSettings.proxyUsers.length > 0
-	) {
-		try {
-			startProxyServer(
-				startupSettings.proxyPort || 52458,
-				startupSettings.proxyUsers,
-			);
-			console.info("Auto-started proxy server from startup settings");
-		} catch (err) {
-			console.warn("Failed to auto-start proxy server", err);
-		}
-	}
-
-	if (!backgroundServerMode) {
-		createWindow();
-	}
-
-	(async function checkForUpdate() {
-		try {
-			const res = await fetch("https://sharktide-lightning.hf.space/status");
-			if (!res.ok) return;
-			const data = await res.json();
-			const latest = data.latest;
-			if (typeof latest === "string" && isNewerVersion(latest, app.getVersion())) {
-				const skipKey = `skip-update-${latest}`;
-				const storePath = path.join(app.getPath("userData"), "update-skips.json");
-				let skipData: Record<string, boolean> = {};
-				if (fs.existsSync(storePath)) {
-					try { skipData = JSON.parse(fs.readFileSync(storePath, "utf8")); } catch { skipData = {}; }
-				}
-				if (skipData[skipKey]) return;
-				const result = await dialog.showMessageBox(mainWindow, {
-					type: "info",
-					buttons: (process.platform !== "win32")
-						? ["Open Link", "Cancel", "Skip This Release"]
-						: ["Open Link", "Microsoft Store", "Cancel", "Skip This Release"],
-					defaultId: 0,
-					cancelId: 1,
-					title: "Update Available",
-					message: `A new version (${latest}) is available!\nDownload it from our website\n${process.platform === "win32" ? "or from the Microsoft Store" : ""}`,
-					detail: "Link: https://inference.js.org/install.html\nYou can skip this release to not be notified again."
-				});
-				if (result.response === 0) {
-					await shell.openExternal("https://inference.js.org/install.html");
-				} else if ((process.platform !== "win32" && result.response === 2) || (process.platform === "win32" && result.response === 3)) {
-					skipData[skipKey] = true;
-					safeWriteJSONAtomic(storePath, skipData);
-				} else if (process.platform === "win32" && result.response === 1 ) {
-					await shell.openExternal("https://apps.microsoft.com/detail/9p5d3xx84l28")
-				}
-				if (mainWindow) {
-					mainWindow.focus();
-				}
-			}
-		} catch (e) {
-			void 0
-		}
-	})();
-
-	function isNewerVersion(b: string, a: string): boolean {
-		const pa = a.split(".").map(Number);
-		const pb = b.split(".").map(Number);
-
-		for (let i = 0; i < 3; ++i) {
-			const av = pa[i] || 0;
-			const bv = pb[i] || 0;
-			if (bv > av) return true;
-			if (bv < av) return false;
-		}
-		return false;
-	}
-
-	if (pendingDeepLink) {
-		const handled = await handleAuthCallback(pendingDeepLink);
-		if (!handled) {
-			if (!mainWindow) createWindow();
-			openFromDeepLink(pendingDeepLink);
-		}
-		pendingDeepLink = null;
-	}
-
-	fireAndForget(serve(), "serve");
-	fireAndForget(
-		startWebUiServer(uiPort, "127.0.0.1", wsPort),
-		"startWebUiServer",
-	);
-	fireAndForget(fetchSupportedTools(), "fetchSupportedTools");
-	fireAndForget(fetchSupportedVisionModels(), "fetchSupportedVisionModels");
+	await initBackend();
 });
 
 app.on("before-quit", () => {
-	stopWebUiServer();
-	stopIpcWebSocketBridge();
+	try {
+		stopWebUiServer?.();
+	} catch {
+		void 0;
+	}
+	try {
+		stopIpcWebSocketBridge?.();
+	} catch {
+		void 0;
+	}
 });
 
 app.on("will-quit", () => {
@@ -643,7 +737,15 @@ app.on("will-quit", () => {
 
 app.on("window-all-closed", () => {
 	if (backgroundServerMode) return;
-	stopWebUiServer();
-	stopIpcWebSocketBridge();
+	try {
+		stopWebUiServer?.();
+	} catch {
+		void 0;
+	}
+	try {
+		stopIpcWebSocketBridge?.();
+	} catch {
+		void 0;
+	}
 	app.quit();
 });

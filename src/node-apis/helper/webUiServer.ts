@@ -90,6 +90,17 @@ function getAllowedOrigins(port: number, protocol: string): Set<string> {
 	]);
 }
 
+const allowedOriginsCache = new Map<string, Set<string>>();
+
+function getAllowedOriginsCached(port: number, protocol: string): Set<string> {
+	const key = `${protocol}:${port}`;
+	const cached = allowedOriginsCache.get(key);
+	if (cached) return cached;
+	const created = getAllowedOrigins(port, protocol);
+	allowedOriginsCache.set(key, created);
+	return created;
+}
+
 function getOriginFromReferer(referer: string): string {
 	try {
 		return new URL(referer).origin.toLowerCase();
@@ -128,8 +139,10 @@ interface ExtendedSocket extends Socket {
 
 function isAllowedWebUiRequest(req: http.IncomingMessage, port: number): boolean {
 	if (!isFetchMetadataAllowed(req)) return false;
-	const allowedOrigins = getAllowedOrigins(port, (req.socket as ExtendedSocket).encrypted ? "https" : "http")
-	console.log("allowedOrigins", allowedOrigins);
+	const allowedOrigins = getAllowedOriginsCached(
+		port,
+		(req.socket as ExtendedSocket).encrypted ? "https" : "http",
+	);
 	const origin =
 		typeof req.headers.origin === "string"
 			? req.headers.origin.trim().toLowerCase()

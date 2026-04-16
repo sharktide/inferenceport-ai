@@ -5,12 +5,8 @@ import fs from "fs";
 import path from "path"
 import { getSession } from "../auth.js";
 import { getLightningClientId } from "./lightningClient.js";
-export const cache ={
-  	cachedSupportsTools: null as string[] | null,
-	cachedSupportsVision: null as string[] | null,
-	writeInProgress: null as Promise<void> | null,
-	visionWriteInProgress: null as Promise<void> | null
-}
+import { cache } from "./toolsCache.js";
+export { cache };
 import { app } from "electron"
 async function fetchWithRetry(
     trace: string,
