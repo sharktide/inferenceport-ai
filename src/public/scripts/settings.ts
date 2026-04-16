@@ -545,7 +545,7 @@ async function openSettingsUpgradeModal() {
 		accountButton?.click();
 		setTimeout(() => void openSettingsUpgradeModal(), 180);
 	}
-}
+})();
 (async () => {
 	try {
 		const { session } = (await window.auth.getSession?.()) ?? {
