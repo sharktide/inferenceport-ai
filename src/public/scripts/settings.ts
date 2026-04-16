@@ -505,8 +505,7 @@ async function openSettingsUpgradeModal() {
 		],
 	});
 }
-
-document.addEventListener("DOMContentLoaded", () => {
+(async () => {
 	installExternalUrlHandler();
 	hostConfigModal = new window.ic.iModal("host-config-modal", 650);
 	renameModal = new window.ic.iModal("rename-modal", 400);
@@ -546,8 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		accountButton?.click();
 		setTimeout(() => void openSettingsUpgradeModal(), 180);
 	}
-});
-
+})();
 (async () => {
 	try {
 		const { session } = (await window.auth.getSession?.()) ?? {
