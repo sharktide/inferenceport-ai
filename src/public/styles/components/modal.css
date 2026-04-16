@@ -32,6 +32,9 @@ Copyright 2025 Rihaan Meher
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   text-align: center;
 
+  max-height: 80vh;
+  overflow-y: auto;
+
   /* Opening animation baseline */
   transform: translateY(0) scale(1);
   opacity: 1;
