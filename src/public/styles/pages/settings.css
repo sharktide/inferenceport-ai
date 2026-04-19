@@ -168,6 +168,124 @@ Copyright 2025 Rihaan Meher
   gap: 14px;
 }
 
+.settings-api-card {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-light) 94%, transparent),
+      color-mix(in srgb, var(--secondary-color) 28%, transparent)
+    );
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  display: grid;
+  gap: 14px;
+}
+
+.settings-api-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-api-copy {
+  margin: 8px 0 0;
+  color: color-mix(in srgb, var(--text-dark) 84%, transparent);
+  line-height: 1.55;
+}
+
+.settings-api-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-api-list {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-api-empty {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--text-dark) 18%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 76%, transparent);
+}
+
+.settings-api-key-row {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+}
+
+.settings-api-key-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-api-key-title {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-api-key-name {
+  font-weight: 700;
+}
+
+.settings-api-key-prefix {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86rem;
+  color: color-mix(in srgb, var(--text-dark) 75%, transparent);
+}
+
+.settings-api-key-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: color-mix(in srgb, var(--text-dark) 74%, transparent);
+}
+
+.settings-api-key-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.settings-api-key-badge.is-active {
+  background: color-mix(in srgb, #178f5f 18%, transparent);
+  color: #126744;
+}
+
+.settings-api-key-badge.is-expired {
+  background: color-mix(in srgb, #d38200 18%, transparent);
+  color: #945d00;
+}
+
+.settings-api-key-badge.is-revoked {
+  background: color-mix(in srgb, var(--error) 18%, transparent);
+  color: color-mix(in srgb, var(--error) 80%, #611919 20%);
+}
+
+.settings-api-key-row button {
+  min-width: 140px;
+}
+
 .settings-subscription-header {
   display: flex;
   justify-content: space-between;
@@ -256,11 +374,13 @@ Copyright 2025 Rihaan Meher
 }
 
 @media (max-width: 768px) {
+  .settings-api-actions,
   .settings-subscription-actions,
   .settings-account-actions {
     width: 100%;
   }
 
+  .settings-api-actions button,
   .settings-subscription-btn,
   .settings-upgrade-btn {
     flex: 1 1 100%;

@@ -1,6 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
-import type { Session, AuthChangeEvent, Subscription } from "@supabase/supabase-js";
+import type {
+	AuthChangeEvent,
+	Session,
+	Subscription,
+	SupabaseClient,
+} from "@supabase/supabase-js";
 import { app, ipcMain, session } from "electron";
+import { createHash, randomBytes } from "node:crypto";
 
 import fs from "fs";
 import path from "path";
@@ -109,6 +115,34 @@ type RendererSessionView = {
 type RendererProfileView = {
 	username: string;
 } | null;
+
+type LightningApiKeyRow = {
+	id?: unknown;
+	name?: unknown;
+	key_prefix?: unknown;
+	created_at?: unknown;
+	last_used_at?: unknown;
+	expires_at?: unknown;
+	revoked_at?: unknown;
+};
+
+type RendererLightningApiKeyView = {
+	id: string;
+	name: string;
+	keyPrefix: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	expiresAt: string | null;
+	revokedAt: string | null;
+	isRevoked: boolean;
+	isExpired: boolean;
+};
+
+type RendererLightningApiKeyCreateResult = {
+	apiKey?: RendererLightningApiKeyView;
+	rawKey?: string;
+	error?: string;
+};
 
 export const sessionFile = path.join(app.getPath("userData"), "supabase-session.json");
 const profilesFile = path.join(app.getPath("userData"), "profiles.json");
@@ -232,6 +266,110 @@ function asTrimmedString(value: unknown): string | null {
 	if (typeof value !== "string") return null;
 	const trimmed = value.trim();
 	return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeIsoTimestamp(value: unknown): string | null {
+	const trimmed = asTrimmedString(value);
+	if (!trimmed) return null;
+	const parsed = Date.parse(trimmed);
+	if (Number.isNaN(parsed)) return null;
+	return new Date(parsed).toISOString();
+}
+
+function isIsoTimestampExpired(value: string | null): boolean {
+	if (!value) return false;
+	const expiresAt = Date.parse(value);
+	return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
+function normalizeLightningApiKey(
+	value: unknown,
+): RendererLightningApiKeyView | null {
+	if (!value || typeof value !== "object") return null;
+	const row = value as LightningApiKeyRow;
+	const id = asTrimmedString(row.id);
+	const name = asTrimmedString(row.name);
+	const keyPrefix = asTrimmedString(row.key_prefix);
+	const createdAt = normalizeIsoTimestamp(row.created_at);
+	if (!id || !name || !keyPrefix || !createdAt) return null;
+
+	const lastUsedAt = normalizeIsoTimestamp(row.last_used_at);
+	const expiresAt = normalizeIsoTimestamp(row.expires_at);
+	const revokedAt = normalizeIsoTimestamp(row.revoked_at);
+
+	return {
+		id,
+		name,
+		keyPrefix,
+		createdAt,
+		lastUsedAt,
+		expiresAt,
+		revokedAt,
+		isRevoked: revokedAt !== null,
+		isExpired: revokedAt === null && isIsoTimestampExpired(expiresAt),
+	};
+}
+
+async function getAuthenticatedSupabaseClient(): Promise<{
+	client: SupabaseClient;
+	session: Session;
+}> {
+	const { data, error } = await supabase.auth.getSession();
+	if (error) {
+		throw error;
+	}
+	if (!data.session?.access_token) {
+		throw new Error("No active session");
+	}
+
+	return {
+		session: data.session,
+		client: createClient(supabaseUrl, supabaseKey, {
+			global: {
+				headers: {
+					Authorization: `Bearer ${data.session.access_token}`,
+				},
+			},
+		}),
+	};
+}
+
+function buildLightningApiKeySecret(): string {
+	return `ipa_live_${randomBytes(24).toString("base64url")}`;
+}
+
+function hashLightningApiKey(secret: string): string {
+	return createHash("sha256").update(secret).digest("hex");
+}
+
+function buildLightningApiKeyPrefix(secret: string): string {
+	return secret.slice(0, 16);
+}
+
+function parseLightningApiKeyExpiry(value?: string | null): string | null {
+	const trimmed = asTrimmedString(value);
+	if (!trimmed) return null;
+	const parsed = Date.parse(trimmed);
+	if (Number.isNaN(parsed)) {
+		throw new Error("Expiration date must be a valid ISO timestamp");
+	}
+	return new Date(parsed).toISOString();
+}
+
+async function listLightningApiKeys(): Promise<RendererLightningApiKeyView[]> {
+	const { client } = await getAuthenticatedSupabaseClient();
+	const { data, error } = await client
+		.from("lightning_api_keys")
+		.select("id, name, key_prefix, created_at, last_used_at, expires_at, revoked_at")
+		.order("created_at", { ascending: false });
+
+	if (error) {
+		throw new Error(error.message);
+	}
+
+	return (data || [])
+		.map((entry) => normalizeLightningApiKey(entry))
+		.filter((entry): entry is RendererLightningApiKeyView => Boolean(entry));
 }
 
 function normalizePlanKeyFromName(planName: string | null): string {
@@ -773,6 +911,111 @@ export default function register() {
 		}
 	});
 
+	ipcMain.handle("auth:listLightningApiKeys", async () => {
+		try {
+			return await listLightningApiKeys();
+		} catch (error) {
+			throw new Error(
+				error instanceof Error ? error.message : String(error),
+			);
+		}
+	});
+
+	ipcMain.handle(
+		"auth:createLightningApiKey",
+		async (_event, name: string, expiresAt?: string | null) => {
+			const normalizedName = asTrimmedString(name);
+			if (!normalizedName) {
+				return { error: "API key name is required" };
+			}
+			if (normalizedName.length > 64) {
+				return { error: "API key name must be 64 characters or fewer" };
+			}
+
+			try {
+				const parsedExpiresAt = parseLightningApiKeyExpiry(expiresAt);
+				const { client, session } = await getAuthenticatedSupabaseClient();
+				const rawKey = buildLightningApiKeySecret();
+				const keyHash = hashLightningApiKey(rawKey);
+				const keyPrefix = buildLightningApiKeyPrefix(rawKey);
+
+				const { data, error } = await client
+					.from("lightning_api_keys")
+					.insert({
+						user_id: session.user.id,
+						name: normalizedName,
+						key_hash: keyHash,
+						key_prefix: keyPrefix,
+						expires_at: parsedExpiresAt,
+					})
+					.select(
+						"id, name, key_prefix, created_at, last_used_at, expires_at, revoked_at",
+					)
+					.single();
+
+				if (error) {
+					return { error: error.message };
+				}
+
+				const normalized = normalizeLightningApiKey(data);
+				if (!normalized) {
+					return { error: "Created API key response was invalid" };
+				}
+
+				const result: RendererLightningApiKeyCreateResult = {
+					apiKey: normalized,
+					rawKey,
+				};
+				return result;
+			} catch (error) {
+				return {
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		},
+	);
+
+	ipcMain.handle(
+		"auth:revokeLightningApiKey",
+		async (_event, keyId: string) => {
+			const normalizedKeyId = asTrimmedString(keyId);
+			if (!normalizedKeyId) {
+				return { error: "API key id is required" };
+			}
+
+			try {
+				const { client } = await getAuthenticatedSupabaseClient();
+				const { data, error } = await client
+					.from("lightning_api_keys")
+					.update({ revoked_at: new Date().toISOString() })
+					.eq("id", normalizedKeyId)
+					.is("revoked_at", null)
+					.select(
+						"id, name, key_prefix, created_at, last_used_at, expires_at, revoked_at",
+					)
+					.maybeSingle();
+
+				if (error) {
+					return { error: error.message };
+				}
+				if (!data) {
+					return { error: "API key not found or already revoked" };
+				}
+
+				const normalized = normalizeLightningApiKey(data);
+				if (!normalized) {
+					return { error: "Updated API key response was invalid" };
+				}
+
+				return { success: true, apiKey: normalized };
+			} catch (error) {
+				return {
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		},
+	);
+
 	ipcMain.handle(
 		"auth:setSessionTokens",
 		async (_event, accessToken: string, refreshToken: string) => {
@@ -808,18 +1051,14 @@ export default function register() {
 			if (!userId || !username)
 				return { error: "Missing userId or username" };
 
-			const { data: sessionData, error: sessionError } =
-				await supabase.auth.getSession();
-			if (sessionError || !sessionData.session)
-				return { error: "No active session" };
-
-			const authedClient = createClient(supabaseUrl, supabaseKey, {
-				global: {
-					headers: {
-						Authorization: `Bearer ${sessionData.session.access_token}`,
-					},
-				},
-			});
+			let authedClient: SupabaseClient;
+			try {
+				({ client: authedClient } = await getAuthenticatedSupabaseClient());
+			} catch (error) {
+				return {
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
 
 			const { data: existing, error: checkError } = await authedClient
 				.from("profiles")

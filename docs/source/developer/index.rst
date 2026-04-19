@@ -10,6 +10,7 @@ InferencePort AI from source.
 
    architecture
    ipc-api
+   lightning-api
    development
    build-release
    security-privacy

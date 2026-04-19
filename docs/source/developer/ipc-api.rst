@@ -236,6 +236,15 @@ Utility methods:
    * - ``setUsername(userId, username)``
      - ``auth:setUsername``
      - Create/update profile username.
+   * - ``listLightningApiKeys()``
+     - ``auth:listLightningApiKeys``
+     - List the authenticated user's Lightning API keys.
+   * - ``createLightningApiKey(name, expiresAt?)``
+     - ``auth:createLightningApiKey``
+     - Create a hashed Lightning API key row and return the raw secret once.
+   * - ``revokeLightningApiKey(keyId)``
+     - ``auth:revokeLightningApiKey``
+     - Revoke an existing Lightning API key.
 
 ``window.sync``
 ---------------

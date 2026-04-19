@@ -100,6 +100,8 @@ let deleteConfirmModal: declarations["iInstance"]["iModal"];
 let deletePasswordModal: declarations["iInstance"]["iModal"];
 let settingsUpgradeModal: declarations["iInstance"]["iModal"];
 let settingsUpgradeAuthModal: declarations["iInstance"]["iModal"];
+let apiKeyCreateModal: declarations["iInstance"]["iModal"];
+let apiKeyRevealModal: declarations["iInstance"]["iModal"];
 
 const settingsUpgradeBtn = document.getElementById(
 	"settings-upgrade-btn",
@@ -119,6 +121,18 @@ const subscriptionManagementCopyEl = document.getElementById(
 const subscriptionManagementStepsEl = document.getElementById(
 	"subscription-management-steps",
 ) as HTMLOListElement | null;
+const settingsApiRefreshBtn = document.getElementById(
+	"settings-api-refresh-btn",
+) as HTMLButtonElement | null;
+const settingsApiCreateBtn = document.getElementById(
+	"settings-api-create-btn",
+) as HTMLButtonElement | null;
+const settingsApiStatusEl = document.getElementById(
+	"settings-api-status",
+) as HTMLParagraphElement | null;
+const settingsApiListEl = document.getElementById(
+	"settings-api-list",
+) as HTMLDivElement | null;
 type PlanKey = "free" | "light" | "core" | "creator" | "professional";
 const PLAN_ORDER: PlanKey[] = [
 	"free",
@@ -160,9 +174,289 @@ let currentPlanName: string = PLAN_DISPLAY_NAMES.free;
 let subscriptionTiers: AuthSubscriptionTier[] = [];
 let isUpgradeUserAuthenticated = false;
 let currentTierConfig: AuthTierConfig | null = null;
+let lightningApiKeys: AuthLightningApiKey[] = [];
 
 function escapeHtml(value: string): string {
 	return escapeSubscriptionHtml(value);
+}
+
+function formatDateTime(value: string | null): string {
+	if (!value) return "Never";
+	const parsed = new Date(value);
+	if (Number.isNaN(parsed.getTime())) return value;
+	return parsed.toLocaleString();
+}
+
+function getApiKeyStatus(
+	apiKey: AuthLightningApiKey,
+): { label: string; className: string } {
+	if (apiKey.isRevoked) {
+		return { label: "Revoked", className: "is-revoked" };
+	}
+	if (apiKey.isExpired) {
+		return { label: "Expired", className: "is-expired" };
+	}
+	return { label: "Active", className: "is-active" };
+}
+
+function renderLightningApiKeys(): void {
+	if (!settingsApiListEl) return;
+
+	if (!isUpgradeUserAuthenticated) {
+		settingsApiListEl.innerHTML =
+			'<p class="settings-api-empty">Sign in to create and manage Lightning API keys.</p>';
+		return;
+	}
+
+	if (!Array.isArray(lightningApiKeys) || lightningApiKeys.length === 0) {
+		settingsApiListEl.innerHTML =
+			'<p class="settings-api-empty">No API keys yet. Generate one to authenticate Lightning requests without a Supabase session JWT.</p>';
+		return;
+	}
+
+	settingsApiListEl.innerHTML = lightningApiKeys
+		.map((apiKey) => {
+			const status = getApiKeyStatus(apiKey);
+			return `
+				<article class="settings-api-key-row">
+					<div class="settings-api-key-head">
+						<div class="settings-api-key-title">
+							<div class="settings-api-key-name">${escapeHtml(apiKey.name)}</div>
+							<div class="settings-api-key-prefix">${escapeHtml(apiKey.keyPrefix)}...</div>
+						</div>
+						<div class="settings-api-key-badge ${status.className}">${escapeHtml(status.label)}</div>
+					</div>
+					<div class="settings-api-key-meta">
+						<span>Created: ${escapeHtml(formatDateTime(apiKey.createdAt))}</span>
+						<span>Last used: ${escapeHtml(formatDateTime(apiKey.lastUsedAt))}</span>
+						<span>Expires: ${escapeHtml(apiKey.expiresAt ? formatDateTime(apiKey.expiresAt) : "Never")}</span>
+					</div>
+					<div class="settings-api-actions">
+						<button
+							type="button"
+							class="theme-toggle settings-subscription-btn settings-subscription-btn--secondary"
+							data-api-key-action="revoke"
+							data-api-key-id="${escapeHtml(apiKey.id)}"
+							${apiKey.isRevoked ? "disabled" : ""}
+						>
+							${apiKey.isRevoked ? "Revoked" : "Revoke Key"}
+						</button>
+					</div>
+				</article>
+			`;
+		})
+		.join("");
+
+	settingsApiListEl
+		.querySelectorAll<HTMLButtonElement>('[data-api-key-action="revoke"]')
+		.forEach((button) => {
+			button.addEventListener("click", () => {
+				const keyId = button.dataset.apiKeyId;
+				if (!keyId) return;
+				void revokeLightningApiKey(keyId);
+			});
+		});
+}
+
+function setLightningApiStatus(message: string, tone: "default" | "warning" = "default"): void {
+	if (!settingsApiStatusEl) return;
+	settingsApiStatusEl.textContent = message;
+	settingsApiStatusEl.style.color =
+		tone === "warning" ? "#d38200ff" : "";
+}
+
+async function refreshLightningApiKeys(force = false): Promise<void> {
+	if (!isUpgradeUserAuthenticated && !force) {
+		lightningApiKeys = [];
+		setLightningApiStatus(
+			"Sign in to create and manage Lightning API keys.",
+			"warning",
+		);
+		renderLightningApiKeys();
+		return;
+	}
+
+	try {
+		const { session } = await window.auth.getSession();
+		isUpgradeUserAuthenticated = Boolean(session?.isAuthenticated);
+		if (!isUpgradeUserAuthenticated) {
+			lightningApiKeys = [];
+			setLightningApiStatus(
+				"Sign in to create and manage Lightning API keys.",
+				"warning",
+			);
+			renderLightningApiKeys();
+			return;
+		}
+
+		lightningApiKeys = await window.auth.listLightningApiKeys();
+		setLightningApiStatus(
+			"Use a generated key as `Authorization: Bearer <your-api-key>` when calling Lightning.",
+		);
+		renderLightningApiKeys();
+	} catch (error) {
+		lightningApiKeys = [];
+		setLightningApiStatus(
+			`Could not load API keys: ${error instanceof Error ? error.message : String(error)}`,
+			"warning",
+		);
+		renderLightningApiKeys();
+	}
+}
+
+function bindCopyApiKeyButton(rawKey: string): void {
+	setTimeout(() => {
+		const copyButton = document.getElementById(
+			"copy-lightning-api-key",
+		) as HTMLButtonElement | null;
+		const statusEl = document.getElementById(
+			"copy-lightning-api-key-status",
+		) as HTMLParagraphElement | null;
+		if (!copyButton) return;
+		copyButton.addEventListener("click", async () => {
+			try {
+				await navigator.clipboard.writeText(rawKey);
+				if (statusEl) statusEl.textContent = "Copied to clipboard.";
+			} catch (error) {
+				if (statusEl) {
+					statusEl.textContent = `Copy failed: ${error instanceof Error ? error.message : String(error)}`;
+				}
+			}
+		});
+	}, 0);
+}
+
+function openApiKeyRevealModal(apiKey: AuthLightningApiKey, rawKey: string): void {
+	if (!apiKeyRevealModal) return;
+	apiKeyRevealModal.open({
+		html: `
+			<div style="text-align:left">
+				<h3>API key created</h3>
+				<p>Copy this key now. For security, it is only shown once.</p>
+				<p><strong>${escapeHtml(apiKey.name)}</strong></p>
+				<pre style="white-space:pre-wrap;word-break:break-all;">${escapeHtml(rawKey)}</pre>
+				<p id="copy-lightning-api-key-status" class="muted">Use it as <code>Authorization: Bearer &lt;your-api-key&gt;</code>.</p>
+			</div>
+		`,
+		actions: [
+			{
+				id: "copy-lightning-api-key",
+				label: "Copy Key",
+				onClick: async () => {
+					try {
+						await navigator.clipboard.writeText(rawKey);
+						showNotification({
+							message: "API key copied to clipboard",
+							type: "success",
+						});
+					} catch (error) {
+						showNotification({
+							message: `Copy failed: ${error instanceof Error ? error.message : String(error)}`,
+							type: "warning",
+						});
+					}
+				},
+			},
+			{
+				id: "close-lightning-api-key",
+				label: "Close",
+				onClick: () => apiKeyRevealModal.close(),
+			},
+		],
+	});
+	bindCopyApiKeyButton(rawKey);
+}
+
+function openCreateApiKeyModal(): void {
+	if (!apiKeyCreateModal) return;
+	apiKeyCreateModal.open({
+		html: `
+			<div style="text-align:left">
+				<h3>Create Lightning API key</h3>
+				<p>Give this key a label so you can recognize where it is used later.</p>
+				<input type="text" id="lightning-api-key-name" placeholder="Production deploy, local scripts, CI, etc." style="width:100%">
+				<p style="margin:12px 0 6px;">Optional expiration (ISO date/time)</p>
+				<input type="text" id="lightning-api-key-expiry" placeholder="2026-12-31T23:59:59Z" style="width:100%">
+				<p id="lightning-api-key-create-status" style="margin-top:8px;"></p>
+			</div>
+		`,
+		actions: [
+			{
+				id: "create-lightning-api-key-cancel",
+				label: "Cancel",
+				onClick: () => apiKeyCreateModal.close(),
+			},
+			{
+				id: "create-lightning-api-key-submit",
+				label: "Generate",
+				onClick: async () => {
+					const nameInput = document.getElementById(
+						"lightning-api-key-name",
+					) as HTMLInputElement | null;
+					const expiryInput = document.getElementById(
+						"lightning-api-key-expiry",
+					) as HTMLInputElement | null;
+					const statusEl = document.getElementById(
+						"lightning-api-key-create-status",
+					) as HTMLParagraphElement | null;
+					const name = nameInput?.value.trim() || "";
+					const expiresAt = expiryInput?.value.trim() || null;
+
+					if (!name) {
+						if (statusEl) statusEl.textContent = "Please enter a name for this key.";
+						return;
+					}
+
+					if (statusEl) statusEl.textContent = "Creating API key...";
+
+					const result = await window.auth.createLightningApiKey(name, expiresAt);
+					if (result.error || !result.apiKey || !result.rawKey) {
+						if (statusEl) {
+							statusEl.textContent = `Error: ${result.error || "Could not create API key"}`;
+						}
+						return;
+					}
+
+					apiKeyCreateModal.close();
+					lightningApiKeys = [result.apiKey, ...lightningApiKeys];
+					setLightningApiStatus(
+						"New key created. Copy it now before closing the reveal dialog.",
+					);
+					renderLightningApiKeys();
+					openApiKeyRevealModal(result.apiKey, result.rawKey);
+				},
+			},
+		],
+	});
+}
+
+async function revokeLightningApiKey(keyId: string): Promise<void> {
+	const target = lightningApiKeys.find((entry) => entry.id === keyId);
+	if (!target) return;
+
+	const confirmed = window.confirm(
+		`Revoke the API key "${target.name}"? Existing integrations using it will stop working immediately.`,
+	);
+	if (!confirmed) return;
+
+	const result = await window.auth.revokeLightningApiKey(keyId);
+	if (!result.success || !result.apiKey) {
+		showNotification({
+			message: result.error || "Could not revoke API key",
+			type: "warning",
+		});
+		return;
+	}
+
+	lightningApiKeys = lightningApiKeys.map((entry) =>
+		entry.id === keyId ? result.apiKey! : entry,
+	);
+	setLightningApiStatus(`Revoked API key "${target.name}".`);
+	renderLightningApiKeys();
+	showNotification({
+		message: `Revoked API key "${target.name}"`,
+		type: "success",
+	});
 }
 
 function isKnownPlanKey(value: string): value is PlanKey {
@@ -525,6 +819,20 @@ async function openSettingsUpgradeModal() {
 		false,
 		false,
 	);
+	apiKeyCreateModal = new window.ic.iModal(
+		"settings-api-key-create-modal",
+		560,
+		undefined,
+		false,
+		false,
+	);
+	apiKeyRevealModal = new window.ic.iModal(
+		"settings-api-key-reveal-modal",
+		620,
+		undefined,
+		false,
+		false,
+	);
 
 	settingsUpgradeBtn?.addEventListener("click", () => {
 		void openSettingsUpgradeModal();
@@ -532,10 +840,35 @@ async function openSettingsUpgradeModal() {
 	settingsPortalBtn?.addEventListener("click", () => {
 		openBillingPortal();
 	});
+	settingsApiRefreshBtn?.addEventListener("click", () => {
+		void refreshLightningApiKeys(true);
+	});
+	settingsApiCreateBtn?.addEventListener("click", () => {
+		refreshLightningApiKeys(true)
+			.then(() => {
+				if (!isUpgradeUserAuthenticated) {
+					showNotification({
+						message: "Sign in to generate Lightning API keys",
+						type: "warning",
+					});
+					return;
+				}
+				openCreateApiKeyModal();
+			})
+			.catch((error) => {
+				showNotification({
+					message: `Could not open API key dialog: ${error instanceof Error ? error.message : String(error)}`,
+					type: "warning",
+				});
+			});
+	});
 	void refreshUpgradeSubscriptionData(true);
+	void refreshLightningApiKeys(true);
 	window.auth.onAuthStateChange((session) => {
 		isUpgradeUserAuthenticated = Boolean(session?.isAuthenticated);
+		setAccountControlsEnabled(isUpgradeUserAuthenticated);
 		void refreshUpgradeSubscriptionData(true);
+		void refreshLightningApiKeys(true);
 	});
 
 	if (window.location.hash.replace(/^#/, "").toLowerCase() === "upgrade") {
@@ -822,18 +1155,14 @@ emailInput.addEventListener("blur", () => {
 	emailInput.value = "";
 });
 
-window.addEventListener("DOMContentLoaded", async () => {
-	const { session } = await window.auth.getSession();
-	if (session?.isAuthenticated) return;
-	const shouldDisable = true;
-
+function setAccountControlsEnabled(enabled: boolean): void {
 	const details = document.getElementById("account-settings");
 	if (!details) return;
 
 	const buttons = details.querySelectorAll("button");
 
 	buttons.forEach((btn) => {
-		if (shouldDisable) {
+		if (!enabled) {
 			btn.classList.add("disabled");
 			btn.disabled = true;
 		} else {
@@ -842,14 +1171,27 @@ window.addEventListener("DOMContentLoaded", async () => {
 		}
 	});
 
-	const msg = document.createElement("p");
-	const br = document.createElement("p");
-	br.textContent = " ";
-	details.appendChild(br);
-	msg.className = "muted";
-	msg.style.color = "#d38200ff";
-	msg.textContent = "Sign in to use account controls.";
-	details.appendChild(msg);
+	const existingHint = details.querySelector(
+		'[data-account-auth-hint="true"]',
+	) as HTMLParagraphElement | null;
+
+	if (!enabled) {
+		if (existingHint) return;
+		const msg = document.createElement("p");
+		msg.dataset.accountAuthHint = "true";
+		msg.className = "muted";
+		msg.style.color = "#d38200ff";
+		msg.textContent = "Sign in to use account controls.";
+		details.appendChild(msg);
+		return;
+	}
+
+	existingHint?.remove();
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+	const { session } = await window.auth.getSession();
+	setAccountControlsEnabled(Boolean(session?.isAuthenticated));
 });
 
 async function setHostingUIRunning(running: boolean, port?: number) {

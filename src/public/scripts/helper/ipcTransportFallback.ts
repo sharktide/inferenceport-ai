@@ -1062,6 +1062,22 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<AuthTierConfig | null>("auth:getTierConfig", []),
 		getUsage: async () =>
 			invokeOrDefault<AuthUsageInfo>("auth:getUsage", []),
+		listLightningApiKeys: async () =>
+			invokeOrDefault<AuthLightningApiKey[]>("auth:listLightningApiKeys", []),
+		createLightningApiKey: async (
+			name: string,
+			expiresAt?: string | null,
+		) =>
+			invokeOrDefault<AuthLightningApiKeyCreateResponse>(
+				"auth:createLightningApiKey",
+				[name, expiresAt ?? null],
+			),
+		revokeLightningApiKey: async (keyId: string) =>
+			invokeOrDefault<{
+				success?: boolean;
+				apiKey?: AuthLightningApiKey;
+				error?: string;
+			}>("auth:revokeLightningApiKey", [keyId]),
 		setSessionFromTokens: async (
 			accessToken: string,
 			refreshToken: string,
