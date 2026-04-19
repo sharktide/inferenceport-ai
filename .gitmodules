@@ -7,3 +7,6 @@
 [submodule "webchat-server"]
 	path = webchat-server
 	url = https://huggingface.co/spaces/incognitolm/chat.git
+[submodule "lightning-api"]
+	path = lightning-api
+	url = https://hf.co/spaces/sharktide/lightning
