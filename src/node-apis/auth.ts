@@ -6,7 +6,7 @@ import type {
 	SupabaseClient,
 } from "@supabase/supabase-js";
 import { app, ipcMain, session } from "electron";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 
 import fs from "fs";
 import path from "path";
@@ -339,7 +339,9 @@ function buildLightningApiKeySecret(): string {
 }
 
 function hashLightningApiKey(secret: string): string {
-	return createHash("sha256").update(secret).digest("hex");
+	const salt = randomBytes(16);
+	const derivedKey = scryptSync(secret, salt, 32);
+	return `scrypt$${salt.toString("base64url")}$${derivedKey.toString("base64url")}`;
 }
 
 function buildLightningApiKeyPrefix(secret: string): string {
