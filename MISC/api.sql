@@ -18,7 +18,7 @@ create table if not exists public.lightning_api_keys (
   revoked_at timestamptz,
 
   constraint lightning_api_keys_name_length check (char_length(trim(name)) between 1 and 64),
-  constraint lightning_api_keys_hash_length check (char_length(key_hash) = 64),
+  constraint lightning_api_keys_hash_length check (char_length(key_hash) < 100),
   constraint lightning_api_keys_prefix_length check (char_length(key_prefix) between 8 and 32)
 );
 
