@@ -448,9 +448,16 @@ async function revokeLightningApiKey(keyId: string): Promise<void> {
                 label: "Revoke",
                 onClick: async () => {
                     modal.close();
-
-                    const result = await window.auth.revokeLightningApiKey(keyId);
-
+		    let result
+		    try {
+                    	result = await window.auth.revokeLightningApiKey(keyId);
+		    } catch {
+			result = {
+			    success: null,
+			    apiKey: null,
+			    error: null
+			}
+		    }
                     if (!result.success || !result.apiKey) {
                         showNotification({
                             message: result.error || "Could not revoke API key",
