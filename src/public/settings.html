@@ -94,6 +94,31 @@
 									<li>Use the billing portal later to change or upgrade your subscription.</li>
 								</ol>
 							</section>
+							<section class="settings-api-card" style="margin-top: 10px;">
+								<div class="settings-api-card-header">
+									<div>
+										<p class="settings-subscription-kicker">Lightning API</p>
+										<h3>Manage API keys</h3>
+										<p class="settings-api-copy">
+											Create long-lived API keys for Lightning so scripts and servers can authenticate without a Supabase session JWT.
+										</p>
+									</div>
+									<div class="settings-api-actions">
+										<button id="settings-api-refresh-btn" class="theme-toggle settings-subscription-btn settings-subscription-btn--secondary">
+											Refresh Keys
+										</button>
+										<button id="settings-api-create-btn" class="theme-toggle settings-upgrade-btn">
+											Generate API Key
+										</button>
+									</div>
+								</div>
+								<p id="settings-api-status" class="muted">
+									Sign in to create and manage Lightning API keys.
+								</p>
+								<div id="settings-api-list" class="settings-api-list">
+									<p class="settings-api-empty">No API keys yet.</p>
+								</div>
+							</section>
 							<section id="upgrade-section" class="settings-upgrade-section">
 								<h3>Upgrade Plan</h3>
 								<p id="upgrade-plan-info">Unlock higher limits, premium models, and priority support by upgrading your plan.</p>

@@ -211,6 +211,17 @@ contextBridge.exposeInMainWorld("auth", {
 	getSubscriptionTiers: () => ipcRenderer.invoke("auth:getSubscriptionTiers"),
 	getTierConfig: () => ipcRenderer.invoke("auth:getTierConfig"),
 	getUsage: (): Promise<AuthUsageInfo> => ipcRenderer.invoke("auth:getUsage"),
+	listLightningApiKeys: (): Promise<AuthLightningApiKey[]> =>
+		ipcRenderer.invoke("auth:listLightningApiKeys"),
+	createLightningApiKey: (
+		name: string,
+		expiresAt?: string | null,
+	): Promise<AuthLightningApiKeyCreateResponse> =>
+		ipcRenderer.invoke("auth:createLightningApiKey", name, expiresAt),
+	revokeLightningApiKey: (
+		keyId: string,
+	): Promise<{ success?: boolean; apiKey?: AuthLightningApiKey; error?: string }> =>
+		ipcRenderer.invoke("auth:revokeLightningApiKey", keyId),
 });
 
 // ===== Sync =====

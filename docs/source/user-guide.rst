@@ -107,7 +107,8 @@ If needed, sign in from ``Auth`` using:
 * GitHub
 * Google
 
-Settings includes account actions such as username change and account deletion.
+Settings includes account actions such as username change, account deletion,
+subscription management, and Lightning API key generation.
 
 Sync (Optional)
 ---------------

@@ -1,4 +1,4 @@
-project = "InferencePort AI"
+project = "InferencePort AI Docs"
 copyright = "2026, Rihaan Meher"
 author = "Rihaan Meher"
 release = "2.2.0"
@@ -20,13 +20,16 @@ intersphinx_mapping = {
     "sphinx": ("https://www.sphinx-doc.org/en/master", None),
 }
 
-html_theme = "furo"
+html_theme = "shibuya"
 html_title = f"{project} documentation"
 html_static_path = ["_static"]
+html_context = {
+    "source_type": "github",
+    "source_user": "sharktide",
+    "source_repo": "inferenceport-ai",
+    "source_version": "main",
+    "source_docs_path": "/docs/source/",
+}
 html_theme_options = {
-    "source_repository": "https://github.com/sharktide/inferenceport-ai/",
-    "source_branch": "main",
-    "source_directory": "docs/source/",
-    "collapse_navigation": False,
-    "navigation_depth": 4,
+    "github_url": "https://github.com/sharktide/inferenceport-ai/",
 }

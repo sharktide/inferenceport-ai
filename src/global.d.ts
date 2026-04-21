@@ -100,6 +100,24 @@ declare global {
 		error?: string;
 	};
 
+	type AuthLightningApiKey = {
+		id: string;
+		name: string;
+		keyPrefix: string;
+		createdAt: string;
+		lastUsedAt: string | null;
+		expiresAt: string | null;
+		revokedAt: string | null;
+		isRevoked: boolean;
+		isExpired: boolean;
+	};
+
+	type AuthLightningApiKeyCreateResponse = {
+		apiKey?: AuthLightningApiKey;
+		rawKey?: string;
+		error?: string;
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -232,6 +250,18 @@ declare global {
 			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
 			getTierConfig: () => Promise<AuthTierConfig | null>;
 			getUsage: () => Promise<AuthUsageInfo>;
+			listLightningApiKeys: () => Promise<AuthLightningApiKey[]>;
+			createLightningApiKey: (
+				name: string,
+				expiresAt?: string | null,
+			) => Promise<AuthLightningApiKeyCreateResponse>;
+			revokeLightningApiKey: (
+				keyId: string,
+			) => Promise<{
+				success?: boolean;
+				apiKey?: AuthLightningApiKey;
+				error?: string;
+			}>;
 		};
 
 		sync: {
