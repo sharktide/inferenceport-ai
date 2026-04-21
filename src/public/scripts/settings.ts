@@ -431,32 +431,51 @@ function openCreateApiKeyModal(): void {
 }
 
 async function revokeLightningApiKey(keyId: string): Promise<void> {
-	const target = lightningApiKeys.find((entry) => entry.id === keyId);
-	if (!target) return;
+    const target = lightningApiKeys.find((entry) => entry.id === keyId);
+    if (!target) return;
 
-	const confirmed = window.confirm(
-		`Revoke the API key "${target.name}"? Existing integrations using it will stop working immediately.`,
-	);
-	if (!confirmed) return;
+    const modal = new window.ic.iModal("revoke-api-key-modal", 420, {
+        title: "Revoke API Key",
+        text: `Revoke the API key "${target.name}"? Existing integrations using it will stop working immediately.`,
+        actions: [
+            {
+                id: "cancel-revoke",
+                label: "Cancel",
+                onClick: () => modal.close(),
+            },
+            {
+                id: "confirm-revoke",
+                label: "Revoke",
+                onClick: async () => {
+                    modal.close();
 
-	const result = await window.auth.revokeLightningApiKey(keyId);
-	if (!result.success || !result.apiKey) {
-		showNotification({
-			message: result.error || "Could not revoke API key",
-			type: "warning",
-		});
-		return;
-	}
+                    const result = await window.auth.revokeLightningApiKey(keyId);
 
-	lightningApiKeys = lightningApiKeys.map((entry) =>
-		entry.id === keyId ? result.apiKey! : entry,
-	);
-	setLightningApiStatus(`Revoked API key "${target.name}".`);
-	renderLightningApiKeys();
-	showNotification({
-		message: `Revoked API key "${target.name}"`,
-		type: "success",
-	});
+                    if (!result.success || !result.apiKey) {
+                        showNotification({
+                            message: result.error || "Could not revoke API key",
+                            type: "warning",
+                        });
+                        return;
+                    }
+
+                    lightningApiKeys = lightningApiKeys.map((entry) =>
+                        entry.id === keyId ? result.apiKey! : entry,
+                    );
+
+                    setLightningApiStatus(`Revoked API key "${target.name}".`);
+                    renderLightningApiKeys();
+
+                    showNotification({
+                        message: `Revoked API key "${target.name}"`,
+                        type: "success",
+                    });
+                },
+            },
+        ],
+    });
+
+    modal.open();
 }
 
 function isKnownPlanKey(value: string): value is PlanKey {
