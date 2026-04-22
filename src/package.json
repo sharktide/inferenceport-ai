@@ -42,6 +42,6 @@
     "electron": "^41.2.0",
     "electron-builder": "^26.8.1",
     "glob": "^13.0.6",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.3"
   }
 }
