@@ -38,7 +38,7 @@
     "@types/node": "^25.5.0",
     "@types/sanitize-html": "^2.16.1",
     "@types/tar": "^7.0.87",
-    "@typescript/native-preview": "^7.0.0-dev.20260413.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260420.1",
     "electron": "^41.2.0",
     "electron-builder": "^26.8.1",
     "glob": "^13.0.6",
