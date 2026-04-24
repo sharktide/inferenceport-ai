@@ -495,7 +495,12 @@ class WsIpcClient {
 						this.sessionKey = null;
 						const safeWarning =
 							typeof message.warning === "string"
-								? message.warning.replace(/[\x00-\x1F\x7F]+/g, "").trim()
+								? message.warning
+										.replace(/[\r\n]+/g, " ")
+										.replace(/[\x00-\x1F\x7F]+/g, "")
+										.replace(/\s+/g, " ")
+										.trim()
+										.slice(0, 500)
 								: "";
 						if (safeWarning) {
 							console.warn("Server warning (sanitized):", safeWarning);
