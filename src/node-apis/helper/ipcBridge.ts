@@ -1,6 +1,13 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { randomBytes, createHmac } from "node:crypto";
+import {
+	randomBytes,
+	createHmac,
+	createECDH,
+	createCipheriv,
+	createDecipheriv,
+} from "node:crypto";
+import { deriveIpcSessionKey } from "./ecdhAesSession.js";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
 import fs from "fs";
@@ -126,12 +133,31 @@ function loadOrCreateWsAuthToken(): string {
 }
 
 const WS_AUTH_TOKEN = loadOrCreateWsAuthToken();
+const WS_SESSION_CURVE = "prime256v1";
+const wsSessionKeys = new WeakMap<WebSocket, Buffer>();
 
 type WsAuthMessage = {
 	type: "auth_challenge" | "auth_response" | "auth_ok" | "auth_error";
 	challenge?: string;
 	signature?: string;
 	error?: string;
+	encrypted?: boolean;
+	warning?: string;
+	secure?: {
+		version: 1;
+		curve: "P-256";
+		serverPublicKey?: string;
+		serverNonce?: string;
+		clientPublicKey?: string;
+		clientNonce?: string;
+	};
+};
+
+type EncryptedEnvelope = {
+	type: "enc";
+	iv: string;
+	tag: string;
+	data: string;
 };
 
 type IpcBridgeOptions = {
@@ -225,7 +251,24 @@ function rawToString(raw: unknown): string {
 
 function sendWs(ws: WebSocket, payload: WsResult | WsEvent): void {
 	if (ws.readyState !== 1) return;
-	ws.send(JSON.stringify(payload));
+	const sessionKey = wsSessionKeys.get(ws);
+	if (!sessionKey) {
+		ws.send(JSON.stringify(payload));
+		return;
+	}
+
+	const iv = randomBytes(12);
+	const cipher = createCipheriv("aes-256-gcm", sessionKey, iv);
+	const plaintext = Buffer.from(JSON.stringify(payload), "utf-8");
+	const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+	const tag = cipher.getAuthTag();
+	const envelope: EncryptedEnvelope = {
+		type: "enc",
+		iv: iv.toString("base64url"),
+		tag: tag.toString("base64url"),
+		data: encrypted.toString("base64url"),
+	};
+	ws.send(JSON.stringify(envelope));
 }
 
 function sendWsEventToAll(channel: string, args: unknown[]): void {
@@ -247,6 +290,19 @@ function serializeError(err: unknown): string {
 
 function generateChallenge(): string {
 	return randomBytes(32).toString("base64url");
+}
+
+function decryptEnvelope(
+	sessionKey: Buffer,
+	envelope: EncryptedEnvelope,
+): string {
+	const iv = Buffer.from(envelope.iv, "base64url");
+	const tag = Buffer.from(envelope.tag, "base64url");
+	const data = Buffer.from(envelope.data, "base64url");
+	const decipher = createDecipheriv("aes-256-gcm", sessionKey, iv);
+	decipher.setAuthTag(tag);
+	const plaintext = Buffer.concat([decipher.update(data), decipher.final()]);
+	return plaintext.toString("utf-8");
 }
 
 export function signWsAuthChallenge(challenge: string): string {
@@ -452,9 +508,18 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		}
 
 		const challenge = generateChallenge();
+		const serverNonce = randomBytes(16).toString("base64url");
+		const serverECDH = createECDH(WS_SESSION_CURVE);
+		serverECDH.generateKeys();
 		const authMessage: WsAuthMessage = {
 			type: "auth_challenge",
 			challenge,
+			secure: {
+				version: 1,
+				curve: "P-256",
+				serverPublicKey: serverECDH.getPublicKey().toString("base64url"),
+				serverNonce,
+			},
 		};
 		sendWs(ws, authMessage as unknown as WsEvent);
 
@@ -484,13 +549,53 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 							challenge,
 							(message as WsAuthMessage).signature!,
 						)
-					) {
-						authenticated = true;
-						wsClients.add(ws);
-						sendWs(ws, { type: "auth_ok" } as unknown as WsEvent);
-						// Remove auth listener and attach normal message handler
-						ws.off("message", onAuthMessage);
-						ws.on("message", onNormalMessage);
+						) {
+							authenticated = true;
+							wsClients.add(ws);
+							let encrypted = false;
+							const secure = (message as WsAuthMessage).secure;
+						if (
+							secure?.version === 1 &&
+								secure.curve === "P-256" &&
+								typeof secure.clientPublicKey === "string" &&
+								typeof secure.clientNonce === "string"
+							) {
+								try {
+									const clientPublicKey = Buffer.from(
+										secure.clientPublicKey,
+										"base64url",
+									);
+									const sharedSecret =
+										serverECDH.computeSecret(clientPublicKey);
+									const sessionKey = deriveIpcSessionKey(
+										sharedSecret,
+										challenge,
+										serverNonce,
+										secure.clientNonce,
+									);
+									wsSessionKeys.set(ws, sessionKey);
+									encrypted = true;
+								} catch {
+									encrypted = false;
+								}
+							}
+							ws.send(
+								JSON.stringify({
+									type: "auth_ok",
+									encrypted,
+									warning: encrypted
+										? undefined
+										: "Legacy client connected without encrypted IPC payloads. Update this client to enable secure transport.",
+								} as WsAuthMessage),
+							);
+							if (!encrypted) {
+								console.warn(
+									"Legacy websocket client connected without encrypted IPC payloads.",
+								);
+							}
+							// Remove auth listener and attach normal message handler
+							ws.off("message", onAuthMessage);
+							ws.on("message", onNormalMessage);
 					} else {
 						sendWs(ws, {
 							type: "auth_error",
@@ -512,7 +617,23 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		const onNormalMessage = async (raw: unknown) => {
 			let message: WsRequest;
 			try {
-				message = JSON.parse(rawToString(raw)) as WsRequest;
+				let parsed = JSON.parse(rawToString(raw)) as
+					| WsRequest
+					| EncryptedEnvelope;
+				if (
+					parsed &&
+					typeof parsed === "object" &&
+					(parsed as EncryptedEnvelope).type === "enc"
+				) {
+					const sessionKey = wsSessionKeys.get(ws);
+					if (!sessionKey) return;
+					const decrypted = decryptEnvelope(
+						sessionKey,
+						parsed as EncryptedEnvelope,
+					);
+					parsed = JSON.parse(decrypted) as WsRequest;
+				}
+				message = parsed as WsRequest;
 			} catch {
 				return;
 			}
@@ -575,6 +696,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 
 		ws.on("close", () => {
 			wsClients.delete(ws);
+			wsSessionKeys.delete(ws);
 		});
 	});
 

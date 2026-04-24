@@ -6,6 +6,8 @@ import fs from "fs";
 import path from "path";
 import { app } from "electron";
 import { getHardwareRating } from "./sysinfo.js";
+import { deriveIpcSessionKey } from "./ecdhAesSession.js";
+import { maybeDecryptIncomingProxyBody } from "./proxy52458Client.js";
 
 const logDir = path.join(app.getPath("userData"), "logs");
 const logFile = path.join(logDir, "InferencePort-Server.log");
@@ -128,7 +130,38 @@ function sanitizeHeaders(
 
 const MAX_BODY_SIZE = 20 * 1024 * 1024;
 
-function forwardRequest(req: IncomingMessage, res: ServerResponse) {
+const PATH_CRYPTO_CAPABILITIES = "/__inferenceport/crypto-capabilities";
+const PATH_CRYPTO_HANDSHAKE = "/__inferenceport/crypto-handshake";
+
+type ForwardRequestOptions = {
+	preReadBody?: Buffer;
+	sessionKey?: Buffer | null;
+};
+
+function readRequestBody(req: IncomingMessage): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		let totalSize = 0;
+		req.on("data", (chunk: Buffer) => {
+			totalSize += chunk.length;
+			if (totalSize > MAX_BODY_SIZE) {
+				logLine("WARN", "Request body too large");
+				req.destroy();
+				reject(new Error("Body too large"));
+				return;
+			}
+			chunks.push(chunk);
+		});
+		req.on("end", () => resolve(Buffer.concat(chunks)));
+		req.on("error", reject);
+	});
+}
+
+function forwardRequest(
+	req: IncomingMessage,
+	res: ServerResponse,
+	options?: ForwardRequestOptions,
+) {
 	const pathValue = req.url ?? "/";
 
 	if (pathValue.startsWith("http://") || pathValue.startsWith("https://")) {
@@ -139,21 +172,11 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 	const targetUrl = new URL(pathValue, OLLAMA_URL);
 	const safeUrl = targetUrl.origin + targetUrl.pathname;
 
-	let totalSize = 0;
-	const reqChunks: Buffer[] = [];
-
-	req.on("data", (chunk: Buffer) => {
-		totalSize += chunk.length;
-		if (totalSize > MAX_BODY_SIZE) {
-			logLine("WARN", "Request body too large");
-			req.destroy();
-			return;
+	const finalize = (rawBody: Buffer) => {
+		let bodyBuf = rawBody;
+		if (options?.sessionKey && bodyBuf.length > 0) {
+			bodyBuf = maybeDecryptIncomingProxyBody(options.sessionKey, bodyBuf);
 		}
-		reqChunks.push(chunk);
-	});
-
-	req.on("end", () => {
-		const bodyBuf = Buffer.concat(reqChunks);
 
 		logLine(
 			"INFO",
@@ -189,6 +212,28 @@ function forwardRequest(req: IncomingMessage, res: ServerResponse) {
 		}
 
 		proxyReq.end();
+	};
+
+	if (options?.preReadBody !== undefined) {
+		finalize(options.preReadBody);
+		return;
+	}
+
+	let totalSize = 0;
+	const reqChunks: Buffer[] = [];
+
+	req.on("data", (chunk: Buffer) => {
+		totalSize += chunk.length;
+		if (totalSize > MAX_BODY_SIZE) {
+			logLine("WARN", "Request body too large");
+			req.destroy();
+			return;
+		}
+		reqChunks.push(chunk);
+	});
+
+	req.on("end", () => {
+		finalize(Buffer.concat(reqChunks));
 	});
 }
 
@@ -238,14 +283,245 @@ export function startProxyServer(
 		return { server, destroy: stopProxyServer };
 	}
 
+	const cryptoSessions = new Map<
+		string,
+		{ key: Buffer; email: string; role: string; expiresAt: number }
+	>();
+	const WS_SESSION_CURVE = "prime256v1";
+	const CRYPTO_SESSION_TTL_MS = 60 * 60 * 1000;
+
+	const purgeExpiredCryptoSessions = (): void => {
+		const now = Date.now();
+		for (const [id, rec] of [...cryptoSessions.entries()]) {
+			if (rec.expiresAt <= now) cryptoSessions.delete(id);
+		}
+	};
+
+	const lookupCryptoSession = (
+		id: string,
+	): { key: Buffer; email: string; role: string } | null => {
+		purgeExpiredCryptoSessions();
+		const rec = cryptoSessions.get(id);
+		if (!rec || rec.expiresAt <= Date.now()) return null;
+		return { key: rec.key, email: rec.email, role: rec.role };
+	};
+
+	const pathOnly = (req: IncomingMessage): string =>
+		(req.url || "").split("?")[0] || "/";
+
+	const handleCryptoHandshake = (
+		req: IncomingMessage,
+		res: ServerResponse,
+		matched: { email: string; role: string },
+	): void => {
+		void readRequestBody(req)
+			.then((raw) => {
+				let parsed: { clientPublicKey?: unknown; clientNonce?: unknown };
+				try {
+					parsed = JSON.parse(raw.toString("utf8") || "{}");
+				} catch {
+					res.writeHead(400, { "Content-Type": "application/json" });
+					return res.end(JSON.stringify({ error: "Invalid JSON" }));
+				}
+				if (
+					typeof parsed.clientPublicKey !== "string" ||
+					typeof parsed.clientNonce !== "string"
+				) {
+					res.writeHead(400, { "Content-Type": "application/json" });
+					return res.end(
+						JSON.stringify({
+							error: "Missing clientPublicKey or clientNonce",
+						}),
+					);
+				}
+
+				const challenge = crypto.randomBytes(32).toString("base64url");
+				const serverNonce = crypto.randomBytes(16).toString("base64url");
+				const serverECDH = crypto.createECDH(WS_SESSION_CURVE);
+				serverECDH.generateKeys();
+				try {
+					const clientPublicKey = Buffer.from(
+						parsed.clientPublicKey,
+						"base64url",
+					);
+					const sharedSecret = serverECDH.computeSecret(clientPublicKey);
+					const sessionKey = deriveIpcSessionKey(
+						sharedSecret,
+						challenge,
+						serverNonce,
+						parsed.clientNonce,
+					);
+					const sessionId = crypto.randomBytes(24).toString("base64url");
+					cryptoSessions.set(sessionId, {
+						key: sessionKey,
+						email: matched.email,
+						role: matched.role || "member",
+						expiresAt: Date.now() + CRYPTO_SESSION_TTL_MS,
+					});
+					res.writeHead(200, { "Content-Type": "application/json" });
+					res.end(
+						JSON.stringify({
+							sessionId,
+							challenge,
+							serverPublicKey: serverECDH
+								.getPublicKey()
+								.toString("base64url"),
+							serverNonce,
+						}),
+					);
+				} catch (err: unknown) {
+					logLine(
+						"ERROR",
+						`Crypto handshake failed: ${sanitizeForLog(String(err))}`,
+					);
+					res.writeHead(400, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: "Handshake failed" }));
+				}
+			})
+			.catch(() => {
+				res.writeHead(500, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ error: "Failed to read body" }));
+			});
+	};
+
+	const routeVerifiedRequest = (
+		req: IncomingMessage,
+		res: ServerResponse,
+		matched: { email: string; role: string },
+		sessionKey: Buffer | null,
+		ip: string,
+	): void => {
+		const pathname = pathOnly(req);
+
+		if (req.method === "POST" && pathname === PATH_CRYPTO_HANDSHAKE) {
+			handleCryptoHandshake(req, res, matched);
+			return;
+		}
+
+		if ((matched.role || "member").toLowerCase() !== "admin") {
+			const method = (req.method || "GET").toUpperCase();
+			if (
+				method !== "GET" &&
+				/pull|rm|delete|create|models|run/i.test(req.url || "")
+			) {
+				res.writeHead(403, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						error: "Insufficient permissions",
+					}),
+				);
+				return;
+			}
+		}
+
+		if (req.method === "POST" && pathname === "/sysinfo") {
+			if (!checkHealthRateLimit(ip)) {
+				res.writeHead(429);
+				res.end();
+				return;
+			}
+
+			void readRequestBody(req)
+				.then(async (buf) => {
+					let work = buf;
+					if (sessionKey && work.length > 0) {
+						work = maybeDecryptIncomingProxyBody(sessionKey, work);
+					}
+					try {
+						const parsed = JSON.parse(work.toString("utf8") || "{}");
+						const modelSizeRaw = parsed.modelSizeRaw;
+
+						if (!modelSizeRaw) {
+							res.writeHead(400, {
+								"Content-Type": "application/json",
+							});
+							return res.end(
+								JSON.stringify({
+									error: "Missing modelSizeRaw",
+								}),
+							);
+						}
+
+						const rating = await getHardwareRating(modelSizeRaw);
+
+						if (rating) {
+							res.writeHead(200, {
+								"Content-Type": "application/json",
+							});
+							return res.end(JSON.stringify(rating));
+						}
+						throw new Error("Failed to get hardware rating");
+					} catch (err: unknown) {
+						logLine(
+							"ERROR",
+							`Sysinfo error: ${sanitizeForLog(String((err as Error)?.message || err))}`,
+						);
+						res.writeHead(520, {
+							"Content-Type": "application/json",
+						});
+						return res.end(
+							JSON.stringify({ error: "Sysinfo failure" }),
+						);
+					}
+				})
+				.catch(() => {
+					res.writeHead(500, { "Content-Type": "application/json" });
+					res.end(JSON.stringify({ error: "Sysinfo read failed" }));
+				});
+			return;
+		}
+
+		if (checkHealthRateLimit(ip)) {
+			if (sessionKey) {
+				void readRequestBody(req)
+					.then((bodyBuf) => {
+						forwardRequest(req, res, {
+							preReadBody: bodyBuf,
+							sessionKey,
+						});
+					})
+					.catch(() => {
+						res.writeHead(500, { "Content-Type": "application/json" });
+						res.end(JSON.stringify({ error: "Failed to read request body" }));
+					});
+			} else {
+				forwardRequest(req, res);
+			}
+		} else {
+			res.writeHead(429);
+			res.end();
+		}
+	};
+
 	server = http.createServer((req, res) => {
 		const reqOrigin = req.headers.origin;
-		if (reqOrigin === "http://localhost:52458" || reqOrigin === "https://inference.js.org") {
-			res.setHeader('Access-Control-Allow-Origin', reqOrigin);
-			res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-			res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+		if (
+			reqOrigin === "http://localhost:52458" ||
+			reqOrigin === "https://inference.js.org"
+		) {
+			res.setHeader("Access-Control-Allow-Origin", reqOrigin);
+			res.setHeader(
+				"Access-Control-Allow-Methods",
+				"GET, POST, PUT, DELETE, OPTIONS",
+			);
+			res.setHeader(
+				"Access-Control-Allow-Headers",
+				"Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Inferenceport-Session",
+			);
 		}
 		const ip = req.socket.remoteAddress ?? "unknown";
+
+		if (req.method === "OPTIONS") {
+			if (
+				reqOrigin === "http://localhost:52458" ||
+				reqOrigin === "https://inference.js.org"
+			) {
+				res.writeHead(204);
+			} else {
+				res.writeHead(403);
+			}
+			return res.end();
+		}
 
 		if (req.method === "GET" && req.url === "/__health") {
 			if (!checkHealthRateLimit(ip)) {
@@ -256,12 +532,41 @@ export function startProxyServer(
 			return res.end();
 		}
 
+		const pathnameEarly = pathOnly(req);
+		if (req.method === "GET" && pathnameEarly === PATH_CRYPTO_CAPABILITIES) {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			return res.end(
+				JSON.stringify({ supported: true, version: 1 }),
+			);
+		}
+
 		logLine(
 			"INFO",
 			`[Connection] From=${hashIP(ip)} Path=${sanitizeForLog(req.url || "/")}`,
 		);
 
+		const sessionHeader = req.headers["x-inferenceport-session"];
+		const sessionId =
+			typeof sessionHeader === "string" ? sessionHeader.trim() : "";
 		const authHeader = req.headers["authorization"];
+
+		if (sessionId) {
+			const sess = lookupCryptoSession(sessionId);
+			if (!sess) {
+				res.writeHead(401, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({ error: "Invalid or expired session" }),
+				);
+			}
+			const matched = allowedUsers.find((u) => u.email === sess.email);
+			if (!matched) {
+				res.writeHead(403, { "Content-Type": "application/json" });
+				return res.end(JSON.stringify({ error: "Access denied" }));
+			}
+			routeVerifiedRequest(req, res, matched, sess.key, ip);
+			return;
+		}
+
 		if (!authHeader?.startsWith("Bearer ")) {
 			res.writeHead(401, { "Content-Type": "application/json" });
 			return res.end(
@@ -291,86 +596,7 @@ export function startProxyServer(
 					return res.end(JSON.stringify({ error: "Access denied" }));
 				}
 
-				if ((matched.role || "member").toLowerCase() !== "admin") {
-					const method = (req.method || "GET").toUpperCase();
-					if (
-						method !== "GET" &&
-						/pull|rm|delete|create|models|run/i.test(req.url || "")
-					) {
-						res.writeHead(403, {
-							"Content-Type": "application/json",
-						});
-						return res.end(
-							JSON.stringify({
-								error: "Insufficient permissions",
-							}),
-						);
-					}
-				}
-				if (req.method === "POST" && req.url === "/sysinfo") {
-					if (!checkHealthRateLimit(ip)) {
-						res.writeHead(429);
-						return res.end();
-					}
-
-					let body = "";
-					req.on("data", (chunk) => {
-						body += chunk;
-						if (body.length > MAX_BODY_SIZE) {
-							logLine("WARN", "Sysinfo body too large");
-							req.destroy();
-						}
-					});
-
-					req.on("end", async () => {
-						try {
-							const parsed = JSON.parse(body || "{}");
-							const modelSizeRaw = parsed.modelSizeRaw;
-
-							if (!modelSizeRaw) {
-								res.writeHead(400, {
-									"Content-Type": "application/json",
-								});
-								return res.end(
-									JSON.stringify({
-										error: "Missing modelSizeRaw",
-									}),
-								);
-							}
-
-							const rating =
-								await getHardwareRating(modelSizeRaw);
-
-							if (rating) {
-								res.writeHead(200, {
-									"Content-Type": "application/json",
-								});
-								return res.end(JSON.stringify(rating));
-							} else {
-								throw new Error(
-									"Failed to get hardware rating",
-								);
-							}
-						} catch (err: any) {
-							logLine("ERROR", `Sysinfo error: ${err.message}`);
-							res.writeHead(520, {
-								"Content-Type": "application/json",
-							});
-							return res.end(
-								JSON.stringify({ error: "Sysinfo failure" }),
-							);
-						}
-					});
-
-					return;
-				}
-
-				if (checkHealthRateLimit(ip)) {
-					forwardRequest(req, res);
-				} else {
-					res.writeHead(429);
-					return res.end();
-				}
+				routeVerifiedRequest(req, res, matched, null, ip);
 			},
 		);
 	});

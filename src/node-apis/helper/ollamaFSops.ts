@@ -8,6 +8,7 @@ import type {
 import { issueProxyToken } from "../auth.js";
 import { is52458 } from "../utils.js";
 import { broadcastIpcEvent } from "./ipcBridge.js";
+import { defaultSecure52458Fetch } from "./proxy52458Client.js";
 function renderBar(completed = 0, total = 0, width = 20): string {
 	if (!total) return "[                  ]";
 	const ratio = Math.min(completed / total, 1);
@@ -104,12 +105,17 @@ export function pullModel(
 					body: JSON.stringify({ name: modelName }),
 				});
 			} else {
-				res = await fetch(`${base}/api/pull`, {
+				const isProxy52458 = is52458(clientUrl);
+				const remoteFetch = isProxy52458 ? defaultSecure52458Fetch : fetch;
+				const pullHeaders: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				if (!isProxy52458) {
+					pullHeaders.Authorization = `Bearer ${await issueProxyToken()}`;
+				}
+				res = await remoteFetch(`${base}/api/pull`, {
 					method: "POST",
-					headers: {
-						Authorization: `Bearer ${await issueProxyToken()}`,
-						"Content-Type": "application/json",
-					},
+					headers: pullHeaders,
 					body: JSON.stringify({ name: modelName }),
 				});
 			}
@@ -213,12 +219,17 @@ export async function deleteModel(
 	const base = clientUrl.replace(/\/$/, "");
 	console.log(base);
 	console.log(JSON.stringify({ model: modelName }));
-	const res = await fetch(`${base}/api/delete`, {
+	const remoteFetch =
+		useToken && is52458(clientUrl) ? defaultSecure52458Fetch : fetch;
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+	};
+	if (useToken && !is52458(clientUrl)) {
+		headers.Authorization = `Bearer ${await issueProxyToken()}`;
+	}
+	const res = await remoteFetch(`${base}/api/delete`, {
 		method: "DELETE",
-		headers: {
-			Authorization: `Bearer ${useToken ? await issueProxyToken() : ""}`,
-			"Content-Type": "application/json",
-		},
+		headers,
 		body: JSON.stringify({ model: modelName }),
 	});
 
@@ -247,11 +258,13 @@ export async function listModels(clientUrl?: string): Promise<Array<ModelInfo>> 
 		}
 	}
 	const base = clientUrl.replace(/\/$/, "");
-	const res = await fetch(`${base}/api/tags`, {
-		headers: {
-			Authorization: `Bearer ${useToken ? await issueProxyToken() : ""}`,
-		},
-	});
+	const remoteFetch =
+		useToken && is52458(clientUrl) ? defaultSecure52458Fetch : fetch;
+	const headers: Record<string, string> = {};
+	if (useToken && !is52458(clientUrl)) {
+		headers.Authorization = `Bearer ${await issueProxyToken()}`;
+	}
+	const res = await remoteFetch(`${base}/api/tags`, { headers });
 
 	if (res.status === 401 || res.status === 403) {
 		const err: any = new Error("unauthorized");

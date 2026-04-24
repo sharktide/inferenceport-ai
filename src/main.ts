@@ -561,7 +561,7 @@ app.whenReady().then(async () => {
 
 	(async function checkForUpdate() {
 		try {
-			const res = await fetch("https://sharktide-lightning.hf.space/status");
+			const res = await fetch("https://sharktide-lightning.hf.space/status/");
 			if (!res.ok) return;
 			const data = await res.json();
 			const latest = data.latest;

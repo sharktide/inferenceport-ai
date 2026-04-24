@@ -32,6 +32,7 @@ import {
 	getSession,
 } from "./auth.js"
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
+import { defaultSecure52458Fetch } from "./helper/proxy52458Client.js";
 
 const chatHistories = new Map<string, ChatHistoryEntry[]>();
 const DEFAULT_CHAT_HISTORY_KEY = "__default__";
@@ -71,6 +72,7 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 		return new OpenAI({
 			baseURL: `${baseURL}/v1`,
 			apiKey: token,
+			fetch: defaultSecure52458Fetch as typeof fetch,
 		});
 	}
 

@@ -1,5 +1,7 @@
 import { issueProxyToken } from "../auth.js";
+import { is52458 } from "../utils.js";
 import crypto from "crypto";
+import { defaultSecure52458Fetch } from "./proxy52458Client.js";
 type ParsedModelfile = {
 	from?: string;
 	system: string;
@@ -141,23 +143,24 @@ function createPayloadFromModelfile(
 
 async function ensureBlobUploaded(
 	base: string,
-	authHeaders: Record<string, string>,
+	extraHeaders: Record<string, string>,
 	buffer: Buffer,
+	fetchImpl: typeof fetch,
 ): Promise<string> {
 	const hash = crypto.createHash("sha256").update(buffer).digest("hex");
 	const digest = `sha256:${hash}`;
 
-	const headRes = await fetch(`${base}/api/blobs/${digest}`, {
+	const headRes = await fetchImpl(`${base}/api/blobs/${digest}`, {
 		method: "HEAD",
-		headers: authHeaders,
+		headers: { ...extraHeaders },
 	});
 
 	if (headRes.status === 404) {
-		const uploadRes = await fetch(`${base}/api/blobs/${digest}`, {
+		const uploadRes = await fetchImpl(`${base}/api/blobs/${digest}`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/octet-stream",
-				...authHeaders,
+				...extraHeaders,
 			},
 			body: new Uint8Array(buffer),
 		});
@@ -185,9 +188,12 @@ export async function importGGUF(
 		? clientUrl.replace(/\/+$/, "")
 		: "http://localhost:11434";
 
-	const authHeaders: Record<string, string> = clientUrl
-		? { Authorization: `Bearer ${await issueProxyToken()}` }
-		: {};
+	const fetchImpl =
+		clientUrl && is52458(clientUrl) ? defaultSecure52458Fetch : fetch;
+	const extraHeaders: Record<string, string> =
+		clientUrl && !is52458(clientUrl)
+			? { Authorization: `Bearer ${await issueProxyToken()}` }
+			: {};
 
 	const safeName = fileName
 		.replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -211,11 +217,11 @@ export async function importGGUF(
 			const modelName = buildModelName(safeName, /\.modelfile$/i);
 			const payload = createPayloadFromModelfile(modelName, parsed);
 			console.log(payload);
-			const createRes = await fetch(`${base}/api/create`, {
+			const createRes = await fetchImpl(`${base}/api/create`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					...authHeaders,
+					...extraHeaders,
 				},
 				body: JSON.stringify(payload),
 			});
@@ -228,14 +234,19 @@ export async function importGGUF(
 			return `Model '${modelName}' created from Modelfile`;
 		}
 
-		const digest = await ensureBlobUploaded(base, authHeaders, buffer);
+		const digest = await ensureBlobUploaded(
+			base,
+			extraHeaders,
+			buffer,
+			fetchImpl,
+		);
 		const modelName = buildModelName(safeName, /\.gguf$/i);
 		console.log(modelName, digest);
-		const createRes = await fetch(`${base}/api/create`, {
+		const createRes = await fetchImpl(`${base}/api/create`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...authHeaders,
+				...extraHeaders,
 			},
 			body: JSON.stringify({
 				model: modelName,
@@ -272,9 +283,14 @@ export async function importGGUFMulti(
 		? clientUrl!.replace(/\/+$/, "")
 		: "http://localhost:11434";
 
-	const authHeaders: Record<string, string> = isRemote
-		? { Authorization: `Bearer ${await issueProxyToken()}` }
-		: {};
+	const fetchImpl =
+		isRemote && clientUrl && is52458(clientUrl)
+			? defaultSecure52458Fetch
+			: fetch;
+	const extraHeaders: Record<string, string> =
+		isRemote && clientUrl && !is52458(clientUrl)
+			? { Authorization: `Bearer ${await issueProxyToken()}` }
+			: {};
 
 	const safeModelfileName = ggufName
 		.replace(/[^a-zA-Z0-9._-]/g, "_")
@@ -294,7 +310,12 @@ export async function importGGUFMulti(
 		throw new Error("Provided Modelfile does not reference a .gguf file");
 	}
 
-	const digest = await ensureBlobUploaded(base, authHeaders, ggufBuffer);
+	const digest = await ensureBlobUploaded(
+		base,
+		extraHeaders,
+		ggufBuffer,
+		fetchImpl,
+	);
 
 	const modelName = buildModelName(
 		safeModelfileName.concat("-gguf"),
@@ -315,11 +336,11 @@ export async function importGGUFMulti(
 
 	console.log(payload);
 
-	const createRes = await fetch(`${base}/api/create`, {
+	const createRes = await fetchImpl(`${base}/api/create`, {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
-			...authHeaders,
+			...extraHeaders,
 		},
 		body: JSON.stringify(payload),
 	});
