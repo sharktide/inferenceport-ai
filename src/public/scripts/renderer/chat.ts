@@ -2847,9 +2847,9 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.removeAllListeners?.();
 
-	if (!lightningEnabled) {
-		localStorage.setItem("host_select", hostChoice);
-	}
+	// Host selection persistence is handled by explicit host picker changes.
+	// Avoid mutating persisted host during message submit, which can cause
+	// unexpected host switches in the picker UI.
 	const supportsToolsForRequest = modelSupportsToolsForRequest(model);
 	window.ollama.streamPrompt(
 		model,
