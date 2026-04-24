@@ -4,10 +4,10 @@ import {
 	randomBytes,
 	createHmac,
 	createECDH,
-	createHash,
 	createCipheriv,
 	createDecipheriv,
 } from "node:crypto";
+import { deriveIpcSessionKey } from "./ecdhAesSession.js";
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron";
 import { WebSocketServer, type WebSocket } from "ws";
 import fs from "fs";
@@ -292,20 +292,6 @@ function generateChallenge(): string {
 	return randomBytes(32).toString("base64url");
 }
 
-function deriveSessionKey(
-	sharedSecret: Buffer,
-	challenge: string,
-	serverNonce: string,
-	clientNonce: string,
-): Buffer {
-	return createHash("sha256")
-		.update(sharedSecret)
-		.update(challenge)
-		.update(serverNonce)
-		.update(clientNonce)
-		.digest();
-}
-
 function decryptEnvelope(
 	sessionKey: Buffer,
 	envelope: EncryptedEnvelope,
@@ -581,7 +567,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 									);
 									const sharedSecret =
 										serverECDH.computeSecret(clientPublicKey);
-									const sessionKey = deriveSessionKey(
+									const sessionKey = deriveIpcSessionKey(
 										sharedSecret,
 										challenge,
 										serverNonce,

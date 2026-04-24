@@ -1,5 +1,6 @@
 import si from "systeminformation";
 import { getSession } from "../auth.js";
+import { defaultSecure52458Fetch } from "./proxy52458Client.js";
 
 import type { Systeminformation } from "systeminformation";
 
@@ -74,13 +75,13 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
     if (clientUrl) {
         if (is52458(clientUrl)) {
             console.log("got it")
-            const res = await fetch(`${clientUrl}/sysinfo`, {
+            const res = await defaultSecure52458Fetch(`${clientUrl}/sysinfo`, {
                 method: "POST",
                 headers: {
-                    Authorization: `Bearer ${await issueProxyToken()}`
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ modelSizeRaw })
-            })
+                body: JSON.stringify({ modelSizeRaw }),
+            });
             if (res.ok) {
                 return await res.json()
             } else {
