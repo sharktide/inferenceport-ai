@@ -22,9 +22,30 @@ type WsAuthMessage = {
 	challenge?: string;
 	signature?: string;
 	error?: string;
+	encrypted?: boolean;
+	warning?: string;
+	secure?: {
+		version: 1;
+		curve: "P-256";
+		serverPublicKey?: string;
+		serverNonce?: string;
+		clientPublicKey?: string;
+		clientNonce?: string;
+	};
 };
 
-type WsServerMessage = WsResultMessage | WsEventMessage | WsAuthMessage;
+type EncryptedEnvelope = {
+	type: "enc";
+	iv: string;
+	tag: string;
+	data: string;
+};
+
+type WsServerMessage =
+	| WsResultMessage
+	| WsEventMessage
+	| WsAuthMessage
+	| EncryptedEnvelope;
 
 type PendingRequest = {
 	resolve: (value: unknown) => void;
@@ -70,6 +91,35 @@ function fromBase64(base64: string): Uint8Array {
 		bytes[i] = binary.charCodeAt(i);
 	}
 	return bytes;
+}
+
+function toBase64Url(bytes: Uint8Array): string {
+	return toBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(base64url: string): Uint8Array {
+	const padded = base64url.replace(/-/g, "+").replace(/_/g, "/");
+	const needsPad = padded.length % 4;
+	const suffix = needsPad === 0 ? "" : "=".repeat(4 - needsPad);
+	return fromBase64(`${padded}${suffix}`);
+}
+
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+	const total = parts.reduce((sum, part) => sum + part.length, 0);
+	const out = new Uint8Array(total);
+	let offset = 0;
+	for (const part of parts) {
+		out.set(part, offset);
+		offset += part.length;
+	}
+	return out;
+}
+
+function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+	return bytes.buffer.slice(
+		bytes.byteOffset,
+		bytes.byteOffset + bytes.byteLength,
+	) as ArrayBuffer;
 }
 
 function encodeValue(value: unknown): unknown {
@@ -153,6 +203,7 @@ class WsIpcClient {
 	private nextRequestId = 0;
 	private readonly urls: string[];
 	private authenticated = false;
+	private sessionKey: CryptoKey | null = null;
 
 	constructor(urls: string[]) {
 		const normalized = urls
@@ -180,9 +231,20 @@ class WsIpcClient {
 		console.log("Received IPC message", rawLog);
 		if (typeof raw !== "string") return;
 
+		void this.handleIncomingMessage(raw);
+	}
+
+	private async handleIncomingMessage(raw: unknown): Promise<void> {
 		let message: WsServerMessage;
 		try {
-			message = JSON.parse(raw) as WsServerMessage;
+			if (typeof raw !== "string") return;
+			const parsed = JSON.parse(raw) as WsServerMessage;
+			if (parsed && parsed.type === "enc") {
+				if (!this.sessionKey) return;
+				message = await this.decryptEnvelope(parsed);
+			} else {
+				message = parsed;
+			}
 		} catch {
 			return;
 		}
@@ -236,6 +298,47 @@ class WsIpcClient {
 		}
 	}
 
+	private async decryptEnvelope(
+		envelope: EncryptedEnvelope,
+	): Promise<WsServerMessage> {
+		if (!this.sessionKey) {
+			throw new Error("Missing websocket session key");
+		}
+		const iv = fromBase64Url(envelope.iv);
+		const tag = fromBase64Url(envelope.tag);
+		const data = fromBase64Url(envelope.data);
+		const payload = concatBytes([data, tag]);
+			const plaintext = await crypto.subtle.decrypt(
+				{ name: "AES-GCM", iv: asArrayBuffer(iv), tagLength: 128 },
+				this.sessionKey,
+				asArrayBuffer(payload),
+			);
+		const decoded = new TextDecoder().decode(new Uint8Array(plaintext));
+		return JSON.parse(decoded) as WsServerMessage;
+	}
+
+	private async encryptPayload(
+		payload: Record<string, unknown>,
+	): Promise<Record<string, unknown> | EncryptedEnvelope> {
+		if (!this.sessionKey) return payload;
+		const iv = crypto.getRandomValues(new Uint8Array(12));
+		const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+			const encrypted = await crypto.subtle.encrypt(
+				{ name: "AES-GCM", iv: asArrayBuffer(iv), tagLength: 128 },
+				this.sessionKey,
+				asArrayBuffer(plaintext),
+			);
+		const bytes = new Uint8Array(encrypted);
+		const tag = bytes.slice(bytes.length - 16);
+		const data = bytes.slice(0, bytes.length - 16);
+		return {
+			type: "enc",
+			iv: toBase64Url(iv),
+			tag: toBase64Url(tag),
+			data: toBase64Url(data),
+		};
+	}
+
 	private getCandidateSummary(): string {
 		return this.urls.join(", ");
 	}
@@ -249,6 +352,7 @@ class WsIpcClient {
 			if (this.socket === socket) {
 				this.socket = null;
 				this.authenticated = false;
+				this.sessionKey = null;
 			}
 			this.rejectAllPending("Websocket bridge disconnected");
 		});
@@ -258,6 +362,66 @@ class WsIpcClient {
 				console.warn(`Websocket bridge error at ${url}`);
 			}
 		});
+	}
+
+	private async createEncryptedHandshakePayload(
+		secure: NonNullable<WsAuthMessage["secure"]>,
+		challenge: string,
+	): Promise<{ secure: NonNullable<WsAuthMessage["secure"]> } | null> {
+		if (!window.crypto?.subtle) return null;
+		if (
+			secure.version !== 1 ||
+			secure.curve !== "P-256" ||
+			typeof secure.serverPublicKey !== "string" ||
+			typeof secure.serverNonce !== "string"
+		) {
+			return null;
+		}
+
+		const clientNonce = crypto.getRandomValues(new Uint8Array(16));
+		const ecdh = await crypto.subtle.generateKey(
+			{ name: "ECDH", namedCurve: "P-256" },
+			true,
+			["deriveBits"],
+		);
+			const serverPubKey = await crypto.subtle.importKey(
+				"raw",
+				asArrayBuffer(fromBase64Url(secure.serverPublicKey)),
+				{ name: "ECDH", namedCurve: "P-256" },
+				false,
+				[],
+		);
+		const sharedBits = await crypto.subtle.deriveBits(
+			{ name: "ECDH", public: serverPubKey },
+			ecdh.privateKey,
+			256,
+		);
+		const keyMaterial = concatBytes([
+			new Uint8Array(sharedBits),
+			new TextEncoder().encode(challenge),
+			fromBase64Url(secure.serverNonce),
+			clientNonce,
+		]);
+			const hashed = await crypto.subtle.digest(
+				"SHA-256",
+				asArrayBuffer(keyMaterial),
+			);
+		this.sessionKey = await crypto.subtle.importKey(
+			"raw",
+			hashed,
+			{ name: "AES-GCM" },
+			false,
+			["encrypt", "decrypt"],
+		);
+		const clientPublic = await crypto.subtle.exportKey("raw", ecdh.publicKey);
+		return {
+			secure: {
+				version: 1,
+				curve: "P-256",
+				clientPublicKey: toBase64Url(new Uint8Array(clientPublic)),
+				clientNonce: toBase64Url(clientNonce),
+			},
+		};
 	}
 
 	private async authenticateSocket(socket: WebSocket): Promise<void> {
@@ -301,10 +465,19 @@ class WsIpcClient {
 					const signature = await resolveChallengeSignature(
 						message.challenge,
 					);
+					const secureHandshake =
+						message.secure &&
+						typeof message.secure === "object"
+							? await this.createEncryptedHandshakePayload(
+									message.secure,
+									message.challenge,
+								)
+							: null;
 					socket.send(
 						JSON.stringify({
 							type: "auth_response",
 							signature,
+							...(secureHandshake || {}),
 						}),
 					);
 				} catch (err) {
@@ -318,6 +491,13 @@ class WsIpcClient {
 				if (!authSettled) {
 					authSettled = true;
 					this.authenticated = true;
+					if (!(message.encrypted === true && this.sessionKey !== null)) {
+						this.sessionKey = null;
+						console.warn(
+							message.warning ||
+								"Websocket transport connected without payload encryption. Update both app and client.",
+						);
+					}
 					handleAuthMessage.cleanup();
 					resolve();
 				}
@@ -464,7 +644,8 @@ class WsIpcClient {
 		};
 
 		if (!expectReply) {
-			this.socket.send(JSON.stringify(payload));
+			const out = await this.encryptPayload(payload);
+			this.socket.send(JSON.stringify(out));
 			return undefined;
 		}
 
@@ -473,7 +654,12 @@ class WsIpcClient {
 
 		return await new Promise((resolve, reject) => {
 			this.pending.set(id, { resolve, reject });
-			this.socket!.send(JSON.stringify(payload));
+			void this.encryptPayload(payload)
+				.then((out) => this.socket!.send(JSON.stringify(out)))
+				.catch((err) => {
+					this.pending.delete(id);
+					reject(err);
+				});
 		});
 	}
 
