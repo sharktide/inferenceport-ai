@@ -6,6 +6,7 @@ import {
 } from "node:crypto";
 import { issueProxyToken } from "../auth.js";
 import { deriveIpcSessionKey } from "./ecdhAesSession.js";
+import { Readable } from "node:stream";
 
 const CAPABILITIES_PATH = "/__inferenceport/crypto-capabilities";
 const HANDSHAKE_PATH = "/__inferenceport/crypto-handshake";
@@ -48,6 +49,11 @@ function encryptAesGcm256(
 }
 
 async function bodyToBuffer(body: BodyInit): Promise<Buffer> {
+	if (body instanceof Readable) {
+		throw new TypeError(
+			"Node.js Readable streams are not supported as request bodies in secure fetch. Convert to Buffer or Web ReadableStream."
+		);
+	}
 	if (body instanceof ArrayBuffer) return Buffer.from(body);
 	if (ArrayBuffer.isView(body)) {
 		return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
