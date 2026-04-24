@@ -1708,7 +1708,7 @@ async function loadOptions() {
 		} else {
 			try {
 				const res = await fetch(
-					"https://sharktide-lightning.hf.space/status",
+					"https://sharktide-lightning.hf.space/status/",
 				);
 
 				if (!res.ok) {
