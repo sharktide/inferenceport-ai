@@ -495,12 +495,15 @@ class WsIpcClient {
 						this.sessionKey = null;
 						const safeWarning =
 							typeof message.warning === "string"
-								? message.warning.replace(/[\r\n]+/g, "")
+								? message.warning.replace(/[\x00-\x1F\x7F]+/g, "").trim()
 								: "";
-						console.warn(
-							safeWarning ||
+						if (safeWarning) {
+							console.warn("Server warning (sanitized):", safeWarning);
+						} else {
+							console.warn(
 								"Websocket transport connected without payload encryption. Update both app and client.",
-						);
+							);
+						}
 					}
 					handleAuthMessage.cleanup();
 					resolve();
