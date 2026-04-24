@@ -493,8 +493,12 @@ class WsIpcClient {
 					this.authenticated = true;
 					if (!(message.encrypted === true && this.sessionKey !== null)) {
 						this.sessionKey = null;
+						const safeWarning =
+							typeof message.warning === "string"
+								? message.warning.replace(/[\r\n]+/g, "")
+								: "";
 						console.warn(
-							message.warning ||
+							safeWarning ||
 								"Websocket transport connected without payload encryption. Update both app and client.",
 						);
 					}
