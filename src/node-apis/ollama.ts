@@ -115,8 +115,9 @@ export default function register(): void {
 			_event: IpcMainInvokeEvent,
 			port: number = 52458,
 			users: { email: string; role: string }[] = [],
+			serverApiKeys: string[] = [],
 		) => {
-			startProxyServer(port, users);
+			startProxyServer(port, users, serverApiKeys);
 			return `Server starting on port ${port}...`;
 		},
 	);

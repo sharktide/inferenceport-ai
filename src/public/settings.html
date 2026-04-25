@@ -6,6 +6,18 @@
 		<link rel="stylesheet" href="styles/styles.css" />
 		<script type="module" src="Components.js"></script>
 		<script type="module" src="scripts/staticload/index.js"></script>
+		<style>
+			textarea {
+				width: 100%;
+				padding: 12px;
+				margin: 10px 0;
+				border: 1px solid var(--secondary-color);
+				border-radius: var(--border-radius);
+				font-size: 16px;
+				background-color: var(--input-bg);
+				color: var(--text-dark);
+			}
+		</style>
 	</head>
 	<body>
 		<root-navbar></root-navbar>
@@ -152,6 +164,17 @@
 								/>
 							</div>
 							<textarea id="host-emails" hidden aria-hidden="true"></textarea>
+							<label for="server-api-keys" class="field-label">
+								Server API keys
+								<span class="field-hint">Connect to the server with a custom API key rather than a session token.</span>
+							</label>
+							<p class="field-hint">(one key per line, sent as Bearer key) Requires at least one email</p>
+							<textarea
+								id="server-api-keys"
+								rows="4"
+								placeholder="sk-host-abc123&#10;sk-host-admin-xyz789"
+								style="resize: vertical;"
+							></textarea>
 
 							<div class="modal-actions settings-actions">
 								<button id="host-start">Start Hosting</button>
