@@ -1281,10 +1281,8 @@ if (hostEmailsInput && !hostEmailsInput.value.trim()) {
 	hostEmailsInput.value = savedEmails;
 }
 if (serverApiKeysInput) {
-	const persistedKeys = localStorage.getItem(HOST_SERVER_API_KEYS_KEY);
-	if (!serverApiKeysInput.value.trim()) {
-		serverApiKeysInput.value = persistedKeys || "";
-	}
+	// Never persist API keys in localStorage; clear any legacy cleartext value.
+	localStorage.removeItem(HOST_SERVER_API_KEYS_KEY);
 }
 
 function markRestartRequired() {
@@ -1426,10 +1424,7 @@ hostStartBtn?.addEventListener("click", async () => {
 							"host_emails",
 							hostEmailsInput?.value || "",
 						);
-						localStorage.setItem(
-							HOST_SERVER_API_KEYS_KEY,
-							(serverApiKeysInput?.value || "").trim(),
-						);
+						// Do not store server API keys in localStorage (cleartext secret storage).
 						await window.startup.updateSettings({
 							proxyPort: port,
 							proxyUsers: users,
