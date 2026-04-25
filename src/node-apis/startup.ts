@@ -12,6 +12,7 @@ export type StartupSettings = {
 	autoStartProxy: boolean;
 	proxyPort: number;
 	proxyUsers: StartupProxyUser[];
+	serverApiKeys: string[];
 	uiPort: number;
 	snipHotkeyInBackground: boolean;
 };
@@ -29,6 +30,7 @@ const defaultSettings: StartupSettings = {
 	autoStartProxy: false,
 	proxyPort: 52458,
 	proxyUsers: [],
+	serverApiKeys: [],
 	uiPort: 52459,
 	snipHotkeyInBackground: false,
 };
@@ -70,6 +72,13 @@ function sanitizeUsers(users: unknown): StartupProxyUser[] {
 }
 
 function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
+	const serverApiKeys = Array.isArray(raw.serverApiKeys)
+		? raw.serverApiKeys
+				.filter((key): key is string => typeof key === "string")
+				.map((key) => key.trim())
+				.filter((key) => key.length > 0)
+		: [];
+
 	return {
 		runAtLogin: Boolean(raw.runAtLogin),
 		autoStartProxy: Boolean(raw.autoStartProxy),
@@ -80,6 +89,7 @@ function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
 				? Math.round(raw.proxyPort)
 				: defaultSettings.proxyPort,
 		proxyUsers: sanitizeUsers(raw.proxyUsers),
+		serverApiKeys,
 		uiPort:
 			typeof raw.uiPort === "number" &&
 			Number.isFinite(raw.uiPort) &&

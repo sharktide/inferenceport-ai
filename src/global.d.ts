@@ -163,7 +163,11 @@ declare global {
 			fetchToolSupportingModels: () => Promise<{ supportsTools: string[] }>;
 			getVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
 			fetchVisionSupportingModels: () => Promise<{ supportsVision: string[] }>;
-			startServer: (port: number, allowedUsers: { email: string; role: string }[]) => Promise<void>;
+			startServer: (
+				port: number,
+				allowedUsers: { email: string; role: string }[],
+				serverApiKeys?: string[],
+			) => Promise<void>;
 			stopServer: () => Promise<void>;
 			onLogAppend: (callback: (chunk: string) => void) => void;
 			getServerLogs: () => Promise<string>;
@@ -291,6 +295,7 @@ declare global {
 				autoStartProxy: boolean;
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
+				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
 			}>;
@@ -301,11 +306,13 @@ declare global {
 				uiPort?: number;
 				snipHotkeyInBackground?: boolean;
 				proxyUsers?: { email: string; role: string }[];
+				serverApiKeys?: string[];
 			}) => Promise<{
 				runAtLogin: boolean;
 				autoStartProxy: boolean;
 				proxyPort: number;
 				proxyUsers: { email: string; role: string }[];
+				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
 			}>;

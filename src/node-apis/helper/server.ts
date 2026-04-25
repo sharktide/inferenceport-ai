@@ -157,6 +157,15 @@ function readRequestBody(req: IncomingMessage): Promise<Buffer> {
 	});
 }
 
+function extractBearerToken(
+	authHeader: string | string[] | undefined,
+): string | null {
+	if (typeof authHeader !== "string") return null;
+	if (!authHeader.startsWith("Bearer ")) return null;
+	const token = authHeader.slice("Bearer ".length).trim();
+	return token.length > 0 ? token : null;
+}
+
 function forwardRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -271,6 +280,7 @@ function verifyToken(
 export function startProxyServer(
 	port = 52458,
 	allowedUsers: { email: string; role: string }[] = [],
+	serverApiKeys: string[] = [],
 ) {
 	if (logStream) {
 		logStream.end();
@@ -549,6 +559,7 @@ export function startProxyServer(
 		const sessionId =
 			typeof sessionHeader === "string" ? sessionHeader.trim() : "";
 		const authHeader = req.headers["authorization"];
+		const bearerToken = extractBearerToken(authHeader);
 
 		if (sessionId) {
 			const sess = lookupCryptoSession(sessionId);
@@ -567,18 +578,29 @@ export function startProxyServer(
 			return;
 		}
 
-		if (!authHeader?.startsWith("Bearer ")) {
+		if (!bearerToken) {
 			res.writeHead(401, { "Content-Type": "application/json" });
 			return res.end(
 				JSON.stringify({ error: "Missing Authorization header" }),
 			);
 		}
 
-		const token = authHeader.split(" ")[1];
-		logLine("INFO", `Verifying token: ${maskToken(token)}`);
+		if (serverApiKeys.includes(bearerToken)) {
+			console.info("Authenticated request via configured server API key");
+			const fallbackMatched =
+				allowedUsers.find((u) => (u.role || "").toLowerCase() === "admin") ||
+				allowedUsers[0] || {
+					email: "__server_api_key__",
+					role: "admin",
+				};
+			routeVerifiedRequest(req, res, fallbackMatched, null, ip);
+			return;
+		}
+
+		logLine("INFO", `Verifying token: ${maskToken(bearerToken)}`);
 
 		verifyToken(
-			token,
+			bearerToken,
 			allowedUsers.map((u) => u.email),
 			(status, result) => {
 				if (status !== 200 || !result?.found || !result.email) {

@@ -15,6 +15,9 @@ const emailInput = document.getElementById("email-input") as HTMLInputElement;
 const hostEmailsInput = document.getElementById(
 	"host-emails",
 ) as HTMLTextAreaElement;
+const serverApiKeysInput = document.getElementById(
+	"server-api-keys",
+) as HTMLTextAreaElement | null;
 const hostStartBtn = document.getElementById("host-start") as HTMLButtonElement;
 const hostStopBtn = document.getElementById("host-stop") as HTMLButtonElement;
 const hostStatus = document.getElementById(
@@ -34,6 +37,7 @@ const RESTART_REQUIRED_KEY = "host_restart_required";
 
 const EMAIL_STORAGE_KEY = "host_emails_v2";
 const HOST_USERS_KEY = "host_users_v1";
+const HOST_SERVER_API_KEYS_KEY = "host_server_api_keys_v1";
 const startup = await window.startup.getSettings();
 
 const syncCheckbox = document.getElementById(
@@ -955,6 +959,11 @@ async function initStartupSettings() {
 		if (startupUiPortInput) {
 			startupUiPortInput.value = String(startup.uiPort);
 		}
+		if (serverApiKeysInput) {
+			serverApiKeysInput.value = Array.isArray(startup.serverApiKeys)
+				? startup.serverApiKeys.join("\n")
+				: "";
+		}
 		if (startupUiPortStatus) {
 			startupUiPortStatus.textContent = `Reserved ports: ${RESERVED_PORT_MIN}-${RESERVED_PORT_MAX}.`;
 		}
@@ -1064,10 +1073,14 @@ startupAutoProxyCheckbox?.addEventListener("change", async () => {
 			existingUsers = [];
 		}
 
+		const serverApiKeys = parseServerApiKeysInput(
+			serverApiKeysInput?.value || "",
+		);
 		await window.startup.updateSettings({
 			autoStartProxy: startupAutoProxyCheckbox.checked,
 			proxyPort: 52458,
 			proxyUsers: existingUsers,
+			serverApiKeys,
 		});
 	} catch (err) {
 		console.warn("Could not update auto proxy startup setting", err);
@@ -1103,6 +1116,13 @@ void initStartupSettings();
 
 function isValidEmail(email: string) {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function parseServerApiKeysInput(value: string): string[] {
+	return value
+		.split(/\r?\n/)
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
 }
 
 try {
@@ -1257,7 +1277,13 @@ logsRefreshBtn?.addEventListener("click", async () => {
 });
 
 const savedEmails = localStorage.getItem("host_emails") || "";
-if (hostEmailsInput) hostEmailsInput.value = savedEmails;
+if (hostEmailsInput && !hostEmailsInput.value.trim()) {
+	hostEmailsInput.value = savedEmails;
+}
+if (serverApiKeysInput) {
+	// Never persist API keys in localStorage; clear any legacy cleartext value.
+	localStorage.removeItem(HOST_SERVER_API_KEYS_KEY);
+}
 
 function markRestartRequired() {
 	if (!hostStartBtn?.disabled) return;
@@ -1382,7 +1408,14 @@ hostStartBtn?.addEventListener("click", async () => {
 
 					try {
 						clearRestartRequired();
-						await window.ollama.startServer(port, users);
+						const serverApiKeys = parseServerApiKeysInput(
+							serverApiKeysInput?.value || "",
+						);
+						await window.ollama.startServer(
+							port,
+							users,
+							serverApiKeys,
+						);
 						localStorage.setItem(
 							HOST_USERS_KEY,
 							JSON.stringify(users),
@@ -1391,9 +1424,11 @@ hostStartBtn?.addEventListener("click", async () => {
 							"host_emails",
 							hostEmailsInput?.value || "",
 						);
+						// Do not store server API keys in localStorage (cleartext secret storage).
 						await window.startup.updateSettings({
 							proxyPort: port,
 							proxyUsers: users,
+							serverApiKeys,
 						});
 						setHostingUIRunning(true, port);
 					} catch (e: any) {

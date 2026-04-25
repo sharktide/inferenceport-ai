@@ -143,8 +143,12 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.invoke("ollama:import-gguf", fileName, data, isModelFile, clientUrl),
 	importGGUFMulti: (modelfileData: Uint8Array | null, ggufName: string, ggufData: Uint8Array | null, clientUrl?: string): Promise<string> =>
 		ipcRenderer.invoke("ollama:import-gguf-multi", modelfileData, ggufName, ggufData, clientUrl),
-	startServer: (port: number, users: { email: string; role: string }[]) =>
-		ipcRenderer.invoke("ollama:start-proxy-server", port, users),
+	startServer: (
+		port: number,
+		users: { email: string; role: string }[],
+		serverApiKeys: string[] = [],
+	) =>
+		ipcRenderer.invoke("ollama:start-proxy-server", port, users, serverApiKeys),
 	stopServer: () => ipcRenderer.invoke("ollama:stop-proxy-server"),
 	getServerLogs: (): Promise<string> => ipcRenderer.invoke("ollama:get-server-logs"),
 	onLogAppend: (callback: (chunk: string) => void) => ipcRenderer.on("ollama:logs-append", (_: Electron.IpcRendererEvent, chunk: string) => callback(chunk)),
@@ -265,6 +269,7 @@ contextBridge.exposeInMainWorld("startup", {
 		uiPort?: number;
 		snipHotkeyInBackground?: boolean;
 		proxyUsers?: { email: string; role: string }[];
+		serverApiKeys?: string[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),
 });
 

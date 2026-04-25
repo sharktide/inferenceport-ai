@@ -548,6 +548,7 @@ app.whenReady().then(async () => {
 			startProxyServer(
 				startupSettings.proxyPort || 52458,
 				startupSettings.proxyUsers,
+				startupSettings.serverApiKeys,
 			);
 			console.info("Auto-started proxy server from startup settings");
 		} catch (err) {
