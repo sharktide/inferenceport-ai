@@ -586,6 +586,7 @@ export function startProxyServer(
 		}
 
 		if (serverApiKeys.includes(bearerToken)) {
+			console.info("Authenticated request via configured server API key");
 			const fallbackMatched =
 				allowedUsers.find((u) => (u.role || "").toLowerCase() === "admin") ||
 				allowedUsers[0] || {
