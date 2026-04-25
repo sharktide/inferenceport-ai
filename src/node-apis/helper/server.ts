@@ -129,7 +129,6 @@ function sanitizeHeaders(
 }
 
 const MAX_BODY_SIZE = 20 * 1024 * 1024;
-const OPENAI_API_BASE = "/v1";
 
 const PATH_CRYPTO_CAPABILITIES = "/__inferenceport/crypto-capabilities";
 const PATH_CRYPTO_HANDSHAKE = "/__inferenceport/crypto-handshake";
@@ -137,11 +136,6 @@ const PATH_CRYPTO_HANDSHAKE = "/__inferenceport/crypto-handshake";
 type ForwardRequestOptions = {
 	preReadBody?: Buffer;
 	sessionKey?: Buffer | null;
-};
-
-type OpenAIChatMessage = {
-	role: string;
-	content: string;
 };
 
 function readRequestBody(req: IncomingMessage): Promise<Buffer> {
@@ -170,47 +164,6 @@ function extractBearerToken(
 	if (!authHeader.startsWith("Bearer ")) return null;
 	const token = authHeader.slice("Bearer ".length).trim();
 	return token.length > 0 ? token : null;
-}
-
-function normalizeOpenAIMessageContent(content: unknown): string {
-	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	return content
-		.map((part) => {
-			if (!part || typeof part !== "object") return "";
-			const asRecord = part as Record<string, unknown>;
-			if (asRecord.type === "text" && typeof asRecord.text === "string") {
-				return asRecord.text;
-			}
-			if (
-				asRecord.type === "image_url" &&
-				asRecord.image_url &&
-				typeof asRecord.image_url === "object"
-			) {
-				const imageUrl = (asRecord.image_url as Record<string, unknown>).url;
-				if (typeof imageUrl === "string") {
-					return `[image:${imageUrl}]`;
-				}
-			}
-			return "";
-		})
-		.filter(Boolean)
-		.join("\n");
-}
-
-function toOpenAIChunk(
-	id: string,
-	model: string,
-	created: number,
-	content: string,
-): Record<string, unknown> {
-	return {
-		id,
-		object: "chat.completion.chunk",
-		created,
-		model,
-		choices: [{ index: 0, delta: content ? { content } : {}, finish_reason: null }],
-	};
 }
 
 function forwardRequest(
@@ -291,238 +244,6 @@ function forwardRequest(
 	req.on("end", () => {
 		finalize(Buffer.concat(reqChunks));
 	});
-}
-
-function proxyOpenAIModels(res: ServerResponse): void {
-	const proxyReq = http.request(
-		new URL("/api/tags", OLLAMA_URL),
-		{ method: "GET" },
-		(proxyRes) => {
-			let data = "";
-			proxyRes.on("data", (chunk) => {
-				data += chunk;
-			});
-			proxyRes.on("end", () => {
-				try {
-					const parsed = JSON.parse(data) as {
-						models?: Array<{ name?: string; modified_at?: string }>;
-					};
-					const models = Array.isArray(parsed.models) ? parsed.models : [];
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(
-						JSON.stringify({
-							object: "list",
-							data: models
-								.map((entry) => {
-									const name = typeof entry.name === "string" ? entry.name : "";
-									if (!name) return null;
-									return {
-										id: name,
-										object: "model",
-										created: entry.modified_at
-											? Math.floor(Date.parse(entry.modified_at) / 1000) || 0
-											: 0,
-										owned_by: "ollama",
-									};
-								})
-								.filter(Boolean),
-						}),
-					);
-				} catch {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: "Failed to parse model list" }));
-				}
-			});
-		},
-	);
-	proxyReq.on("error", () => {
-		res.writeHead(500, { "Content-Type": "application/json" });
-		res.end(JSON.stringify({ error: "Proxy error" }));
-	});
-	proxyReq.end();
-}
-
-function proxyOpenAIChatCompletions(req: IncomingMessage, res: ServerResponse): void {
-	void readRequestBody(req)
-		.then((rawBody) => {
-			let parsed: Record<string, unknown>;
-			try {
-				parsed = JSON.parse(rawBody.toString("utf8") || "{}");
-			} catch {
-				res.writeHead(400, { "Content-Type": "application/json" });
-				return res.end(JSON.stringify({ error: "Invalid JSON" }));
-			}
-
-			const model = typeof parsed.model === "string" ? parsed.model : "";
-			const stream = Boolean(parsed.stream);
-			const messagesRaw = Array.isArray(parsed.messages) ? parsed.messages : [];
-			const messages: OpenAIChatMessage[] = messagesRaw
-				.map((msg) => {
-					if (!msg || typeof msg !== "object") return null;
-					const entry = msg as Record<string, unknown>;
-					const role = typeof entry.role === "string" ? entry.role : "user";
-					return {
-						role,
-						content: normalizeOpenAIMessageContent(entry.content),
-					};
-				})
-				.filter((entry): entry is OpenAIChatMessage => Boolean(entry));
-
-			if (!model || messages.length === 0) {
-				res.writeHead(400, { "Content-Type": "application/json" });
-				return res.end(
-					JSON.stringify({
-						error: "Missing required fields: model and messages",
-					}),
-				);
-			}
-
-			const ollamaPayload: Record<string, unknown> = {
-				model,
-				messages,
-				stream,
-			};
-			if (typeof parsed.temperature === "number") {
-				ollamaPayload.options = { temperature: parsed.temperature };
-			}
-
-			const proxyReq = http.request(
-				new URL("/api/chat", OLLAMA_URL),
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-				},
-				(proxyRes) => {
-					if (stream) {
-						res.writeHead(200, {
-							"Content-Type": "text/event-stream",
-							"Cache-Control": "no-cache",
-							Connection: "keep-alive",
-						});
-						const id = `chatcmpl-${crypto.randomBytes(8).toString("hex")}`;
-						const created = Math.floor(Date.now() / 1000);
-						let carry = "";
-						proxyRes.on("data", (chunk: Buffer) => {
-							carry += chunk.toString("utf8");
-							const lines = carry.split("\n");
-							carry = lines.pop() || "";
-							for (const line of lines) {
-								const trimmed = line.trim();
-								if (!trimmed) continue;
-								try {
-									const parsedLine = JSON.parse(trimmed) as {
-										message?: { content?: string };
-										done?: boolean;
-									};
-									const content = parsedLine.message?.content || "";
-									res.write(
-										`data: ${JSON.stringify(toOpenAIChunk(id, model, created, content))}\n\n`,
-									);
-									if (parsedLine.done) {
-										res.write(
-											`data: ${JSON.stringify({
-												id,
-												object: "chat.completion.chunk",
-												created,
-												model,
-												choices: [
-													{
-														index: 0,
-														delta: {},
-														finish_reason: "stop",
-													},
-												],
-											})}\n\n`,
-										);
-										res.write("data: [DONE]\n\n");
-										res.end();
-									}
-								} catch {
-									void 0;
-								}
-							}
-						});
-						proxyRes.on("end", () => {
-							if (!res.writableEnded) {
-								res.write("data: [DONE]\n\n");
-								res.end();
-							}
-						});
-						return;
-					}
-
-					let data = "";
-					proxyRes.on("data", (chunk) => {
-						data += chunk;
-					});
-					proxyRes.on("end", () => {
-						try {
-							const parsedResult = JSON.parse(data) as {
-								message?: { content?: string };
-								prompt_eval_count?: number;
-								eval_count?: number;
-							};
-							const id = `chatcmpl-${crypto.randomBytes(8).toString("hex")}`;
-							const created = Math.floor(Date.now() / 1000);
-							const content = parsedResult.message?.content || "";
-							res.writeHead(200, { "Content-Type": "application/json" });
-							res.end(
-								JSON.stringify({
-									id,
-									object: "chat.completion",
-									created,
-									model,
-									choices: [
-										{
-											index: 0,
-											message: { role: "assistant", content },
-											finish_reason: "stop",
-										},
-									],
-									usage: {
-										prompt_tokens: parsedResult.prompt_eval_count || 0,
-										completion_tokens: parsedResult.eval_count || 0,
-										total_tokens:
-											(parsedResult.prompt_eval_count || 0) +
-											(parsedResult.eval_count || 0),
-									},
-								}),
-							);
-						} catch {
-							res.writeHead(500, { "Content-Type": "application/json" });
-							res.end(JSON.stringify({ error: "Invalid upstream response" }));
-						}
-					});
-				},
-			);
-
-			proxyReq.on("error", () => {
-				res.writeHead(500, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Proxy error" }));
-			});
-			proxyReq.write(JSON.stringify(ollamaPayload));
-			proxyReq.end();
-		})
-		.catch(() => {
-			res.writeHead(500, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "Failed to read request body" }));
-		});
-}
-
-function routeOpenAICompat(req: IncomingMessage, res: ServerResponse): boolean {
-	const pathname = (req.url || "").split("?")[0] || "/";
-	if (req.method === "GET" && pathname === `${OPENAI_API_BASE}/models`) {
-		proxyOpenAIModels(res);
-		return true;
-	}
-	if (
-		req.method === "POST" &&
-		pathname === `${OPENAI_API_BASE}/chat/completions`
-	) {
-		proxyOpenAIChatCompletions(req, res);
-		return true;
-	}
-	return false;
 }
 
 function verifyToken(
@@ -680,8 +401,6 @@ export function startProxyServer(
 		sessionKey: Buffer | null,
 		ip: string,
 	): void => {
-		if (routeOpenAICompat(req, res)) return;
-
 		const pathname = pathOnly(req);
 
 		if (req.method === "POST" && pathname === PATH_CRYPTO_HANDSHAKE) {
@@ -865,8 +584,8 @@ export function startProxyServer(
 				JSON.stringify({ error: "Missing Authorization header" }),
 			);
 		}
-		const token = bearerToken;
-		if (serverApiKeys.includes(token)) {
+
+		if (serverApiKeys.includes(bearerToken)) {
 			const fallbackMatched =
 				allowedUsers.find((u) => (u.role || "").toLowerCase() === "admin") ||
 				allowedUsers[0] || {
@@ -876,10 +595,11 @@ export function startProxyServer(
 			routeVerifiedRequest(req, res, fallbackMatched, null, ip);
 			return;
 		}
-		logLine("INFO", `Verifying token: ${maskToken(token)}`);
+
+		logLine("INFO", `Verifying token: ${maskToken(bearerToken)}`);
 
 		verifyToken(
-			token,
+			bearerToken,
 			allowedUsers.map((u) => u.email),
 			(status, result) => {
 				if (status !== 200 || !result?.found || !result.email) {
