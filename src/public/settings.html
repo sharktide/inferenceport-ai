@@ -186,6 +186,22 @@
 						<div id="server-logs-panel" class="server-logs-panel">
 							<label>Server Logs &nbsp;&nbsp;&nbsp; <a id="logs-refresh" href="javascript:void(0)">Refresh</a></label>
 							<pre id="logs-output"></pre>
+							<div id="token-verify-usage-panel" class="token-verify-usage-panel" aria-live="polite">
+								<div class="token-verify-usage-head">
+									<div>
+										<p class="token-verify-usage-kicker">Daily hosting usage</p>
+										<p class="token-verify-usage-title">Token Verification Requests</p>
+									</div>
+									<span id="token-verify-usage-value" class="token-verify-usage-value">Loading...</span>
+								</div>
+								<div class="token-verify-usage-meter">
+									<div id="token-verify-usage-fill" class="token-verify-usage-fill"></div>
+								</div>
+								<p id="token-verify-usage-meta" class="token-verify-usage-meta">Checking remaining usage...</p>
+								<p id="token-verify-usage-notice" class="token-verify-usage-notice">
+									Need more usage? Contact us at inferenceportai@gmail.com.
+								</p>
+							</div>
 						</div>
 						</div>
 						<div class="tab-pane" id="tools">

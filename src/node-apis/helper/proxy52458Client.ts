@@ -76,10 +76,16 @@ async function bodyToBuffer(body: BodyInit): Promise<Buffer> {
 	return Buffer.from(String(body), "utf8");
 }
 
-async function fetchCapabilities(baseOrigin: string): Promise<boolean> {
+async function fetchCapabilities(
+	baseOrigin: string,
+	bearer: string,
+): Promise<boolean> {
 	try {
 		const res = await fetch(`${baseOrigin}${CAPABILITIES_PATH}`, {
 			method: "GET",
+			headers: {
+				Authorization: `Bearer ${bearer}`,
+			},
 			cache: "no-store",
 		});
 		if (!res.ok) return false;
@@ -94,13 +100,13 @@ async function establishSession(
 	baseOrigin: string,
 	bearer: string,
 ): Promise<SessionState | null> {
-	const supported = await fetchCapabilities(baseOrigin);
+	const supported = await fetchCapabilities(baseOrigin, bearer);
 	if (!supported) {
 		if (!warnedLegacy.has(baseOrigin)) {
 			warnedLegacy.set(baseOrigin, true);
 			console.warn(
-				`[InferencePort] Proxy at ${baseOrigin} does not support encrypted client payloads (GET ${CAPABILITIES_PATH}). ` +
-					"Bearer tokens and request bodies may be sent in cleartext on the HTTP link. Update the host app or use HTTPS in front of the proxy.",
+				`[InferencePort] Proxy at ${baseOrigin} did not grant encrypted transport for this client (GET ${CAPABILITIES_PATH}). ` +
+					"Traffic can still work, but bearer tokens and request bodies may be sent in cleartext on the HTTP link. Use the API-backed app flow, update the host app, or place HTTPS in front of the proxy.",
 			);
 		}
 		return null;
@@ -220,18 +226,17 @@ export function createSecure52458Fetch(
 		}
 
 		const origin = parsed.origin;
+		const bearer = await getBearer();
 		let session = sessionByOrigin.get(origin);
 		if (
 			!session ||
 			session.expiresAt <= Date.now() + SESSION_REFRESH_MS
 		) {
-			const bearer = await getBearer();
 			session = await establishSession(origin, bearer);
 			sessionByOrigin.set(origin, session);
 		}
 
 		if (!session) {
-			const bearer = await getBearer();
 			const headers = new Headers(init?.headers);
 			headers.set("Authorization", `Bearer ${bearer}`);
 			return fetch(input, { ...init, headers });
@@ -240,6 +245,7 @@ export function createSecure52458Fetch(
 		const headers = new Headers(init?.headers);
 		headers.delete("authorization");
 		headers.set("X-Inferenceport-Session", session.sessionId);
+		headers.set("Authorization", `Bearer ${bearer}`);
 
 		const method = (init?.method || "GET").toUpperCase();
 		let body = init?.body;

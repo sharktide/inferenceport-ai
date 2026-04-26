@@ -100,6 +100,16 @@ declare global {
 		error?: string;
 	};
 
+	type AuthVerifyTokenUsageInfo = {
+		planKey: string;
+		planName: string;
+		featureName: string;
+		usage: AuthUsageMetric;
+		generatedAt: string | null;
+		notice?: string;
+		error?: string;
+	};
+
 	type AuthLightningApiKey = {
 		id: string;
 		name: string;
@@ -254,6 +264,7 @@ declare global {
 			getSubscriptionTiers: () => Promise<AuthSubscriptionTier[]>;
 			getTierConfig: () => Promise<AuthTierConfig | null>;
 			getUsage: () => Promise<AuthUsageInfo>;
+			getVerifyTokenUsage: () => Promise<AuthVerifyTokenUsageInfo>;
 			listLightningApiKeys: () => Promise<AuthLightningApiKey[]>;
 			createLightningApiKey: (
 				name: string,

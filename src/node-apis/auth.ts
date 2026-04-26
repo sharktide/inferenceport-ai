@@ -25,6 +25,7 @@ const subscriptionDetailsUrl = `${subscriptionApiBase}/subscription`;
 const subscriptionTiersUrl = `${subscriptionApiBase}/tiers`;
 const subscriptionTierConfigUrl = `${subscriptionApiBase}/tier-config`;
 const subscriptionUsageUrl = `${subscriptionApiBase}/usage`;
+const verifyTokenUsageUrl = `${subscriptionApiBase}/usage/verify-token-with-email`;
 
 type SubscriptionTierView = {
 	key?: string;
@@ -85,6 +86,10 @@ type UsageMetricKey =
 	| "videosDaily"
 	| "audioWeekly";
 
+type StandaloneUsageMetricKey =
+	| UsageMetricKey
+	| "verifyTokenWithEmailDaily";
+
 type RendererUsageMetricView = {
 	limit: number | null;
 	used: number;
@@ -98,6 +103,16 @@ export type RendererUsageView = {
 	planName: string;
 	metrics: Record<UsageMetricKey, RendererUsageMetricView>;
 	generatedAt: string | null;
+	error?: string;
+};
+
+type RendererVerifyTokenUsageView = {
+	planKey: string;
+	planName: string;
+	featureName: string;
+	usage: RendererUsageMetricView;
+	generatedAt: string | null;
+	notice?: string;
 	error?: string;
 };
 
@@ -489,9 +504,31 @@ function createUsageFallback(
 	};
 }
 
+function createVerifyTokenUsageFallback(
+	tierConfig: SubscriptionTierConfigView | null,
+	error?: string,
+): RendererVerifyTokenUsageView {
+	const defaultPlanKey = tierConfig?.defaultPlanKey || "free";
+	const planName =
+		tierConfig?.plans.find((p) => p.key === defaultPlanKey)?.name || "Free Tier";
+	return {
+		planKey: defaultPlanKey,
+		planName,
+		featureName: "Token Verification Requests",
+		usage: {
+			...defaultUsageMetric("daily"),
+			limit: 100,
+			remaining: 100,
+		},
+		generatedAt: null,
+		notice: "Need more usage? Contact us at inferenceportai@gmail.com.",
+		...(error ? { error } : {}),
+	};
+}
+
 function normalizeUsageMetric(
 	value: unknown,
-	key: UsageMetricKey,
+	key: StandaloneUsageMetricKey,
 	planLimit: number | null,
 ): RendererUsageMetricView {
 	const fallbackPeriod = key === "audioWeekly" ? "weekly" : "daily";
@@ -521,6 +558,47 @@ function normalizeUsageMetric(
 		remaining,
 		window,
 		period,
+	};
+}
+
+function normalizeVerifyTokenUsageView(
+	value: unknown,
+	tierConfig: SubscriptionTierConfigView | null,
+): RendererVerifyTokenUsageView | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const tierMap = new Map((tierConfig?.plans || []).map((plan) => [plan.key, plan]));
+	const payloadPlanKey = asTrimmedString(asRecord.plan_key)?.toLowerCase();
+	let planKey =
+		payloadPlanKey && tierMap.has(payloadPlanKey)
+			? payloadPlanKey
+			: normalizePlanKeyFromName(asTrimmedString(asRecord.plan_name));
+	if (tierMap.size > 0 && !tierMap.has(planKey)) {
+		planKey = tierConfig?.defaultPlanKey || "free";
+	}
+	const planName =
+		tierMap.get(planKey)?.name ||
+		asTrimmedString(asRecord.plan_name) ||
+		"Free Tier";
+	const usage = normalizeUsageMetric(
+		asRecord.usage,
+		"verifyTokenWithEmailDaily",
+		100,
+	);
+
+	return {
+		planKey,
+		planName,
+		featureName:
+			asTrimmedString(asRecord.feature_name) || "Token Verification Requests",
+		usage,
+		generatedAt: asTrimmedString(asRecord.generated_at),
+		notice:
+			asTrimmedString(asRecord.notice) ||
+			"Need more usage? Contact us at inferenceportai@gmail.com.",
+		...(asTrimmedString(asRecord.error)
+			? { error: asTrimmedString(asRecord.error)! }
+			: {}),
 	};
 }
 
@@ -732,6 +810,65 @@ async function getUsageSafe(
 	}
 }
 
+async function getVerifyTokenUsageSafe(
+	tierConfig: SubscriptionTierConfigView | null,
+): Promise<RendererVerifyTokenUsageView> {
+	const fallback = createVerifyTokenUsageFallback(tierConfig);
+	let accessToken: string | null = null;
+	try {
+		const { data, error } = await supabase.auth.getSession();
+		if (!error && data.session?.access_token) {
+			accessToken = data.session.access_token;
+		}
+	} catch (_err) {
+		void 0;
+	}
+
+	const makeHeaders = (includeAuth: boolean): Record<string, string> => {
+		const headers: Record<string, string> = {
+			Accept: "application/json",
+		};
+		if (includeAuth && accessToken) {
+			headers.Authorization = `Bearer ${accessToken}`;
+		}
+		return headers;
+	};
+
+	try {
+		let res = await fetch(verifyTokenUsageUrl, {
+			headers: makeHeaders(Boolean(accessToken)),
+		});
+
+		if ((res.status === 401 || res.status === 403) && accessToken) {
+			res = await fetch(verifyTokenUsageUrl, {
+				headers: makeHeaders(false),
+			});
+		}
+
+		if (!res.ok) {
+			return {
+				...fallback,
+				error: `Usage lookup failed (${res.status})`,
+			};
+		}
+
+		const payload = await res.json();
+		const normalized = normalizeVerifyTokenUsageView(payload, tierConfig);
+		if (!normalized) {
+			return {
+				...fallback,
+				error: "Usage payload invalid",
+			};
+		}
+		return normalized;
+	} catch (err) {
+		return {
+			...fallback,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
 function toSubscriptionView(
 	payload: RemoteSubscriptionPayload | null,
 	tiers: SubscriptionTierView[],
@@ -856,6 +993,11 @@ export default function register() {
 	ipcMain.handle("auth:getUsage", async () => {
 		const tierConfig = await getSubscriptionTierConfigSafe();
 		return await getUsageSafe(tierConfig);
+	});
+
+	ipcMain.handle("auth:getVerifyTokenUsage", async () => {
+		const tierConfig = await getSubscriptionTierConfigSafe();
+		return await getVerifyTokenUsageSafe(tierConfig);
 	});
 
 	ipcMain.handle("auth:getSubscriptionInfo", async () => {
