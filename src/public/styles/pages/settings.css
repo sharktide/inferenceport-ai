@@ -495,6 +495,87 @@ Copyright 2025 Rihaan Meher
   word-break: break-word;
 }
 
+.token-verify-usage-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-light) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+  display: grid;
+  gap: 8px;
+}
+
+.token-verify-usage-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.token-verify-usage-kicker {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.74;
+}
+
+.token-verify-usage-title {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.token-verify-usage-value {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.token-verify-usage-meter {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-dark) 10%, transparent);
+  overflow: hidden;
+}
+
+.token-verify-usage-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--blue) 80%, #2eaf62 20%),
+    color-mix(in srgb, #2eaf62 85%, #ffd84d 15%)
+  );
+  transition: width 240ms ease;
+}
+
+.token-verify-usage-fill.is-warning {
+  background: linear-gradient(90deg, #f0a738, #f6d14f);
+}
+
+.token-verify-usage-fill.is-danger {
+  background: linear-gradient(90deg, #db5d5d, #f28d8d);
+}
+
+.token-verify-usage-meta,
+.token-verify-usage-notice {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.token-verify-usage-meta {
+  opacity: 0.82;
+}
+
+.token-verify-usage-notice {
+  opacity: 0.72;
+}
+
 .settings-footer {
   margin: 18px 4px 0;
   font-size: 0.85rem;

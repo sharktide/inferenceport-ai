@@ -5,6 +5,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
+import { getSession } from "../auth.js";
 import { getHardwareRating } from "./sysinfo.js";
 import { deriveIpcSessionKey } from "./ecdhAesSession.js";
 import { maybeDecryptIncomingProxyBody } from "./proxy52458Client.js";
@@ -246,35 +247,47 @@ function forwardRequest(
 	});
 }
 
-function verifyToken(
+async function verifyToken(
 	token: string | undefined | null,
 	emails: string[],
-	callback: (status: number, result: any | null) => void,
-) {
-	if (!token) return callback(401, null);
+): Promise<{ status: number; result: any | null }> {
+	if (!token) return { status: 401, result: null };
 
 	const body = JSON.stringify({ token, emails });
 	const url = new URL(VERIFY_URL);
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+	};
 
-	const req = https.request(
-		url,
-		{ method: "POST", headers: { "Content-Type": "application/json" } },
-		(res) => {
+	try {
+		const session = await getSession();
+		if (session?.access_token) {
+			headers.Authorization = `Bearer ${session.access_token}`;
+		}
+	} catch {
+		void 0;
+	}
+
+	return await new Promise((resolve) => {
+		const req = https.request(url, { method: "POST", headers }, (res) => {
 			let data = "";
 			res.on("data", (chunk) => (data += chunk));
 			res.on("end", () => {
 				try {
-					callback(res.statusCode ?? 500, JSON.parse(data));
+					resolve({
+						status: res.statusCode ?? 500,
+						result: JSON.parse(data),
+					});
 				} catch {
-					callback(res.statusCode ?? 500, null);
+					resolve({ status: res.statusCode ?? 500, result: null });
 				}
 			});
-		},
-	);
+		});
 
-	req.on("error", () => callback(500, null));
-	req.write(body);
-	req.end();
+		req.on("error", () => resolve({ status: 500, result: null }));
+		req.write(body);
+		req.end();
+	});
 }
 
 export function startProxyServer(
@@ -542,12 +555,37 @@ export function startProxyServer(
 			return res.end();
 		}
 
+		const authHeader = req.headers["authorization"];
+		const bearerToken = extractBearerToken(authHeader);
 		const pathnameEarly = pathOnly(req);
 		if (req.method === "GET" && pathnameEarly === PATH_CRYPTO_CAPABILITIES) {
-			res.writeHead(200, { "Content-Type": "application/json" });
-			return res.end(
-				JSON.stringify({ supported: true, version: 1 }),
-			);
+			if (!bearerToken || serverApiKeys.includes(bearerToken)) {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({
+						supported: false,
+						version: 1,
+						reason: "api-verification-required",
+					}),
+				);
+			}
+
+			void verifyToken(
+				bearerToken,
+				allowedUsers.map((u) => u.email),
+			).then(({ status, result }) => {
+				const supported =
+					status === 200 && Boolean(result?.found) && Boolean(result?.email);
+				res.writeHead(200, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({
+						supported,
+						version: 1,
+						...(supported ? {} : { reason: "api-verification-required" }),
+					}),
+				);
+			});
+			return;
 		}
 
 		logLine(
@@ -558,8 +596,6 @@ export function startProxyServer(
 		const sessionHeader = req.headers["x-inferenceport-session"];
 		const sessionId =
 			typeof sessionHeader === "string" ? sessionHeader.trim() : "";
-		const authHeader = req.headers["authorization"];
-		const bearerToken = extractBearerToken(authHeader);
 
 		if (sessionId) {
 			const sess = lookupCryptoSession(sessionId);
@@ -569,12 +605,57 @@ export function startProxyServer(
 					JSON.stringify({ error: "Invalid or expired session" }),
 				);
 			}
-			const matched = allowedUsers.find((u) => u.email === sess.email);
-			if (!matched) {
-				res.writeHead(403, { "Content-Type": "application/json" });
-				return res.end(JSON.stringify({ error: "Access denied" }));
+			if (!bearerToken) {
+				res.writeHead(401, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({ error: "Missing Authorization header" }),
+				);
 			}
-			routeVerifiedRequest(req, res, matched, sess.key, ip);
+			logLine(
+				"INFO",
+				`Verifying session request token: ${maskToken(bearerToken)}`,
+			);
+			void verifyToken(
+				bearerToken,
+				allowedUsers.map((u) => u.email),
+			).then(({ status, result }) => {
+				if (status === 429) {
+					res.writeHead(429, { "Content-Type": "application/json" });
+					return res.end(
+						JSON.stringify({
+							error:
+								typeof result?.error === "string"
+									? result.error
+									: "Token verification limit reached for today.",
+							notice:
+								typeof result?.notice === "string" ? result.notice : undefined,
+							usage: result?.usage ?? undefined,
+						}),
+					);
+				}
+
+				if (status !== 200 || !result?.found || !result.email) {
+					res.writeHead(401, { "Content-Type": "application/json" });
+					return res.end(
+						JSON.stringify({ error: "Token verification failed" }),
+					);
+				}
+
+				if (result.email !== sess.email) {
+					res.writeHead(403, { "Content-Type": "application/json" });
+					return res.end(
+						JSON.stringify({ error: "Session token email mismatch" }),
+					);
+				}
+
+				const matched = allowedUsers.find((u) => u.email === result.email);
+				if (!matched) {
+					res.writeHead(403, { "Content-Type": "application/json" });
+					return res.end(JSON.stringify({ error: "Access denied" }));
+				}
+
+				routeVerifiedRequest(req, res, matched, sess.key, ip);
+			});
 			return;
 		}
 
@@ -599,28 +680,40 @@ export function startProxyServer(
 
 		logLine("INFO", `Verifying token: ${maskToken(bearerToken)}`);
 
-		verifyToken(
+		void verifyToken(
 			bearerToken,
 			allowedUsers.map((u) => u.email),
-			(status, result) => {
-				if (status !== 200 || !result?.found || !result.email) {
-					res.writeHead(401, { "Content-Type": "application/json" });
-					return res.end(
-						JSON.stringify({ error: "Token verification failed" }),
-					);
-				}
-
-				const matched = allowedUsers.find(
-					(u) => u.email === result.email,
+		).then(({ status, result }) => {
+			if (status === 429) {
+				res.writeHead(429, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({
+						error:
+							typeof result?.error === "string"
+								? result.error
+								: "Token verification limit reached for today.",
+						notice:
+							typeof result?.notice === "string" ? result.notice : undefined,
+						usage: result?.usage ?? undefined,
+					}),
 				);
-				if (!matched) {
-					res.writeHead(403, { "Content-Type": "application/json" });
-					return res.end(JSON.stringify({ error: "Access denied" }));
-				}
+			}
 
-				routeVerifiedRequest(req, res, matched, null, ip);
-			},
-		);
+			if (status !== 200 || !result?.found || !result.email) {
+				res.writeHead(401, { "Content-Type": "application/json" });
+				return res.end(
+					JSON.stringify({ error: "Token verification failed" }),
+				);
+			}
+
+			const matched = allowedUsers.find((u) => u.email === result.email);
+			if (!matched) {
+				res.writeHead(403, { "Content-Type": "application/json" });
+				return res.end(JSON.stringify({ error: "Access denied" }));
+			}
+
+			routeVerifiedRequest(req, res, matched, null, ip);
+		});
 	});
 
 	server.listen(port, "0.0.0.0", () => {

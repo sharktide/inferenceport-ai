@@ -1260,6 +1260,11 @@ export function installWebSocketTransportFallback(): void {
 			invokeOrDefault<AuthTierConfig | null>("auth:getTierConfig", []),
 		getUsage: async () =>
 			invokeOrDefault<AuthUsageInfo>("auth:getUsage", []),
+		getVerifyTokenUsage: async () =>
+			invokeOrDefault<AuthVerifyTokenUsageInfo>(
+				"auth:getVerifyTokenUsage",
+				[],
+			),
 		listLightningApiKeys: async () =>
 			invokeOrDefault<AuthLightningApiKey[]>("auth:listLightningApiKeys", []),
 		createLightningApiKey: async (

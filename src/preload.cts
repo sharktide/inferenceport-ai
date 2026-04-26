@@ -215,6 +215,8 @@ contextBridge.exposeInMainWorld("auth", {
 	getSubscriptionTiers: () => ipcRenderer.invoke("auth:getSubscriptionTiers"),
 	getTierConfig: () => ipcRenderer.invoke("auth:getTierConfig"),
 	getUsage: (): Promise<AuthUsageInfo> => ipcRenderer.invoke("auth:getUsage"),
+	getVerifyTokenUsage: (): Promise<AuthVerifyTokenUsageInfo> =>
+		ipcRenderer.invoke("auth:getVerifyTokenUsage"),
 	listLightningApiKeys: (): Promise<AuthLightningApiKey[]> =>
 		ipcRenderer.invoke("auth:listLightningApiKeys"),
 	createLightningApiKey: (

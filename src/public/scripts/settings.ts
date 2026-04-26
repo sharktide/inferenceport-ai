@@ -32,6 +32,18 @@ const logsRefreshBtn = document.getElementById(
 const logsStartBtn = document.getElementById("logs-start") as HTMLButtonElement;
 const logsStopBtn = document.getElementById("logs-stop") as HTMLButtonElement;
 const logsOutput = document.getElementById("logs-output") as HTMLPreElement;
+const tokenVerifyUsageValueEl = document.getElementById(
+	"token-verify-usage-value",
+) as HTMLSpanElement | null;
+const tokenVerifyUsageFillEl = document.getElementById(
+	"token-verify-usage-fill",
+) as HTMLDivElement | null;
+const tokenVerifyUsageMetaEl = document.getElementById(
+	"token-verify-usage-meta",
+) as HTMLParagraphElement | null;
+const tokenVerifyUsageNoticeEl = document.getElementById(
+	"token-verify-usage-notice",
+) as HTMLParagraphElement | null;
 
 const RESTART_REQUIRED_KEY = "host_restart_required";
 
@@ -435,58 +447,65 @@ function openCreateApiKeyModal(): void {
 }
 
 async function revokeLightningApiKey(keyId: string): Promise<void> {
-    const target = lightningApiKeys.find((entry) => entry.id === keyId);
-    if (!target) return;
+	const target = lightningApiKeys.find((entry) => entry.id === keyId);
+	if (!target) return;
 
-    const modal = new window.ic.iModal("revoke-api-key-modal", 420, {
-        title: "Revoke API Key",
-        text: `Revoke the API key "${target.name}"? Existing integrations using it will stop working immediately.`,
-        actions: [
-            {
-                id: "cancel-revoke",
-                label: "Cancel",
-                onClick: () => modal.close(),
-            },
-            {
-                id: "confirm-revoke",
-                label: "Revoke",
-                onClick: async () => {
-                    modal.close();
-		    let result
-		    try {
-                    	result = await window.auth.revokeLightningApiKey(keyId);
-		    } catch {
-			result = {
-			    success: null,
-			    apiKey: null,
-			    error: null
-			}
-		    }
-                    if (!result.success || !result.apiKey) {
-                        showNotification({
-                            message: result.error || "Could not revoke API key",
-                            type: "warning",
-                        });
-                        return;
-                    }
+	let modal: any;
+	modal = new window.ic.iModal("revoke-api-key-modal", 420, {
+		title: "Revoke API Key",
+		text: `Revoke the API key "${target.name}"? Existing integrations using it will stop working immediately.`,
+		actions: [
+			{
+				id: "cancel-revoke",
+				label: "Cancel",
+				onClick: () => modal.close(),
+			},
+			{
+				id: "confirm-revoke",
+				label: "Revoke",
+				onClick: async () => {
+					modal.close();
+					let result:
+						| {
+								success?: boolean | null;
+								apiKey?: AuthLightningApiKey | null;
+								error?: string | null;
+						  }
+						| undefined;
+					try {
+						result = await window.auth.revokeLightningApiKey(keyId);
+					} catch {
+						result = {
+							success: null,
+							apiKey: null,
+							error: null,
+						};
+					}
+					if (!result.success || !result.apiKey) {
+						showNotification({
+							message: result.error || "Could not revoke API key",
+							type: "warning",
+						});
+						return;
+					}
 
-                    lightningApiKeys = lightningApiKeys.map((entry) =>
-                        entry.id === keyId ? result.apiKey! : entry,
-                    );
+					lightningApiKeys = lightningApiKeys.map((entry) =>
+						entry.id === keyId ? result.apiKey! : entry,
+					);
 
-                    setLightningApiStatus(`Revoked API key "${target.name}".`);
-                    renderLightningApiKeys();
+					setLightningApiStatus(`Revoked API key "${target.name}".`);
+					renderLightningApiKeys();
 
-                    showNotification({
-                        message: `Revoked API key "${target.name}"`,
-                        type: "success",
-                    });
-                },
-            },
-        ],
-    });
+					showNotification({
+						message: `Revoked API key "${target.name}"`,
+						type: "success",
+					});
+				},
+			},
+		],
+	});
 
-    modal.open();
+	modal.open();
 }
 
 function isKnownPlanKey(value: string): value is PlanKey {
@@ -1250,6 +1269,7 @@ async function setHostingUIRunning(running: boolean, port?: number) {
 	if (running) {
 		serverLogsPanel.style.display = "block";
 		logsOutput.textContent = await window.ollama.getServerLogs();
+		await refreshVerifyTokenUsage();
 	} else {
 		serverLogsPanel.style.display = "none";
 	}
@@ -1264,6 +1284,85 @@ function setServerLogUIRunning(running: boolean, port?: number) {
 	}
 }
 
+function toFiniteRatio(used: number, limit: number | null): number {
+	if (limit == null || limit <= 0) return 0;
+	return Math.max(0, Math.min(1, used / limit));
+}
+
+function renderVerifyTokenUsage(usage: AuthVerifyTokenUsageInfo): void {
+	if (
+		!tokenVerifyUsageValueEl ||
+		!tokenVerifyUsageFillEl ||
+		!tokenVerifyUsageMetaEl
+	) {
+		return;
+	}
+
+	const limit =
+		typeof usage.usage.limit === "number" ? usage.usage.limit : 100;
+	const used = Math.max(0, Number(usage.usage.used) || 0);
+	const remaining =
+		typeof usage.usage.remaining === "number"
+			? Math.max(0, usage.usage.remaining)
+			: Math.max(0, limit - used);
+	const ratio = toFiniteRatio(used, limit);
+
+	tokenVerifyUsageValueEl.textContent = `${remaining} left today`;
+	tokenVerifyUsageMetaEl.textContent = usage.error
+		? `Usage check problem: ${usage.error}`
+		: `${used} / ${limit} used today${usage.generatedAt ? ` • updated ${new Date(usage.generatedAt).toLocaleTimeString()}` : ""}`;
+
+	tokenVerifyUsageFillEl.classList.remove("is-warning", "is-danger");
+	tokenVerifyUsageFillEl.style.width = `${Math.round(ratio * 100)}%`;
+	if (ratio >= 1) {
+		tokenVerifyUsageFillEl.classList.add("is-danger");
+	} else if (ratio >= 0.75) {
+		tokenVerifyUsageFillEl.classList.add("is-warning");
+	}
+
+	if (tokenVerifyUsageNoticeEl) {
+		tokenVerifyUsageNoticeEl.textContent =
+			usage.notice ||
+			"Need more usage? Contact us at inferenceportai@gmail.com.";
+	}
+}
+
+async function refreshVerifyTokenUsage(): Promise<void> {
+	if (
+		!tokenVerifyUsageValueEl ||
+		!tokenVerifyUsageFillEl ||
+		!tokenVerifyUsageMetaEl
+	) {
+		return;
+	}
+
+	tokenVerifyUsageValueEl.textContent = "Loading...";
+	tokenVerifyUsageMetaEl.textContent = "Checking remaining usage...";
+	tokenVerifyUsageFillEl.classList.remove("is-warning", "is-danger");
+	tokenVerifyUsageFillEl.style.width = "0%";
+
+	try {
+		const usage = await window.auth.getVerifyTokenUsage();
+		renderVerifyTokenUsage(usage);
+	} catch (error) {
+		renderVerifyTokenUsage({
+			planKey: "free",
+			planName: "Free Tier",
+			featureName: "Token Verification Requests",
+			usage: {
+				limit: 100,
+				used: 0,
+				remaining: 100,
+				window: "",
+				period: "daily",
+			},
+			generatedAt: null,
+			error: error instanceof Error ? error.message : String(error),
+			notice: "Need more usage? Contact us at inferenceportai@gmail.com.",
+		});
+	}
+}
+
 logsRefreshBtn?.addEventListener("click", async () => {
 	if (!logsOutput) return;
 	logsOutput.textContent = "Loading...";
@@ -1271,6 +1370,7 @@ logsRefreshBtn?.addEventListener("click", async () => {
 		const data = await window.ollama.getServerLogs();
 		logsOutput.textContent = data || "";
 		logsOutput.scrollTop = logsOutput.scrollHeight;
+		await refreshVerifyTokenUsage();
 	} catch (e: any) {
 		logsOutput.textContent = `Error: ${e?.message || e}`;
 	}
@@ -1329,6 +1429,7 @@ async function isLocalProxyRunning(
 				const data = await window.ollama.getServerLogs();
 				if (logsOutput) logsOutput.textContent = data || "";
 			} catch {}
+			await refreshVerifyTokenUsage();
 		}
 	} catch (e) {}
 })();
