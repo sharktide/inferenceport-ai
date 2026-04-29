@@ -30,6 +30,12 @@ import {
 	isOffline,
 } from "../helper/sync.js";
 import * as toolSettings from "../helper/toolSettings.js";
+import {
+	initMediaLibrary,
+	openMediaPicker,
+	mediaItemToAttachment,
+	openMediaTrashOverlay,
+} from "./mediaLibrary.js";
 
 const dataDir = window.ollama.getPath();
 
@@ -45,6 +51,7 @@ interface AttachedTextFile {
 	content: string;
 	previewDataUrl?: string;
 	previewMimeType?: string;
+	mediaId?: string;
 }
 
 interface AttachedImageFile {
@@ -52,6 +59,7 @@ interface AttachedImageFile {
 	name: string;
 	mimeType: string;
 	base64: string;
+	mediaId?: string;
 }
 
 type AttachedFile = AttachedTextFile | AttachedImageFile;
@@ -154,7 +162,268 @@ function getMessageImages(content: string | UserContentPart[]): string[] {
 			(p): p is { type: "image_url"; image_url: { url: string } } =>
 				p.type === "image_url",
 		)
-		.map((p) => p.image_url.url);
+			.map((p) => p.image_url.url);
+}
+
+function cloneJson<T>(value: T): T {
+	return JSON.parse(JSON.stringify(value)) as T;
+}
+
+const ROOT_JSON_KEY = "__historyRootJson";
+
+function normalizeMessageFromActiveVersion(message: any): any {
+	if (!message || typeof message !== "object") return message;
+	if (!Array.isArray(message.versions) || message.versions.length === 0) {
+		return message;
+	}
+	const idx =
+		typeof message.currentVersionIdx === "number" &&
+		Number.isFinite(message.currentVersionIdx)
+			? Math.max(0, Math.min(message.currentVersionIdx, message.versions.length - 1))
+			: 0;
+	message.currentVersionIdx = idx;
+	const active = message.versions[idx] || {};
+	if (!Array.isArray(active.tail)) active.tail = [];
+	if (typeof active.content === "undefined" || active.content === null) {
+		active.content = message.content ?? "";
+	}
+	message.versions[idx] = active;
+	message.content = active.content;
+	if (Array.isArray(active.tool_calls) && !Array.isArray(message.tool_calls)) {
+		message.tool_calls = cloneJson(active.tool_calls);
+	}
+	if (Array.isArray(active.toolCalls) && !Array.isArray(message.tool_calls)) {
+		message.tool_calls = cloneJson(active.toolCalls);
+	}
+	return message;
+}
+
+function extractFlatHistoryFromTree(rootMessage: any): any[] {
+	if (!rootMessage || typeof rootMessage !== "object") return [];
+	const history: any[] = [];
+	const toFlatEntry = (node: any): any => {
+		const cloned = cloneJson(node);
+		normalizeMessageFromActiveVersion(cloned);
+		if (Array.isArray(cloned.versions)) {
+			cloned.versions = cloned.versions.map((version: any) => ({
+				...version,
+				tail: [],
+			}));
+		}
+		return cloned;
+	};
+	const walk = (node: any): void => {
+		if (!node || typeof node !== "object") return;
+		normalizeMessageFromActiveVersion(node);
+		history.push(toFlatEntry(node));
+		const versions = Array.isArray(node.versions) ? node.versions : [];
+		const idx =
+			typeof node.currentVersionIdx === "number"
+				? Math.max(0, Math.min(node.currentVersionIdx, versions.length - 1))
+				: 0;
+		const active = versions[idx] || null;
+		const tail = active && Array.isArray(active.tail) ? active.tail : [];
+		for (const child of tail) {
+			walk(child);
+			if (
+				child?.role === "user" &&
+				Array.isArray(child?.versions) &&
+				child.versions.length > 1
+			) {
+				break;
+			}
+		}
+	};
+	walk(rootMessage);
+	return history;
+}
+
+function normalizeSessionHistoryShape(session: any, sessionId?: string): void {
+	if (!session || typeof session !== "object") return;
+	const rawHistory = Array.isArray(session.history) ? session.history : [];
+	if (!rawHistory.length) {
+		session[ROOT_JSON_KEY] = null;
+		session.history = [];
+		if (sessionId) sessionHistoryRoots.delete(sessionId);
+		return;
+	}
+	const looksTree =
+		rawHistory.length === 1 &&
+		rawHistory[0] &&
+		typeof rawHistory[0] === "object" &&
+		Array.isArray(rawHistory[0].versions);
+	if (looksTree) {
+		const root = cloneAndRepairTree(rawHistory[0]);
+		session[ROOT_JSON_KEY] = JSON.stringify(root);
+		session.history = extractFlatHistoryFromTree(root);
+		if (sessionId) sessionHistoryRoots.set(sessionId, root);
+	} else {
+		const normalizedFlat = rawHistory.map((entry: any) =>
+			normalizeMessageFromActiveVersion(entry),
+		);
+		session.history = normalizedFlat;
+		session[ROOT_JSON_KEY] = null;
+		ensureSessionHistoryRoot(session, sessionId);
+	}
+}
+
+function normalizeAllSessionHistories(allSessions: Record<string, any>): void {
+	for (const [sessionId, session] of Object.entries(allSessions || {})) {
+		normalizeSessionHistoryShape(session, sessionId);
+	}
+}
+
+function ensureMessageVersioningShape(message: any): any {
+	ensureMessageMetadata(message);
+	if (!Array.isArray(message.versions) || message.versions.length === 0) {
+		message.versions = [createMessageVersion(message.content)];
+		message.currentVersionIdx = 0;
+	}
+	const idx = Math.max(
+		0,
+		Math.min(Number(message.currentVersionIdx || 0), message.versions.length - 1),
+	);
+	message.currentVersionIdx = idx;
+	if (!Array.isArray(message.versions[idx].tail)) message.versions[idx].tail = [];
+	if (typeof message.versions[idx].content === "undefined") {
+		message.versions[idx].content = cloneMessageContent(message.content);
+	}
+	message.content = cloneMessageContent(message.versions[idx].content);
+	return message;
+}
+
+function getActiveVersionNode(message: any): any {
+	if (!message || typeof message !== "object") return null;
+	ensureMessageVersioningShape(message);
+	return message.versions[message.currentVersionIdx];
+}
+
+function cloneAndRepairTree(rootMessage: any): any {
+	const cloned = cloneJson(rootMessage);
+	const walk = (node: any) => {
+		if (!node || typeof node !== "object") return;
+		ensureMessageVersioningShape(node);
+		const active = getActiveVersionNode(node);
+		for (const child of active?.tail || []) walk(child);
+	};
+	walk(cloned);
+	return cloned;
+}
+
+function getActiveLeafMessage(rootMessage: any): any {
+	let current = rootMessage;
+	while (current) {
+		const active = getActiveVersionNode(current);
+		const tail = Array.isArray(active?.tail) ? active.tail : [];
+		if (!tail.length) return current;
+		current = tail[tail.length - 1];
+	}
+	return rootMessage;
+}
+
+function appendEntriesToActiveLeaf(rootMessage: any, entries: any[] = []): any {
+	if (!rootMessage || !entries.length) return rootMessage;
+	const leaf = getActiveLeafMessage(rootMessage);
+	const active = getActiveVersionNode(leaf);
+	active.tail = [...(active.tail || []), ...entries];
+	return rootMessage;
+}
+
+function findMessageContext(rootMessage: any, targetId: string) {
+	if (!rootMessage || !targetId) return null;
+	if (rootMessage.id === targetId) {
+		return { message: rootMessage, parent: null, parentTail: null, index: -1 };
+	}
+	const search = (message: any): any => {
+		const active = getActiveVersionNode(message);
+		const tail = Array.isArray(active?.tail) ? active.tail : [];
+		for (let i = 0; i < tail.length; i++) {
+			const child = tail[i];
+			if (child?.id === targetId) {
+				return { message: child, parent: message, parentTail: tail, index: i };
+			}
+			const nested = search(child);
+			if (nested) return nested;
+		}
+		return null;
+	};
+	return search(rootMessage);
+}
+
+function findAndUpdateMessage(rootMessage: any, targetId: string, updateFn: (msg: any) => void): boolean {
+	if (!rootMessage || !targetId) return false;
+	if (rootMessage.id === targetId) {
+		updateFn(rootMessage);
+		return true;
+	}
+	const search = (message: any): boolean => {
+		const active = getActiveVersionNode(message);
+		const tail = Array.isArray(active?.tail) ? active.tail : [];
+		for (const child of tail) {
+			if (child?.id === targetId) {
+				updateFn(child);
+				return true;
+			}
+			if (search(child)) return true;
+		}
+		return false;
+	};
+	return search(rootMessage);
+}
+
+const sessionHistoryRoots = new Map<string, any>();
+
+function ensureSessionHistoryRoot(session: any, sessionId?: string): any | null {
+	if (!session) return null;
+	if (sessionId && sessionHistoryRoots.has(sessionId)) {
+		return sessionHistoryRoots.get(sessionId);
+	}
+	const serializedRoot = typeof session[ROOT_JSON_KEY] === "string" ? session[ROOT_JSON_KEY] : "";
+	if (serializedRoot) {
+		try {
+			const parsed = cloneAndRepairTree(JSON.parse(serializedRoot));
+			if (sessionId) sessionHistoryRoots.set(sessionId, parsed);
+			return parsed;
+		} catch {
+			session[ROOT_JSON_KEY] = null;
+		}
+	}
+	const history = Array.isArray(session.history) ? session.history : [];
+	if (!history.length) {
+		session[ROOT_JSON_KEY] = null;
+		if (sessionId) sessionHistoryRoots.delete(sessionId);
+		return null;
+	}
+	// If first node looks like a tree root, use it directly.
+	if (Array.isArray(history[0]?.versions) && history.length === 1) {
+		const root = cloneAndRepairTree(history[0]);
+		session[ROOT_JSON_KEY] = JSON.stringify(root);
+		session.history = extractFlatHistoryFromTree(root);
+		if (sessionId) sessionHistoryRoots.set(sessionId, root);
+		return root;
+	}
+	const nodes = history.map((entry: any) => ensureMessageVersioningShape(cloneJson(entry)));
+	const root = nodes[0];
+	for (let i = 1; i < nodes.length; i++) {
+		appendEntriesToActiveLeaf(root, [nodes[i]]);
+	}
+	session[ROOT_JSON_KEY] = JSON.stringify(root);
+	session.history = extractFlatHistoryFromTree(root);
+	if (sessionId) sessionHistoryRoots.set(sessionId, root);
+	return root;
+}
+
+function setSessionHistoryRoot(session: any, root: any, sessionId?: string): void {
+	const normalizedRoot = root ? cloneAndRepairTree(root) : null;
+	if (normalizedRoot) {
+		session[ROOT_JSON_KEY] = JSON.stringify(normalizedRoot);
+		session.history = extractFlatHistoryFromTree(normalizedRoot);
+		if (sessionId) sessionHistoryRoots.set(sessionId, normalizedRoot);
+	} else {
+		session[ROOT_JSON_KEY] = null;
+		session.history = [];
+		if (sessionId) sessionHistoryRoots.delete(sessionId);
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,6 +523,15 @@ const sidebarControls = document.getElementById(
 const lightningStatus = document.getElementById(
 	"lightning-status",
 ) as HTMLDivElement | null;
+const sidebarChatPane = document.getElementById("sidebar-chat-pane") as HTMLDivElement | null;
+const sidebarMediaPane = document.getElementById("sidebar-media-pane") as HTMLDivElement | null;
+const sidebarTrashOverlay = document.getElementById("sidebar-trash-overlay") as HTMLDivElement | null;
+const sidebarSessionsHost = document.getElementById("sidebar-sessions") as HTMLDivElement | null;
+const sidebarTrashBtn = document.getElementById("sidebar-trash-btn") as HTMLButtonElement | null;
+const sidebarTrashBack = document.getElementById("sidebar-trash-back") as HTMLButtonElement | null;
+const sidebarModeTabs = Array.from(
+	document.querySelectorAll(".sidebar-mode-tab"),
+) as HTMLButtonElement[];
 const usagePlanNameEl = document.getElementById(
 	"usage-plan-name",
 ) as HTMLParagraphElement | null;
@@ -275,6 +553,82 @@ const previewTier = document.getElementById(
 let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
+let activeSidebarMode: "chats" | "media" = "chats";
+
+function isMediaLibraryAvailable(): boolean {
+	return !!currentAuthSession?.isAuthenticated;
+}
+
+function updateMediaLibraryVisibility(): void {
+	const mediaTab = sidebarModeTabs.find((tab) => tab.dataset.sidebarMode === "media") || null;
+	const trashBtn = sidebarTrashBtn;
+	const enabled = isMediaLibraryAvailable();
+	if (mediaTab) {
+		mediaTab.classList.toggle("hidden", !enabled);
+		mediaTab.disabled = !enabled;
+	}
+	if (trashBtn) {
+		trashBtn.classList.toggle("hidden", !enabled);
+		trashBtn.disabled = !enabled;
+	}
+	if (!enabled && activeSidebarMode === "media") {
+		if (sidebarChatPane) sidebarChatPane.style.display = "";
+		if (sidebarMediaPane) sidebarMediaPane.style.display = "none";
+		if (sidebarTrashOverlay) sidebarTrashOverlay.style.display = "none";
+		sidebarSessionsHost?.classList.remove("trash-open");
+		activeSidebarMode = "chats";
+		sidebarModeTabs.forEach((tab) => {
+			tab.classList.toggle("active", tab.dataset.sidebarMode === "chats");
+		});
+	}
+}
+
+function setupSidebarModeTabs(): void {
+	const applyMode = (mode: "chats" | "media") => {
+		if (mode === "media" && !isMediaLibraryAvailable()) {
+			showNotification({
+				type: "info",
+				message: "Sign in to use the Media Library.",
+			});
+			mode = "chats";
+		}
+		activeSidebarMode = mode;
+		sidebarModeTabs.forEach((tab) => {
+			const tabMode = tab.dataset.sidebarMode;
+			tab.classList.toggle("active", tabMode === mode);
+		});
+		if (sidebarChatPane) sidebarChatPane.style.display = mode === "chats" ? "" : "none";
+		if (sidebarMediaPane) sidebarMediaPane.style.display = mode === "media" ? "" : "none";
+		if (sidebarTrashOverlay) sidebarTrashOverlay.style.display = "none";
+		sidebarSessionsHost?.classList.remove("trash-open");
+		if (mode === "media") {
+			void Promise.resolve().then(() => initMediaLibrary());
+		}
+	};
+	sidebarModeTabs.forEach((tab) => {
+		tab.addEventListener("click", () => {
+			applyMode(tab.dataset.sidebarMode === "media" ? "media" : "chats");
+		});
+	});
+	sidebarTrashBtn?.addEventListener("click", () => {
+		if (!isMediaLibraryAvailable()) return;
+		sidebarSessionsHost?.classList.add("trash-open");
+		if (sidebarTrashOverlay) {
+			sidebarTrashOverlay.dataset.context = "media";
+			sidebarTrashOverlay.style.display = "";
+			sidebarTrashOverlay.removeAttribute("aria-hidden");
+		}
+		void openMediaTrashOverlay();
+	});
+	sidebarTrashBack?.addEventListener("click", () => {
+		sidebarSessionsHost?.classList.remove("trash-open");
+		if (sidebarTrashOverlay) {
+			sidebarTrashOverlay.style.display = "none";
+			sidebarTrashOverlay.setAttribute("aria-hidden", "true");
+		}
+	});
+	updateMediaLibraryVisibility();
+}
 
 const urlParams = new URLSearchParams(window.location.search);
 const isSnipMode = urlParams.get("snip") === "1";
@@ -296,6 +650,14 @@ let sessions = {};
 let sessionSortOrder: string[] | null = null;
 let currentSessionId = null;
 let activeToolSessionId: string | null = null;
+
+function findSessionIdByRef(sessionRef: any): string | null {
+	if (!sessionRef || typeof sessionRef !== "object") return null;
+	for (const [sessionId, value] of Object.entries(sessions || {})) {
+		if (value === sessionRef) return sessionId;
+	}
+	return null;
+}
 
 const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
@@ -1012,6 +1374,16 @@ async function refreshSubscriptionData(force = false) {
 
 function collectUsedAssetIds(sessions: any): Set<string> {
 	const used = new Set<string>();
+	const isAssetId = (value: string): boolean => {
+		const v = value.trim();
+		return (
+			v.length > 0 &&
+			!v.startsWith("data:") &&
+			!v.startsWith("blob:") &&
+			!v.startsWith("http://") &&
+			!v.startsWith("https://")
+		);
+	};
 
 	for (const session of Object.values(sessions)) {
 		if (!session?.history) continue;
@@ -1020,9 +1392,11 @@ function collectUsedAssetIds(sessions: any): Set<string> {
 			if (!msg?.content) continue;
 
 			if (
-				(msg.role === "video" || msg.role === "audio") &&
+				(msg.role === "image" ||
+					msg.role === "video" ||
+					msg.role === "audio") &&
 				typeof msg.content === "string" &&
-				!msg.content.startsWith("data:")
+				isAssetId(msg.content)
 			) {
 				used.add(msg.content);
 			}
@@ -1473,6 +1847,7 @@ function updateHostSelectState() {
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.addEventListener("DOMContentLoaded", updateTextareaState);
 document.addEventListener("DOMContentLoaded", () => {
+	setupSidebarModeTabs();
 	const remotes: { url: string; alias?: string }[] = JSON.parse(
 		localStorage.getItem("remote_hosts") || "[]",
 	);
@@ -1485,6 +1860,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	window.auth.onAuthStateChange((session) => {
 		currentAuthSession = session;
+		updateMediaLibraryVisibility();
 		loadUsageStateForUser(session?.user?.id);
 		void refreshSubscriptionData(true);
 	});
@@ -1541,6 +1917,7 @@ async function loadOptions() {
 		try {
 			const local = await window.ollama.load();
 			sessions = local && typeof local === "object" ? local : {};
+			normalizeAllSessionHistories(sessions);
 		} catch (e) {
 			console.warn(
 				"Failed to load local sessions, starting with empty:",
@@ -1619,6 +1996,7 @@ async function loadOptions() {
 
 		const auth = await window.auth.getSession();
 		currentAuthSession = auth?.session ?? null;
+		updateMediaLibraryVisibility();
 		loadUsageStateForUser(currentAuthSession?.user?.id);
 		await refreshSubscriptionData();
 		setSessionProgress(55);
@@ -1649,6 +2027,7 @@ async function loadOptions() {
 					sessions as SessionMap,
 					remoteResponse.sessions,
 				);
+				normalizeAllSessionHistories(sessions);
 
 				await window.ollama.save(sessions);
 				setSessionProgress(90);
@@ -1674,6 +2053,7 @@ async function loadOptions() {
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		await renderChat();
+		initMediaLibrary();
 		setSessionProgress(95);
 
 		try {
@@ -1985,7 +2365,7 @@ function openReportDialog(): void {
 	});
 }
 
-function createNewSession(): void {
+function createNewSession(): string {
 	const id = generateSessionId();
 	const name = new Date().toLocaleString();
 	lastAccessMap[id] = Date.now();
@@ -1994,6 +2374,7 @@ function createNewSession(): void {
 		model: lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value,
 		name,
 		history: [],
+		[ROOT_JSON_KEY]: null,
 		favorite: false,
 	};
 	currentSessionId = id;
@@ -2007,7 +2388,7 @@ function createNewSession(): void {
 	});
 	renderSessionList();
 	renderChat();
-	return void 0;
+	return id;
 }
 
 function handleSessionClick(sessionId): void {
@@ -2400,6 +2781,20 @@ function openAttachMenu(): void {
 	if (canUploadImages()) {
 		addItem("🖼️ Upload image", () => imageInput?.click());
 	}
+	if (isMediaLibraryAvailable()) {
+		addItem("🗂️ Add from media library", () => {
+			void openMediaPicker({
+				title: "Add from media library",
+				onSelect: async (items) => {
+					for (const item of items) {
+						const attachment = await mediaItemToAttachment(item);
+						if (attachment) attachedFiles.push(attachment as AttachedFile);
+					}
+					renderFileIndicator();
+				},
+			});
+		});
+	}
 	if (currentToolSettings.imageGen) {
 		addItem("✏️Edit/Generate Image", () => {
 			void startDirectImageToolCall();
@@ -2579,6 +2974,31 @@ function buildUserMessageContent(
 		});
 	}
 	return parts;
+}
+
+function extractAttachedTextFiles(content: string): Array<{ name: string; content: string }> {
+	if (typeof content !== "string") return [];
+	const files = [];
+	const re = /<details><summary>([^<]+?)<\/summary>\s*```(?:\w*)\n([\s\S]*?)\n```\s*<\/details>/g;
+	let match;
+	while ((match = re.exec(content)) !== null) {
+		files.push({ name: match[1].trim(), content: match[2] });
+	}
+	return files;
+}
+
+function stripAttachedDetailsBlocks(text: string): string {
+	if (typeof text !== "string") return "";
+	return text
+		.replace(/<details><summary>Attached Files<\/summary>[\s\S]*?<\/details>/g, "")
+		.replace(/<details><summary>[^<]+?<\/summary>[\s\S]*?<\/details>/g, "")
+		.trim();
+}
+
+function parseDataUrl(url: string): { mimeType: string; base64: string } {
+	const matched = String(url || "").match(/^data:([^;,]+);base64,(.+)$/);
+	if (!matched) return { mimeType: "image/png", base64: "" };
+	return { mimeType: matched[1], base64: matched[2] };
 }
 
 // ─── Text-file formatting (unchanged logic, extracted to its own function) ────
@@ -2825,6 +3245,13 @@ form.addEventListener("submit", async (e) => {
 	}
 
 	const messageContent = buildUserMessageContent(prompt, effectiveAttachedFiles);
+	const linkedMediaIds = [
+		...new Set(
+			effectiveAttachedFiles
+				.map((file: any) => file?.mediaId)
+				.filter((id: unknown) => typeof id === "string" && !!String(id)),
+		),
+	];
 	// The text sent to the model for streaming is always the plain-text form.
 	const fullPromptText = typeof messageContent === "string"
 		? messageContent
@@ -2833,7 +3260,19 @@ form.addEventListener("submit", async (e) => {
 	attachedFiles = [];
 	renderFileIndicator();
 
-	session.history.push({ role: "user", content: messageContent });
+	const userEntry = ensureMessageVersioningShape({
+		role: "user",
+		content: cloneMessageContent(messageContent),
+		...(linkedMediaIds.length ? { linkedMediaIds } : {}),
+	});
+	const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
+	if (!root) {
+		setSessionHistoryRoot(session, userEntry, currentSessionId || undefined);
+	} else {
+		const nextRoot = cloneAndRepairTree(root);
+		appendEntriesToActiveLeaf(nextRoot, [userEntry]);
+		setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
+	}
 	await renderChat();
 
 	const botBubble = document.createElement("div");
@@ -2937,7 +3376,21 @@ form.addEventListener("submit", async (e) => {
 		botBubble.classList.remove("thinking");
 		botBubble.removeAttribute("data-text");
 		botBubble.classList.remove("generating");
-		session.history.push({ role: "assistant", content: fullResponse });
+		const activeSession = sessions[currentSessionId];
+		if (activeSession) {
+			const currentRoot = ensureSessionHistoryRoot(activeSession, currentSessionId || undefined);
+			const assistantEntry = ensureMessageVersioningShape({
+				role: "assistant",
+				content: fullResponse,
+			});
+			if (!currentRoot) {
+				setSessionHistoryRoot(activeSession, assistantEntry, currentSessionId || undefined);
+			} else {
+				const nextRoot = cloneAndRepairTree(currentRoot);
+				appendEntriesToActiveLeaf(nextRoot, [assistantEntry]);
+				setSessionHistoryRoot(activeSession, nextRoot, currentSessionId || undefined);
+			}
+		}
 		await renderChat();
 		const status = document.createElement("div");
 		status.textContent = "✅ Done";
@@ -2961,7 +3414,21 @@ form.addEventListener("submit", async (e) => {
 		botBubble.classList.remove("thinking");
 		botBubble.removeAttribute("data-text");
 		botBubble.classList.remove("generating");
-		session.history.push({ role: "assistant", content: fullResponse });
+		const activeSession = sessions[currentSessionId];
+		if (activeSession) {
+			const currentRoot = ensureSessionHistoryRoot(activeSession, currentSessionId || undefined);
+			const assistantEntry = ensureMessageVersioningShape({
+				role: "assistant",
+				content: fullResponse,
+			});
+			if (!currentRoot) {
+				setSessionHistoryRoot(activeSession, assistantEntry, currentSessionId || undefined);
+			} else {
+				const nextRoot = cloneAndRepairTree(currentRoot);
+				appendEntriesToActiveLeaf(nextRoot, [assistantEntry]);
+				setSessionHistoryRoot(activeSession, nextRoot, currentSessionId || undefined);
+			}
+		}
 		await renderChat();
 		const status = document.createElement("div");
 		status.textContent = "⚠︎ Interrupted";
@@ -3183,11 +3650,124 @@ function escapeHtml(value: string): string {
 	return escapeSubscriptionHtml(value);
 }
 
+function cloneMessageContent(content: any): any {
+	if (typeof content === "string") return content;
+	try {
+		return JSON.parse(JSON.stringify(content));
+	} catch {
+		return content;
+	}
+}
+
+function createMessageVersion(content: any): {
+	content: any;
+	timestamp: number;
+	tail: any[];
+} {
+	return {
+		content: cloneMessageContent(content),
+		timestamp: Date.now(),
+		tail: [],
+	};
+}
+
+function ensureMessageMetadata(message: any): void {
+	if (!message || typeof message !== "object") return;
+	if (!message.id) {
+		try {
+			message.id = crypto.randomUUID();
+		} catch {
+			message.id = `msg_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+		}
+	}
+	if (
+		typeof message.timestamp !== "number" ||
+		!Number.isFinite(message.timestamp) ||
+		message.timestamp <= 0
+	) {
+		message.timestamp = Date.now();
+	}
+
+	const supportsVersioning = ["user", "assistant"].includes(String(message.role || ""));
+	if (!supportsVersioning && !Array.isArray(message.versions)) return;
+
+	if (!Array.isArray(message.versions) || message.versions.length === 0) {
+		message.versions = [createMessageVersion(message.content)];
+		message.currentVersionIdx = 0;
+	}
+
+	const currentVersionIdx =
+		typeof message.currentVersionIdx === "number" &&
+		Number.isFinite(message.currentVersionIdx)
+			? Math.max(0, Math.min(message.currentVersionIdx, message.versions.length - 1))
+			: message.versions.length - 1;
+	message.currentVersionIdx = currentVersionIdx;
+	const current = message.versions[currentVersionIdx];
+	if (!current || typeof current !== "object") {
+		message.versions[currentVersionIdx] = createMessageVersion(message.content);
+	}
+	if (!Array.isArray(message.versions[currentVersionIdx].tail)) {
+		message.versions[currentVersionIdx].tail = [];
+	}
+	if (typeof message.versions[currentVersionIdx].timestamp !== "number") {
+		message.versions[currentVersionIdx].timestamp = Date.now();
+	}
+	if (typeof message.versions[currentVersionIdx].content !== "undefined") {
+		message.content = cloneMessageContent(message.versions[currentVersionIdx].content);
+	}
+}
+
+function appendMessageVersion(message: any, nextContent: any): void {
+	ensureMessageMetadata(message);
+	if (!Array.isArray(message.versions)) {
+		message.versions = [createMessageVersion(message.content)];
+	}
+	message.versions.push(createMessageVersion(nextContent));
+	message.currentVersionIdx = message.versions.length - 1;
+	message.timestamp = Date.now();
+}
+
+function normalizeSessionsForSync(allSessions: Record<string, any>): void {
+	for (const session of Object.values(allSessions || {})) {
+		if (!session || typeof session !== "object") continue;
+		if (!Array.isArray(session.history)) {
+			session.history = [];
+			continue;
+		}
+		for (const message of session.history) {
+			ensureMessageMetadata(message);
+		}
+	}
+}
+
 async function persistSessionsAndSync(): Promise<void> {
+	normalizeAllSessionHistories(sessions);
+	normalizeSessionsForSync(sessions);
 	await window.ollama.save(sessions);
 	const auth = await window.auth.getSession();
 	if (isSyncEnabled() && auth?.session?.isAuthenticated) {
-		await safeCallRemote(() => window.sync.saveAllSessions(sessions));
+		const syncResult = await safeCallRemote(
+			() => window.sync.saveAllSessions(sessions),
+			null,
+		);
+		const remoteIdMap =
+			syncResult && typeof syncResult === "object"
+				? (syncResult as any).remoteIdMap
+				: null;
+		let hasRemoteIdUpdates = false;
+		if (remoteIdMap && typeof remoteIdMap === "object") {
+			for (const [localId, remoteId] of Object.entries(remoteIdMap)) {
+				if (!sessions[localId] || typeof remoteId !== "string" || !remoteId.trim()) {
+					continue;
+				}
+				if (sessions[localId].remoteId === remoteId) continue;
+				sessions[localId].remoteId = remoteId;
+				hasRemoteIdUpdates = true;
+			}
+		}
+		if (hasRemoteIdUpdates) {
+			await window.ollama.save(sessions);
+		}
 	}
 }
 
@@ -3218,13 +3798,107 @@ function createMessageActionButton(
 	return button;
 }
 
+async function selectMessageVersion(
+	messageIndex: number,
+	versionIdx: number,
+): Promise<void> {
+	const session = currentSessionId ? sessions[currentSessionId] : null;
+	if (!session) return;
+	const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
+	const history = session.history;
+	const message = history?.[messageIndex];
+	if (!message || !Array.isArray(message.versions) || !message.versions.length) {
+		return;
+	}
+	const clamped = Math.max(0, Math.min(versionIdx, message.versions.length - 1));
+	const nextRoot = cloneAndRepairTree(root);
+	const updated = findAndUpdateMessage(nextRoot, message.id, (node) => {
+		node.currentVersionIdx = clamped;
+		const selected = node.versions?.[clamped];
+		if (selected && typeof selected.content !== "undefined") {
+			node.content = cloneMessageContent(selected.content);
+		}
+		node.timestamp = Date.now();
+	});
+	if (!updated) return;
+	setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
+	await persistSessionsAndSync();
+	await renderChat();
+}
+
+function buildMessageVersionNav(
+	msg: any,
+	messageIndex: number,
+): HTMLDivElement | null {
+	if (!Array.isArray(msg?.versions) || msg.versions.length <= 1) return null;
+
+	const total = msg.versions.length;
+	const current =
+		typeof msg.currentVersionIdx === "number" &&
+		Number.isFinite(msg.currentVersionIdx)
+			? Math.max(0, Math.min(msg.currentVersionIdx, total - 1))
+			: total - 1;
+
+	const nav = document.createElement("div");
+	nav.className = "chat-message-version-nav";
+
+	const prev = document.createElement("button");
+	prev.type = "button";
+	prev.className = "chat-message-version-btn";
+	prev.innerHTML = "&#8249;";
+	prev.disabled = current <= 0;
+	prev.addEventListener("click", (event) => {
+		event.stopPropagation();
+		void selectMessageVersion(messageIndex, current - 1);
+	});
+
+	const label = document.createElement("span");
+	label.className = "chat-message-version-label";
+	label.textContent = `${current + 1} / ${total}`;
+
+	const next = document.createElement("button");
+	next.type = "button";
+	next.className = "chat-message-version-btn";
+	next.innerHTML = "&#8250;";
+	next.disabled = current >= total - 1;
+	next.addEventListener("click", (event) => {
+		event.stopPropagation();
+		void selectMessageVersion(messageIndex, current + 1);
+	});
+
+	nav.appendChild(prev);
+	nav.appendChild(label);
+	nav.appendChild(next);
+	return nav;
+}
+
 function openEditMessageDialog(messageIndex: number): void {
+	const session = currentSessionId ? sessions[currentSessionId] : null;
 	const history = getCurrentSessionMessages();
 	const message = history?.[messageIndex];
 	if (!message) return;
+	normalizeMessageFromActiveVersion(message);
 
-	// For array content, only allow editing the text part.
-	const currentText = getMessageText(message.content);
+	const sourceText = getMessageText(message.content);
+	const initialText = stripAttachedDetailsBlocks(sourceText);
+	const initialTextAttachments = extractAttachedTextFiles(sourceText).map((file) => ({
+		type: "text",
+		name: file.name,
+		content: file.content,
+	}));
+	const initialImageAttachments = getMessageImages(message.content).map((url, index) => {
+		const parsed = parseDataUrl(url);
+		return {
+			type: "image",
+			name: `image-${index + 1}.png`,
+			mimeType: parsed.mimeType,
+			base64: parsed.base64,
+		};
+	});
+	const editAttachments: AttachedFile[] = [
+		...initialTextAttachments,
+		...initialImageAttachments,
+	];
 
 	editModal.open({
 		title: "Edit Message",
@@ -3234,7 +3908,16 @@ function openEditMessageDialog(messageIndex: number): void {
 				class="modal-input"
 				rows="8"
 				style="width:100%; resize:vertical;"
-			>${escapeHtml(currentText)}</textarea>
+			>${escapeHtml(initialText)}</textarea>
+			<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+				${
+					isMediaLibraryAvailable()
+						? `<button id="edit-attach-media" class="btn-ghost" type="button">Add from media library</button>`
+						: ""
+				}
+				<button id="edit-clear-media" class="btn-ghost" type="button">Clear attachments</button>
+			</div>
+			<div id="edit-attachment-count" style="margin-top:8px;font-size:12px;opacity:0.8;"></div>
 		`,
 		actions: [
 			{
@@ -3260,33 +3943,83 @@ function openEditMessageDialog(messageIndex: number): void {
 						return;
 					}
 
-					const latestHistory = getCurrentSessionMessages();
-					if (!latestHistory?.[messageIndex]) {
-						editModal.close();
-						return;
-					}
+						const latestHistory = getCurrentSessionMessages();
+						if (!latestHistory?.[messageIndex]) {
+							editModal.close();
+							return;
+						}
 
-					const existing = latestHistory[messageIndex];
-					if (Array.isArray(existing.content)) {
-						// Keep image parts, replace only the text part.
-						const imageParts = existing.content.filter(
-							(p: UserContentPart) => p.type === "image_url",
-						);
-						latestHistory[messageIndex].content = [
-							{ type: "text", text: updated },
-							...imageParts,
+						const existing = latestHistory[messageIndex];
+						const nextContent = buildUserMessageContent(updated, editAttachments);
+						const linkedMediaIds = [
+							...new Set(
+								editAttachments
+									.map((file: any) => file?.mediaId)
+									.filter((id: unknown) => typeof id === "string" && !!String(id)),
+							),
 						];
-					} else {
-						latestHistory[messageIndex].content = updated;
-					}
+						const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
+						const nextRoot = cloneAndRepairTree(root);
+						const context = findMessageContext(nextRoot, existing.id);
+						if (!context?.message) return;
+						findAndUpdateMessage(nextRoot, existing.id, (messageNode) => {
+							if (
+								messageNode.role === "user" &&
+								Array.isArray(context.parentTail) &&
+								context.index >= 0
+							) {
+								const trailing = context.parentTail.splice(context.index + 1);
+								if (trailing.length) {
+									const currentVersion = getActiveVersionNode(messageNode);
+									currentVersion.tail = [...(currentVersion.tail || []), ...trailing];
+								}
+							}
+							messageNode.versions.push({
+								content: cloneMessageContent(nextContent),
+								tail: [],
+								timestamp: Date.now(),
+							});
+							messageNode.currentVersionIdx = messageNode.versions.length - 1;
+							messageNode.content = cloneMessageContent(nextContent);
+							if (linkedMediaIds.length) messageNode.linkedMediaIds = linkedMediaIds;
+							else delete messageNode.linkedMediaIds;
+							messageNode.timestamp = Date.now();
+						});
+						setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
 
-					await persistSessionsAndSync();
-					await renderChat();
-					editModal.close();
-				},
+						await persistSessionsAndSync();
+						await renderChat();
+						editModal.close();
+					},
 			},
 		],
 	});
+	setTimeout(() => {
+		const attachBtn = document.getElementById("edit-attach-media");
+		const clearBtn = document.getElementById("edit-clear-media");
+		const countEl = document.getElementById("edit-attachment-count");
+		const renderCount = () => {
+			if (!countEl) return;
+			countEl.textContent = `${editAttachments.length} attachment${editAttachments.length === 1 ? "" : "s"} selected`;
+		};
+		renderCount();
+		attachBtn?.addEventListener("click", () => {
+			void openMediaPicker({
+				title: "Attach media to edited message",
+				onSelect: async (items) => {
+					for (const item of items) {
+						const attachment = await mediaItemToAttachment(item);
+						if (attachment) editAttachments.push(attachment as AttachedFile);
+					}
+					renderCount();
+				},
+			});
+		});
+		clearBtn?.addEventListener("click", () => {
+			editAttachments.splice(0, editAttachments.length);
+			renderCount();
+		});
+	}, 0);
 }
 
 function openDeleteMessageDialog(messageIndex: number): void {
@@ -3303,13 +4036,39 @@ function openDeleteMessageDialog(messageIndex: number): void {
 				id: "confirm-delete-message",
 				label: "Delete",
 				onClick: async () => {
-					const history = getCurrentSessionMessages();
-					if (!history?.[messageIndex]) {
+					const session = currentSessionId ? sessions[currentSessionId] : null;
+					if (!session) {
 						editModal.close();
 						return;
 					}
-
-					history.splice(messageIndex, 1);
+					const history = session.history;
+					const target = history?.[messageIndex];
+					if (!target?.id) {
+						editModal.close();
+						return;
+					}
+					const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
+					if (!root) {
+						editModal.close();
+						return;
+					}
+					const nextRoot = cloneAndRepairTree(root);
+					const context = findMessageContext(nextRoot, target.id);
+					if (!context) {
+						editModal.close();
+						return;
+					}
+					if (context.parentTail && context.index >= 0) {
+						context.parentTail.splice(context.index, 1);
+					} else if (context.message?.id === nextRoot.id) {
+						// Deleting root clears the session history entirely.
+						setSessionHistoryRoot(session, null, currentSessionId || undefined);
+						await persistSessionsAndSync();
+						await renderChat();
+						editModal.close();
+						return;
+					}
+					setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
 					await persistSessionsAndSync();
 					await renderChat();
 					editModal.close();
@@ -3397,6 +4156,7 @@ async function renderChat() {
 	setWelcomeMode(false);
 
 	for (const [messageIndex, msg] of session.history.entries()) {
+		normalizeMessageFromActiveVersion(msg);
 		/* ---------------- USER ---------------- */
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
@@ -3404,9 +4164,11 @@ async function renderChat() {
 
 			// Render the text portion via markdown.
 			const textContent = getMessageText(msg.content);
+			const fileAttachments = extractAttachedTextFiles(textContent);
+			const displayText = stripAttachedDetailsBlocks(textContent);
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
-				textContent || "",
+				displayText || "",
 			);
 
 			// Render any inline images that were attached to this message.
@@ -3450,10 +4212,34 @@ async function renderChat() {
 				bubble.appendChild(imgWrapper);
 			}
 
-			const actions = buildMessageActions(msg, messageIndex);
-			if (actions) {
-				bubble.appendChild(actions);
+			if (fileAttachments.length > 0) {
+				const row = document.createElement("div");
+				row.className = "msg-file-attachments";
+				for (const file of fileAttachments) {
+					const chip = document.createElement("button");
+					chip.type = "button";
+					chip.className = "file-attachment-chip";
+					chip.textContent = file.name;
+					chip.addEventListener("click", () => {
+						openFilePreview({
+							type: "text",
+							name: file.name,
+							content: file.content,
+						});
+					});
+					row.appendChild(chip);
+				}
+				bubble.appendChild(row);
 			}
+
+				const actions = buildMessageActions(msg, messageIndex);
+				const versionNav = buildMessageVersionNav(msg, messageIndex);
+				if (versionNav) {
+					bubble.appendChild(versionNav);
+				}
+				if (actions) {
+					bubble.appendChild(actions);
+				}
 			chatBox.appendChild(bubble);
 			continue;
 		}
@@ -3594,29 +4380,53 @@ async function renderChat() {
 				}
 			});
 
-			const actions = buildMessageActions(msg, messageIndex);
-			if (actions) {
-				botContainer.appendChild(actions);
+				const actions = buildMessageActions(msg, messageIndex);
+				const versionNav = buildMessageVersionNav(msg, messageIndex);
+				if (versionNav) {
+					botContainer.appendChild(versionNav);
+				}
+				if (actions) {
+					botContainer.appendChild(actions);
+				}
+
+				chatBox.appendChild(botContainer);
+				continue;
 			}
 
-			chatBox.appendChild(botContainer);
-			continue;
-		}
+			if (msg.role === "image") {
+				renderImageAssetFromContent(
+					msg.content,
+					chatBox,
+					typeof msg.mimeType === "string" && msg.mimeType.trim()
+						? msg.mimeType
+						: "image/png",
+				);
+				continue;
+			}
 
-		if (msg.role === "image") {
-			chatBox.appendChild(createImageAssetBubble(msg.content));
-			continue;
-		}
+			if (msg.role === "video") {
+				renderMediaAssetFromContent(
+					"video",
+					msg.content,
+					chatBox,
+					typeof msg.mimeType === "string" && msg.mimeType.trim()
+						? msg.mimeType
+						: "video/mp4",
+				);
+				continue;
+			}
 
-		if (msg.role === "video") {
-			renderMediaAssetFromContent("video", msg.content, chatBox);
-			continue;
-		}
-
-		if (msg.role === "audio") {
-			renderMediaAssetFromContent("audio", msg.content, chatBox);
-			continue;
-		}
+			if (msg.role === "audio") {
+				renderMediaAssetFromContent(
+					"audio",
+					msg.content,
+					chatBox,
+					typeof msg.mimeType === "string" && msg.mimeType.trim()
+						? msg.mimeType
+						: "audio/mpeg",
+				);
+				continue;
+			}
 
 		if (msg.role === "tool") {
 			const toolBubble = document.createElement("div");
@@ -3839,6 +4649,15 @@ function createAudioAssetBubble(dataUrl: string): HTMLDivElement {
 	return botContainer;
 }
 
+function isInlineMediaUrl(content: string): boolean {
+	return (
+		content.startsWith("data:") ||
+		content.startsWith("blob:") ||
+		content.startsWith("http://") ||
+		content.startsWith("https://")
+	);
+}
+
 async function getAssetObjectUrl(
 	assetId: string,
 	mimeType: string,
@@ -3860,12 +4679,39 @@ async function getAssetObjectUrl(
 	return objectUrl;
 }
 
+function renderImageAssetFromContent(
+	content: string,
+	chatBox: HTMLDivElement,
+	mimeType = "image/png",
+): void {
+	if (isInlineMediaUrl(content)) {
+		chatBox.appendChild(createImageAssetBubble(content));
+		return;
+	}
+
+	const loadingBubble = document.createElement("div");
+	loadingBubble.className = "chat-bubble tool-bubble";
+	loadingBubble.textContent = "Loading image asset...";
+	chatBox.appendChild(loadingBubble);
+
+	void getAssetObjectUrl(content, mimeType)
+		.then((objectUrl) => {
+			const imageBubble = createImageAssetBubble(objectUrl);
+			loadingBubble.replaceWith(imageBubble);
+			if (autoScroll) chatBox.scrollTop = chatBox.scrollHeight;
+		})
+		.catch((err) => {
+			loadingBubble.textContent = `Failed to load image asset: ${String(err)}`;
+		});
+}
+
 function renderMediaAssetFromContent(
 	role: "video" | "audio",
 	content: string,
 	chatBox: HTMLDivElement,
+	mimeType?: string,
 ): void {
-	if (content.startsWith("data:") || content.startsWith("blob:")) {
+	if (isInlineMediaUrl(content)) {
 		chatBox.appendChild(
 			role === "video"
 				? createVideoAssetBubble(content)
@@ -3879,8 +4725,8 @@ function renderMediaAssetFromContent(
 	loadingBubble.textContent = `Loading ${role} asset...`;
 	chatBox.appendChild(loadingBubble);
 
-	const mimeType = role === "video" ? "video/mp4" : "audio/mpeg";
-	void getAssetObjectUrl(content, mimeType)
+	const fallbackMimeType = role === "video" ? "video/mp4" : "audio/mpeg";
+	void getAssetObjectUrl(content, mimeType || fallbackMimeType)
 		.then((objectUrl) => {
 			const mediaBubble =
 				role === "video"
@@ -3894,14 +4740,18 @@ function renderMediaAssetFromContent(
 		});
 }
 
-function renderAsset(role: "image" | "video" | "audio", content: string) {
+function renderAsset(
+	role: "image" | "video" | "audio",
+	content: string,
+	mimeType?: string,
+) {
 	const chatBox = document.getElementById("chat-box");
 	if (!chatBox) return;
 
 	if (role === "image") {
-		chatBox.appendChild(createImageAssetBubble(content));
+		renderImageAssetFromContent(content, chatBox, mimeType || "image/png");
 	} else {
-		renderMediaAssetFromContent(role, content, chatBox);
+		renderMediaAssetFromContent(role, content, chatBox, mimeType);
 	}
 
 	if (autoScroll) {
@@ -4134,31 +4984,31 @@ function upsertToolHistoryEntry(
 	call: any,
 	content: string,
 ): void {
-	if (!Array.isArray(session.history)) {
-		session.history = [];
-	}
-
-	const index = session.history.findIndex(
-		(msg: any) => msg.role === "tool" && msg.tool_call_id === call.id,
-	);
-
-	if (index >= 0) {
-		session.history[index] = {
-			...session.history[index],
-			role: "tool",
-			tool_call_id: call.id,
-			name: call.name,
-			content,
-		};
+	const existing = Array.isArray(session.history)
+		? session.history.find((msg: any) => msg.role === "tool" && msg.tool_call_id === call.id)
+		: null;
+	if (existing) {
+		existing.content = content;
+		existing.name = call.name;
 		return;
 	}
-
-	session.history.push({
+	const root = ensureSessionHistoryRoot(session);
+	const sessionId = findSessionIdByRef(session);
+	const toolEntry = {
+		id: `tool-${call.id}`,
+		timestamp: Date.now(),
 		role: "tool",
 		tool_call_id: call.id,
 		name: call.name,
 		content,
-	});
+	};
+	if (!root) {
+		setSessionHistoryRoot(session, ensureMessageVersioningShape(toolEntry), sessionId || undefined);
+		return;
+	}
+	const nextRoot = cloneAndRepairTree(root);
+	appendEntriesToActiveLeaf(nextRoot, [toolEntry]);
+	setSessionHistoryRoot(session, nextRoot, sessionId || undefined);
 }
 
 function setVideoBubbleControlsDisabled(
@@ -5008,11 +5858,17 @@ window.ollama.onNewAsset((msg) => {
 
 	const session = sessions[targetSessionId];
 	const last = session.history.at(-1);
-
-	const content =
-		msg.role === "image" && !msg.content.startsWith("data:")
-			? `data:image/png;base64,${msg.content}`
-			: msg.content;
+	const content = String(msg.content || "");
+	const mimeType =
+		typeof msg.mimeType === "string" && msg.mimeType.trim()
+			? msg.mimeType.trim()
+			: msg.role === "image"
+				? "image/png"
+				: msg.role === "video"
+					? "video/mp4"
+					: msg.role === "audio"
+						? "audio/mpeg"
+						: "";
 
 	if (last?.role === msg.role && last?.content === content) return;
 
@@ -5023,10 +5879,21 @@ window.ollama.onNewAsset((msg) => {
 		return;
 	}
 
-	session.history.push({
+	const root = ensureSessionHistoryRoot(session, targetSessionId);
+	const mediaEntry = {
+		id: `${msg.role}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+		timestamp: Date.now(),
 		role: msg.role,
 		content,
-	});
+		...(mimeType ? { mimeType } : {}),
+	};
+	if (!root) {
+		setSessionHistoryRoot(session, ensureMessageVersioningShape(mediaEntry), targetSessionId);
+	} else {
+		const nextRoot = cloneAndRepairTree(root);
+		appendEntriesToActiveLeaf(nextRoot, [mediaEntry]);
+		setSessionHistoryRoot(session, nextRoot, targetSessionId);
+	}
 	if (msg.role === "image") {
 		bumpUsage("imagesDaily");
 	}
@@ -5039,7 +5906,7 @@ window.ollama.onNewAsset((msg) => {
 
 	void window.ollama.save(sessions);
 	if (shouldRender) {
-		renderAsset(msg.role, content);
+		renderAsset(msg.role, content, mimeType || undefined);
 	}
 });
 

@@ -31,6 +31,14 @@ import { getSession } from "./auth.js";
 import mdFootnote from "markdown-it-footnote";
 
 const dataDir: string = app.getPath("userData");
+const chatStorageApiBase = "https://sharktide-chat.hf.space/api";
+
+type SaveStreamOptions = {
+	name?: string;
+	mimeType?: string;
+	kind?: "image" | "video" | "audio" | "file" | "text" | "rich_text";
+	sessionId?: string | null;
+};
 
 type SnipTarget = {
 	displayId: number;
@@ -53,7 +61,59 @@ export function is52458(url: string): boolean {
 	}
 }
 
-export async function save_stream(response: Blob): Promise<UUID> {
+function inferFileExtensionFromMime(mimeType: string): string {
+	const mime = String(mimeType || "").toLowerCase();
+	if (mime === "image/png") return "png";
+	if (mime === "image/jpeg") return "jpg";
+	if (mime === "image/webp") return "webp";
+	if (mime === "image/gif") return "gif";
+	if (mime === "image/svg+xml") return "svg";
+	if (mime === "video/mp4") return "mp4";
+	if (mime === "video/webm") return "webm";
+	if (mime === "audio/mpeg") return "mp3";
+	if (mime === "audio/wav") return "wav";
+	if (mime === "audio/ogg") return "ogg";
+	if (!mime.includes("/")) return "bin";
+	return mime.split("/")[1]?.trim() || "bin";
+}
+
+function inferKindFromMime(mimeType: string): SaveStreamOptions["kind"] {
+	const mime = String(mimeType || "").toLowerCase();
+	if (mime.startsWith("image/")) return "image";
+	if (mime.startsWith("video/")) return "video";
+	if (mime.startsWith("audio/")) return "audio";
+	if (mime.startsWith("text/")) return "text";
+	return "file";
+}
+
+function buildAssetName(
+	mimeType: string,
+	kind: SaveStreamOptions["kind"],
+	explicitName?: string,
+): string {
+	if (explicitName && explicitName.trim()) return explicitName.trim();
+	const ext = inferFileExtensionFromMime(mimeType);
+	const prefix =
+		kind === "image"
+			? "generated-image"
+			: kind === "video"
+				? "generated-video"
+				: kind === "audio"
+					? "generated-audio"
+					: "upload";
+	return `${prefix}-${Date.now()}.${ext}`;
+}
+
+async function getSignedInAccessToken(): Promise<string | null> {
+	try {
+		const session = await getSession();
+		return session?.access_token || null;
+	} catch {
+		return null;
+	}
+}
+
+async function saveStreamToLocalDisk(response: Blob): Promise<UUID> {
 	const asset_id = crypto.randomUUID();
 	const assetsDir = path.join(dataDir, "assets");
 	const file_path = path.join(assetsDir, `${asset_id}.blob`);
@@ -80,8 +140,106 @@ export async function save_stream(response: Blob): Promise<UUID> {
 	return asset_id;
 }
 
+export async function save_stream(
+	response: Blob,
+	options: SaveStreamOptions = {},
+): Promise<UUID> {
+	const mimeType =
+		options.mimeType?.trim() || response.type || "application/octet-stream";
+	const kind = options.kind || inferKindFromMime(mimeType);
+	const name = buildAssetName(mimeType, kind, options.name);
+	const accessToken = await getSignedInAccessToken();
+
+	if (accessToken) {
+		try {
+			const buffer = Buffer.from(await response.arrayBuffer());
+			const payload: Record<string, unknown> = {
+				name,
+				mimeType,
+				base64: buffer.toString("base64"),
+				kind,
+				source: "inferenceport_desktop",
+			};
+			if (options.sessionId && options.sessionId.trim()) {
+				payload.sessionId = options.sessionId.trim();
+			}
+
+			const res = await fetch(`${chatStorageApiBase}/db/media/files`, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+			});
+
+			let body: any = null;
+			try {
+				body = await res.json();
+			} catch {
+				body = null;
+			}
+
+			if (res.ok && typeof body?.item?.id === "string") {
+				return body.item.id;
+			}
+			const remoteError =
+				typeof body?.message === "string"
+					? body.message
+					: typeof body?.error === "string"
+						? body.error
+						: `remote media save failed (${res.status})`;
+			throw new Error(remoteError);
+		} catch (err) {
+			console.warn("[media] Remote save failed, using local fallback:", err);
+		}
+	}
+
+	return await saveStreamToLocalDisk(response);
+}
+
 export async function load_blob(asset_id: UUID): Promise<Buffer> {
 	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	try {
+		return await fs.promises.readFile(file_path);
+	} catch (err: Error | any) {
+		if (err.code !== "ENOENT") throw err;
+	}
+
+	const accessToken = await getSignedInAccessToken();
+	if (accessToken) {
+		try {
+			const res = await fetch(
+				`${chatStorageApiBase}/db/media/${encodeURIComponent(String(asset_id))}/content`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: "application/json",
+					},
+				},
+			);
+
+			if (res.ok) {
+				const payload = (await res.json()) as {
+					encoding?: string;
+					content?: string;
+				};
+				if (
+					payload?.encoding === "base64" &&
+					typeof payload?.content === "string"
+				) {
+					return Buffer.from(payload.content, "base64");
+				}
+				if (typeof payload?.content === "string") {
+					return Buffer.from(payload.content, "utf8");
+				}
+			}
+		} catch (err) {
+			console.warn("[media] Remote read failed, trying local fallback:", err);
+		}
+	}
 	return await fs.promises.readFile(file_path);
 }
 
@@ -89,8 +247,33 @@ export async function delete_blob(asset_id: UUID): Promise<void> {
 	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
 	try {
 		await fs.promises.unlink(file_path);
+		return;
 	} catch (err: Error | any) {
-		if (err.code != "ENOENT") throw err;
+		if (err.code !== "ENOENT") throw err;
+	}
+
+	const accessToken = await getSignedInAccessToken();
+	if (accessToken) {
+		try {
+			const res = await fetch(`${chatStorageApiBase}/db/media`, {
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ ids: [String(asset_id)] }),
+			});
+			if (!res.ok && res.status !== 404) {
+				const payload = await res.json().catch(() => null);
+				console.warn(
+					"[media] Remote delete failed:",
+					payload?.error || payload?.message || res.status,
+				);
+			}
+		} catch (err) {
+			console.warn("[media] Remote delete failed, trying local fallback:", err);
+		}
 	}
 }
 

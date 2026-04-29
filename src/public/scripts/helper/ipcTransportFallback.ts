@@ -1295,15 +1295,116 @@ export function installWebSocketTransportFallback(): void {
 
 	window.sync = {
 		getRemoteSessions: async () =>
-			invokeOrDefault<Record<string, Session>>(
+			invokeOrDefault<{ sessions?: Record<string, Session>; error?: string }>(
 				"sync:getRemoteSessions",
 				[],
 			),
-		saveAllSessions: async (sessions: Record<string, Sessions>) =>
-			invokeOrDefault<string | { error: string }>(
+		saveAllSessions: async (sessions: Record<string, Session>) =>
+			invokeOrDefault<{
+				success?: boolean;
+				error?: string;
+				remoteIdMap?: Record<string, string>;
+			}>(
 				"sync:saveAllSessions",
 				[sessions],
 			),
+		mediaList: async (params?: {
+			view?: "all" | "active" | "trash";
+			parentId?: string | null;
+		}) =>
+			invokeOrDefault<{
+				items?: MediaItem[];
+				breadcrumbs?: Array<{ id: string; name: string }>;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaList", [params]),
+		mediaGet: async (id: string) =>
+			invokeOrDefault<{ item?: MediaItem; error?: string }>("sync:mediaGet", [
+				id,
+			]),
+		mediaGetContent: async (
+			id: string,
+			params?: { format?: "text" | "base64" },
+		) =>
+			invokeOrDefault<{
+				item?: MediaItem;
+				encoding?: "utf8" | "base64" | string;
+				content?: string;
+				error?: string;
+			}>("sync:mediaGetContent", [id, params]),
+		mediaCreateFile: async (payload: {
+			name?: string;
+			mimeType?: string;
+			parentId?: string | null;
+			sessionId?: string | null;
+			kind?: string | null;
+			text?: string;
+			base64?: string;
+			source?: string;
+		}) =>
+			invokeOrDefault<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaCreateFile", [payload]),
+		mediaCreateFolder: async (payload: {
+			name?: string;
+			parentId?: string | null;
+		}) =>
+			invokeOrDefault<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaCreateFolder", [payload]),
+		mediaUpdate: async (
+			id: string,
+			payload: { name?: string; parentId?: string | null },
+		) =>
+			invokeOrDefault<{
+				item?: MediaItem;
+				updates?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaUpdate", [id, payload]),
+		mediaUpdateContent: async (
+			id: string,
+			payload: {
+				text?: string;
+				base64?: string;
+				mimeType?: string | null;
+				name?: string | null;
+				kind?: string | null;
+			},
+		) =>
+			invokeOrDefault<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaUpdateContent", [id, payload]),
+		mediaMove: async (payload: { ids: string[]; parentId?: string | null }) =>
+			invokeOrDefault<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaMove", [payload]),
+		mediaTrash: async (payload: { ids: string[] }) =>
+			invokeOrDefault<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaTrash", [payload]),
+		mediaRestore: async (payload: { ids: string[] }) =>
+			invokeOrDefault<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaRestore", [payload]),
+		mediaDelete: async (payload: { ids: string[] }) =>
+			invokeOrDefault<{
+				ids?: string[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>("sync:mediaDelete", [payload]),
 	};
 
 	window.storageSync = {

@@ -353,6 +353,28 @@ function waitForAudioRequestInput(
     );
 }
 
+async function persistGeneratedImage(dataUrl: string, sessionId?: string): Promise<string> {
+	const trimmed = typeof dataUrl === "string" ? dataUrl.trim() : "";
+	if (!trimmed) return trimmed;
+	if (!trimmed.startsWith("data:")) return trimmed;
+
+	try {
+		const imageResponse = await fetch(trimmed);
+		if (!imageResponse.ok) return trimmed;
+		const blob = await imageResponse.blob();
+		const mimeType = blob.type || "image/png";
+		return await save_stream(blob, {
+			kind: "image",
+			mimeType,
+			sessionId: sessionId || null,
+			name: `generated-image-${Date.now()}.${mimeType.includes("svg") ? "svg" : mimeType.split("/")[1] || "png"}`,
+		});
+	} catch (err) {
+		console.warn("[chatStream] Failed to persist generated image:", err);
+		return trimmed;
+	}
+}
+
 async function runDirectImageToolCall(
 	toolCallId: string,
 	payload?: unknown,
@@ -397,9 +419,13 @@ async function runDirectImageToolCall(
 			});
 
 			const { dataUrl } = await GenerateImage(selected);
+			const persisted = await persistGeneratedImage(dataUrl);
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "image",
-				content: dataUrl,
+				content: persisted,
+				mimeType: persisted.startsWith("data:image/svg")
+					? "image/svg+xml"
+					: "image/png",
 			});
 			toolResult = "Image generated successfully and shown to the user.";
 		}
@@ -467,10 +493,15 @@ async function runDirectVideoToolCall(
 
 			const video = await generateVideo(selected);
 			const videoBlob = new Blob([video], { type: "video/mp4" });
-			const assetID = await save_stream(videoBlob);
+			const assetID = await save_stream(videoBlob, {
+				kind: "video",
+				mimeType: "video/mp4",
+				name: `generated-video-${Date.now()}.mp4`,
+			});
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "video",
 				content: assetID,
+				mimeType: "video/mp4",
 			});
 			toolResult = "Video generated successfully and shown to the user.";
 		}
@@ -538,10 +569,15 @@ async function runDirectAudioToolCall(
 
 			const audio = await generateAudioOrSFX(selected.prompt);
 			const audioBlob = new Blob([audio], { type: "audio/mpeg" });
-			const assetID = await save_stream(audioBlob);
+			const assetID = await save_stream(audioBlob, {
+				kind: "audio",
+				mimeType: "audio/mpeg",
+				name: `generated-audio-${Date.now()}.mp3`,
+			});
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "audio",
 				content: assetID,
+				mimeType: "audio/mpeg",
 			});
 			toolResult = "Audio generated successfully and shown to the user.";
 		}
@@ -1031,9 +1067,16 @@ export default function registerChatStream() {
 								});
 
 								const { dataUrl } = await GenerateImage(selected);
+								const persisted = await persistGeneratedImage(
+									dataUrl,
+									sessionId,
+								);
 								broadcastIpcEvent("ollama:new-asset", {
 									role: "image",
-									content: dataUrl,
+									content: persisted,
+									mimeType: persisted.startsWith("data:image/svg")
+										? "image/svg+xml"
+										: "image/png",
 								});
 								toolResult = "Image generated successfully and shown to the user.";
 							}
@@ -1077,10 +1120,16 @@ export default function registerChatStream() {
 
 								const video = await generateVideo(selected);
 								const videoBlob = new Blob([video], { type: "video/mp4" });
-								const assetID = await save_stream(videoBlob);
+								const assetID = await save_stream(videoBlob, {
+									kind: "video",
+									mimeType: "video/mp4",
+									sessionId: sessionId || null,
+									name: `generated-video-${Date.now()}.mp4`,
+								});
 								broadcastIpcEvent("ollama:new-asset", {
 									role: "video",
 									content: assetID,
+									mimeType: "video/mp4",
 								});
 								toolResult = "Video generated successfully and shown to the user.";
 							}
@@ -1125,10 +1174,16 @@ export default function registerChatStream() {
 
 								const audio = await generateAudioOrSFX(selected.prompt);
 								const audioBlob = new Blob([audio], { type: "audio/mpeg" });
-								const assetID = await save_stream(audioBlob);
+								const assetID = await save_stream(audioBlob, {
+									kind: "audio",
+									mimeType: "audio/mpeg",
+									sessionId: sessionId || null,
+									name: `generated-audio-${Date.now()}.mp3`,
+								});
 								broadcastIpcEvent("ollama:new-asset", {
 									role: "audio",
 									content: assetID,
+									mimeType: "audio/mpeg",
 								});
 								toolResult = "Audio generated successfully and shown to the user.";
 							}
