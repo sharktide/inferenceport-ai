@@ -170,10 +170,7 @@ function openEditorPanel(opts: {
 		for (const [label, cmd, ttl] of [
 			["Bold", "bold", "Bold"],
 			["Italic", "italic", "Italic"],
-			["Underline", "underline", "Underline"],
-			["Bullets", "insertUnorderedList", "Bullet list"],
-			["Quote", "formatBlock", "Blockquote"],
-			["Link", "createLink", "Insert link"],
+			["Underline", "underline", "Underline"]
 		] as Array<[string, string, string]>) {
 			const btn = document.createElement("button");
 			btn.className = "media-editor-tool";
