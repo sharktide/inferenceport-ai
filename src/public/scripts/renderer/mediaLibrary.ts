@@ -119,6 +119,132 @@ function openTextInputModal(opts: {
 	});
 }
 
+// Side-panel editor: used for both creating new docs and editing existing files
+// Returns { name, content } for new-file creation, or null if cancelled
+function openEditorPanel(opts: {
+	title: string;
+	fileName: string;
+	fileType: string; // 'rich_text' | 'text' | extension like 'js', 'py', etc.
+	initialContent: string;
+	isNew: boolean;
+	confirmLabel?: string;
+	onSave?: (name: string, content: string) => Promise<void>;
+	onClose?: () => void;
+}): void {
+	const panel = document.getElementById("media-editor-panel");
+	const contentWrap = document.getElementById("media-editor-content");
+	const titleEl = document.getElementById("media-editor-title");
+	const metaEl = document.getElementById("media-editor-meta");
+	const toolbar = document.getElementById("media-editor-toolbar");
+	const nameRow = document.getElementById("media-editor-name-row");
+	const nameInput = document.getElementById("media-editor-filename") as HTMLInputElement | null;
+	if (!panel || !contentWrap || !titleEl || !metaEl || !toolbar) return;
+
+	const isRich = opts.fileType === "rich_text";
+	const metaLabel = isRich ? "Rich text" : opts.fileType === "text" ? "Plain text" : opts.fileType.toUpperCase();
+
+	titleEl.textContent = opts.isNew ? opts.title : opts.fileName;
+	metaEl.textContent = metaLabel;
+
+	// Show/hide the filename input row for new file creation
+	if (nameRow) nameRow.classList.toggle("hidden", !opts.isNew);
+	if (nameInput) nameInput.value = opts.fileName;
+
+	// Reset content area and toolbar
+	contentWrap.innerHTML = "";
+	toolbar.innerHTML = "";
+	toolbar.classList.toggle("hidden", !isRich);
+
+	// Show panel (.hidden class only — no inline style conflict)
+	panel.classList.remove("hidden");
+	panel.removeAttribute("aria-hidden");
+
+	let getValue = () => "";
+
+	if (isRich) {
+		const editor = document.createElement("div");
+		editor.className = "media-rich-editor";
+		editor.contentEditable = "true";
+		editor.innerHTML = opts.initialContent || "<p></p>";
+		contentWrap.appendChild(editor);
+		for (const [label, cmd, ttl] of [
+			["Bold", "bold", "Bold"],
+			["Italic", "italic", "Italic"],
+			["Underline", "underline", "Underline"],
+			["Bullets", "insertUnorderedList", "Bullet list"],
+			["Quote", "formatBlock", "Blockquote"],
+			["Link", "createLink", "Insert link"],
+		] as Array<[string, string, string]>) {
+			const btn = document.createElement("button");
+			btn.className = "media-editor-tool";
+			btn.type = "button";
+			btn.textContent = label;
+			btn.title = ttl;
+			btn.addEventListener("click", () => {
+				if (cmd === "createLink") {
+					const url = prompt("Enter URL:");
+					if (url) document.execCommand(cmd, false, url);
+				} else if (cmd === "formatBlock") {
+					document.execCommand(cmd, false, "<blockquote>");
+				} else {
+					document.execCommand(cmd);
+				}
+			});
+			toolbar.appendChild(btn);
+		}
+		getValue = () => editor.innerHTML;
+	} else {
+		const textarea = document.createElement("textarea");
+		textarea.className = "media-text-editor";
+		textarea.value = opts.initialContent;
+		contentWrap.appendChild(textarea);
+		getValue = () => textarea.value;
+	}
+
+	const closeEditor = () => {
+		panel.classList.add("hidden");
+		panel.setAttribute("aria-hidden", "true");
+		contentWrap.innerHTML = "";
+		toolbar.innerHTML = "";
+		opts.onClose?.();
+	};
+
+	// Replace buttons with fresh clones to clear any old listeners,
+	// then look up fresh nodes by ID since replaceChild swaps them in the DOM.
+	const oldClose = document.getElementById("media-editor-close");
+	const oldCancel = document.getElementById("media-editor-cancel");
+	const oldSave = document.getElementById("media-editor-save") as HTMLButtonElement | null;
+
+	if (oldClose?.parentNode) {
+		const fresh = oldClose.cloneNode(true) as HTMLElement;
+		oldClose.parentNode.replaceChild(fresh, oldClose);
+		fresh.addEventListener("click", closeEditor);
+	}
+	if (oldCancel?.parentNode) {
+		const fresh = oldCancel.cloneNode(true) as HTMLElement;
+		oldCancel.parentNode.replaceChild(fresh, oldCancel);
+		fresh.addEventListener("click", closeEditor);
+	}
+	if (oldSave?.parentNode) {
+		const fresh = oldSave.cloneNode(true) as HTMLButtonElement;
+		oldSave.parentNode.replaceChild(fresh, oldSave);
+		fresh.textContent = opts.confirmLabel || "Save";
+		fresh.onclick = async () => {
+			const content = getValue();
+			const name = opts.isNew && nameInput ? (nameInput.value.trim() || opts.fileName) : opts.fileName;
+			if (!name) {
+				showNotification({ type: "warning", message: "A file name is required." });
+				return;
+			}
+			if (opts.onSave) {
+				await opts.onSave(name, content);
+			}
+			// Always close panel after save
+			closeEditor();
+		};
+	}
+}
+
 function openDocumentModal(opts: {
 	title: string;
 	defaultName: string;
@@ -126,41 +252,20 @@ function openDocumentModal(opts: {
 	confirmLabel?: string;
 }): Promise<{ name: string; content: string } | null> {
 	return new Promise((resolve) => {
-		const modal = ensureMediaModal();
-		modal.open({
+		let resolved = false;
+		openEditorPanel({
 			title: opts.title,
-			html: `
-				<label for="media-doc-name" style="display:block;font-size:12px;opacity:.8;margin-bottom:6px;">File name</label>
-				<input id="media-doc-name" class="modal-input" value="${escHtml(opts.defaultName)}" />
-				<label for="media-doc-content" style="display:block;font-size:12px;opacity:.8;margin:10px 0 6px;">Content</label>
-				<textarea id="media-doc-content" class="modal-input" rows="8" style="width:100%;resize:vertical;">${escHtml(opts.defaultContent)}</textarea>
-			`,
-			actions: [
-				{
-					id: "media-doc-cancel",
-					label: "Cancel",
-					onClick: () => {
-						closeMediaModal();
-						resolve(null);
-					},
-				},
-				{
-					id: "media-doc-create",
-					label: opts.confirmLabel || "Create",
-					onClick: () => {
-						const nameInput = document.getElementById("media-doc-name") as HTMLInputElement | null;
-						const contentInput = document.getElementById("media-doc-content") as HTMLTextAreaElement | null;
-						const name = nameInput?.value?.trim() || "";
-						const content = contentInput?.value ?? "";
-						if (!name) {
-							showNotification({ type: "warning", message: "A file name is required." });
-							return;
-						}
-						closeMediaModal();
-						resolve({ name, content });
-					},
-				},
-			],
+			fileName: opts.defaultName,
+			fileType: opts.defaultName.endsWith(".html") ? "rich_text" : "text",
+			initialContent: opts.defaultContent,
+			isNew: true,
+			confirmLabel: opts.confirmLabel || "Create",
+			onSave: async (name, content) => {
+				if (!resolved) { resolved = true; resolve({ name, content }); }
+			},
+			onClose: () => {
+				if (!resolved) { resolved = true; resolve(null); }
+			},
 		});
 	});
 }
@@ -175,10 +280,10 @@ function openActionChoiceModal(opts: {
 		const choicesHtml = opts.choices
 			.map(
 				(choice) => `
-					<button class="media-choice-btn" data-choice-id="${escHtml(choice.id)}" type="button">
+					<a class="media-choice-btn" href="#" data-choice-id="${escHtml(choice.id)}">
 						<span class="media-choice-label">${escHtml(choice.label)}</span>
 						${choice.description ? `<span class="media-choice-description">${escHtml(choice.description)}</span>` : ""}
-					</button>
+					</a>
 				`,
 			)
 			.join("");
@@ -200,9 +305,10 @@ function openActionChoiceModal(opts: {
 			],
 		});
 		setTimeout(() => {
-			document.querySelectorAll(".media-choice-btn").forEach((btn) => {
-				btn.addEventListener("click", () => {
-					const id = (btn as HTMLElement).dataset.choiceId || null;
+			document.querySelectorAll(".media-choice-btn").forEach((a) => {
+				a.addEventListener("click", (e) => {
+					e.preventDefault();
+					const id = (a as HTMLElement).dataset.choiceId || null;
 					closeMediaModal();
 					resolve(id);
 				});
@@ -390,22 +496,24 @@ function renderMediaList(): void {
 	if (!list || !crumbs) return;
 
 	const crumbParts = [
-		`<button class="media-breadcrumb${!state.parentId ? " active" : ""}" data-root="1">Library</button>`,
+		`<a class="media-breadcrumb${!state.parentId ? " active" : ""}" href="#" data-root="1">Library</a>`,
 		...state.breadcrumbs.map(
 			(c, i) =>
-				`<span class="media-breadcrumb-sep">/</span><button class="media-breadcrumb${
+				`<span class="media-breadcrumb-sep">/</span><a class="media-breadcrumb${
 					i === state.breadcrumbs.length - 1 ? " active" : ""
-				}" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</button>`,
+				}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`,
 		),
 	];
 	crumbs.innerHTML = crumbParts.join("");
-	crumbs.querySelector('[data-root="1"]')?.addEventListener("click", () => {
+	crumbs.querySelector('[data-root="1"]')?.addEventListener("click", (e) => {
+		e.preventDefault();
 		state.parentId = null;
 		void refreshMediaList().catch(handleError);
 	});
-	crumbs.querySelectorAll("[data-crumb]").forEach((btn) => {
-		btn.addEventListener("click", () => {
-			state.parentId = (btn as HTMLElement).dataset.crumb || null;
+	crumbs.querySelectorAll("[data-crumb]").forEach((a) => {
+		a.addEventListener("click", (e) => {
+			e.preventDefault();
+			state.parentId = (a as HTMLElement).dataset.crumb || null;
 			void refreshMediaList().catch(handleError);
 		});
 	});
@@ -422,22 +530,27 @@ function renderMediaList(): void {
 				item.type === "folder"
 					? "Folder"
 					: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
+			const mainTag = item.type === "folder" ? "a" : "button";
+			const mainAttrs = item.type === "folder"
+				? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
+				: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
 			return `<div class="media-list-item">
-				<button class="media-item-main" data-open="${escHtml(item.id)}">
+				<${mainTag} ${mainAttrs}>
 					<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
 					<span class="media-item-copy">
 						<span class="media-item-name">${escHtml(item.name)}</span>
 						<span class="media-item-meta">${meta}</span>
 					</span>
-				</button>
+				</${mainTag}>
 				<button class="media-item-menu" data-menu="${escHtml(item.id)}">•••</button>
 			</div>`;
 		})
 		.join("");
 
-	list.querySelectorAll("[data-open]").forEach((btn) => {
-		btn.addEventListener("click", async () => {
-			const id = (btn as HTMLElement).dataset.open;
+	list.querySelectorAll("[data-open]").forEach((el) => {
+		el.addEventListener("click", async (e) => {
+			e.preventDefault();
+			const id = (el as HTMLElement).dataset.open;
 			const item = state.items.find((it) => it.id === id);
 			if (!item) return;
 			if (item.type === "folder") {
@@ -494,82 +607,54 @@ function renderMediaList(): void {
 	renderUsagePanel();
 }
 
+const EDITABLE_EXTENSIONS = new Set([
+	"txt", "md", "html", "htm", "css", "js", "ts", "jsx", "tsx",
+	"json", "yaml", "yml", "xml", "csv", "py", "rb", "sh", "bash",
+	"java", "c", "cpp", "h", "rs", "go", "php", "sql", "env",
+	"ini", "toml", "conf", "log", "rtf",
+]);
+
+function getFileExtension(name: string): string {
+	return name.includes(".") ? name.split(".").pop()?.toLowerCase() || "" : "";
+}
+
+function isEditable(item: MediaItem): boolean {
+	if (["text", "rich_text"].includes(String(item.kind || ""))) return true;
+	const ext = getFileExtension(item.name || "");
+	return EDITABLE_EXTENSIONS.has(ext);
+}
+
 async function openEditor(item: MediaItem): Promise<void> {
-	const panel = document.getElementById("media-editor-panel");
-	const contentWrap = document.getElementById("media-editor-content");
-	const title = document.getElementById("media-editor-title");
-	const meta = document.getElementById("media-editor-meta");
-	const saveBtn = document.getElementById("media-editor-save") as HTMLButtonElement | null;
-	const closeBtn = document.getElementById("media-editor-close");
-	const cancelBtn = document.getElementById("media-editor-cancel");
-	const toolbar = document.getElementById("media-editor-toolbar");
-	if (!panel || !contentWrap || !title || !meta || !saveBtn || !toolbar) return;
-	const isText = ["text", "rich_text"].includes(String(item.kind || ""));
-	if (!isText) {
-		showNotification({ message: "Only text files can be edited.", type: "info" });
+	if (!isEditable(item)) {
+		showNotification({ message: "This file type cannot be edited.", type: "info" });
 		return;
 	}
 	const payload = await window.sync.mediaGetContent(item.id, { format: "text" });
 	if (payload?.error) throw new Error(String(payload.error));
 	const currentContent = String(payload?.content || "");
 	const rich = String(item.kind || "") === "rich_text";
+	const ext = getFileExtension(item.name || "");
+	const fileType = rich ? "rich_text" : (String(item.kind || "") === "text" ? "text" : ext);
 
-	title.textContent = item.name || "Untitled";
-	meta.textContent = rich ? "Rich text" : "Text";
-	contentWrap.innerHTML = "";
-	toolbar.classList.toggle("hidden", !rich);
-	panel.classList.remove("hidden");
-
-	let getValue = () => "";
-	if (rich) {
-		const editor = document.createElement("div");
-		editor.className = "media-rich-editor";
-		editor.contentEditable = "true";
-		editor.innerHTML = currentContent || "<p></p>";
-		contentWrap.appendChild(editor);
-		toolbar.innerHTML = "";
-		for (const [label, cmd] of [
-			["B", "bold"],
-			["I", "italic"],
-			["U", "underline"],
-			["•", "insertUnorderedList"],
-		] as Array<[string, string]>) {
-			const btn = document.createElement("button");
-			btn.className = "media-editor-tool";
-			btn.type = "button";
-			btn.textContent = label;
-			btn.addEventListener("click", () => document.execCommand(cmd));
-			toolbar.appendChild(btn);
-		}
-		getValue = () => editor.innerHTML;
-	} else {
-		const textarea = document.createElement("textarea");
-		textarea.className = "media-text-editor";
-		textarea.value = currentContent;
-		contentWrap.appendChild(textarea);
-		getValue = () => textarea.value;
-	}
-
-	const closeEditor = () => {
-		panel.classList.add("hidden");
-		contentWrap.innerHTML = "";
-		toolbar.innerHTML = "";
-	};
-	closeBtn?.addEventListener("click", closeEditor, { once: true });
-	cancelBtn?.addEventListener("click", closeEditor, { once: true });
-
-	saveBtn.onclick = async () => {
-		const next = getValue();
-		const res = await window.sync.mediaUpdateContent(item.id, {
-			text: next,
-			kind: rich ? "rich_text" : "text",
-			mimeType: rich ? "text/html" : "text/plain",
-		});
-		if (res?.error) throw new Error(String(res.error));
-		showNotification({ message: "Saved.", type: "success" });
-		closeEditor();
-		await refreshMediaList().catch(handleError);
-	};
+	openEditorPanel({
+		title: item.name || "Untitled",
+		fileName: item.name || "Untitled",
+		fileType,
+		initialContent: currentContent,
+		isNew: false,
+		confirmLabel: "Save",
+		onSave: async (_name, content) => {
+			const res = await window.sync.mediaUpdateContent(item.id, {
+				text: content,
+				kind: rich ? "rich_text" : "text",
+				mimeType: rich ? "text/html" : "text/plain",
+			});
+			if (res?.error) throw new Error(String(res.error));
+			showNotification({ message: "Saved.", type: "success" });
+			// Panel close is handled by openEditorPanel after onSave returns
+			await refreshMediaList().catch(handleError);
+		},
+	});
 }
 
 function handleError(err: unknown): void {
@@ -689,21 +774,23 @@ async function openPickerModal(opts: PickerModalOpts): Promise<void> {
 
 	const render = () => {
 		crumbs.innerHTML = [
-			`<button class="media-breadcrumb${!modalState.parentId ? " active" : ""}" data-root="1">Library</button>`,
+			`<a class="media-breadcrumb${!modalState.parentId ? " active" : ""}" href="#" data-root="1">Library</a>`,
 			...modalState.breadcrumbs.map(
 				(c, i) =>
-					`<span class="media-breadcrumb-sep">/</span><button class="media-breadcrumb${
+					`<span class="media-breadcrumb-sep">/</span><a class="media-breadcrumb${
 						i === modalState.breadcrumbs.length - 1 ? " active" : ""
-					}" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</button>`,
+					}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`,
 			),
 		].join("");
-		crumbs.querySelector('[data-root="1"]')?.addEventListener("click", () => {
+		crumbs.querySelector('[data-root="1"]')?.addEventListener("click", (e) => {
+			e.preventDefault();
 			modalState.parentId = null;
 			void load().catch(handleError);
 		});
-		crumbs.querySelectorAll("[data-crumb]").forEach((btn) => {
-			btn.addEventListener("click", () => {
-				modalState.parentId = (btn as HTMLElement).dataset.crumb || null;
+		crumbs.querySelectorAll("[data-crumb]").forEach((a) => {
+			a.addEventListener("click", (e) => {
+				e.preventDefault();
+				modalState.parentId = (a as HTMLElement).dataset.crumb || null;
 				void load().catch(handleError);
 			});
 		});
@@ -722,23 +809,28 @@ async function openPickerModal(opts: PickerModalOpts): Promise<void> {
 						item.type === "folder"
 							? "Folder"
 							: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
+					const mainTag = item.type === "folder" ? "a" : "button";
+					const mainAttrs = item.type === "folder"
+						? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
+						: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
 					return `<div class="media-list-item">
-            <button class="media-item-main" data-open="${escHtml(item.id)}">
+            <${mainTag} ${mainAttrs}>
               <span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
               <span class="media-item-copy">
                 <span class="media-item-name">${escHtml(item.name)}</span>
                 <span class="media-item-meta">${meta}</span>
               </span>
-            </button>
+            </${mainTag}>
             ${selectable ? `<label class="media-item-check"><input type="checkbox" data-select="${escHtml(item.id)}" ${checked}/></label>` : ""}
           </div>`;
 				})
 				.join("");
 		}
 
-		list.querySelectorAll("[data-open]").forEach((btn) => {
-			btn.addEventListener("click", () => {
-				const id = (btn as HTMLElement).dataset.open || "";
+		list.querySelectorAll("[data-open]").forEach((el) => {
+			el.addEventListener("click", (e) => {
+				e.preventDefault();
+				const id = (el as HTMLElement).dataset.open || "";
 				const item = modalState.items.find((it) => it.id === id);
 				if (!item) return;
 				if (item.type === "folder") {

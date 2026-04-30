@@ -322,13 +322,20 @@
 					</div>
 				</section>
 			</div>
-			<aside id="media-editor-panel" class="media-editor-panel" style="display:none;">
+
+			<!-- Editor panel: hidden via .hidden class (not inline style) so JS classList works -->
+			<aside id="media-editor-panel" class="media-editor-panel hidden" aria-hidden="true">
 				<div class="media-editor-header">
 					<div class="media-editor-heading">
 						<div class="media-editor-title" id="media-editor-title">Untitled</div>
 						<div class="media-editor-meta" id="media-editor-meta"></div>
 					</div>
-					<button id="media-editor-close" class="sidebar-icon-btn" title="Close editor" type="button">Close</button>
+					<button id="media-editor-close" class="sidebar-icon-btn" title="Close editor" type="button">✕</button>
+				</div>
+				<!-- Name row: only shown when creating a new file -->
+				<div class="media-editor-name-row hidden" id="media-editor-name-row">
+					<label for="media-editor-filename">Name</label>
+					<input id="media-editor-filename" type="text" placeholder="File name" />
 				</div>
 				<div id="media-editor-toolbar" class="media-editor-toolbar hidden"></div>
 				<div id="media-editor-status" class="media-editor-status hidden"></div>
@@ -338,6 +345,7 @@
 					<button class="btn-primary" id="media-editor-save" type="button">Save</button>
 				</div>
 			</aside>
+
 			<input type="file" id="media-upload-input" multiple style="display:none" />
 			<div id="notification-container"></div>
 		</main>
