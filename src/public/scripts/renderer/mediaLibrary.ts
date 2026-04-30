@@ -892,8 +892,8 @@ export function initMediaLibrary(): void {
 			choices: [
 				{ id: "upload", label: "Upload file", description: "Upload files from your device" },
 				{ id: "folder", label: "New folder", description: "Organize library items" },
-				{ id: "text", label: "Plain text document" },
-				{ id: "rich", label: "Rich text document" },
+				{ id: "text", label: "Plain text document", description: "Create plain text notes and files" },
+				{ id: "rich", label: "Rich text document", description: "Create formatted documents, notes, and more" },
 			],
 		});
 		if (action === "folder") {
