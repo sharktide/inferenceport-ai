@@ -734,7 +734,7 @@ async function openPickerModal(opts: PickerModalOpts): Promise<void> {
 	box.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);">
       <div style="font-weight:700;font-size:14px;">${escHtml(opts.title)}</div>
-      <button id="ml-close" class="btn-ghost" type="button">Close</button>
+	  <a id="ml-close" class="sidebar-icon-btn" title="Close editor" type="button" style="text-decoration: none; cursor: pointer">✕</a>
     </div>
     <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;overflow:auto;">
       <div id="ml-crumbs" class="media-breadcrumbs"></div>
