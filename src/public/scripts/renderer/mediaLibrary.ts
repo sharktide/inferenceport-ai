@@ -615,11 +615,33 @@ function renderMediaList(): void {
 }
 
 const EDITABLE_EXTENSIONS = new Set([
-	"txt", "md", "html", "htm", "css", "js", "ts", "jsx", "tsx",
-	"json", "yaml", "yml", "xml", "csv", "py", "rb", "sh", "bash",
-	"java", "c", "cpp", "h", "rs", "go", "php", "sql", "env",
-	"ini", "toml", "conf", "log", "rtf",
+    "txt", "md", "html", "htm", "css", "js", "ts", "jsx", "tsx",
+    "json", "yaml", "yml", "xml", "csv", "py", "pyx", "rb", "repy", "sh", "bash",
+    "java", "c", "cpp", "h", "hpp", "r", "rs", "go", "php", "ps1", "psm1", "sql", "env",
+    "ini", "toml", "conf", "log", "rtf", "rst", "bat", "cmd", "scss", "sass", "cs", "vb", "vbs",
+    "csx", "vbx", "msbuild", "sln", "csproj", "appxmanifest", "aspx", "razor", "cshtml",
+
+    "m", "swift", "kt", "scala", "pl", "pm", "t", "awk", "sed", "lua", "dart",
+    "less", "stylus", "coffee", "hbs", "jade", "pug", "handlebars", "mustache",
+    "twig", "erb", "json5", "properties", "f", "f90", "f95", "cjs", "mjs", "tsc",
+    "jl", "nim", "erl", "ex", "exs", "hs", "hs-boot", "vhd", "vhdl", "xaml", "xslt",
+    "xsltproc", "xhtml", "xht", "xsd", "xsl", "asm", "s", "spp", "inc", "def",
+    "tcl", "pmx", "m4", "f03", "f08", "f18", "f2003", "f2008", "f2018",
+    "ksh", "zsh", "fish", "powershell", "pssc", "psm2", "psd2",
+
+    "adoc", "asciidoc", "textile", "nfo", "lst", "list", "todo",
+    "cfg", "config", "props", "cf", "dotenv", "editorconfig",
+    "mdx", "creole", "wiki", "org", "tex", "latex", "bib", "toc",
+    "tsv", "ndjson", "jsonl", "arff", "plist",
+    "csh", "tcsh", "dash", "profile", "bashrc", "zshrc", "fishrc",
+    "liquid", "njk", "ejs", "svelte", "astro", "vue", "rhtml",
+    "mmd", "mmark", "rmd", "sage", "gp",
+    "prettierrc", "eslintrc", "stylelintrc", "babelrc", "swcrc", "postcssrc",
+	"gitignore", "gitattributes", "gitmodules", "prettierrc", "editorconfig",
+	"tsbuildinfo", "map"
+
 ]);
+
 
 function getFileExtension(name: string): string {
 	return name.includes(".") ? name.split(".").pop()?.toLowerCase() || "" : "";
