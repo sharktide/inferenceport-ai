@@ -589,8 +589,18 @@ function renderMediaList(): void {
 					title: "Move to folder",
 					confirmLabel: "Move here",
 				});
-				const parentId = folder?.id ?? null;
-				const res = await window.sync.mediaMove({ ids: [item.id], parentId });
+
+				if (!folder) return;
+
+				const parentId = folder.id;
+
+				console.log("Moving item to folder:", parentId);
+
+				const res = await window.sync.mediaMove({
+					ids: [item.id],
+					parentId,
+				});
+
 				if (res?.error) throw new Error(String(res.error));
 				await refreshMediaList();
 			} else if (action === "trash") {
@@ -709,6 +719,13 @@ type PickerModalOpts = {
 	confirmLabel: string;
 	filter?: (item: MediaItem) => boolean;
 	onConfirm: (selected: MediaItem[]) => Promise<void> | void;
+
+	onNavigate?: (state: {
+		parentId: string | null;
+		breadcrumbs: Array<{ id: string; name: string }>;
+	}) => void;
+
+	allowEmptyConfirm?: boolean;
 };
 
 function createModalShell(): { overlay: HTMLDivElement; box: HTMLDivElement } {
@@ -722,158 +739,220 @@ function createModalShell(): { overlay: HTMLDivElement; box: HTMLDivElement } {
 	return { overlay, box };
 }
 
-async function openPickerModal(opts: PickerModalOpts): Promise<void> {
-	const modalState = {
-		parentId: null as string | null,
-		items: [] as MediaItem[],
-		breadcrumbs: [] as Array<{ id: string; name: string }>,
-		selected: new Set<string>(),
-	};
+function openPickerModal(opts: PickerModalOpts): Promise<void> {
+	return new Promise((resolve) => {
+		const modalState = {
+			parentId: null as string | null,
+			items: [] as MediaItem[],
+			breadcrumbs: [] as Array<{ id: string; name: string }>,
+			selected: new Set<string>(),
+		};
 
-	const { overlay, box } = createModalShell();
-	box.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);">
-      <div style="font-weight:700;font-size:14px;">${escHtml(opts.title)}</div>
-	  <a id="ml-close" class="sidebar-icon-btn" title="Close editor" type="button" style="text-decoration: none; cursor: pointer">✕</a>
-    </div>
-    <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;overflow:auto;">
-      <div id="ml-crumbs" class="media-breadcrumbs"></div>
-      <div id="ml-list" class="media-picker-list"></div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 14px;border-top:1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);">
-      <button id="ml-cancel" class="btn-ghost" type="button">Cancel</button>
-      <button id="ml-confirm" class="btn-primary" type="button" disabled>${escHtml(opts.confirmLabel)}</button>
-    </div>
-  `;
-	document.body.appendChild(overlay);
+		const { overlay, box } = createModalShell();
 
-	const close = () => overlay.remove();
-	(box.querySelector("#ml-close") as HTMLButtonElement | null)?.addEventListener("click", close);
-	(box.querySelector("#ml-cancel") as HTMLButtonElement | null)?.addEventListener("click", close);
-	overlay.addEventListener("click", (e) => {
-		if (e.target === overlay) close();
-	});
+		let done = false;
+		const safeResolve = () => {
+			if (done) return;
+			done = true;
+			resolve();
+		};
 
-	const crumbs = box.querySelector("#ml-crumbs") as HTMLDivElement | null;
-	const list = box.querySelector("#ml-list") as HTMLDivElement | null;
-	const confirm = box.querySelector("#ml-confirm") as HTMLButtonElement | null;
-	if (!crumbs || !list || !confirm) return;
+		const close = () => {
+			overlay.remove();
+			safeResolve();
+		};
 
-	const load = async () => {
-		const res = await window.sync.mediaList({ view: "active", parentId: modalState.parentId });
-		if (res?.error) throw new Error(String(res.error));
-		modalState.items = Array.isArray(res?.items) ? res.items : [];
-		modalState.breadcrumbs = Array.isArray(res?.breadcrumbs) ? res.breadcrumbs : [];
-		const visible = new Set(modalState.items.map((it) => it.id));
-		modalState.selected = new Set([...modalState.selected].filter((id) => visible.has(id)));
-		render();
-	};
+		box.innerHTML = `
+			<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);">
+				<div style="font-weight:700;font-size:14px;">${escHtml(opts.title)}</div>
+				<a id="ml-close" class="sidebar-icon-btn" style="cursor:pointer">✕</a>
+			</div>
+			<div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px;overflow:auto;">
+				<div id="ml-crumbs" class="media-breadcrumbs"></div>
+				<div id="ml-list" class="media-picker-list"></div>
+			</div>
+			<div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 14px;border-top:1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);">
+				<button id="ml-cancel" class="btn-ghost" type="button">Cancel</button>
+				<button id="ml-confirm" class="btn-primary" type="button" disabled>${escHtml(opts.confirmLabel)}</button>
+			</div>
+		`;
 
-	const render = () => {
-		crumbs.innerHTML = [
-			`<a class="media-breadcrumb${!modalState.parentId ? " active" : ""}" href="#" data-root="1">Library</a>`,
-			...modalState.breadcrumbs.map(
-				(c, i) =>
-					`<span class="media-breadcrumb-sep">/</span><a class="media-breadcrumb${
-						i === modalState.breadcrumbs.length - 1 ? " active" : ""
-					}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`,
-			),
-		].join("");
-		crumbs.querySelector('[data-root="1"]')?.addEventListener("click", (e) => {
-			e.preventDefault();
-			modalState.parentId = null;
-			void load().catch(handleError);
+		document.body.appendChild(overlay);
+
+		(box.querySelector("#ml-close") as HTMLElement)?.addEventListener("click", close);
+		(box.querySelector("#ml-cancel") as HTMLElement)?.addEventListener("click", close);
+		overlay.addEventListener("click", (e) => {
+			if (e.target === overlay) close();
 		});
-		crumbs.querySelectorAll("[data-crumb]").forEach((a) => {
-			a.addEventListener("click", (e) => {
+
+		const crumbs = box.querySelector("#ml-crumbs") as HTMLDivElement;
+		const list = box.querySelector("#ml-list") as HTMLDivElement;
+		const confirm = box.querySelector("#ml-confirm") as HTMLButtonElement;
+
+		const load = async () => {
+			const res = await window.sync.mediaList({ view: "active", parentId: modalState.parentId });
+			if (res?.error) throw new Error(String(res.error));
+
+			modalState.items = Array.isArray(res?.items) ? res.items : [];
+			modalState.breadcrumbs = Array.isArray(res?.breadcrumbs) ? res.breadcrumbs : [];
+
+			opts.onNavigate?.({
+				parentId: modalState.parentId,
+				breadcrumbs: modalState.breadcrumbs,
+			});
+
+			const visible = new Set(modalState.items.map((it) => it.id));
+			modalState.selected = new Set([...modalState.selected].filter((id) => visible.has(id)));
+
+			render();
+		};
+
+		const render = () => {
+			crumbs.innerHTML = [
+				`<a class="media-breadcrumb${!modalState.parentId ? " active" : ""}" href="#" data-root="1">Library</a>`,
+				...modalState.breadcrumbs.map(
+					(c, i) =>
+						`<span class="media-breadcrumb-sep">/</span><a class="media-breadcrumb${
+							i === modalState.breadcrumbs.length - 1 ? " active" : ""
+						}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`
+				),
+			].join("");
+
+			crumbs.querySelector('[data-root="1"]')?.addEventListener("click", (e) => {
 				e.preventDefault();
-				modalState.parentId = (a as HTMLElement).dataset.crumb || null;
+				modalState.parentId = null;
 				void load().catch(handleError);
 			});
-		});
 
-		const filtered = opts.filter
-			? modalState.items.filter((it) => it.type === "folder" || opts.filter?.(it))
-			: modalState.items;
-		if (!filtered.length) {
-			list.innerHTML = `<div class="sidebar-empty-state">Nothing to show here</div>`;
-		} else {
-			list.innerHTML = filtered
-				.map((item) => {
-					const selectable = item.type === "file" && (opts.filter ? opts.filter(item) : true);
-					const checked = selectable && modalState.selected.has(item.id) ? "checked" : "";
-					const meta =
-						item.type === "folder"
-							? "Folder"
-							: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
-					const mainTag = item.type === "folder" ? "a" : "button";
-					const mainAttrs = item.type === "folder"
-						? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
-						: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
-					return `<div class="media-list-item">
-            <${mainTag} ${mainAttrs}>
-              <span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
-              <span class="media-item-copy">
-                <span class="media-item-name">${escHtml(item.name)}</span>
-                <span class="media-item-meta">${meta}</span>
-              </span>
-            </${mainTag}>
-            ${selectable ? `<label class="media-item-check"><input type="checkbox" data-select="${escHtml(item.id)}" ${checked}/></label>` : ""}
-          </div>`;
-				})
-				.join("");
-		}
-
-		list.querySelectorAll("[data-open]").forEach((el) => {
-			el.addEventListener("click", (e) => {
-				e.preventDefault();
-				const id = (el as HTMLElement).dataset.open || "";
-				const item = modalState.items.find((it) => it.id === id);
-				if (!item) return;
-				if (item.type === "folder") {
-					modalState.parentId = item.id;
+			crumbs.querySelectorAll("[data-crumb]").forEach((a) => {
+				a.addEventListener("click", (e) => {
+					e.preventDefault();
+					modalState.parentId = (a as HTMLElement).dataset.crumb || null;
 					void load().catch(handleError);
-				}
+				});
 			});
+
+			const filtered = opts.filter
+				? modalState.items.filter((it) => it.type === "folder" || opts.filter?.(it))
+				: modalState.items;
+
+			list.innerHTML = !filtered.length
+				? `<div class="sidebar-empty-state">Nothing to show here</div>`
+				: filtered
+						.map((item) => {
+							const selectable = item.type === "file" && (opts.filter ? opts.filter(item) : true);
+							const checked = selectable && modalState.selected.has(item.id) ? "checked" : "";
+							const meta =
+								item.type === "folder"
+									? "Folder"
+									: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
+
+							const mainTag = item.type === "folder" ? "a" : "button";
+							const mainAttrs =
+								item.type === "folder"
+									? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
+									: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
+
+							return `<div class="media-list-item">
+								<${mainTag} ${mainAttrs}>
+									<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
+									<span class="media-item-copy">
+										<span class="media-item-name">${escHtml(item.name)}</span>
+										<span class="media-item-meta">${meta}</span>
+									</span>
+								</${mainTag}>
+								${selectable ? `<label class="media-item-check"><input type="checkbox" data-select="${escHtml(item.id)}" ${checked}/></label>` : ""}
+							</div>`;
+						})
+						.join("");
+
+			list.querySelectorAll("[data-open]").forEach((el) => {
+				el.addEventListener("click", (e) => {
+					e.preventDefault();
+					const id = (el as HTMLElement).dataset.open || "";
+					const item = modalState.items.find((it) => it.id === id);
+					if (!item) return;
+					if (item.type === "folder") {
+						modalState.parentId = item.id;
+						void load().catch(handleError);
+					}
+				});
+			});
+
+			list.querySelectorAll("[data-select]").forEach((input) => {
+				input.addEventListener("change", () => {
+					const id = (input as HTMLInputElement).dataset.select || "";
+					if (!id) return;
+
+					if ((input as HTMLInputElement).checked) modalState.selected.add(id);
+					else modalState.selected.delete(id);
+
+					confirm.disabled = opts.allowEmptyConfirm
+						? false
+						: modalState.selected.size === 0;
+				});
+			});
+
+			confirm.disabled = opts.allowEmptyConfirm
+				? false
+				: modalState.selected.size === 0;
+		};
+
+		confirm.addEventListener("click", async () => {
+			const selected = modalState.items.filter((it) => modalState.selected.has(it.id));
+			if (!selected.length && !opts.allowEmptyConfirm) return;
+
+			await opts.onConfirm(selected);
+			close();
 		});
 
-		list.querySelectorAll("[data-select]").forEach((input) => {
-			input.addEventListener("change", () => {
-				const id = (input as HTMLInputElement).dataset.select || "";
-				if (!id) return;
-				if ((input as HTMLInputElement).checked) modalState.selected.add(id);
-				else modalState.selected.delete(id);
-				confirm.disabled = modalState.selected.size === 0;
-			});
+		load().catch((err) => {
+			handleError(err);
+			close();
 		});
-
-		confirm.disabled = modalState.selected.size === 0;
-	};
-
-	confirm.addEventListener("click", async () => {
-		const selected = modalState.items.filter((it) => modalState.selected.has(it.id));
-		if (!selected.length) return;
-		await opts.onConfirm(selected);
-		close();
-	});
-
-	await load().catch((err) => {
-		handleError(err);
-		close();
 	});
 }
 
-async function openFolderPicker(opts: { title: string; confirmLabel: string }): Promise<{ id: string; name: string } | null> {
-	let chosen: { id: string; name: string } | null = null;
+async function openFolderPicker(opts: {
+	title: string;
+	confirmLabel: string;
+}): Promise<{ id: string | null; name: string } | null> {
+	let chosen: { id: string | null; name: string } | null = null;
+	let didConfirm = false;
+
+	let currentParentId: string | null = null;
+	let currentBreadcrumbs: Array<{ id: string; name: string }> = [];
+
 	await openPickerModal({
 		title: opts.title,
 		confirmLabel: opts.confirmLabel,
 		filter: (item) => item.type === "folder",
-		onConfirm: async (selected) => {
-			const firstFolder = selected.find((it) => it.type === "folder") || null;
-			chosen = firstFolder ? { id: firstFolder.id, name: firstFolder.name } : null;
+		allowEmptyConfirm: true,
+
+		onNavigate: ({ parentId, breadcrumbs }) => {
+			currentParentId = parentId;
+			currentBreadcrumbs = breadcrumbs;
+		},
+
+		onConfirm: async () => {
+			didConfirm = true;
+
+			const name =
+				currentParentId === null
+					? "Library"
+					: currentBreadcrumbs.length
+						? currentBreadcrumbs[currentBreadcrumbs.length - 1]!.name
+						: "Folder";
+
+			chosen = {
+				id: currentParentId,
+				name,
+			};
 		},
 	});
+
+	if (!didConfirm) return null;
+
 	return chosen;
 }
 
