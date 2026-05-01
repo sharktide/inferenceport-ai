@@ -525,10 +525,9 @@ const lightningStatus = document.getElementById(
 ) as HTMLDivElement | null;
 const sidebarChatPane = document.getElementById("sidebar-chat-pane") as HTMLDivElement | null;
 const sidebarMediaPane = document.getElementById("sidebar-media-pane") as HTMLDivElement | null;
-const sidebarTrashOverlay = document.getElementById("sidebar-trash-overlay") as HTMLDivElement | null;
+const sidebarTrashPane = document.getElementById("sidebar-trash-pane") as HTMLDivElement | null;
 const sidebarSessionsHost = document.getElementById("sidebar-sessions") as HTMLDivElement | null;
 const sidebarTrashBtn = document.getElementById("sidebar-trash-btn") as HTMLButtonElement | null;
-const sidebarTrashBack = document.getElementById("sidebar-trash-back") as HTMLButtonElement | null;
 const sidebarModeTabs = Array.from(
 	document.querySelectorAll(".sidebar-mode-tab"),
 ) as HTMLButtonElement[];
@@ -572,9 +571,9 @@ function updateMediaLibraryVisibility(): void {
 		trashBtn.disabled = !enabled;
 	}
 	if (!enabled && activeSidebarMode === "media") {
-		if (sidebarChatPane) sidebarChatPane.style.display = "";
-		if (sidebarMediaPane) sidebarMediaPane.style.display = "none";
-		if (sidebarTrashOverlay) sidebarTrashOverlay.style.display = "none";
+		if (sidebarChatPane) { sidebarChatPane.style.display = ""; sidebarChatPane.classList.remove("hidden"); }
+		if (sidebarMediaPane) { sidebarMediaPane.style.display = "none"; sidebarMediaPane.classList.add("hidden"); }
+		if (sidebarTrashPane) { sidebarTrashPane.style.display = "none"; sidebarTrashPane.classList.add("hidden"); }
 		sidebarSessionsHost?.classList.remove("trash-open");
 		activeSidebarMode = "chats";
 		sidebarModeTabs.forEach((tab) => {
@@ -584,50 +583,41 @@ function updateMediaLibraryVisibility(): void {
 }
 
 function setupSidebarModeTabs(): void {
-	const applyMode = (mode: "chats" | "media") => {
-		if (mode === "media" && !isMediaLibraryAvailable()) {
-			showNotification({
-				type: "info",
-				message: "Sign in to use the Media Library.",
-			});
-			mode = "chats";
-		}
-		activeSidebarMode = mode;
-		sidebarModeTabs.forEach((tab) => {
-			const tabMode = tab.dataset.sidebarMode;
-			tab.classList.toggle("active", tabMode === mode);
-		});
-		if (sidebarChatPane) sidebarChatPane.style.display = mode === "chats" ? "" : "none";
-		if (sidebarMediaPane) sidebarMediaPane.style.display = mode === "media" ? "" : "none";
-		if (sidebarTrashOverlay) sidebarTrashOverlay.style.display = "none";
-		sidebarSessionsHost?.classList.remove("trash-open");
-		if (mode === "media") {
-			void Promise.resolve().then(() => initMediaLibrary());
-		}
-	};
-	sidebarModeTabs.forEach((tab) => {
-		tab.addEventListener("click", () => {
-			applyMode(tab.dataset.sidebarMode === "media" ? "media" : "chats");
-		});
-	});
-	sidebarTrashBtn?.addEventListener("click", () => {
-		if (!isMediaLibraryAvailable()) return;
-		sidebarSessionsHost?.classList.add("trash-open");
-		if (sidebarTrashOverlay) {
-			sidebarTrashOverlay.dataset.context = "media";
-			sidebarTrashOverlay.style.display = "";
-			sidebarTrashOverlay.removeAttribute("aria-hidden");
-		}
-		void openMediaTrashOverlay();
-	});
-	sidebarTrashBack?.addEventListener("click", () => {
-		sidebarSessionsHost?.classList.remove("trash-open");
-		if (sidebarTrashOverlay) {
-			sidebarTrashOverlay.style.display = "none";
-			sidebarTrashOverlay.setAttribute("aria-hidden", "true");
-		}
-	});
-	updateMediaLibraryVisibility();
+    const showPane = (pane: HTMLDivElement | null, visible: boolean) => {
+        if (!pane) return;
+        pane.style.display = visible ? "" : "none";
+        pane.classList.toggle("hidden", !visible);
+    };
+
+    const applyMode = (mode: "chats" | "media" | "trash") => {
+        if (mode !== "chats" && !isMediaLibraryAvailable()) {
+            showNotification({ type: "info", message: "Sign in to use the Media Library." });
+            mode = "chats";
+        }
+        // Only update activeSidebarMode for non-trash modes so back button returns correctly
+        if (mode !== "trash") activeSidebarMode = mode as "chats" | "media";
+        sidebarModeTabs.forEach((tab) => {
+            tab.classList.toggle("active", tab.dataset.sidebarMode === mode);
+        });
+        showPane(sidebarChatPane, mode === "chats");
+        showPane(sidebarMediaPane, mode === "media");
+        showPane(sidebarTrashPane, mode === "trash");
+        if (mode === "media") void Promise.resolve().then(() => initMediaLibrary());
+        if (mode === "trash") void openMediaTrashOverlay();
+    };
+    sidebarModeTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+            applyMode(tab.dataset.sidebarMode === "media" ? "media" : "chats");
+        });
+    });
+    sidebarTrashBtn?.addEventListener("click", () => {
+        if (!isMediaLibraryAvailable()) return;
+        applyMode("trash");
+    });
+    document.getElementById("sidebar-trash-back")?.addEventListener("click", () => {
+        applyMode(activeSidebarMode);
+    });
+    updateMediaLibraryVisibility();
 }
 
 const urlParams = new URLSearchParams(window.location.search);

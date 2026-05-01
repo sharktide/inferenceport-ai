@@ -146,16 +146,13 @@ function openEditorPanel(opts: {
 	titleEl.textContent = opts.isNew ? opts.title : opts.fileName;
 	metaEl.textContent = metaLabel;
 
-	// Show/hide the filename input row for new file creation
 	if (nameRow) nameRow.classList.toggle("hidden", !opts.isNew);
 	if (nameInput) nameInput.value = opts.fileName;
 
-	// Reset content area and toolbar
 	contentWrap.innerHTML = "";
 	toolbar.innerHTML = "";
 	toolbar.classList.toggle("hidden", !isRich);
 
-	// Show panel (.hidden class only — no inline style conflict)
 	panel.classList.remove("hidden");
 	panel.removeAttribute("aria-hidden");
 
@@ -415,7 +412,7 @@ function renderTrashOverlay(): void {
 	if (subtitle) subtitle.textContent = `Media • ${state.trash.items.length} item${state.trash.items.length === 1 ? "" : "s"}`;
 
 	const selectedCount = state.trash.selected.size;
-	bar.classList.toggle("hidden", selectedCount === 0);
+	bar.style.display = selectedCount === 0 ? "none" : "block";
 	bar.innerHTML =
 		selectedCount === 0
 			? ""

@@ -1044,52 +1044,23 @@ a.media-choice-btn:focus-visible {
 	font-size: 10px;
 	opacity: 0.75;
 }
-
-.sidebar-trash-overlay {
-	position: absolute;
-	inset: 0;
-	padding: 8px 0;
-	background: var(--gray);
-	border-radius: 14px;
-	display: none;
-	flex-direction: column;
-	gap: 8px;
-	z-index: 12;
-}
-
-.sidebar-trash-overlay.active {
-	display: flex;
-}
-
-.sidebar-trash-header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.sidebar-back-btn {
-	border: none;
-	background: transparent;
-	font-size: 12px;
-	cursor: pointer;
-}
-
-.sidebar-trash-title {
-	font-size: 13px;
-	font-weight: 700;
-}
-
-.sidebar-trash-subtitle {
-	font-size: 10px;
-	opacity: 0.72;
-}
-
 .sidebar-trash-list {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 	max-height: 50vh;
 	overflow-y: auto;
+}
+
+#sidebar-trash-pane {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-height: 200px;
+	padding: 10px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+	border-radius: 12px;
+	background: color-mix(in srgb, var(--bg-light) 92%, var(--gray) 8%);
 }
 
 .media-editor-panel {
@@ -1148,7 +1119,20 @@ a.media-choice-btn:focus-visible {
 	border: 1px solid color-mix(in srgb, var(--blue) 40%, transparent);
 	color: #fff;
 }
-
+.sidebar-back-btn {
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-dark);
+    padding: 4px 8px;
+    border-radius: 8px;
+    width: auto;
+}
+.sidebar-back-btn:hover {
+    background: color-mix(in srgb, var(--blue) 10%, var(--bg-light) 90%);
+}
 .media-editor-title {
 	font-size: 14px;
 	font-weight: 700;
