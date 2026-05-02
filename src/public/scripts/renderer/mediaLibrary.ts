@@ -1023,6 +1023,7 @@ export function initMediaLibrary(): void {
 			await refreshMediaList();
 			return;
 		}
+		if (!action) return;
 		uploadInput?.click();
 	});
 
