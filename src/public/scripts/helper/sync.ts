@@ -13,6 +13,7 @@ export interface ChatMessage {
     id?: string;
     timestamp?: number;
     tool_calls?: any[];
+    toolCalls?: any[];
     tool_call_id?: string;
     versions?: Array<{
         content: unknown;
@@ -70,6 +71,117 @@ export function mergeLocalAndRemoteSessions(
         }
         return 0;
     };
+    const ensureMessageVersioningShape = (message: ChatMessage): ChatMessage => {
+        if (!message || typeof message !== "object") return message;
+        const msg = message as ChatMessage;
+        if (!Array.isArray(msg.versions) || msg.versions.length === 0) {
+            msg.versions = [{
+                content: msg.content ?? "",
+                tail: [],
+                timestamp: toMs(msg.timestamp) || Date.now(),
+            }];
+            msg.currentVersionIdx = 0;
+        }
+        const currentIdx =
+            typeof msg.currentVersionIdx === "number" &&
+            Number.isFinite(msg.currentVersionIdx)
+                ? msg.currentVersionIdx
+                : 0;
+        const idx = Math.max(0, Math.min(currentIdx, msg.versions.length - 1));
+        msg.currentVersionIdx = idx;
+        const active: any = msg.versions[idx] || {};
+        if (!Array.isArray(active.tail)) active.tail = [];
+        if (active.content === undefined || active.content === null) {
+            active.content = msg.content ?? "";
+        }
+        const mirroredToolCalls = Array.isArray((active as any).tool_calls)
+            ? (active as any).tool_calls
+            : Array.isArray((active as any).toolCalls)
+                ? (active as any).toolCalls
+                : Array.isArray(msg.tool_calls)
+                    ? msg.tool_calls
+                    : Array.isArray(msg.toolCalls)
+                        ? msg.toolCalls
+                        : [];
+        if (mirroredToolCalls.length > 0) {
+            (active as any).tool_calls = cloneJson(mirroredToolCalls);
+            (active as any).toolCalls = cloneJson(mirroredToolCalls);
+            msg.tool_calls = cloneJson(mirroredToolCalls);
+            msg.toolCalls = cloneJson(mirroredToolCalls);
+        } else {
+            delete (active as any).tool_calls;
+            delete (active as any).toolCalls;
+            delete msg.tool_calls;
+            delete msg.toolCalls;
+        }
+        active.timestamp = toMs(active.timestamp) || toMs(msg.timestamp) || Date.now();
+        msg.versions[idx] = active as any;
+        msg.content = active.content as MessageContent;
+        return msg;
+    };
+    const getActiveVersion = (message: ChatMessage) => {
+        const fixed = ensureMessageVersioningShape(message);
+        const currentIdx =
+            typeof fixed.currentVersionIdx === "number" &&
+            Number.isFinite(fixed.currentVersionIdx)
+                ? fixed.currentVersionIdx
+                : 0;
+        const idx = Math.max(0, Math.min(currentIdx, (fixed.versions || []).length - 1));
+        return fixed.versions?.[idx] as any;
+    };
+    const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+    const normalizeHistoryForStorage = (history: ChatMessage[] = []): ChatMessage[] => {
+        const raw = Array.isArray(history) ? history : [];
+        if (!raw.length) return [];
+        const firstRaw = raw[0];
+        if (firstRaw && raw.length === 1 && Array.isArray((firstRaw as any)?.versions)) {
+            return [cloneJson(ensureMessageVersioningShape(cloneJson(firstRaw)))];
+        }
+        const seenMessageIds = new Set<string>();
+        const nodes = raw
+            .filter((entry) => entry && typeof entry === "object")
+            .filter((entry) => {
+                const id = typeof entry.id === "string" ? entry.id.trim() : "";
+                if (!id) return true;
+                if (seenMessageIds.has(id)) return false;
+                seenMessageIds.add(id);
+                return true;
+            })
+            .map((entry) => ensureMessageVersioningShape(cloneJson(entry)));
+        if (!nodes.length) return [];
+        const root = nodes[0];
+        if (!root) return [];
+        let cursor = root;
+        for (let i = 1; i < nodes.length; i++) {
+            const active: any = getActiveVersion(cursor);
+            const nextNode = nodes[i];
+            if (!nextNode) continue;
+            active.tail = [...(active.tail || []), nextNode];
+            cursor = nextNode;
+        }
+        return [root];
+    };
+    const flattenHistory = (history: ChatMessage[] = []): ChatMessage[] => {
+        const treeHistory = normalizeHistoryForStorage(history);
+        const root = treeHistory[0] as any;
+        if (!root) return [];
+        const out: ChatMessage[] = [];
+        const walk = (node: any) => {
+            if (!node || typeof node !== "object") return;
+            const fixed = ensureMessageVersioningShape(node);
+            out.push(cloneJson({
+                ...fixed,
+                versions: Array.isArray(fixed.versions)
+                    ? fixed.versions.map((version: any) => ({ ...version, tail: [] }))
+                    : [],
+            }));
+            const active = getActiveVersion(fixed);
+            const tail = Array.isArray(active?.tail) ? active.tail : [];
+            for (const child of tail) walk(child);
+        };
+        walk(root);
+        return out;
+    };
     const messageTimestamp = (message: ChatMessage): number => {
         const direct = toMs(message?.timestamp);
         if (direct > 0) return direct;
@@ -82,8 +194,9 @@ export function mergeLocalAndRemoteSessions(
         return latest;
     };
     const historyTimestamp = (history: ChatMessage[]): number => {
+        const flatHistory = flattenHistory(history);
         let latest = 0;
-        for (const message of history || []) {
+        for (const message of flatHistory) {
             const ts = messageTimestamp(message);
             if (ts > latest) latest = ts;
         }
@@ -103,12 +216,14 @@ export function mergeLocalAndRemoteSessions(
         localScore: number,
         remoteScore: number,
     ): ChatMessage[] => {
-        const localJson = JSON.stringify(localHistory);
-        const remoteJson = JSON.stringify(remoteHistory);
-        if (localJson === remoteJson) return localHistory;
-        if (remoteScore > localScore) return remoteHistory;
-        if (localScore > remoteScore) return localHistory;
-        return remoteHistory.length >= localHistory.length ? remoteHistory : localHistory;
+        const normalizedLocal = normalizeHistoryForStorage(localHistory);
+        const normalizedRemote = normalizeHistoryForStorage(remoteHistory);
+        const localJson = JSON.stringify(normalizedLocal);
+        const remoteJson = JSON.stringify(normalizedRemote);
+        if (localJson === remoteJson) return normalizedLocal;
+        if (remoteScore > localScore) return normalizedRemote;
+        if (localScore > remoteScore) return normalizedLocal;
+        return normalizedRemote.length >= normalizedLocal.length ? normalizedRemote : normalizedLocal;
     };
     const serializeContent = (content: MessageContent): string => {
         if (typeof content === "string") return content;
@@ -122,7 +237,7 @@ export function mergeLocalAndRemoteSessions(
         if (!session) return "";
         const safeName = String(session.name || "").trim().toLowerCase();
         const safeModel = String(session.model || "").trim().toLowerCase();
-        const history = Array.isArray(session.history) ? session.history : [];
+        const history = flattenHistory(Array.isArray(session.history) ? session.history : []);
         const signature = history
             .slice(0, 8)
             .map((message) => {
@@ -165,6 +280,9 @@ export function mergeLocalAndRemoteSessions(
         if (!localId || !localSession) {
             output[remoteId] = {
                 ...remoteSession,
+                history: normalizeHistoryForStorage(
+                    Array.isArray(remoteSession.history) ? remoteSession.history : [],
+                ),
                 remoteId,
                 __merged: true,
             } as ChatSession;
@@ -184,7 +302,7 @@ export function mergeLocalAndRemoteSessions(
             name: localSession.name || remoteSession.name,
             model: localSession.model || remoteSession.model,
             favorite: Boolean(localSession.favorite || remoteSession.favorite),
-            history: mergedHistory,
+            history: normalizeHistoryForStorage(mergedHistory),
             remoteId,
             __merged: true,
         } as ChatSession;

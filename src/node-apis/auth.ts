@@ -970,7 +970,7 @@ function normalizeRemoteSessionForSync(
 				current.content = msg.content ?? "";
 			}
 			versions[index] = current;
-			msg.versions = versions;
+		msg.versions = versions;
 		msg.content = current.content;
 		const toolCalls =
 			Array.isArray(current.tool_calls) || Array.isArray(current.toolCalls)
@@ -979,7 +979,15 @@ function normalizeRemoteSessionForSync(
 					? ((msg.tool_calls || msg.toolCalls) as unknown[])
 					: [];
 		if (toolCalls.length > 0) {
-			msg.tool_calls = toolCalls;
+			current.tool_calls = clone(toolCalls);
+			current.toolCalls = clone(toolCalls);
+			msg.tool_calls = clone(toolCalls);
+			msg.toolCalls = clone(toolCalls);
+		} else {
+			delete current.tool_calls;
+			delete current.toolCalls;
+			delete msg.tool_calls;
+			delete msg.toolCalls;
 		}
 		if (!msg.id) {
 			msg.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -992,50 +1000,71 @@ function normalizeRemoteSessionForSync(
 		}
 		return msg;
 	};
-	const toFlatHistory = (rawHistory: unknown[]): unknown[] => {
+	const normalizeTreeNode = (node: Record<string, unknown>): Record<string, unknown> => {
+		const synced = applyActiveVersion(node);
+		const versions = Array.isArray(synced.versions)
+			? (synced.versions as Array<Record<string, unknown>>)
+			: [];
+		const idx =
+			typeof synced.currentVersionIdx === "number"
+				? Math.max(0, Math.min(Math.round(synced.currentVersionIdx), versions.length - 1))
+				: 0;
+		const active = versions[idx] || {};
+		const rawTail = Array.isArray(active.tail) ? active.tail : [];
+		const normalizedTail = rawTail
+			.filter((tailNode) => tailNode && typeof tailNode === "object")
+			.map((tailNode) => normalizeTreeNode(tailNode as Record<string, unknown>));
+		active.tail = normalizedTail;
+		versions[idx] = active;
+		synced.versions = versions;
+		synced.content = active.content;
+		return synced;
+	};
+	const toTreeHistory = (rawHistory: unknown[]): unknown[] => {
 		if (!Array.isArray(rawHistory) || rawHistory.length === 0) return [];
 		const looksTree =
 			rawHistory.length === 1 &&
 			rawHistory[0] &&
 			typeof rawHistory[0] === "object" &&
 			Array.isArray((rawHistory[0] as Record<string, unknown>).versions);
-		if (!looksTree) {
-			return rawHistory.map((entry) => {
-				if (!entry || typeof entry !== "object") return entry;
-				return applyActiveVersion(entry as Record<string, unknown>);
-			});
+		if (looksTree) {
+			return [normalizeTreeNode(rawHistory[0] as Record<string, unknown>)];
 		}
-		const history: unknown[] = [];
-		const walk = (node: Record<string, unknown>): void => {
-			const synced = applyActiveVersion(node);
-			history.push(synced);
-			const versions = Array.isArray(synced.versions)
-				? (synced.versions as Array<Record<string, unknown>>)
+		const nodes = rawHistory
+			.filter((entry) => entry && typeof entry === "object")
+			.filter((entry, index, arr) => {
+				const id = asTrimmedString((entry as Record<string, unknown>)?.id);
+				if (!id) return true;
+				for (let i = 0; i < index; i++) {
+					const prior = arr[i] as Record<string, unknown> | undefined;
+					if (asTrimmedString(prior?.id) === id) return false;
+				}
+				return true;
+			})
+			.map((entry) => applyActiveVersion(entry as Record<string, unknown>));
+		if (!nodes.length) return [];
+		const root = nodes[0];
+		if (!root) return [];
+		for (let i = 1; i < nodes.length; i++) {
+			const next = nodes[i];
+			if (!next) continue;
+			const versions = Array.isArray(root.versions)
+				? (root.versions as Array<Record<string, unknown>>)
 				: [];
 			const idx =
-				typeof synced.currentVersionIdx === "number"
-					? Math.max(0, Math.min(Math.round(synced.currentVersionIdx), versions.length - 1))
+				typeof root.currentVersionIdx === "number"
+					? Math.max(0, Math.min(Math.round(root.currentVersionIdx), versions.length - 1))
 					: 0;
-			const active = versions[idx] || null;
-			const tail = active && Array.isArray(active.tail) ? active.tail : [];
-			for (const tailNode of tail) {
-				if (!tailNode || typeof tailNode !== "object") continue;
-				walk(tailNode as Record<string, unknown>);
-				const asMsg = tailNode as Record<string, unknown>;
-				if (
-					asMsg.role === "user" &&
-					Array.isArray(asMsg.versions) &&
-					asMsg.versions.length > 1
-				) {
-					break;
-				}
-			}
-		};
-		walk(rawHistory[0] as Record<string, unknown>);
-		return history;
+			const active = versions[idx] || {};
+			const tail = Array.isArray(active.tail) ? active.tail : [];
+			active.tail = [...tail, next];
+			versions[idx] = active;
+			root.versions = versions;
+		}
+		return [normalizeTreeNode(root)];
 	};
 	const historyRaw = Array.isArray(asRecord.history) ? asRecord.history : [];
-	const history = toFlatHistory(historyRaw);
+	const history = toTreeHistory(historyRaw);
 	const created =
 		typeof asRecord.created === "number" && Number.isFinite(asRecord.created)
 			? Math.round(asRecord.created)
@@ -1597,28 +1626,170 @@ export default function register() {
 
 			for (const [localId, localSession] of Object.entries(allSessions)) {
 					const localRecord = localSession as Record<string, unknown>;
-					let candidateRoot: Record<string, unknown> | null = null;
-					const serializedRoot = asTrimmedString(localRecord.__historyRootJson);
-					if (serializedRoot) {
-						try {
-							const parsed = JSON.parse(serializedRoot);
-							if (parsed && typeof parsed === "object") {
-								candidateRoot = parsed as Record<string, unknown>;
+					const normalizeLocalHistoryToTree = (history: unknown): Record<string, unknown>[] => {
+						const rawHistory = Array.isArray(history) ? history : [];
+						if (!rawHistory.length) return [];
+						const isInlineMediaSource = (value: unknown): boolean => {
+							if (typeof value !== "string") return false;
+							const v = value.trim();
+							return (
+								v.startsWith("data:") ||
+								v.startsWith("blob:") ||
+								v.startsWith("http://") ||
+								v.startsWith("https://")
+							);
+						};
+						const normalizeMediaContent = (
+							role: unknown,
+							content: unknown,
+							mimeType: unknown,
+							name: unknown,
+						): unknown => {
+							const roleName = asTrimmedString(role);
+							const mediaRole = roleName === "image" || roleName === "video" || roleName === "audio";
+							if (!mediaRole) return content;
+							if (typeof content === "string") {
+								const trimmed = content.trim();
+								if (!trimmed || isInlineMediaSource(trimmed)) return content;
+								const fallbackMimeType =
+									roleName === "image"
+										? "image/png"
+										: roleName === "video"
+											? "video/mp4"
+											: "audio/mpeg";
+								return {
+									assetId: trimmed,
+									mimeType: asTrimmedString(mimeType) || fallbackMimeType,
+									name: asTrimmedString(name) || `${roleName}`,
+								};
 							}
-						} catch {
-							candidateRoot = null;
+							if (content && typeof content === "object") {
+								const asRec = content as Record<string, unknown>;
+								const assetId = asTrimmedString(asRec.assetId) || asTrimmedString(asRec.id);
+								if (!assetId) return content;
+								const fallbackMimeType =
+									roleName === "image"
+										? "image/png"
+										: roleName === "video"
+											? "video/mp4"
+											: "audio/mpeg";
+								return {
+									...asRec,
+									assetId,
+									mimeType: asTrimmedString(asRec.mimeType) || asTrimmedString(mimeType) || fallbackMimeType,
+									name: asTrimmedString(asRec.name) || asTrimmedString(name) || `${roleName}`,
+								};
+							}
+							return content;
+						};
+						const first = rawHistory[0];
+						const looksTree =
+							rawHistory.length === 1 &&
+							first &&
+							typeof first === "object" &&
+							Array.isArray((first as Record<string, unknown>).versions);
+						if (looksTree) {
+							return [JSON.parse(JSON.stringify(first)) as Record<string, unknown>];
 						}
-					}
-					if (
-						!candidateRoot &&
-						Array.isArray(localSession.history) &&
-						localSession.history.length > 0 &&
-						localSession.history[0] &&
-						typeof localSession.history[0] === "object"
-					) {
-						candidateRoot = localSession.history[0] as Record<string, unknown>;
-					}
-					const historyPayload = candidateRoot ? [candidateRoot] : [];
+						const normalizedNodes = rawHistory
+							.filter((entry) => entry && typeof entry === "object")
+							.filter((entry, index, arr) => {
+								const id = asTrimmedString(
+									(entry as Record<string, unknown>)?.id,
+								);
+								if (!id) return true;
+								for (let i = 0; i < index; i++) {
+									const prior = arr[i] as Record<string, unknown> | undefined;
+									if (asTrimmedString(prior?.id) === id) return false;
+								}
+								return true;
+							})
+							.map((entry) => {
+								const msg = JSON.parse(JSON.stringify(entry)) as Record<string, unknown>;
+								const versions = Array.isArray(msg.versions)
+									? (msg.versions as Array<Record<string, unknown>>)
+									: [];
+								if (!versions.length) {
+									msg.versions = [{
+										content: msg.content ?? "",
+										tail: [],
+										timestamp:
+											typeof msg.timestamp === "number" && Number.isFinite(msg.timestamp)
+												? msg.timestamp
+												: Date.now(),
+									}];
+									msg.currentVersionIdx = 0;
+								}
+								const idx =
+									typeof msg.currentVersionIdx === "number" &&
+									Number.isFinite(msg.currentVersionIdx)
+										? Math.max(
+											0,
+											Math.min(Math.round(msg.currentVersionIdx), versions.length - 1),
+										)
+										: 0;
+								msg.currentVersionIdx = idx;
+								const active = (msg.versions as Array<Record<string, unknown>>)[idx] || {};
+								active.tail = [];
+								if (active.content === undefined || active.content === null) {
+									active.content = msg.content ?? "";
+								}
+								const toolCalls =
+									Array.isArray(active.tool_calls) || Array.isArray(active.toolCalls)
+										? ((active.tool_calls || active.toolCalls) as unknown[])
+										: Array.isArray(msg.tool_calls) || Array.isArray(msg.toolCalls)
+											? ((msg.tool_calls || msg.toolCalls) as unknown[])
+											: [];
+								if (toolCalls.length > 0) {
+									active.tool_calls = JSON.parse(JSON.stringify(toolCalls));
+									active.toolCalls = JSON.parse(JSON.stringify(toolCalls));
+									msg.tool_calls = JSON.parse(JSON.stringify(toolCalls));
+									msg.toolCalls = JSON.parse(JSON.stringify(toolCalls));
+								} else {
+									delete active.tool_calls;
+									delete active.toolCalls;
+									delete msg.tool_calls;
+									delete msg.toolCalls;
+								}
+								(msg.versions as Array<Record<string, unknown>>)[idx] = active;
+								msg.content = normalizeMediaContent(
+									msg.role,
+									active.content,
+									msg.mimeType,
+									msg.name,
+								);
+								active.content = msg.content;
+								return msg;
+							});
+						if (!normalizedNodes.length) return [];
+						const root = normalizedNodes[0] as Record<string, unknown>;
+						let cursor = root;
+						for (let i = 1; i < normalizedNodes.length; i++) {
+							const next = normalizedNodes[i];
+							if (!next) continue;
+							const cursorVersions = Array.isArray(cursor.versions)
+								? (cursor.versions as Array<Record<string, unknown>>)
+								: [];
+							const cursorIdx =
+								typeof cursor.currentVersionIdx === "number" &&
+								Number.isFinite(cursor.currentVersionIdx)
+									? Math.max(
+										0,
+										Math.min(Math.round(cursor.currentVersionIdx), cursorVersions.length - 1),
+									)
+									: 0;
+							const cursorActive = cursorVersions[cursorIdx] || {};
+							const cursorTail = Array.isArray(cursorActive.tail)
+								? (cursorActive.tail as Record<string, unknown>[])
+								: [];
+							cursorActive.tail = [...cursorTail, next];
+							cursorVersions[cursorIdx] = cursorActive;
+							cursor.versions = cursorVersions;
+							cursor = next;
+						}
+						return [root];
+					};
+					const historyPayload = normalizeLocalHistoryToTree(localSession.history);
 					const candidateRemoteId = normalizeRemoteIdFromLocalSession(
 						localId,
 						localSession,
