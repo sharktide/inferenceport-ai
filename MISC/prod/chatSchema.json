@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://inferenceport.ai/schema/chatSchema.json",
+  "$id": "https://inference.js.org/MISC/prod/chatSchema.json",
   "title": "InferencePort Chat Session Schema",
   "description": "Canonical chat session storage schema shared by /server, /src, and /webchat.",
   "oneOf": [
