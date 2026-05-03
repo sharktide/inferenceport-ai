@@ -707,10 +707,9 @@ export default function register() {
 
 								if (
 									typeof value === "string" &&
-									value
-										.trim()
-										.toLowerCase()
-										.startsWith("javascript:")
+									["javascript:", "data:", "vbscript:"].some((scheme) =>
+										value.trim().toLowerCase().startsWith(scheme),
+									)
 								)
 									continue;
 
