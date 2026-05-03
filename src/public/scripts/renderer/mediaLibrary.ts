@@ -643,9 +643,10 @@ function renderMediaList(): void {
 				title: item.name,
 				message: "Choose an action",
 				choices: [
-					{ id: "rename", label: "Rename" },
-					{ id: "move", label: "Move to folder" },
-					{ id: "trash", label: "Move to trash" },
+					{ id: "download", label: "Download media", description: "Download the original file to your device" },
+					{ id: "rename", label: "Rename", description: "Change the name of the item" },
+					{ id: "move", label: "Move to folder", description: "Move the item to a different folder" },
+					{ id: "trash", label: "Move to trash", description: "Move the item to the trash" },
 				],
 			});
 			if (action === "rename") {
@@ -684,6 +685,30 @@ function renderMediaList(): void {
 				const res = await window.sync.mediaTrash({ ids: [item.id] });
 				if (res?.error) throw new Error(String(res.error));
 				await refreshMediaList();
+			} else if (action === "download") {
+				if (item.type !== "file") {
+					showNotification({
+						type: "info",
+						message: "Folders cannot be downloaded.",
+					});
+					return;
+				}
+
+				const payload = await window.sync.mediaGetContent(item.id, {
+					format: "base64",
+				});
+
+				if (payload?.error) throw new Error(String(payload.error));
+
+				const mime = item.mimeType || "application/octet-stream";
+				const base64 = payload.content;
+
+				const link = document.createElement("a");
+				link.href = `data:${mime};base64,${base64}`;
+				link.download = item.name || "download";
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
 			}
 		});
 	});
