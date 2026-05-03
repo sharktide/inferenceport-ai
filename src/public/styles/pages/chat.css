@@ -770,6 +770,12 @@ select {
 	gap: 10px;
 }
 
+.sidebar-subtab-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .sidebar-pane-kicker {
 	font-size: 11px;
 	text-transform: uppercase;
@@ -1132,6 +1138,15 @@ a.media-choice-btn:focus-visible {
 }
 .sidebar-back-btn:hover {
     background: color-mix(in srgb, var(--blue) 10%, var(--bg-light) 90%);
+}
+
+.sidebar-danger-btn {
+	color: #b42318;
+	background: color-mix(in srgb, #ef4444 10%, transparent);
+}
+
+.sidebar-danger-btn:hover {
+	background: color-mix(in srgb, #ef4444 16%, var(--bg-light) 84%);
 }
 .media-editor-title {
 	font-size: 14px;

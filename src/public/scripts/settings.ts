@@ -65,6 +65,9 @@ const startupAutoProxyCheckbox = document.getElementById(
 const startupSnipHotkeyCheckbox = document.getElementById(
 	"startup-snip-hotkey",
 ) as HTMLInputElement | null;
+const startupMediaLibraryStorageCheckbox = document.getElementById(
+	"startup-media-library-storage",
+) as HTMLInputElement | null;
 const startupUiPortInput = document.getElementById(
 	"startup-ui-port",
 ) as HTMLInputElement | null;
@@ -79,6 +82,9 @@ const startupStatus = document.getElementById(
 ) as HTMLParagraphElement | null;
 const startupSnipStatus = document.getElementById(
 	"startup-snip-status",
+) as HTMLParagraphElement | null;
+const startupMediaStorageStatus = document.getElementById(
+	"startup-media-storage-status",
 ) as HTMLParagraphElement | null;
 const searchEngineSelect = document.getElementById(
 	"search-engine-select",
@@ -946,7 +952,7 @@ async function openSettingsUpgradeModal() {
 					msg.className = "muted";
 					msg.style.color = "#d38200ff";
 					msg.textContent = "Sign in to enable chat sync.";
-					syncSection.appendChild(msg);
+					syncSection.insertBefore(msg, syncSection.childNodes[7] || null);
 				}
 			} else {
 				const saved = localStorage.getItem("sync_enabled");
@@ -975,6 +981,36 @@ async function initStartupSettings() {
 				startup.snipHotkeyInBackground,
 			);
 		}
+		if (startupMediaLibraryStorageCheckbox) {
+			const { session } = (await window.auth.getSession?.()) ?? {
+				session: null,
+			};
+			const isLoggedIn = !!session?.isAuthenticated;
+			if (!isLoggedIn) {
+				startupMediaLibraryStorageCheckbox.disabled = true;
+				startupMediaLibraryStorageCheckbox.checked = false;
+
+				if (syncSection) {
+					const msg = document.createElement("p");
+					msg.className = "muted";
+					msg.style.color = "#d38200ff";
+					msg.textContent = "Sign in to enable media library storage.";
+					syncSection.appendChild(msg);
+				}
+			} else {
+				startupMediaLibraryStorageCheckbox.disabled = false;
+
+				const saved = startup.mediaLibraryStorageEnabled !== false;
+				startupMediaLibraryStorageCheckbox.checked = saved;
+
+				startupMediaLibraryStorageCheckbox.addEventListener("change", () => {
+					window.startup.updateSettings({
+						mediaLibraryStorageEnabled:
+							startupMediaLibraryStorageCheckbox.checked,
+					});
+				});
+			}
+		}
 		if (startupUiPortInput) {
 			startupUiPortInput.value = String(startup.uiPort);
 		}
@@ -997,6 +1033,12 @@ async function initStartupSettings() {
 					? "Screen snip hotkey is enabled in the background."
 					: "Screen snip hotkey is enabled, but requires background startup to work when the app is closed.")
 				: "Screen snip hotkey is disabled when the app is closed.";
+		}
+		if (startupMediaStorageStatus) {
+			startupMediaStorageStatus.textContent =
+				startup.mediaLibraryStorageEnabled === false
+					? "Cloud media library storage is disabled for app generations."
+					: "Cloud media library storage is enabled for app generations.";
 		}
 	} catch (err) {
 		console.warn("Could not load startup settings", err);
@@ -1126,6 +1168,27 @@ startupSnipHotkeyCheckbox?.addEventListener("change", async () => {
 		console.warn("Could not update snip hotkey setting", err);
 		showNotification({
 			message: "Could not update snip hotkey setting",
+			type: "warning",
+		});
+	}
+});
+
+startupMediaLibraryStorageCheckbox?.addEventListener("change", async () => {
+	try {
+		const updated = await window.startup.updateSettings({
+			mediaLibraryStorageEnabled:
+				startupMediaLibraryStorageCheckbox.checked,
+		});
+		if (startupMediaStorageStatus) {
+			startupMediaStorageStatus.textContent =
+				updated.mediaLibraryStorageEnabled === false
+					? "Cloud media library storage is disabled for app generations."
+					: "Cloud media library storage is enabled for app generations.";
+		}
+	} catch (err) {
+		console.warn("Could not update media library storage setting", err);
+		showNotification({
+			message: "Could not update media library storage setting",
 			type: "warning",
 		});
 	}

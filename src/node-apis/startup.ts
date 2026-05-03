@@ -15,6 +15,7 @@ export type StartupSettings = {
 	serverApiKeys: string[];
 	uiPort: number;
 	snipHotkeyInBackground: boolean;
+	mediaLibraryStorageEnabled: boolean;
 };
 
 const RESERVED_PORT_MIN = 52440;
@@ -33,6 +34,7 @@ const defaultSettings: StartupSettings = {
 	serverApiKeys: [],
 	uiPort: 52459,
 	snipHotkeyInBackground: false,
+	mediaLibraryStorageEnabled: true,
 };
 
 type StartupSettingsListener = (settings: StartupSettings) => void;
@@ -97,6 +99,8 @@ function sanitizeSettings(raw: Partial<StartupSettings>): StartupSettings {
 				? Math.round(raw.uiPort)
 				: defaultSettings.uiPort,
 		snipHotkeyInBackground: Boolean(raw.snipHotkeyInBackground),
+		mediaLibraryStorageEnabled:
+			raw.mediaLibraryStorageEnabled !== false,
 	};
 }
 

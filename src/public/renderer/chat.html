@@ -272,9 +272,12 @@
 									<div class="sidebar-pane-kicker">Media</div>
 									<div class="sidebar-pane-title">Cloud Files</div>
 								</div>
-								<button id="media-create-btn" class="sidebar-create-btn" title="Create or upload" aria-label="Create or upload media" type="button">
-									<span class="sidebar-create-plus">+</span>
-								</button>
+								<div class="sidebar-subtab-actions">
+									<button id="media-delete-all-btn" class="sidebar-back-btn sidebar-danger-btn" title="Move all visible items to trash" type="button">Delete All</button>
+									<button id="media-create-btn" class="sidebar-create-btn" title="Create or upload" aria-label="Create or upload media" type="button">
+										<span class="sidebar-create-plus">+</span>
+									</button>
+								</div>
 							</div>
 							<div id="media-breadcrumbs" class="media-breadcrumbs"></div>
 							<div id="media-list" class="media-list"></div>
@@ -287,7 +290,10 @@
 									<div id="sidebar-trash-subtitle" class="sidebar-pane-kicker">Media</div>
 									<div id="sidebar-trash-title" class="sidebar-pane-title">Trash</div>
 								</div>
-								<button id="sidebar-trash-back" class="sidebar-back-btn" title="Back" type="button">← Back</button>
+								<div class="sidebar-subtab-actions">
+									<button id="sidebar-trash-delete-all" class="sidebar-back-btn sidebar-danger-btn" title="Delete all trash items forever" type="button">Delete All</button>
+									<button id="sidebar-trash-back" class="sidebar-back-btn" title="Back" type="button">← Back</button>
+								</div>
 							</div>
 							<div id="sidebar-trash-selection-bar" class="sidebar-selection-bar" style="display: none;"></div>
 							<div id="sidebar-trash-list" class="sidebar-trash-list"></div>

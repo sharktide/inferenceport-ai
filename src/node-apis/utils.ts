@@ -26,6 +26,7 @@ import MDIT from "markdown-it";
 import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
+import { getStartupSettings } from "./startup.js";
 
 // @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
 import mdFootnote from "markdown-it-footnote";
@@ -155,9 +156,12 @@ export async function save_stream(
 		options.mimeType?.trim() || response.type || "application/octet-stream";
 	const kind = options.kind || inferKindFromMime(mimeType);
 	const name = buildAssetName(mimeType, kind, options.name);
+	const startupSettings = getStartupSettings();
+	const canUseRemoteMediaStorage =
+		startupSettings.mediaLibraryStorageEnabled !== false;
 	const accessToken = await getSignedInAccessToken();
 
-	if (accessToken) {
+	if (accessToken && canUseRemoteMediaStorage) {
 		try {
 			const buffer = Buffer.from(await response.arrayBuffer());
 			const payload: Record<string, unknown> = {

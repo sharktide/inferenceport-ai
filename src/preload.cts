@@ -315,6 +315,7 @@ contextBridge.exposeInMainWorld("startup", {
 		proxyPort?: number;
 		uiPort?: number;
 		snipHotkeyInBackground?: boolean;
+		mediaLibraryStorageEnabled?: boolean;
 		proxyUsers?: { email: string; role: string }[];
 		serverApiKeys?: string[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),

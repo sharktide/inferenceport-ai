@@ -35,6 +35,7 @@ const state = {
 };
 
 let mediaModal: declarations["iInstance"]["iModal"] | null = null;
+let sidebarControlsBound = false;
 
 function ensureMediaModal(): declarations["iInstance"]["iModal"] {
 	if (!mediaModal) {
@@ -445,6 +446,73 @@ async function refreshTrashList(): Promise<void> {
 		[...state.trash.selected].filter((id) => visible.has(id)),
 	);
 	renderTrashOverlay();
+}
+
+function bindSidebarControls(): void {
+	if (sidebarControlsBound) return;
+	sidebarControlsBound = true;
+
+	document
+		.getElementById("media-delete-all-btn")
+		?.addEventListener("click", async () => {
+			try {
+				const ids = state.items.map((item) => item.id).filter(Boolean);
+				if (!ids.length) {
+					showNotification({
+						type: "info",
+						message: "No media items to delete in this folder.",
+					});
+					return;
+				}
+				const ok = await openConfirmModal({
+					title: "Move All To Trash",
+					message: `Move ${ids.length} item(s) in this folder to trash?`,
+					confirmLabel: "Move to Trash",
+				});
+				if (!ok) return;
+				const res = await window.sync.mediaTrash({ ids });
+				if (res?.error) throw new Error(String(res.error));
+				await refreshMediaList();
+				await refreshTrashList();
+				showNotification({
+					type: "success",
+					message: `Moved ${ids.length} item(s) to trash.`,
+				});
+			} catch (err) {
+				handleError(err);
+			}
+		});
+
+	document
+		.getElementById("sidebar-trash-delete-all")
+		?.addEventListener("click", async () => {
+			try {
+				const ids = state.trash.items.map((item) => item.id).filter(Boolean);
+				if (!ids.length) {
+					showNotification({
+						type: "info",
+						message: "Trash is already empty.",
+					});
+					return;
+				}
+				const ok = await openConfirmModal({
+					title: "Delete All Forever",
+					message: `Delete all ${ids.length} item(s) in trash forever? This cannot be undone.`,
+					confirmLabel: "Delete Forever",
+				});
+				if (!ok) return;
+				const res = await window.sync.mediaDelete({ ids });
+				if (res?.error) throw new Error(String(res.error));
+				state.trash.selected.clear();
+				await refreshTrashList();
+				showNotification({
+					type: "success",
+					message: `Deleted ${ids.length} item(s) permanently.`,
+				});
+			} catch (err) {
+				handleError(err);
+			}
+		});
 }
 
 function renderUsagePanel(): void {
@@ -1009,6 +1077,7 @@ export async function openMediaPicker(
 }
 
 export async function openMediaTrashOverlay(): Promise<void> {
+	bindSidebarControls();
 	await refreshTrashList().catch(handleError);
 }
 
@@ -1355,6 +1424,7 @@ async function openFolderPicker(opts: {
 }
 
 export function initMediaLibrary(): void {
+	bindSidebarControls();
 	if (state.initialized) return;
 	state.initialized = true;
 

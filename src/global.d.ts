@@ -407,6 +407,7 @@ declare global {
 				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
+				mediaLibraryStorageEnabled: boolean;
 			}>;
 			updateSettings: (patch: {
 				runAtLogin?: boolean;
@@ -414,6 +415,7 @@ declare global {
 				proxyPort?: number;
 				uiPort?: number;
 				snipHotkeyInBackground?: boolean;
+				mediaLibraryStorageEnabled?: boolean;
 				proxyUsers?: { email: string; role: string }[];
 				serverApiKeys?: string[];
 			}) => Promise<{
@@ -424,6 +426,7 @@ declare global {
 				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
+				mediaLibraryStorageEnabled: boolean;
 			}>;
 		};
 
