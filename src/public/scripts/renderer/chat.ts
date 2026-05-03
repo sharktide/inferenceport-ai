@@ -467,6 +467,7 @@ function getSessionFlatHistory(session: any, sessionId?: string): any[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function processTextForDisplay(text: string): string {
+	text = text.replace(/<session_name>[\s\S]*?<\/session_name>/gi, "").trim();
 	let result = '';
 	let i = 0;
 	while (i < text.length) {
@@ -4168,6 +4169,87 @@ function buildMessageActions(
 	return actions;
 }
 
+function isSafeHttpImageUrl(url: string): boolean {
+    return /^https?:\/\//i.test(url);
+}
+
+function isDataImageUrl(url: string): boolean {
+    return /^data:image\//i.test(url);
+}
+
+async function sanitizeSvgDataUrl(url: string): Promise<string | null> {
+    const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
+    if (!match) return null;
+
+    const isBase64 = !!match[1];
+    const payload = match[2] || "";
+
+    let svg: string;
+    try {
+        if (isBase64) {
+            const decoded = atob(payload);
+            svg = decoded;
+        } else {
+            svg = decodeURIComponent(payload);
+        }
+    } catch {
+        return null;
+    }
+
+    const sanitizedSvg = await window.utils.sanitizeSVG(svg);
+
+    let encoded: string;
+    if (isBase64) {
+        encoded = btoa(sanitizedSvg);
+        return `data:image/svg+xml;base64,${encoded}`;
+    } else {
+        encoded = encodeURIComponent(sanitizedSvg);
+        return `data:image/svg+xml,${encoded}`;
+    }
+}
+
+async function makeSafeImageUrl(url: string): Promise<string | null> {
+    if (/^https?:\/\//i.test(url)) {
+        return url;
+    }
+
+    if (!/^data:image\//i.test(url)) {
+        return null;
+    }
+
+    if (/^data:image\/svg\+xml/i.test(url)) {
+        const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
+        if (!match) return null;
+
+        const isBase64 = !!match[1];
+        const payload = match[2] || "";
+
+        let svgXml: string;
+        try {
+            if (isBase64) {
+                svgXml = atob(payload);
+            } else {
+                svgXml = decodeURIComponent(payload);
+            }
+        } catch {
+            return null;
+        }
+
+        const sanitized = await window.utils.sanitizeSVG(svgXml);
+
+        if (isBase64) {
+            const encoded = btoa(sanitized);
+            return `data:image/svg+xml;base64,${encoded}`;
+        } else {
+            const encoded = encodeURIComponent(sanitized);
+            return `data:image/svg+xml,${encoded}`;
+        }
+    }
+
+    return url;
+}
+
+
 async function renderChat() {
 	for (const url of assetObjectUrlCache.values()) {
 		try {
@@ -4202,26 +4284,18 @@ async function renderChat() {
 
 	for (const [messageIndex, msg] of flatHistory.entries()) {
 		normalizeMessageFromActiveVersion(msg);
-		/* ---------------- USER ---------------- */
 		if (msg.role === "user") {
 			const bubble = document.createElement("div");
 			bubble.className = "chat-bubble user-bubble has-message-actions";
 
-			// Render the text portion via markdown.
 			const textContent = getMessageText(msg.content);
 			const fileAttachments = extractAttachedTextFiles(textContent);
-			const displayText = stripAttachedDetailsBlocks(textContent);
+			const displayText = stripAttachedDetailsBlocks(textContent)
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
 			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
 				displayText || "",
 			);
 
-			// Render any inline images that were attached to this message.
-			/*
-			🚨 issue (security): Rendering attached images via string HTML interpolation is vulnerable to XSS if image_url.url is ever untrusted.
-
-			Since url comes from persisted session content (including remote sync), an attacker could inject something like " onerror="... and have it end up inside the <img> element if constructed via HTML strings. To prevent XSS, construct the modal DOM with document.createElement and element.src = url instead of string interpolation, or at least escape url before use. The same applies to the image-click modal; using safe DOM APIs consistently there would mitigate this risk.
-			*/
 			const imageUrls = getMessageImages(msg.content);
 			for (const url of imageUrls) {
 				const imgWrapper = document.createElement("div");
@@ -4237,12 +4311,19 @@ async function renderChat() {
 				img.style.marginTop = "8px";
 				img.style.display = "block";
 				img.style.cursor = "pointer";
-				// Click to open full-size in a modal.
-				img.addEventListener("click", () => {
-					const safeUrl = url.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+				img.addEventListener("click", async () => {
+					const safeUrl = await makeSafeImageUrl(url);
+					if (!safeUrl) {
+						return;
+					}
+
+					const escaped = safeUrl
+						.replace(/"/g, "&quot;")
+						.replace(/'/g, "&#39;");
+
 					modal.open({
 						title: "Attached image",
-						html: `<img src="${safeUrl}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
+						html: `<img src="${escaped}" alt="Attached image" style="max-width:100%;max-height:75vh;border-radius:6px;" />`,
 						actions: [
 							{
 								id: "close-img-modal",
@@ -4252,7 +4333,6 @@ async function renderChat() {
 						],
 					});
 				});
-
 				imgWrapper.appendChild(img);
 				bubble.appendChild(imgWrapper);
 			}
@@ -4292,9 +4372,9 @@ async function renderChat() {
 		/* ---------------- ASSISTANT ---------------- */
 		if (msg.role === "assistant") {
 			// nosemgrep: javascript.browser.security.insecure-innerhtml
-			const html = await window.utils.markdown_parse_and_purify(
+			const html = (await window.utils.markdown_parse_and_purify(
 				msg.content || "",
-			);
+			)).replace(/&lt;session_name&gt;[\s\S]*?&lt;\/session_name&gt;/gi, "");
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
 
