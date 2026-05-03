@@ -199,6 +199,7 @@ declare global {
 			web_open: (url: string) => Promise<void>;
 			markdown_parse_and_purify: (markdown: string) => Promise<string>;
 			DOMPurify: (html: string) => Promise<string>;
+			sanitizeSVG: (svg: string) => Promise<string>;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
 			getWarning: (modelSize: string, clientUrl?: string) => Promise<{

@@ -164,6 +164,8 @@ contextBridge.exposeInMainWorld("utils", {
 		ipcRenderer.invoke("utils:markdown_parse_and_purify", markdown),
 	DOMPurify: (html: string): string =>
 		ipcRenderer.invoke("utils:DOMPurify", html),
+	sanitizeSVG: (svg: string): string =>
+		ipcRenderer.invoke("utils:sanitizeSVG", svg),
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),

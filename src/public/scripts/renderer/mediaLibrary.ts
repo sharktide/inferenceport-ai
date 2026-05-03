@@ -12,7 +12,13 @@ type MediaItem = {
 };
 
 type Attachment =
-	| { type: "image"; name: string; mimeType: string; base64: string; mediaId?: string }
+	| {
+			type: "image";
+			name: string;
+			mimeType: string;
+			base64: string;
+			mediaId?: string;
+	  }
 	| { type: "text"; name: string; content: string; mediaId?: string };
 
 const state = {
@@ -108,7 +114,9 @@ function openTextInputModal(opts: {
 					id: "media-input-save",
 					label: opts.confirmLabel || "Save",
 					onClick: () => {
-						const input = document.getElementById("media-modal-input") as HTMLInputElement | null;
+						const input = document.getElementById(
+							"media-modal-input",
+						) as HTMLInputElement | null;
 						const value = input?.value?.trim() || "";
 						closeMediaModal();
 						resolve(value || null);
@@ -137,11 +145,17 @@ function openEditorPanel(opts: {
 	const metaEl = document.getElementById("media-editor-meta");
 	const toolbar = document.getElementById("media-editor-toolbar");
 	const nameRow = document.getElementById("media-editor-name-row");
-	const nameInput = document.getElementById("media-editor-filename") as HTMLInputElement | null;
+	const nameInput = document.getElementById(
+		"media-editor-filename",
+	) as HTMLInputElement | null;
 	if (!panel || !contentWrap || !titleEl || !metaEl || !toolbar) return;
 
 	const isRich = opts.fileType === "rich_text";
-	const metaLabel = isRich ? "Rich text" : opts.fileType === "text" ? "Plain text" : opts.fileType.toUpperCase();
+	const metaLabel = isRich
+		? "Rich text"
+		: opts.fileType === "text"
+			? "Plain text"
+			: opts.fileType.toUpperCase();
 
 	titleEl.textContent = opts.isNew ? opts.title : opts.fileName;
 	metaEl.textContent = metaLabel;
@@ -167,7 +181,7 @@ function openEditorPanel(opts: {
 		for (const [label, cmd, ttl] of [
 			["Bold", "bold", "Bold"],
 			["Italic", "italic", "Italic"],
-			["Underline", "underline", "Underline"]
+			["Underline", "underline", "Underline"],
 		] as Array<[string, string, string]>) {
 			const btn = document.createElement("button");
 			btn.className = "media-editor-tool";
@@ -207,7 +221,9 @@ function openEditorPanel(opts: {
 	// then look up fresh nodes by ID since replaceChild swaps them in the DOM.
 	const oldClose = document.getElementById("media-editor-close");
 	const oldCancel = document.getElementById("media-editor-cancel");
-	const oldSave = document.getElementById("media-editor-save") as HTMLButtonElement | null;
+	const oldSave = document.getElementById(
+		"media-editor-save",
+	) as HTMLButtonElement | null;
 
 	if (oldClose?.parentNode) {
 		const fresh = oldClose.cloneNode(true) as HTMLElement;
@@ -225,9 +241,15 @@ function openEditorPanel(opts: {
 		fresh.textContent = opts.confirmLabel || "Save";
 		fresh.onclick = async () => {
 			const content = getValue();
-			const name = opts.isNew && nameInput ? (nameInput.value.trim() || opts.fileName) : opts.fileName;
+			const name =
+				opts.isNew && nameInput
+					? nameInput.value.trim() || opts.fileName
+					: opts.fileName;
 			if (!name) {
-				showNotification({ type: "warning", message: "A file name is required." });
+				showNotification({
+					type: "warning",
+					message: "A file name is required.",
+				});
 				return;
 			}
 			if (opts.onSave) {
@@ -255,13 +277,46 @@ function openDocumentModal(opts: {
 			isNew: true,
 			confirmLabel: opts.confirmLabel || "Create",
 			onSave: async (name, content) => {
-				if (!resolved) { resolved = true; resolve({ name, content }); }
+				if (!resolved) {
+					resolved = true;
+					resolve({ name, content });
+				}
 			},
 			onClose: () => {
-				if (!resolved) { resolved = true; resolve(null); }
+				if (!resolved) {
+					resolved = true;
+					resolve(null);
+				}
 			},
 		});
 	});
+}
+
+function isPreviewable(item: MediaItem): boolean {
+	if (item.type !== "file") return false;
+	const mime = String(item.mimeType || "");
+	return (
+		mime.startsWith("image/") ||
+		mime.startsWith("video/") ||
+		mime.startsWith("audio/")
+	);
+}
+
+function isSafeRasterImage(mime: string): boolean {
+	return ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+		mime,
+	);
+}
+
+function renderSvgSandboxed(svg: string): string {
+	const escaped = svg.replace(/"/g, "&quot;");
+	return `
+		<iframe
+			style="width:100%;height:60vh;border:none;border-radius:8px;background:#fff"
+			sandbox
+			srcdoc="${escaped}">
+		</iframe>
+	`;
 }
 
 function openActionChoiceModal(opts: {
@@ -323,7 +378,8 @@ function escHtml(value: string): string {
 function bytesLabel(size = 0): string {
 	if (size < 1024) return `${size} B`;
 	if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-	if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+	if (size < 1024 * 1024 * 1024)
+		return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 	return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
@@ -333,7 +389,10 @@ function plainTextFromHtml(html: string): string {
 }
 
 function isAttachable(item: MediaItem): boolean {
-	return item.type === "file" && ["image", "text", "rich_text"].includes(String(item.kind || ""));
+	return (
+		item.type === "file" &&
+		["image", "text", "rich_text"].includes(String(item.kind || ""))
+	);
 }
 
 function listEl(): HTMLElement | null {
@@ -365,7 +424,10 @@ function trashSubtitleEl(): HTMLElement | null {
 }
 
 async function refreshMediaList(): Promise<void> {
-	const res = await window.sync.mediaList({ view: "active", parentId: state.parentId });
+	const res = await window.sync.mediaList({
+		view: "active",
+		parentId: state.parentId,
+	});
 	if (res?.error) throw new Error(String(res.error));
 	state.items = Array.isArray(res?.items) ? res.items : [];
 	state.breadcrumbs = Array.isArray(res?.breadcrumbs) ? res.breadcrumbs : [];
@@ -379,7 +441,9 @@ async function refreshTrashList(): Promise<void> {
 	state.trash.items = Array.isArray(res?.items) ? res.items : [];
 	state.trash.usage = res?.usage || null;
 	const visible = new Set(state.trash.items.map((it) => it.id));
-	state.trash.selected = new Set([...state.trash.selected].filter((id) => visible.has(id)));
+	state.trash.selected = new Set(
+		[...state.trash.selected].filter((id) => visible.has(id)),
+	);
 	renderTrashOverlay();
 }
 
@@ -392,7 +456,8 @@ function renderUsagePanel(): void {
 	}
 	const quota = Number(state.usage.quotaBytes || 0);
 	const total = Number(state.usage.totalBytes || 0);
-	const percent = quota > 0 ? Math.max(0, Math.min(100, (total / quota) * 100)) : 0;
+	const percent =
+		quota > 0 ? Math.max(0, Math.min(100, (total / quota) * 100)) : 0;
 	panel.innerHTML = `
 		<div class="media-usage-copy">
 			<span class="media-usage-label">Storage</span>
@@ -409,7 +474,8 @@ function renderTrashOverlay(): void {
 	const title = trashTitleEl();
 	const subtitle = trashSubtitleEl();
 	if (title) title.textContent = "Trash";
-	if (subtitle) subtitle.textContent = `Media • ${state.trash.items.length} item${state.trash.items.length === 1 ? "" : "s"}`;
+	if (subtitle)
+		subtitle.textContent = `Media • ${state.trash.items.length} item${state.trash.items.length === 1 ? "" : "s"}`;
 
 	const selectedCount = state.trash.selected.size;
 	bar.style.display = selectedCount === 0 ? "none" : "block";
@@ -422,29 +488,35 @@ function renderTrashOverlay(): void {
 			     <button class="sidebar-action-btn danger" data-trash-action="delete">Delete forever</button>
 			   </div>`;
 
-	bar.querySelector('[data-trash-action="restore"]')?.addEventListener("click", async () => {
-		const ids = [...state.trash.selected];
-		if (!ids.length) return;
-		const res = await window.sync.mediaRestore({ ids });
-		if (res?.error) throw new Error(String(res.error));
-		state.trash.selected.clear();
-		await refreshTrashList();
-		await refreshMediaList();
-	});
-	bar.querySelector('[data-trash-action="delete"]')?.addEventListener("click", async () => {
-		const ids = [...state.trash.selected];
-		if (!ids.length) return;
-		const ok = await openConfirmModal({
-			title: "Delete Forever",
-			message: `Delete ${ids.length} item(s) forever? This cannot be undone.`,
-			confirmLabel: "Delete",
-		});
-		if (!ok) return;
-		const res = await window.sync.mediaDelete({ ids });
-		if (res?.error) throw new Error(String(res.error));
-		state.trash.selected.clear();
-		await refreshTrashList();
-	});
+	bar.querySelector('[data-trash-action="restore"]')?.addEventListener(
+		"click",
+		async () => {
+			const ids = [...state.trash.selected];
+			if (!ids.length) return;
+			const res = await window.sync.mediaRestore({ ids });
+			if (res?.error) throw new Error(String(res.error));
+			state.trash.selected.clear();
+			await refreshTrashList();
+			await refreshMediaList();
+		},
+	);
+	bar.querySelector('[data-trash-action="delete"]')?.addEventListener(
+		"click",
+		async () => {
+			const ids = [...state.trash.selected];
+			if (!ids.length) return;
+			const ok = await openConfirmModal({
+				title: "Delete Forever",
+				message: `Delete ${ids.length} item(s) forever? This cannot be undone.`,
+				confirmLabel: "Delete",
+			});
+			if (!ok) return;
+			const res = await window.sync.mediaDelete({ ids });
+			if (res?.error) throw new Error(String(res.error));
+			state.trash.selected.clear();
+			await refreshTrashList();
+		},
+	);
 
 	if (!state.trash.items.length) {
 		list.innerHTML = `<div class="sidebar-empty-state">Trash is empty.</div>`;
@@ -477,7 +549,8 @@ function renderTrashOverlay(): void {
 		input.addEventListener("change", () => {
 			const id = (input as HTMLInputElement).dataset.trashSelect || "";
 			if (!id) return;
-			if ((input as HTMLInputElement).checked) state.trash.selected.add(id);
+			if ((input as HTMLInputElement).checked)
+				state.trash.selected.add(id);
 			else state.trash.selected.delete(id);
 			renderTrashOverlay();
 		});
@@ -525,9 +598,10 @@ function renderMediaList(): void {
 					? "Folder"
 					: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
 			const mainTag = item.type === "folder" ? "a" : "button";
-			const mainAttrs = item.type === "folder"
-				? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
-				: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
+			const mainAttrs =
+				item.type === "folder"
+					? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
+					: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
 			return `<div class="media-list-item">
 				<${mainTag} ${mainAttrs}>
 					<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
@@ -552,7 +626,11 @@ function renderMediaList(): void {
 				await refreshMediaList().catch(handleError);
 				return;
 			}
-			await openEditor(item).catch(handleError);
+			if (isPreviewable(item)) {
+				await openPreview(item).catch(handleError);
+			} else {
+				await openEditor(item).catch(handleError);
+			}
 		});
 	});
 
@@ -578,7 +656,9 @@ function renderMediaList(): void {
 					confirmLabel: "Save",
 				});
 				if (!nextName) return;
-				const res = await window.sync.mediaUpdate(item.id, { name: nextName });
+				const res = await window.sync.mediaUpdate(item.id, {
+					name: nextName,
+				});
 				if (res?.error) throw new Error(String(res.error));
 				await refreshMediaList();
 			} else if (action === "move") {
@@ -612,33 +692,188 @@ function renderMediaList(): void {
 }
 
 const EDITABLE_EXTENSIONS = new Set([
-    "txt", "md", "html", "htm", "css", "js", "ts", "jsx", "tsx",
-    "json", "yaml", "yml", "xml", "csv", "py", "pyx", "rb", "repy", "sh", "bash",
-    "java", "c", "cpp", "h", "hpp", "r", "rs", "go", "php", "ps1", "psm1", "sql", "env",
-    "ini", "toml", "conf", "log", "rtf", "rst", "bat", "cmd", "scss", "sass", "cs", "vb", "vbs",
-    "csx", "vbx", "msbuild", "sln", "csproj", "appxmanifest", "aspx", "razor", "cshtml",
+	"txt",
+	"md",
+	"html",
+	"htm",
+	"css",
+	"js",
+	"ts",
+	"jsx",
+	"tsx",
+	"json",
+	"yaml",
+	"yml",
+	"xml",
+	"csv",
+	"py",
+	"pyx",
+	"rb",
+	"repy",
+	"sh",
+	"bash",
+	"java",
+	"c",
+	"cpp",
+	"h",
+	"hpp",
+	"r",
+	"rs",
+	"go",
+	"php",
+	"ps1",
+	"psm1",
+	"sql",
+	"env",
+	"ini",
+	"toml",
+	"conf",
+	"log",
+	"rtf",
+	"rst",
+	"bat",
+	"cmd",
+	"scss",
+	"sass",
+	"cs",
+	"vb",
+	"vbs",
+	"csx",
+	"vbx",
+	"msbuild",
+	"sln",
+	"csproj",
+	"appxmanifest",
+	"aspx",
+	"razor",
+	"cshtml",
 
-    "m", "swift", "kt", "scala", "pl", "pm", "t", "awk", "sed", "lua", "dart",
-    "less", "stylus", "coffee", "hbs", "jade", "pug", "handlebars", "mustache",
-    "twig", "erb", "json5", "properties", "f", "f90", "f95", "cjs", "mjs", "tsc",
-    "jl", "nim", "erl", "ex", "exs", "hs", "hs-boot", "vhd", "vhdl", "xaml", "xslt",
-    "xsltproc", "xhtml", "xht", "xsd", "xsl", "asm", "s", "spp", "inc", "def",
-    "tcl", "pmx", "m4", "f03", "f08", "f18", "f2003", "f2008", "f2018",
-    "ksh", "zsh", "fish", "powershell", "pssc", "psm2", "psd2",
+	"m",
+	"swift",
+	"kt",
+	"scala",
+	"pl",
+	"pm",
+	"t",
+	"awk",
+	"sed",
+	"lua",
+	"dart",
+	"less",
+	"stylus",
+	"coffee",
+	"hbs",
+	"jade",
+	"pug",
+	"handlebars",
+	"mustache",
+	"twig",
+	"erb",
+	"json5",
+	"properties",
+	"f",
+	"f90",
+	"f95",
+	"cjs",
+	"mjs",
+	"tsc",
+	"jl",
+	"nim",
+	"erl",
+	"ex",
+	"exs",
+	"hs",
+	"hs-boot",
+	"vhd",
+	"vhdl",
+	"xaml",
+	"xslt",
+	"xsltproc",
+	"xhtml",
+	"xht",
+	"xsd",
+	"xsl",
+	"asm",
+	"s",
+	"spp",
+	"inc",
+	"def",
+	"tcl",
+	"pmx",
+	"m4",
+	"f03",
+	"f08",
+	"f18",
+	"f2003",
+	"f2008",
+	"f2018",
+	"ksh",
+	"zsh",
+	"fish",
+	"powershell",
+	"pssc",
+	"psm2",
+	"psd2",
 
-    "adoc", "asciidoc", "textile", "nfo", "lst", "list", "todo",
-    "cfg", "config", "props", "cf", "dotenv", "editorconfig",
-    "mdx", "creole", "wiki", "org", "tex", "latex", "bib", "toc",
-    "tsv", "ndjson", "jsonl", "arff", "plist",
-    "csh", "tcsh", "dash", "profile", "bashrc", "zshrc", "fishrc",
-    "liquid", "njk", "ejs", "svelte", "astro", "vue", "rhtml",
-    "mmd", "mmark", "rmd", "sage", "gp",
-    "prettierrc", "eslintrc", "stylelintrc", "babelrc", "swcrc", "postcssrc",
-	"gitignore", "gitattributes", "gitmodules", "prettierrc", "editorconfig",
-	"tsbuildinfo", "map"
-
+	"adoc",
+	"asciidoc",
+	"textile",
+	"nfo",
+	"lst",
+	"list",
+	"todo",
+	"cfg",
+	"config",
+	"props",
+	"cf",
+	"dotenv",
+	"editorconfig",
+	"mdx",
+	"creole",
+	"wiki",
+	"org",
+	"tex",
+	"latex",
+	"bib",
+	"toc",
+	"tsv",
+	"ndjson",
+	"jsonl",
+	"arff",
+	"plist",
+	"csh",
+	"tcsh",
+	"dash",
+	"profile",
+	"bashrc",
+	"zshrc",
+	"fishrc",
+	"liquid",
+	"njk",
+	"ejs",
+	"svelte",
+	"astro",
+	"vue",
+	"rhtml",
+	"mmd",
+	"mmark",
+	"rmd",
+	"sage",
+	"gp",
+	"prettierrc",
+	"eslintrc",
+	"stylelintrc",
+	"babelrc",
+	"swcrc",
+	"postcssrc",
+	"gitignore",
+	"gitattributes",
+	"gitmodules",
+	"prettierrc",
+	"editorconfig",
+	"tsbuildinfo",
+	"map",
 ]);
-
 
 function getFileExtension(name: string): string {
 	return name.includes(".") ? name.split(".").pop()?.toLowerCase() || "" : "";
@@ -652,15 +887,24 @@ function isEditable(item: MediaItem): boolean {
 
 async function openEditor(item: MediaItem): Promise<void> {
 	if (!isEditable(item)) {
-		showNotification({ message: "This file type cannot be edited.", type: "info" });
+		showNotification({
+			message: "This file type cannot be edited.",
+			type: "info",
+		});
 		return;
 	}
-	const payload = await window.sync.mediaGetContent(item.id, { format: "text" });
+	const payload = await window.sync.mediaGetContent(item.id, {
+		format: "text",
+	});
 	if (payload?.error) throw new Error(String(payload.error));
 	const currentContent = String(payload?.content || "");
 	const rich = String(item.kind || "") === "rich_text";
 	const ext = getFileExtension(item.name || "");
-	const fileType = rich ? "rich_text" : (String(item.kind || "") === "text" ? "text" : ext);
+	const fileType = rich
+		? "rich_text"
+		: String(item.kind || "") === "text"
+			? "text"
+			: ext;
 
 	openEditorPanel({
 		title: item.name || "Untitled",
@@ -690,12 +934,18 @@ function handleError(err: unknown): void {
 	});
 }
 
-export async function mediaItemToAttachment(item: MediaItem): Promise<Attachment | null> {
+export async function mediaItemToAttachment(
+	item: MediaItem,
+): Promise<Attachment | null> {
 	if (!item || !isAttachable(item)) return null;
 	if (item.kind === "image") {
-		const payload = await window.sync.mediaGetContent(item.id, { format: "base64" });
+		const payload = await window.sync.mediaGetContent(item.id, {
+			format: "base64",
+		});
 		if (payload?.error) throw new Error(String(payload.error));
-		const mimeType = String(item.mimeType || payload?.item?.mimeType || "image/png");
+		const mimeType = String(
+			item.mimeType || payload?.item?.mimeType || "image/png",
+		);
 		return {
 			type: "image",
 			name: item.name,
@@ -704,7 +954,9 @@ export async function mediaItemToAttachment(item: MediaItem): Promise<Attachment
 			mediaId: item.id,
 		};
 	}
-	const payload = await window.sync.mediaGetContent(item.id, { format: "text" });
+	const payload = await window.sync.mediaGetContent(item.id, {
+		format: "text",
+	});
 	if (payload?.error) throw new Error(String(payload.error));
 	const raw = String(payload?.content || "");
 	return {
@@ -715,10 +967,12 @@ export async function mediaItemToAttachment(item: MediaItem): Promise<Attachment
 	};
 }
 
-export async function openMediaPicker(opts: {
-	title?: string;
-	onSelect?: (items: MediaItem[]) => Promise<void> | void;
-} = {}): Promise<void> {
+export async function openMediaPicker(
+	opts: {
+		title?: string;
+		onSelect?: (items: MediaItem[]) => Promise<void> | void;
+	} = {},
+): Promise<void> {
 	await openPickerModal({
 		title: opts.title || "Add From Media Library",
 		confirmLabel: "Attach Selected",
@@ -731,6 +985,76 @@ export async function openMediaPicker(opts: {
 
 export async function openMediaTrashOverlay(): Promise<void> {
 	await refreshTrashList().catch(handleError);
+}
+
+async function openPreview(item: MediaItem): Promise<void> {
+	const mime = String(item.mimeType || "");
+	const modal = ensureMediaModal();
+
+	let html = "";
+
+	if (mime === "image/svg+xml") {
+		const payload = await window.sync.mediaGetContent(item.id, {
+			format: "text",
+		});
+		if (payload?.error) throw new Error(String(payload.error));
+
+		const rawSvg = String(payload?.content || "");
+
+		const cleanSvg = await window.utils.sanitizeSVG(rawSvg);
+
+		html = renderSvgSandboxed(cleanSvg);
+	} else if (mime.startsWith("image/")) {
+		if (!isSafeRasterImage(mime)) {
+			html = `<p>Preview not available for this image type.</p>`;
+		} else {
+			const payload = await window.sync.mediaGetContent(item.id, {
+				format: "base64",
+			});
+			if (payload?.error) throw new Error(String(payload.error));
+
+			const src = `data:${mime};base64,${payload.content}`;
+			html = `<img src="${src}" style="max-width:100%;max-height:60vh;border-radius:8px;" />`;
+		}
+	} else if (mime.startsWith("video/")) {
+		const payload = await window.sync.mediaGetContent(item.id, {
+			format: "base64",
+		});
+		if (payload?.error) throw new Error(String(payload.error));
+
+		const src = `data:${mime};base64,${payload.content}`;
+		html = `
+			<video controls style="max-width:100%;max-height:60vh;border-radius:8px;">
+				<source src="${src}" type="${mime}">
+			</video>
+		`;
+	} else if (mime.startsWith("audio/")) {
+		const payload = await window.sync.mediaGetContent(item.id, {
+			format: "base64",
+		});
+		if (payload?.error) throw new Error(String(payload.error));
+
+		const src = `data:${mime};base64,${payload.content}`;
+		html = `
+			<audio controls style="width:100%;">
+				<source src="${src}" type="${mime}">
+			</audio>
+		`;
+	} else {
+		html = `<p>No preview available.</p>`;
+	}
+
+	modal.open({
+		title: item.name,
+		html,
+		actions: [
+			{
+				id: "preview-close",
+				label: "Close",
+				onClick: closeMediaModal,
+			},
+		],
+	});
 }
 
 type PickerModalOpts = {
@@ -798,8 +1122,14 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 
 		document.body.appendChild(overlay);
 
-		(box.querySelector("#ml-close") as HTMLElement)?.addEventListener("click", close);
-		(box.querySelector("#ml-cancel") as HTMLElement)?.addEventListener("click", close);
+		(box.querySelector("#ml-close") as HTMLElement)?.addEventListener(
+			"click",
+			close,
+		);
+		(box.querySelector("#ml-cancel") as HTMLElement)?.addEventListener(
+			"click",
+			close,
+		);
 		overlay.addEventListener("click", (e) => {
 			if (e.target === overlay) close();
 		});
@@ -809,11 +1139,16 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 		const confirm = box.querySelector("#ml-confirm") as HTMLButtonElement;
 
 		const load = async () => {
-			const res = await window.sync.mediaList({ view: "active", parentId: modalState.parentId });
+			const res = await window.sync.mediaList({
+				view: "active",
+				parentId: modalState.parentId,
+			});
 			if (res?.error) throw new Error(String(res.error));
 
 			modalState.items = Array.isArray(res?.items) ? res.items : [];
-			modalState.breadcrumbs = Array.isArray(res?.breadcrumbs) ? res.breadcrumbs : [];
+			modalState.breadcrumbs = Array.isArray(res?.breadcrumbs)
+				? res.breadcrumbs
+				: [];
 
 			opts.onNavigate?.({
 				parentId: modalState.parentId,
@@ -821,7 +1156,9 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 			});
 
 			const visible = new Set(modalState.items.map((it) => it.id));
-			modalState.selected = new Set([...modalState.selected].filter((id) => visible.has(id)));
+			modalState.selected = new Set(
+				[...modalState.selected].filter((id) => visible.has(id)),
+			);
 
 			render();
 		};
@@ -832,41 +1169,54 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 				...modalState.breadcrumbs.map(
 					(c, i) =>
 						`<span class="media-breadcrumb-sep">/</span><a class="media-breadcrumb${
-							i === modalState.breadcrumbs.length - 1 ? " active" : ""
-						}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`
+							i === modalState.breadcrumbs.length - 1
+								? " active"
+								: ""
+						}" href="#" data-crumb="${escHtml(c.id)}">${escHtml(c.name)}</a>`,
 				),
 			].join("");
 
-			crumbs.querySelector('[data-root="1"]')?.addEventListener("click", (e) => {
-				e.preventDefault();
-				modalState.parentId = null;
-				void load().catch(handleError);
-			});
+			crumbs
+				.querySelector('[data-root="1"]')
+				?.addEventListener("click", (e) => {
+					e.preventDefault();
+					modalState.parentId = null;
+					void load().catch(handleError);
+				});
 
 			crumbs.querySelectorAll("[data-crumb]").forEach((a) => {
 				a.addEventListener("click", (e) => {
 					e.preventDefault();
-					modalState.parentId = (a as HTMLElement).dataset.crumb || null;
+					modalState.parentId =
+						(a as HTMLElement).dataset.crumb || null;
 					void load().catch(handleError);
 				});
 			});
 
 			const filtered = opts.filter
-				? modalState.items.filter((it) => it.type === "folder" || opts.filter?.(it))
+				? modalState.items.filter(
+						(it) => it.type === "folder" || opts.filter?.(it),
+					)
 				: modalState.items;
 
 			list.innerHTML = !filtered.length
 				? `<div class="sidebar-empty-state">Nothing to show here</div>`
 				: filtered
 						.map((item) => {
-							const selectable = item.type === "file" && (opts.filter ? opts.filter(item) : true);
-							const checked = selectable && modalState.selected.has(item.id) ? "checked" : "";
+							const selectable =
+								item.type === "file" &&
+								(opts.filter ? opts.filter(item) : true);
+							const checked =
+								selectable && modalState.selected.has(item.id)
+									? "checked"
+									: "";
 							const meta =
 								item.type === "folder"
 									? "Folder"
 									: `${escHtml(String(item.kind || "file"))} • ${bytesLabel(Number(item.size || 0))}`;
 
-							const mainTag = item.type === "folder" ? "a" : "button";
+							const mainTag =
+								item.type === "folder" ? "a" : "button";
 							const mainAttrs =
 								item.type === "folder"
 									? `class="media-item-main" href="#" data-open="${escHtml(item.id)}"`
@@ -903,7 +1253,8 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 					const id = (input as HTMLInputElement).dataset.select || "";
 					if (!id) return;
 
-					if ((input as HTMLInputElement).checked) modalState.selected.add(id);
+					if ((input as HTMLInputElement).checked)
+						modalState.selected.add(id);
 					else modalState.selected.delete(id);
 
 					confirm.disabled = opts.allowEmptyConfirm
@@ -918,7 +1269,9 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 		};
 
 		confirm.addEventListener("click", async () => {
-			const selected = modalState.items.filter((it) => modalState.selected.has(it.id));
+			const selected = modalState.items.filter((it) =>
+				modalState.selected.has(it.id),
+			);
 			if (!selected.length && !opts.allowEmptyConfirm) return;
 
 			await opts.onConfirm(selected);
@@ -960,7 +1313,8 @@ async function openFolderPicker(opts: {
 				currentParentId === null
 					? "Library"
 					: currentBreadcrumbs.length
-						? currentBreadcrumbs[currentBreadcrumbs.length - 1]!.name
+						? currentBreadcrumbs[currentBreadcrumbs.length - 1]!
+								.name
 						: "Folder";
 
 			chosen = {
@@ -980,15 +1334,33 @@ export function initMediaLibrary(): void {
 	state.initialized = true;
 
 	const createBtn = document.getElementById("media-create-btn");
-	const uploadInput = document.getElementById("media-upload-input") as HTMLInputElement | null;
+	const uploadInput = document.getElementById(
+		"media-upload-input",
+	) as HTMLInputElement | null;
 	createBtn?.addEventListener("click", async () => {
 		const action = await openActionChoiceModal({
 			title: "Create or upload",
 			choices: [
-				{ id: "upload", label: "Upload file", description: "Upload files from your device" },
-				{ id: "folder", label: "New folder", description: "Organize library items" },
-				{ id: "text", label: "Plain text document", description: "Create plain text notes and files" },
-				{ id: "rich", label: "Rich text document", description: "Create formatted documents, notes, and more" },
+				{
+					id: "upload",
+					label: "Upload file",
+					description: "Upload files from your device",
+				},
+				{
+					id: "folder",
+					label: "New folder",
+					description: "Organize library items",
+				},
+				{
+					id: "text",
+					label: "Plain text document",
+					description: "Create plain text notes and files",
+				},
+				{
+					id: "rich",
+					label: "Rich text document",
+					description: "Create formatted documents, notes, and more",
+				},
 			],
 		});
 		if (action === "folder") {
@@ -999,15 +1371,24 @@ export function initMediaLibrary(): void {
 				confirmLabel: "Create",
 			});
 			if (!name) return;
-			const res = await window.sync.mediaCreateFolder({ name, parentId: state.parentId });
+			const res = await window.sync.mediaCreateFolder({
+				name,
+				parentId: state.parentId,
+			});
 			if (res?.error) throw new Error(String(res.error));
 			await refreshMediaList();
 			return;
 		}
 		if (action === "text" || action === "rich") {
 			const doc = await openDocumentModal({
-				title: action === "rich" ? "Create rich text document" : "Create text document",
-				defaultName: action === "rich" ? "Untitled Document.html" : "Untitled Document.txt",
+				title:
+					action === "rich"
+						? "Create rich text document"
+						: "Create text document",
+				defaultName:
+					action === "rich"
+						? "Untitled Document.html"
+						: "Untitled Document.txt",
 				defaultContent: action === "rich" ? "<p></p>" : "",
 				confirmLabel: "Create",
 			});
@@ -1028,7 +1409,9 @@ export function initMediaLibrary(): void {
 	});
 
 	uploadInput?.addEventListener("change", async (event) => {
-		const files = Array.from((event.target as HTMLInputElement).files || []);
+		const files = Array.from(
+			(event.target as HTMLInputElement).files || [],
+		);
 		for (const file of files) {
 			const buffer = await file.arrayBuffer();
 			let payload: any = {

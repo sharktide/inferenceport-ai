@@ -1173,6 +1173,9 @@ export function installWebSocketTransportFallback(): void {
 		DOMPurify: (html: string): Promise<string> => {
 			return client.invoke("utils:dompurify", html) as Promise<string>;
 		},
+		sanitizeSVG: (svg: string): Promise<string> => {
+			return client.invoke("utils:sanitizeSVG", svg) as Promise<string>;
+		},
 		saveFile: async (filePath: string, content: string) => {
 			await invokeOrDefault("utils:saveFile", [filePath, content]);
 		},
