@@ -940,7 +940,7 @@ function normalizeRemoteSessionForSync(
 	const id = asTrimmedString(asRecord.id);
 	if (!id) return null;
 
-	const clone = <T>(input: T): T => JSON.parse(JSON.stringify(input)) as T;
+	const clone = <T>(input: T): T => structuredClone(input) as T;
 	const applyActiveVersion = (message: Record<string, unknown>): Record<string, unknown> => {
 		const msg = clone(message);
 		const versions = Array.isArray(msg.versions)
@@ -1689,7 +1689,7 @@ export default function register() {
 							typeof first === "object" &&
 							Array.isArray((first as Record<string, unknown>).versions);
 						if (looksTree) {
-							return [JSON.parse(JSON.stringify(first)) as Record<string, unknown>];
+							return [structuredClone(first) as Record<string, unknown>];
 						}
 						const normalizedNodes = rawHistory
 							.filter((entry) => entry && typeof entry === "object")
@@ -1705,7 +1705,7 @@ export default function register() {
 								return true;
 							})
 							.map((entry) => {
-								const msg = JSON.parse(JSON.stringify(entry)) as Record<string, unknown>;
+								const msg = structuredClone(entry) as Record<string, unknown>;
 								const versions = Array.isArray(msg.versions)
 									? (msg.versions as Array<Record<string, unknown>>)
 									: [];
@@ -1741,10 +1741,10 @@ export default function register() {
 											? ((msg.tool_calls || msg.toolCalls) as unknown[])
 											: [];
 								if (toolCalls.length > 0) {
-									active.tool_calls = JSON.parse(JSON.stringify(toolCalls));
-									active.toolCalls = JSON.parse(JSON.stringify(toolCalls));
-									msg.tool_calls = JSON.parse(JSON.stringify(toolCalls));
-									msg.toolCalls = JSON.parse(JSON.stringify(toolCalls));
+									active.tool_calls = structuredClone(toolCalls);
+									active.toolCalls = structuredClone(toolCalls);
+									msg.tool_calls = structuredClone(toolCalls);
+									msg.toolCalls = structuredClone(toolCalls);
 								} else {
 									delete active.tool_calls;
 									delete active.toolCalls;

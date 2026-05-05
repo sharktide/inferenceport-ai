@@ -166,7 +166,7 @@ function getMessageImages(content: string | UserContentPart[]): string[] {
 }
 
 function cloneJson<T>(value: T): T {
-	return JSON.parse(JSON.stringify(value)) as T;
+	return structuredClone(value) as T;
 }
 
 const LEGACY_ROOT_JSON_KEY = "__historyRootJson";
@@ -3686,7 +3686,7 @@ function escapeHtml(value: string): string {
 function cloneMessageContent(content: any): any {
 	if (typeof content === "string") return content;
 	try {
-		return JSON.parse(JSON.stringify(content));
+		return structuredClone(content);
 	} catch {
 		return content;
 	}

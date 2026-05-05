@@ -129,7 +129,7 @@ export function mergeLocalAndRemoteSessions(
         const idx = Math.max(0, Math.min(currentIdx, (fixed.versions || []).length - 1));
         return fixed.versions?.[idx] as any;
     };
-    const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+    const cloneJson = <T>(value: T): T => structuredClone(value) as T;
     const normalizeHistoryForStorage = (history: ChatMessage[] = []): ChatMessage[] => {
         const raw = Array.isArray(history) ? history : [];
         if (!raw.length) return [];
