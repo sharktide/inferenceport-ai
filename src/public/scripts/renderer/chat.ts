@@ -2756,43 +2756,6 @@ function closeAttachMenu(): void {
 	}
 }
 
-async function startDirectImageToolCall(): Promise<void> {
-	if (!currentToolSettings.imageGen) {
-		showNotification({
-			message: "Image generation is disabled in settings.",
-			type: "warning",
-		});
-		return;
-	}
-	try {
-		await window.ollama.startImageToolCall?.();
-	} catch (err: any) {
-		showNotification({
-			message: `Failed to start image generation: ${String(err)}`,
-			type: "error",
-		});
-	}
-}
-
-async function startDirectVideoToolCall(): Promise<void> {
-	if (!currentToolSettings.videoGen) {
-		showNotification({
-			message: "Video generation is disabled in settings.",
-			type: "warning",
-		});
-		return;
-	}
-	try {
-		await window.ollama.startVideoToolCall?.();
-	} catch (err: any) {
-		showNotification({
-			message: `Failed to start video generation: ${String(err)}`,
-			type: "error",
-		});
-	}
-}
-
-
 function openAttachMenu(): void {
 	const menu = ensureAttachMenu();
 	menu.innerHTML = "";
@@ -2810,12 +2773,12 @@ function openAttachMenu(): void {
 		menu.appendChild(item);
 	};
 
-	addItem("📄 Upload file", () => fileInput.click());
+	addItem("📄 File", () => fileInput.click());
 	if (canUploadImages()) {
-		addItem("🖼️ Upload image", () => imageInput?.click());
+		addItem("🖼️ Image", () => imageInput?.click());
 	}
 	if (isMediaLibraryAvailable()) {
-		addItem("🗂️ Add from media library", () => {
+		addItem("🗂️ Media library", () => {
 			void openMediaPicker({
 				title: "Add from media library",
 				onSelect: async (items) => {
@@ -2828,17 +2791,6 @@ function openAttachMenu(): void {
 			});
 		});
 	}
-	if (currentToolSettings.imageGen) {
-		addItem("✏️Edit/Generate Image", () => {
-			void startDirectImageToolCall();
-		});
-	}
-	if (currentToolSettings.videoGen) {
-		addItem("🎬Image-Text To Video", () => {
-			void startDirectVideoToolCall();
-		});
-	}
-
 
 	menu.classList.remove("hidden");
 
@@ -2876,8 +2828,6 @@ function openAttachMenu(): void {
 		}
 	};
 
-	// Register handlers after this click stack finishes so the menu doesn't close
-	// immediately from the same click that opened it.
 	queueMicrotask(() => {
 		if (!attachMenuEl || attachMenuEl.classList.contains("hidden")) return;
 		if (attachMenuDocHandler) document.addEventListener("click", attachMenuDocHandler);
