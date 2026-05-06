@@ -103,10 +103,6 @@ function svgTextToPreviewDataUrl(svgText: string): string {
 	return `data:image/svg+xml;charset=utf-8,${encoded}`;
 }
 
-/**
- * Read a File as a base64 DataURL and return the raw base64 string plus MIME
- * type separately, so we can construct `data:<mime>;base64,<data>` ourselves.
- */
 function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -140,10 +136,6 @@ function saveLastAccessMap() {
 
 let lastAccessMap = loadLastAccessMap();
 
-/**
- * Extract the plain-text string from a message's content field, which may now
- * be either a legacy string or a UserContentPart[].
- */
 function getMessageText(content: string | UserContentPart[]): string {
 	if (typeof content === "string") return content;
 	return content
@@ -152,9 +144,6 @@ function getMessageText(content: string | UserContentPart[]): string {
 		.join("\n");
 }
 
-/**
- * Extract all image data-URLs from a message's content field.
- */
 function getMessageImages(content: string | UserContentPart[]): string[] {
 	if (typeof content === "string") return [];
 	return content
@@ -162,7 +151,7 @@ function getMessageImages(content: string | UserContentPart[]): string[] {
 			(p): p is { type: "image_url"; image_url: { url: string } } =>
 				p.type === "image_url",
 		)
-			.map((p) => p.image_url.url);
+		.map((p) => p.image_url.url);
 }
 
 function cloneJson<T>(value: T): T {
@@ -212,9 +201,10 @@ function extractFlatHistoryFromTree(rootMessage: any): any[] {
 		}
 		return cloned;
 	};
+	// NOTE: normalizeMessageFromActiveVersion is called only in toFlatEntry,
+	// not again in walk — avoids the previous double-normalize per message.
 	const walk = (node: any): void => {
 		if (!node || typeof node !== "object") return;
-		normalizeMessageFromActiveVersion(node);
 		history.push(toFlatEntry(node));
 		const versions = Array.isArray(node.versions) ? node.versions : [];
 		const idx =
@@ -238,6 +228,12 @@ function extractFlatHistoryFromTree(rootMessage: any): any[] {
 	return history;
 }
 
+// ─── Flat history memo cache ───────────────────────────────────────────────
+// Key: sessionId. Value: { root reference, flat array }.
+// Invalidated in setSessionHistoryRoot so the next getSessionFlatHistory
+// call re-walks. Using a reference equality check avoids hashing the tree.
+const sessionFlatHistoryCache = new Map<string, { root: any; flat: any[] }>();
+
 function normalizeSessionHistoryShape(session: any, sessionId?: string): void {
 	if (!session || typeof session !== "object") return;
 	const rawHistory = Array.isArray(session.history) ? session.history : [];
@@ -249,7 +245,10 @@ function normalizeSessionHistoryShape(session: any, sessionId?: string): void {
 	if (!rawHistory.length && !legacyRootRaw) {
 		session.history = [];
 		delete session[LEGACY_ROOT_JSON_KEY];
-		if (sessionId) sessionHistoryRoots.delete(sessionId);
+		if (sessionId) {
+			sessionHistoryRoots.delete(sessionId);
+			sessionFlatHistoryCache.delete(sessionId);
+		}
 		return;
 	}
 
@@ -285,19 +284,46 @@ function normalizeSessionHistoryShape(session: any, sessionId?: string): void {
 
 	if (!root) {
 		session.history = [];
-		if (sessionId) sessionHistoryRoots.delete(sessionId);
+		if (sessionId) {
+			sessionHistoryRoots.delete(sessionId);
+			sessionFlatHistoryCache.delete(sessionId);
+		}
 		delete session[LEGACY_ROOT_JSON_KEY];
 		return;
 	}
 
 	session.history = [root];
-	if (sessionId) sessionHistoryRoots.set(sessionId, root);
+	if (sessionId) {
+		sessionHistoryRoots.set(sessionId, root);
+		sessionFlatHistoryCache.delete(sessionId);
+	}
 	delete session[LEGACY_ROOT_JSON_KEY];
 }
 
+// Lazy normalization: tracks which sessions have been normalized already.
+// On load we skip the eager full-pass; each session is normalized on first access.
+const normalizedSessionIds = new Set<string>();
+
+function ensureSessionNormalized(sessionId: string): void {
+	if (normalizedSessionIds.has(sessionId)) return;
+	normalizedSessionIds.add(sessionId);
+	normalizeSessionHistoryShape(sessions[sessionId], sessionId);
+}
+
+// Called at startup — does NOT walk every session tree immediately.
+// Tree normalization is deferred to first access via ensureSessionNormalized.
 function normalizeAllSessionHistories(allSessions: Record<string, any>): void {
+	// Only process sessions that have legacy root JSON, since those can't be
+	// deferred (the raw JSON field would persist to disk if not cleaned up).
 	for (const [sessionId, session] of Object.entries(allSessions || {})) {
-		normalizeSessionHistoryShape(session, sessionId);
+		if (
+			typeof session?.[LEGACY_ROOT_JSON_KEY] === "string" &&
+			session[LEGACY_ROOT_JSON_KEY].trim()
+		) {
+			normalizeSessionHistoryShape(session, sessionId);
+			normalizedSessionIds.add(sessionId);
+		}
+		// All other sessions: mark as NOT normalized so first access triggers it.
 	}
 }
 
@@ -357,6 +383,15 @@ function appendEntriesToActiveLeaf(rootMessage: any, entries: any[] = []): any {
 	return rootMessage;
 }
 
+// Fast in-place append — skips the full deep-clone used by the safe path.
+// Use only during streaming where you already own the root reference.
+function appendToActiveLeafInPlace(root: any, entries: any[]): void {
+	if (!root || !entries.length) return;
+	const leaf = getActiveLeafMessage(root);
+	const active = getActiveVersionNode(leaf);
+	active.tail = [...(active.tail || []), ...entries];
+}
+
 function findMessageContext(rootMessage: any, targetId: string) {
 	if (!rootMessage || !targetId) return null;
 	if (rootMessage.id === targetId) {
@@ -403,6 +438,13 @@ const sessionHistoryRoots = new Map<string, any>();
 
 function ensureSessionHistoryRoot(session: any, sessionId?: string): any | null {
 	if (!session) return null;
+
+	// Trigger lazy normalization on first access
+	if (sessionId && !normalizedSessionIds.has(sessionId)) {
+		normalizedSessionIds.add(sessionId);
+		normalizeSessionHistoryShape(session, sessionId);
+	}
+
 	if (sessionId && sessionHistoryRoots.has(sessionId)) {
 		return sessionHistoryRoots.get(sessionId);
 	}
@@ -427,7 +469,6 @@ function ensureSessionHistoryRoot(session: any, sessionId?: string): any | null 
 		if (sessionId) sessionHistoryRoots.delete(sessionId);
 		return null;
 	}
-	// If first node looks like a tree root, use it directly.
 	if (Array.isArray(history[0]?.versions) && history.length === 1) {
 		const root = cloneAndRepairTree(history[0]);
 		session.history = root ? [root] : [];
@@ -450,10 +491,16 @@ function setSessionHistoryRoot(session: any, root: any, sessionId?: string): voi
 	const normalizedRoot = root ? cloneAndRepairTree(root) : null;
 	if (normalizedRoot) {
 		session.history = [normalizedRoot];
-		if (sessionId) sessionHistoryRoots.set(sessionId, normalizedRoot);
+		if (sessionId) {
+			sessionHistoryRoots.set(sessionId, normalizedRoot);
+			sessionFlatHistoryCache.delete(sessionId);
+		}
 	} else {
 		session.history = [];
-		if (sessionId) sessionHistoryRoots.delete(sessionId);
+		if (sessionId) {
+			sessionHistoryRoots.delete(sessionId);
+			sessionFlatHistoryCache.delete(sessionId);
+		}
 	}
 	delete session[LEGACY_ROOT_JSON_KEY];
 }
@@ -461,7 +508,18 @@ function setSessionHistoryRoot(session: any, root: any, sessionId?: string): voi
 function getSessionFlatHistory(session: any, sessionId?: string): any[] {
 	const root = ensureSessionHistoryRoot(session, sessionId);
 	if (!root) return [];
-	return extractFlatHistoryFromTree(root);
+
+	// Memo: if same root reference, return cached flat array
+	if (sessionId) {
+		const cached = sessionFlatHistoryCache.get(sessionId);
+		if (cached && cached.root === root) return cached.flat;
+	}
+
+	const flat = extractFlatHistoryFromTree(root);
+	if (sessionId) {
+		sessionFlatHistoryCache.set(sessionId, { root, flat });
+	}
+	return flat;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,7 +537,6 @@ function processTextForDisplay(text: string): string {
 		result += text.slice(i, svgStart) + '[SVG Image]';
 		const svgEnd = text.indexOf('```', svgStart + 6);
 		if (svgEnd === -1) {
-			// open block, stop here
 			break;
 		}
 		i = svgEnd + 3;
@@ -622,41 +679,40 @@ function updateMediaLibraryVisibility(): void {
 }
 
 function setupSidebarModeTabs(): void {
-    const showPane = (pane: HTMLDivElement | null, visible: boolean) => {
-        if (!pane) return;
-        pane.style.display = visible ? "" : "none";
-        pane.classList.toggle("hidden", !visible);
-    };
+	const showPane = (pane: HTMLDivElement | null, visible: boolean) => {
+		if (!pane) return;
+		pane.style.display = visible ? "" : "none";
+		pane.classList.toggle("hidden", !visible);
+	};
 
-    const applyMode = (mode: "chats" | "media" | "trash") => {
-        if (mode !== "chats" && !isMediaLibraryAvailable()) {
-            showNotification({ type: "info", message: "Sign in to use the Media Library." });
-            mode = "chats";
-        }
-        // Only update activeSidebarMode for non-trash modes so back button returns correctly
-        if (mode !== "trash") activeSidebarMode = mode as "chats" | "media";
-        sidebarModeTabs.forEach((tab) => {
-            tab.classList.toggle("active", tab.dataset.sidebarMode === mode);
-        });
-        showPane(sidebarChatPane, mode === "chats");
-        showPane(sidebarMediaPane, mode === "media");
-        showPane(sidebarTrashPane, mode === "trash");
-        if (mode === "media") void Promise.resolve().then(() => initMediaLibrary());
-        if (mode === "trash") void openMediaTrashOverlay();
-    };
-    sidebarModeTabs.forEach((tab) => {
-        tab.addEventListener("click", () => {
-            applyMode(tab.dataset.sidebarMode === "media" ? "media" : "chats");
-        });
-    });
-    sidebarTrashBtn?.addEventListener("click", () => {
-        if (!isMediaLibraryAvailable()) return;
-        applyMode("trash");
-    });
-    document.getElementById("sidebar-trash-back")?.addEventListener("click", () => {
-        applyMode(activeSidebarMode);
-    });
-    updateMediaLibraryVisibility();
+	const applyMode = (mode: "chats" | "media" | "trash") => {
+		if (mode !== "chats" && !isMediaLibraryAvailable()) {
+			showNotification({ type: "info", message: "Sign in to use the Media Library." });
+			mode = "chats";
+		}
+		if (mode !== "trash") activeSidebarMode = mode as "chats" | "media";
+		sidebarModeTabs.forEach((tab) => {
+			tab.classList.toggle("active", tab.dataset.sidebarMode === mode);
+		});
+		showPane(sidebarChatPane, mode === "chats");
+		showPane(sidebarMediaPane, mode === "media");
+		showPane(sidebarTrashPane, mode === "trash");
+		if (mode === "media") void Promise.resolve().then(() => initMediaLibrary());
+		if (mode === "trash") void openMediaTrashOverlay();
+	};
+	sidebarModeTabs.forEach((tab) => {
+		tab.addEventListener("click", () => {
+			applyMode(tab.dataset.sidebarMode === "media" ? "media" : "chats");
+		});
+	});
+	sidebarTrashBtn?.addEventListener("click", () => {
+		if (!isMediaLibraryAvailable()) return;
+		applyMode("trash");
+	});
+	document.getElementById("sidebar-trash-back")?.addEventListener("click", () => {
+		applyMode(activeSidebarMode);
+	});
+	updateMediaLibraryVisibility();
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1948,26 +2004,37 @@ async function loadOptions() {
 	try {
 		setSessionProgress(5);
 
+		// ── Load sessions ──────────────────────────────────────────────────
 		try {
 			const local = await window.ollama.load();
 			sessions = local && typeof local === "object" ? local : {};
+			// Deferred normalization: only fix legacy root JSON fields now;
+			// per-session tree normalization happens lazily on first access.
 			normalizeAllSessionHistories(sessions);
 		} catch (e) {
-			console.warn(
-				"Failed to load local sessions, starting with empty:",
-				e,
-			);
+			console.warn("Failed to load local sessions, starting with empty:", e);
 			sessions = {};
 		}
-		setSessionProgress(20);
+		setSessionProgress(15);
 
-		try {
-			const { supportsTools } =
-				await window.ollama.getToolSupportingModels();
-			modelsSupportsTools = (supportsTools || []).map((m) =>
+		// ── Fire independent capability + model fetches in parallel ───────
+		// This is the single biggest startup win: three sequential awaits
+		// become one parallel wait. On a slow machine these can each take
+		// hundreds of ms.
+		const [toolResult, visionResult, modelResult] = await Promise.allSettled([
+			window.ollama.getToolSupportingModels(),
+			window.ollama.getVisionSupportingModels(),
+			window.ollama.listModels(),
+		]);
+
+		setSessionProgress(45);
+
+		// ── Apply tool capability result ───────────────────────────────────
+		if (toolResult.status === "fulfilled") {
+			modelsSupportsTools = (toolResult.value?.supportsTools || []).map((m) =>
 				String(m).toLowerCase(),
 			);
-		} catch (e) {
+		} else {
 			modelsSupportsTools = [];
 			toolNotice =
 				"Could not fetch model capabilities. Tool features may not work as expected.";
@@ -1978,13 +2045,12 @@ async function loadOptions() {
 			});
 		}
 
-		try {
-			const { supportsVision } =
-				await window.ollama.getVisionSupportingModels();
-			modelsSupportsVision = (supportsVision || []).map((m) =>
+		// ── Apply vision capability result ─────────────────────────────────
+		if (visionResult.status === "fulfilled") {
+			modelsSupportsVision = (visionResult.value?.supportsVision || []).map((m) =>
 				String(m).toLowerCase(),
 			);
-		} catch (e) {
+		} else {
 			modelsSupportsVision = [];
 			visionNotice =
 				"Could not fetch vision model capabilities. Image uploads are disabled.";
@@ -1995,19 +2061,16 @@ async function loadOptions() {
 			});
 		}
 
-		try {
-			const models = await window.ollama.listModels();
-			const total = Math.max(models.length, 1);
-
-			models.forEach((model, i) => {
+		// ── Apply model list result ────────────────────────────────────────
+		if (modelResult.status === "fulfilled") {
+			const models = modelResult.value;
+			models.forEach((model) => {
 				const option = document.createElement("option");
 				option.value = model.name;
 				option.textContent = model.name
 					.replace(/^(?:hf\.co|huggingface\.co)\/[^/]+\//, "")
 					.replace(/-gguf72/, "");
 				modelSelect.appendChild(option);
-
-				setSessionProgress(20 + (25 * (i + 1)) / total);
 			});
 
 			modelSelect.insertAdjacentHTML(
@@ -2022,40 +2085,41 @@ async function loadOptions() {
 				else if (modelSelect.value === "manage-models")
 					window.location.href = "../installed.html";
 			});
-		} catch (err) {
-			console.warn("Could not list models:", err);
+		} else {
+			console.warn("Could not list models:", modelResult.reason);
 			modelSelect.innerHTML = `<option>error loading models</option>`;
 		}
-		setSessionProgress(45);
 
+		setSessionProgress(55);
+
+		// ── Auth + subscription (depends on nothing above) ─────────────────
 		const auth = await window.auth.getSession();
 		currentAuthSession = auth?.session ?? null;
 		updateMediaLibraryVisibility();
 		loadUsageStateForUser(currentAuthSession?.user?.id);
-		await refreshSubscriptionData();
-		setSessionProgress(55);
+		// Kick off subscription refresh without blocking the progress bar
+		void refreshSubscriptionData();
+		setSessionProgress(60);
 
+		// ── Sync (only when enabled + authenticated) ───────────────────────
 		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			const remoteResponse = await safeCallRemote(
 				() => window.sync.getRemoteSessions(),
 				{ sessions: null },
 			);
-			setSessionProgress(65);
+			setSessionProgress(70);
 
 			if (!remoteResponse?.error && remoteResponse?.sessions) {
 				const userId = auth.session.user?.id;
 				const ids = Object.keys(sessions);
-				const total = Math.max(ids.length, 1);
-
-				ids.forEach((id, i) => {
+				ids.forEach((id) => {
 					if (sessions[id].userId && sessions[id].userId !== userId) {
 						delete sessions[id];
 					}
-					setSessionProgress(65 + (10 * (i + 1)) / total);
 				});
 
 				await window.ollama.save(sessions);
-				setSessionProgress(80);
+				setSessionProgress(78);
 
 				sessions = mergeLocalAndRemoteSessions(
 					sessions as SessionMap,
@@ -2064,7 +2128,7 @@ async function loadOptions() {
 				normalizeAllSessionHistories(sessions);
 
 				await window.ollama.save(sessions);
-				setSessionProgress(90);
+				setSessionProgress(88);
 
 				const freshAuth = await window.auth.getSession();
 				if (freshAuth?.session?.isAuthenticated) {
@@ -2075,19 +2139,29 @@ async function loadOptions() {
 			}
 		}
 
+		// ── Asset GC: collect used asset IDs, prune orphans ───────────────
+		// Collect IDs lazily — collectUsedAssetIds calls getSessionFlatHistory
+		// per session which will trigger on-demand tree normalization.
 		const assetsOnDisk = await window.utils.listAssets();
 		const usedAssets = collectUsedAssetIds(sessions);
 
-		for (const assetId of assetsOnDisk) {
-			if (!usedAssets.has(assetId)) {
-				await window.utils.rmAsset(assetId);
+		// Prune orphaned assets in small batches to avoid blocking the main
+		// thread for large asset sets on constrained hardware.
+		const orphans = assetsOnDisk.filter((id) => !usedAssets.has(id));
+		const BATCH = 8;
+		for (let i = 0; i < orphans.length; i += BATCH) {
+			await Promise.all(orphans.slice(i, i + BATCH).map((id) => window.utils.rmAsset(id)));
+			// Yield between batches so the UI stays responsive
+			if (i + BATCH < orphans.length) {
+				await new Promise((r) => setTimeout(r, 0));
 			}
 		}
 
 		currentSessionId = Object.keys(sessions)[0] || createNewSession();
 		renderSessionList();
 		await renderChat();
-		initMediaLibrary();
+		// initMediaLibrary is not on the critical path — defer it
+		setTimeout(() => initMediaLibrary(), 0);
 		setSessionProgress(95);
 
 		try {
@@ -2120,42 +2194,31 @@ async function loadOptions() {
 				type: "warning",
 			});
 		} else {
-			try {
-				const res = await fetch(
-					"https://sharktide-lightning.hf.space/status/",
-				);
-
-				if (!res.ok) {
-					showNotification({
-						message: `⚠️ Lightning service unreachable (HTTP ${res.status})`,
-						type: "error",
-					});
-					return;
-				}
-
-				const data = await res.json();
-
-				Object.entries(data.services).forEach(([name, svc]) => {
-					if (svc.state == "ok") {
-						void 0;
-					} else if (svc.state == "degraded") {
+			// Check Lightning status without blocking app render
+			fetch("https://sharktide-lightning.hf.space/status/")
+				.then(async (res) => {
+					if (!res.ok) {
 						showNotification({
-							message: svc.message,
-							type: "warning",
-						});
-					} else if (svc.state == "offline") {
-						showNotification({
-							message: svc.message,
+							message: `⚠️ Lightning service unreachable (HTTP ${res.status})`,
 							type: "error",
 						});
+						return;
 					}
+					const data = await res.json();
+					Object.entries(data.services).forEach(([name, svc]) => {
+						if (svc.state === "degraded") {
+							showNotification({ message: svc.message, type: "warning" });
+						} else if (svc.state === "offline") {
+							showNotification({ message: svc.message, type: "error" });
+						}
+					});
+				})
+				.catch(() => {
+					showNotification({
+						message: "⚠️ Could not reach Lightning status endpoint.",
+						type: "error",
+					});
 				});
-			} catch (err) {
-				showNotification({
-					message: "⚠️ Could not reach Lightning status endpoint.",
-					type: "error",
-				});
-			}
 		}
 	}
 }
@@ -2312,6 +2375,11 @@ function deleteSession(sessionId) {
 				label: "Delete",
 				onClick: async () => {
 					delete sessions[sessionId];
+					// Clear caches for the deleted session
+					sessionHistoryRoots.delete(sessionId);
+					sessionFlatHistoryCache.delete(sessionId);
+					normalizedSessionIds.delete(sessionId);
+					markdownCache.delete(sessionId);
 
 					if (currentSessionId === sessionId) {
 						currentSessionId = Object.keys(sessions)[0] || null;
@@ -2417,9 +2485,9 @@ function createNewSession(): string {
 		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
-		renderSessionList();
+		scheduleRenderSessionList();
 	});
-	renderSessionList();
+	scheduleRenderSessionList();
 	renderChat();
 	return id;
 }
@@ -2428,7 +2496,7 @@ function handleSessionClick(sessionId): void {
 	currentSessionId = sessionId;
 	lastAccessMap[sessionId] = Date.now();
 	saveLastAccessMap();
-	renderSessionList();
+	scheduleRenderSessionList();
 	renderChat();
 	return void 0;
 }
@@ -2463,6 +2531,19 @@ function getSessionSortOrder(): string[] {
 	);
 
 	return sessionSortOrder;
+}
+
+// ── rAF-debounced session list render ─────────────────────────────────────────
+// Multiple callers (auth change, star toggle, save callbacks) often fire in the
+// same tick. Coalesce them into a single rAF to avoid redundant DOM work.
+let sessionListRafId: number | null = null;
+
+function scheduleRenderSessionList(): void {
+	if (sessionListRafId !== null) return;
+	sessionListRafId = requestAnimationFrame(() => {
+		sessionListRafId = null;
+		renderSessionList();
+	});
 }
 
 function renderSessionList(): void {
@@ -2509,9 +2590,9 @@ function renderSessionList(): void {
 						window.sync.saveAllSessions(sessions),
 					);
 				}
-				renderSessionList();
+				scheduleRenderSessionList();
 			});
-			renderSessionList();
+			scheduleRenderSessionList();
 		};
 
 		const menuBtn = document.createElement("button");
@@ -2606,14 +2687,14 @@ function updateToolButtonActiveState(): void {
 }
 
 const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
-    searchEnabled = settings.webSearch;
-    imgEnabled = settings.imageGen;
-    videoEnabled = settings.videoGen;
-    audioEnabled = settings.audioGen;
-    searchEngine = settings.searchEngines;
-    currentToolSettings = settings;
-    updateToolButtonVisibility();
-    updateToolButtonActiveState();
+	searchEnabled = settings.webSearch;
+	imgEnabled = settings.imageGen;
+	videoEnabled = settings.videoGen;
+	audioEnabled = settings.audioGen;
+	searchEngine = settings.searchEngines;
+	currentToolSettings = settings;
+	updateToolButtonVisibility();
+	updateToolButtonActiveState();
 });
 
 const actionBtn = document.getElementById("send");
@@ -2849,7 +2930,6 @@ attachBtn.addEventListener("click", (event) => {
 	toggleAttachMenu();
 });
 
-// "Upload file": attach text files, plus SVG-as-XML (with an image preview).
 fileInput.addEventListener("change", async (e) => {
 	const files = Array.from((e.target as HTMLInputElement).files ?? []);
 	for (const file of files) {
@@ -2877,12 +2957,10 @@ fileInput.addEventListener("change", async (e) => {
 			attachedFiles.push({ type: "text", name: file.name, content: text });
 		}
 	}
-	// Reset the input so the same file can be re-selected if needed.
 	fileInput.value = "";
 	renderFileIndicator();
 });
 
-// "Upload image": only available for vision-capable models.
 imageInput?.addEventListener("change", async (e) => {
 	const modelValue = lightningEnabled ? LIGHTNING_MODEL_VALUE : modelSelect.value;
 	if (!modelSupportsVisionForRequest(modelValue)) {
@@ -2915,23 +2993,10 @@ imageInput?.addEventListener("change", async (e) => {
 		}
 	}
 
-	// Reset the input so the same file can be re-selected if needed.
 	(imageInput as HTMLInputElement).value = "";
 	renderFileIndicator();
 });
 
-// ─── Build the content array for a user message ───────────────────────────────
-
-/**
- * Build a UserContentPart[] from the typed prompt text and any attached files.
- *
- * - Text files are folded into the text part as a markdown <details> block
- *   (preserving the existing behaviour).
- * - Image files become separate `image_url` parts.
- *
- * Returns a plain string when there are no images (backward-compatible with
- * older sessions that stored content as a string).
- */
 function buildUserMessageContent(
 	promptText: string,
 	files: AttachedFile[],
@@ -2939,16 +3004,13 @@ function buildUserMessageContent(
 	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
 	const imageFiles = files.filter((f): f is AttachedImageFile => f.type === "image");
 
-	// Compose the text portion (prompt + attached text files).
 	const fileBlock = formatAttachedTextFiles(textFiles);
 	const fullText = promptText + (fileBlock ? "\n\n" + fileBlock : "");
 
-	// If there are no images, keep the legacy flat-string format.
 	if (imageFiles.length === 0) {
 		return fullText;
 	}
 
-	// Otherwise return a content array.
 	const parts: UserContentPart[] = [{ type: "text", text: fullText }];
 	for (const img of imageFiles) {
 		parts.push({
@@ -2984,8 +3046,6 @@ function parseDataUrl(url: string): { mimeType: string; base64: string } {
 	return { mimeType: matched[1], base64: matched[2] };
 }
 
-// ─── Text-file formatting (unchanged logic, extracted to its own function) ────
-
 function formatAttachedTextFiles(files: AttachedTextFile[]): string {
 	if (files.length === 0) return "";
 
@@ -2999,10 +3059,7 @@ function formatAttachedTextFiles(files: AttachedTextFile[]): string {
 	return output;
 }
 
-/**
- * Legacy wrapper kept so any remaining callers still compile.
- * @deprecated Use buildUserMessageContent instead.
- */
+/** @deprecated Use buildUserMessageContent instead. */
 function formatAttachedFiles(files: AttachedFile[]): string {
 	const textFiles = files.filter((f): f is AttachedTextFile => f.type === "text");
 	return formatAttachedTextFiles(textFiles);
@@ -3077,7 +3134,7 @@ window.ollama.onPullProgress(
 );
 
 async function autoNameSession(
-	model: string, // still passed for logging/context
+	model: string,
 	prompt: string,
 	sessionId: string,
 	clientUrl?: string,
@@ -3108,10 +3165,10 @@ async function autoNameSession(
 		if (isSyncEnabled() && auth?.session?.isAuthenticated) {
 			await safeCallRemote(() => window.sync.saveAllSessions(sessions));
 		}
-		renderSessionList();
+		scheduleRenderSessionList();
 	});
 
-	renderSessionList();
+	scheduleRenderSessionList();
 	console.log("[autoNameSession] Session name set and UI updated.");
 
 	return title;
@@ -3210,7 +3267,6 @@ form.addEventListener("submit", async (e) => {
 	activeToolSessionId = currentSessionId;
 	session.model = model;
 
-	// Build the content (string for text-only, array when images are attached).
 	const supportsVisionForRequest = modelSupportsVisionForRequest(model);
 	const droppedImages = supportsVisionForRequest
 		? 0
@@ -3235,7 +3291,6 @@ form.addEventListener("submit", async (e) => {
 				.filter((id: unknown) => typeof id === "string" && !!String(id)),
 		),
 	];
-	// The text sent to the model for streaming is always the plain-text form.
 	const fullPromptText = typeof messageContent === "string"
 		? messageContent
 		: getMessageText(messageContent);
@@ -3248,13 +3303,16 @@ form.addEventListener("submit", async (e) => {
 		content: cloneMessageContent(messageContent),
 		...(linkedMediaIds.length ? { linkedMediaIds } : {}),
 	});
+
+	// Use in-place append during active session to avoid deep-cloning the whole
+	// tree. setSessionHistoryRoot below will invalidate the flat cache.
 	const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
 	if (!root) {
 		setSessionHistoryRoot(session, userEntry, currentSessionId || undefined);
 	} else {
-		const nextRoot = cloneAndRepairTree(root);
-		appendEntriesToActiveLeaf(nextRoot, [userEntry]);
-		setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
+		appendToActiveLeafInPlace(root, [userEntry]);
+		// Manually invalidate the flat cache since we mutated in place
+		sessionFlatHistoryCache.delete(currentSessionId);
 	}
 	await renderChat();
 
@@ -3269,9 +3327,6 @@ form.addEventListener("submit", async (e) => {
 
 	window.ollama.removeAllListeners?.();
 
-	// Host selection persistence is handled by explicit host picker changes.
-	// Avoid mutating persisted host during message submit, which can cause
-	// unexpected host switches in the picker UI.
 	const supportsToolsForRequest = modelSupportsToolsForRequest(model);
 	window.ollama.streamPrompt(
 		model,
@@ -3350,7 +3405,7 @@ form.addEventListener("submit", async (e) => {
 					window.sync.saveAllSessions(sessions),
 				);
 			}
-			renderSessionList();
+			scheduleRenderSessionList();
 		});
 		endStreaming();
 	});
@@ -3369,9 +3424,9 @@ form.addEventListener("submit", async (e) => {
 			if (!currentRoot) {
 				setSessionHistoryRoot(activeSession, assistantEntry, currentSessionId || undefined);
 			} else {
-				const nextRoot = cloneAndRepairTree(currentRoot);
-				appendEntriesToActiveLeaf(nextRoot, [assistantEntry]);
-				setSessionHistoryRoot(activeSession, nextRoot, currentSessionId || undefined);
+				// In-place fast append for assistant message during streaming
+				appendToActiveLeafInPlace(currentRoot, [assistantEntry]);
+				sessionFlatHistoryCache.delete(currentSessionId);
 			}
 		}
 		await renderChat();
@@ -3388,7 +3443,7 @@ form.addEventListener("submit", async (e) => {
 					window.sync.saveAllSessions(sessions),
 				);
 			}
-			renderSessionList();
+			scheduleRenderSessionList();
 		});
 		endStreaming();
 	});
@@ -3407,9 +3462,8 @@ form.addEventListener("submit", async (e) => {
 			if (!currentRoot) {
 				setSessionHistoryRoot(activeSession, assistantEntry, currentSessionId || undefined);
 			} else {
-				const nextRoot = cloneAndRepairTree(currentRoot);
-				appendEntriesToActiveLeaf(nextRoot, [assistantEntry]);
-				setSessionHistoryRoot(activeSession, nextRoot, currentSessionId || undefined);
+				appendToActiveLeafInPlace(currentRoot, [assistantEntry]);
+				sessionFlatHistoryCache.delete(currentSessionId);
 			}
 		}
 		await renderChat();
@@ -3426,7 +3480,7 @@ form.addEventListener("submit", async (e) => {
 					window.sync.saveAllSessions(sessions),
 				);
 			}
-			renderSessionList();
+			scheduleRenderSessionList();
 		});
 		endStreaming();
 	});
@@ -3445,7 +3499,6 @@ function renderFileIndicator() {
 	attachedFiles.forEach((file, index) => {
 		const icon = document.createElement("div");
 		icon.className = "file-icon";
-		// Show a thumbnail for images, document emoji for text files.
 		if (file.type === "image") {
 			const thumb = document.createElement("img");
 			thumb.src = `data:${file.mimeType};base64,${file.base64}`;
@@ -3519,42 +3572,42 @@ try {
 }
 
 function updateTextareaState() {
-    const MAX_LINES = 6;
-    const EXTRA_PADDING = 10;
+	const MAX_LINES = 6;
+	const EXTRA_PADDING = 10;
 
-    const styles = window.getComputedStyle(textarea);
-    const fontSize = parseFloat(styles.fontSize);
-    const lineHeight = parseFloat(styles.lineHeight);
-    const paddingTop = parseFloat(styles.paddingTop);
-    const paddingBottom = parseFloat(styles.paddingBottom);
+	const styles = window.getComputedStyle(textarea);
+	const fontSize = parseFloat(styles.fontSize);
+	const lineHeight = parseFloat(styles.lineHeight);
+	const paddingTop = parseFloat(styles.paddingTop);
+	const paddingBottom = parseFloat(styles.paddingBottom);
 
-    const collapsedHeight = lineHeight + paddingTop + paddingBottom;
-    const maxHeight =
-        lineHeight * MAX_LINES +
-        paddingTop +
-        paddingBottom +
-        EXTRA_PADDING;
+	const collapsedHeight = lineHeight + paddingTop + paddingBottom;
+	const maxHeight =
+		lineHeight * MAX_LINES +
+		paddingTop +
+		paddingBottom +
+		EXTRA_PADDING;
 
-    const value = textarea.value;
-    const hasValue = value.length > 0;
-    typingBar.classList.toggle("empty", !hasValue);
+	const value = textarea.value;
+	const hasValue = value.length > 0;
+	typingBar.classList.toggle("empty", !hasValue);
 
-    textarea.style.height = "auto";
-    const scrollHeight = textarea.scrollHeight;
+	textarea.style.height = "auto";
+	const scrollHeight = textarea.scrollHeight;
 
-    const targetHeight = Math.max(
-        collapsedHeight,
-        Math.min(scrollHeight, maxHeight)
-    );
+	const targetHeight = Math.max(
+		collapsedHeight,
+		Math.min(scrollHeight, maxHeight)
+	);
 
-    const isExpanded = targetHeight > collapsedHeight + 1;
-    const isScrollable = scrollHeight > maxHeight + 1;
+	const isExpanded = targetHeight > collapsedHeight + 1;
+	const isScrollable = scrollHeight > maxHeight + 1;
 
-    textarea.style.height = `${targetHeight}px`;
-    textarea.style.overflowY = isScrollable ? "auto" : "hidden";
+	textarea.style.height = `${targetHeight}px`;
+	textarea.style.overflowY = isScrollable ? "auto" : "hidden";
 
-    typingBar.classList.toggle("is-expanded", isExpanded);
-    typingBar.classList.toggle("is-scrollable", isScrollable);
+	typingBar.classList.toggle("is-expanded", isExpanded);
+	typingBar.classList.toggle("is-scrollable", isScrollable);
 }
 
 
@@ -3933,54 +3986,56 @@ function openEditMessageDialog(messageIndex: number): void {
 						return;
 					}
 
-						const latestHistory = getCurrentSessionMessages();
-						if (!latestHistory?.[messageIndex]) {
-							editModal.close();
-							return;
-						}
-
-						const existing = latestHistory[messageIndex];
-						const nextContent = buildUserMessageContent(updated, editAttachments);
-						const linkedMediaIds = [
-							...new Set(
-								editAttachments
-									.map((file: any) => file?.mediaId)
-									.filter((id: unknown) => typeof id === "string" && !!String(id)),
-							),
-						];
-						const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
-						const nextRoot = cloneAndRepairTree(root);
-						const context = findMessageContext(nextRoot, existing.id);
-						if (!context?.message) return;
-						findAndUpdateMessage(nextRoot, existing.id, (messageNode) => {
-							if (
-								messageNode.role === "user" &&
-								Array.isArray(context.parentTail) &&
-								context.index >= 0
-							) {
-								const trailing = context.parentTail.splice(context.index + 1);
-								if (trailing.length) {
-									const currentVersion = getActiveVersionNode(messageNode);
-									currentVersion.tail = [...(currentVersion.tail || []), ...trailing];
-								}
-							}
-							messageNode.versions.push({
-								content: cloneMessageContent(nextContent),
-								tail: [],
-								timestamp: Date.now(),
-							});
-							messageNode.currentVersionIdx = messageNode.versions.length - 1;
-							messageNode.content = cloneMessageContent(nextContent);
-							if (linkedMediaIds.length) messageNode.linkedMediaIds = linkedMediaIds;
-							else delete messageNode.linkedMediaIds;
-							messageNode.timestamp = Date.now();
-						});
-						setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
-
-						await persistSessionsAndSync();
-						await renderChat();
+					const latestHistory = getCurrentSessionMessages();
+					if (!latestHistory?.[messageIndex]) {
 						editModal.close();
-					},
+						return;
+					}
+
+					const existing = latestHistory[messageIndex];
+					const nextContent = buildUserMessageContent(updated, editAttachments);
+					const linkedMediaIds = [
+						...new Set(
+							editAttachments
+								.map((file: any) => file?.mediaId)
+								.filter((id: unknown) => typeof id === "string" && !!String(id)),
+						),
+					];
+					const root = ensureSessionHistoryRoot(session, currentSessionId || undefined);
+					const nextRoot = cloneAndRepairTree(root);
+					const context = findMessageContext(nextRoot, existing.id);
+					if (!context?.message) return;
+					findAndUpdateMessage(nextRoot, existing.id, (messageNode) => {
+						if (
+							messageNode.role === "user" &&
+							Array.isArray(context.parentTail) &&
+							context.index >= 0
+						) {
+							const trailing = context.parentTail.splice(context.index + 1);
+							if (trailing.length) {
+								const currentVersion = getActiveVersionNode(messageNode);
+								currentVersion.tail = [...(currentVersion.tail || []), ...trailing];
+							}
+						}
+						messageNode.versions.push({
+							content: cloneMessageContent(nextContent),
+							tail: [],
+							timestamp: Date.now(),
+						});
+						messageNode.currentVersionIdx = messageNode.versions.length - 1;
+						messageNode.content = cloneMessageContent(nextContent);
+						if (linkedMediaIds.length) messageNode.linkedMediaIds = linkedMediaIds;
+						else delete messageNode.linkedMediaIds;
+						messageNode.timestamp = Date.now();
+					});
+					setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
+					// Invalidate markdown cache for this session since content changed
+					markdownCache.delete(currentSessionId);
+
+					await persistSessionsAndSync();
+					await renderChat();
+					editModal.close();
+				},
 			},
 		],
 	});
@@ -4054,14 +4109,15 @@ function openDeleteMessageDialog(messageIndex: number): void {
 					if (context.parentTail && context.index >= 0) {
 						context.parentTail.splice(context.index, 1);
 					} else if (context.message?.id === nextRoot.id) {
-						// Deleting root clears the session history entirely.
 						setSessionHistoryRoot(session, null, currentSessionId || undefined);
+						markdownCache.delete(currentSessionId);
 						await persistSessionsAndSync();
 						await renderChat();
 						editModal.close();
 						return;
 					}
 					setSessionHistoryRoot(session, nextRoot, currentSessionId || undefined);
+					markdownCache.delete(currentSessionId);
 					await persistSessionsAndSync();
 					await renderChat();
 					editModal.close();
@@ -4120,97 +4176,155 @@ function buildMessageActions(
 }
 
 function isSafeHttpImageUrl(url: string): boolean {
-    return /^https?:\/\//i.test(url);
+	return /^https?:\/\//i.test(url);
 }
 
 function isDataImageUrl(url: string): boolean {
-    return /^data:image\//i.test(url);
+	return /^data:image\//i.test(url);
 }
 
 async function sanitizeSvgDataUrl(url: string): Promise<string | null> {
-    const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
-    if (!match) return null;
+	const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
+	if (!match) return null;
 
-    const isBase64 = !!match[1];
-    const payload = match[2] || "";
+	const isBase64 = !!match[1];
+	const payload = match[2] || "";
 
-    let svg: string;
-    try {
-        if (isBase64) {
-            const decoded = atob(payload);
-            svg = decoded;
-        } else {
-            svg = decodeURIComponent(payload);
-        }
-    } catch {
-        return null;
-    }
+	let svg: string;
+	try {
+		if (isBase64) {
+			const decoded = atob(payload);
+			svg = decoded;
+		} else {
+			svg = decodeURIComponent(payload);
+		}
+	} catch {
+		return null;
+	}
 
-    const sanitizedSvg = await window.utils.sanitizeSVG(svg);
+	const sanitizedSvg = await window.utils.sanitizeSVG(svg);
 
-    let encoded: string;
-    if (isBase64) {
-        encoded = btoa(sanitizedSvg);
-        return `data:image/svg+xml;base64,${encoded}`;
-    } else {
-        encoded = encodeURIComponent(sanitizedSvg);
-        return `data:image/svg+xml,${encoded}`;
-    }
+	let encoded: string;
+	if (isBase64) {
+		encoded = btoa(sanitizedSvg);
+		return `data:image/svg+xml;base64,${encoded}`;
+	} else {
+		encoded = encodeURIComponent(sanitizedSvg);
+		return `data:image/svg+xml,${encoded}`;
+	}
 }
 
 async function makeSafeImageUrl(url: string): Promise<string | null> {
-    if (/^https?:\/\//i.test(url)) {
-        return url;
-    }
+	if (/^https?:\/\//i.test(url)) {
+		return url;
+	}
 
-    if (!/^data:image\//i.test(url)) {
-        return null;
-    }
+	if (!/^data:image\//i.test(url)) {
+		return null;
+	}
 
-    if (/^data:image\/svg\+xml/i.test(url)) {
-        const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
-        if (!match) return null;
+	if (/^data:image\/svg\+xml/i.test(url)) {
+		const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
+		if (!match) return null;
 
-        const isBase64 = !!match[1];
-        const payload = match[2] || "";
+		const isBase64 = !!match[1];
+		const payload = match[2] || "";
 
-        let svgXml: string;
-        try {
-            if (isBase64) {
-                svgXml = atob(payload);
-            } else {
-                svgXml = decodeURIComponent(payload);
-            }
-        } catch {
-            return null;
-        }
-
-        const sanitized = await window.utils.sanitizeSVG(svgXml);
-
-        if (isBase64) {
-            const encoded = btoa(sanitized);
-            return `data:image/svg+xml;base64,${encoded}`;
-        } else {
-            const encoded = encodeURIComponent(sanitized);
-            return `data:image/svg+xml,${encoded}`;
-        }
-    }
-
-    return url;
-}
-
-
-async function renderChat() {
-	for (const url of assetObjectUrlCache.values()) {
+		let svgXml: string;
 		try {
-			URL.revokeObjectURL(url);
-		} catch (err: any) {
-			console.warn(err.toString());
+			if (isBase64) {
+				svgXml = atob(payload);
+			} else {
+				svgXml = decodeURIComponent(payload);
+			}
+		} catch {
+			return null;
+		}
+
+		const sanitized = await window.utils.sanitizeSVG(svgXml);
+
+		if (isBase64) {
+			const encoded = btoa(sanitized);
+			return `data:image/svg+xml;base64,${encoded}`;
+		} else {
+			const encoded = encodeURIComponent(sanitized);
+			return `data:image/svg+xml,${encoded}`;
 		}
 	}
-	assetObjectUrlCache.clear();
-	const chatBox = document.getElementById("chat-box");
-	if (!chatBox) {
+
+	return url;
+}
+
+// ─── Markdown cache ────────────────────────────────────────────────────────────
+// Keyed by sessionId -> Map<messageId, { contentKey: string; html: string }>.
+// Using a two-level Map keeps eviction cheap: delete the whole session map
+// when the session is edited, deleted, or switched.
+//
+// Memory bound: we only cache the CURRENT session. Switching sessions drops
+// the previous session's cache so long conversations don't accumulate unboundedly.
+// Each entry is a short string key + rendered HTML string — typical sizes are
+// a few KB per message, well within budget even for 200-message sessions.
+const markdownCache = new Map<string, Map<string, { key: string; html: string }>>();
+
+function getMarkdownCacheEntry(
+	sessionId: string,
+	messageId: string,
+	contentKey: string,
+): string | null {
+	const sessionMap = markdownCache.get(sessionId);
+	if (!sessionMap) return null;
+	const entry = sessionMap.get(messageId);
+	if (!entry || entry.key !== contentKey) return null;
+	return entry.html;
+}
+
+function setMarkdownCacheEntry(
+	sessionId: string,
+	messageId: string,
+	contentKey: string,
+	html: string,
+): void {
+	let sessionMap = markdownCache.get(sessionId);
+	if (!sessionMap) {
+		sessionMap = new Map();
+		markdownCache.set(sessionId, sessionMap);
+	}
+	sessionMap.set(messageId, { key: contentKey, html });
+}
+
+// Evict all sessions except the current one to keep memory usage constant
+// regardless of how many sessions exist.
+function evictStaleMarkdownCaches(keepSessionId: string | null): void {
+	for (const key of markdownCache.keys()) {
+		if (key !== keepSessionId) markdownCache.delete(key);
+	}
+}
+
+async function getCachedMarkdown(
+	sessionId: string,
+	messageId: string,
+	content: string,
+): Promise<string> {
+	// Cheap fingerprint: length + first 128 chars is sufficient to detect edits
+	// without hashing the full content string on every render.
+	const contentKey = `${content.length}:${content.slice(0, 128)}`;
+	const cached = getMarkdownCacheEntry(sessionId, messageId, contentKey);
+	if (cached !== null) return cached;
+
+	const html = await window.utils.markdown_parse_and_purify(content);
+	setMarkdownCacheEntry(sessionId, messageId, contentKey, html);
+	return html;
+}
+
+async function renderChat() {
+	// Evict stale session markdown caches before rendering to avoid unbounded
+	// memory growth when the user has many sessions with long histories.
+	evictStaleMarkdownCaches(currentSessionId);
+
+	// Selective asset URL eviction: only revoke URLs for assets no longer
+	// present in the current history, rather than clearing the entire cache.
+	const chatBoxEl = document.getElementById("chat-box");
+	if (!chatBoxEl) {
 		console.warn("renderChat aborted: chatBox not found");
 		return;
 	}
@@ -4220,11 +4334,31 @@ async function renderChat() {
 	}
 
 	const session = sessions[currentSessionId];
-	chatBox.innerHTML = "";
-	liveToolBubbles.clear();
 	const flatHistory = session
 		? getSessionFlatHistory(session, currentSessionId || undefined)
 		: [];
+
+	// Compute the set of asset IDs still in the history before clearing the DOM
+	const liveAssetIds = new Set<string>();
+	for (const msg of flatHistory) {
+		if (msg.role === "image" || msg.role === "video" || msg.role === "audio") {
+			const ref = resolveMediaContentRef(msg.content);
+			if (ref.assetId) liveAssetIds.add(ref.assetId);
+		}
+	}
+
+	// Revoke only orphaned object URLs
+	for (const [cacheKey, url] of assetObjectUrlCache) {
+		const assetId = cacheKey.split(":").slice(1).join(":");
+		if (!liveAssetIds.has(assetId)) {
+			try { URL.revokeObjectURL(url); } catch {}
+			assetObjectUrlCache.delete(cacheKey);
+		}
+	}
+
+	chatBoxEl.innerHTML = "";
+	liveToolBubbles.clear();
+
 	if (!session || flatHistory.length === 0) {
 		setWelcomeMode(true);
 		return;
@@ -4240,11 +4374,16 @@ async function renderChat() {
 
 			const textContent = getMessageText(msg.content);
 			const fileAttachments = extractAttachedTextFiles(textContent);
-			const displayText = stripAttachedDetailsBlocks(textContent)
-			// nosemgrep: javascript.browser.security.insecure-innerhtml
-			bubble.innerHTML = await window.utils.markdown_parse_and_purify(
+			const displayText = stripAttachedDetailsBlocks(textContent);
+
+			// Use cached markdown to avoid re-parsing unchanged messages
+			const renderedHtml = await getCachedMarkdown(
+				currentSessionId,
+				msg.id || String(messageIndex),
 				displayText || "",
 			);
+			// nosemgrep: javascript.browser.security.insecure-innerhtml
+			bubble.innerHTML = renderedHtml;
 
 			const imageUrls = getMessageImages(msg.content);
 			for (const url of imageUrls) {
@@ -4307,24 +4446,27 @@ async function renderChat() {
 				bubble.appendChild(row);
 			}
 
-				const actions = buildMessageActions(msg, messageIndex);
-				const versionNav = buildMessageVersionNav(msg, messageIndex);
-				if (versionNav) {
-					bubble.appendChild(versionNav);
-				}
-				if (actions) {
-					bubble.appendChild(actions);
-				}
-			chatBox.appendChild(bubble);
+			const actions = buildMessageActions(msg, messageIndex);
+			const versionNav = buildMessageVersionNav(msg, messageIndex);
+			if (versionNav) {
+				bubble.appendChild(versionNav);
+			}
+			if (actions) {
+				bubble.appendChild(actions);
+			}
+			chatBoxEl.appendChild(bubble);
 			continue;
 		}
 
 		/* ---------------- ASSISTANT ---------------- */
 		if (msg.role === "assistant") {
-			// nosemgrep: javascript.browser.security.insecure-innerhtml
-			const html = (await window.utils.markdown_parse_and_purify(
+			// Use cached markdown for assistant messages too
+			const rawHtml = await getCachedMarkdown(
+				currentSessionId,
+				msg.id || String(messageIndex),
 				msg.content || "",
-			)).replace(/&lt;session_name&gt;[\s\S]*?&lt;\/session_name&gt;/gi, "");
+			);
+			const html = rawHtml.replace(/&lt;session_name&gt;[\s\S]*?&lt;\/session_name&gt;/gi, "");
 			const temp = document.createElement("div");
 			temp.innerHTML = html;
 
@@ -4378,7 +4520,7 @@ async function renderChat() {
 								toggle.style.width = "30px";
 								toggle.style.height = "30px";
 								toggle.style.borderRadius = "5px";
-								toggle.style.color = "#000000"
+								toggle.style.color = "#000000";
 								toggle.style.background = "#f0f0f0";
 								toggle.style.display = "flex";
 								toggle.style.alignItems = "center";
@@ -4455,53 +4597,53 @@ async function renderChat() {
 				}
 			});
 
-				const actions = buildMessageActions(msg, messageIndex);
-				const versionNav = buildMessageVersionNav(msg, messageIndex);
-				if (versionNav) {
-					botContainer.appendChild(versionNav);
-				}
-				if (actions) {
-					botContainer.appendChild(actions);
-				}
-
-				chatBox.appendChild(botContainer);
-				continue;
+			const actions = buildMessageActions(msg, messageIndex);
+			const versionNav = buildMessageVersionNav(msg, messageIndex);
+			if (versionNav) {
+				botContainer.appendChild(versionNav);
+			}
+			if (actions) {
+				botContainer.appendChild(actions);
 			}
 
-			if (msg.role === "image") {
-				renderImageAssetFromContent(
-					msg.content,
-					chatBox,
-					typeof msg.mimeType === "string" && msg.mimeType.trim()
-						? msg.mimeType
-						: "image/png",
-				);
-				continue;
-			}
+			chatBoxEl.appendChild(botContainer);
+			continue;
+		}
 
-			if (msg.role === "video") {
-				renderMediaAssetFromContent(
-					"video",
-					msg.content,
-					chatBox,
-					typeof msg.mimeType === "string" && msg.mimeType.trim()
-						? msg.mimeType
-						: "video/mp4",
-				);
-				continue;
-			}
+		if (msg.role === "image") {
+			renderImageAssetFromContent(
+				msg.content,
+				chatBoxEl,
+				typeof msg.mimeType === "string" && msg.mimeType.trim()
+					? msg.mimeType
+					: "image/png",
+			);
+			continue;
+		}
 
-			if (msg.role === "audio") {
-				renderMediaAssetFromContent(
-					"audio",
-					msg.content,
-					chatBox,
-					typeof msg.mimeType === "string" && msg.mimeType.trim()
-						? msg.mimeType
-						: "audio/mpeg",
-				);
-				continue;
-			}
+		if (msg.role === "video") {
+			renderMediaAssetFromContent(
+				"video",
+				msg.content,
+				chatBoxEl,
+				typeof msg.mimeType === "string" && msg.mimeType.trim()
+					? msg.mimeType
+					: "video/mp4",
+			);
+			continue;
+		}
+
+		if (msg.role === "audio") {
+			renderMediaAssetFromContent(
+				"audio",
+				msg.content,
+				chatBoxEl,
+				typeof msg.mimeType === "string" && msg.mimeType.trim()
+					? msg.mimeType
+					: "audio/mpeg",
+			);
+			continue;
+		}
 
 		if (msg.role === "tool") {
 			const toolBubble = document.createElement("div");
@@ -4616,12 +4758,12 @@ async function renderChat() {
 				}
 			}
 
-			chatBox.appendChild(toolBubble);
+			chatBoxEl.appendChild(toolBubble);
 			continue;
 		}
 
 		console.warn("Unknown message role:", msg.role, msg);
-	};
+	}
 
 	renderMathInElement(document.body, {
 		delimiters: [
@@ -4636,7 +4778,7 @@ async function renderChat() {
 	document.querySelectorAll("pre code").forEach(() => void 0);
 
 	if (autoScroll) {
-		chatBox.scrollTop = chatBox.scrollHeight;
+		chatBoxEl.scrollTop = chatBoxEl.scrollHeight;
 	}
 }
 
@@ -5132,6 +5274,9 @@ function upsertToolHistoryEntry(
 	if (existing) {
 		existing.content = content;
 		existing.name = call.name;
+		// Invalidate flat cache since we mutated an existing entry
+		const sid = findSessionIdByRef(session);
+		if (sid) sessionFlatHistoryCache.delete(sid);
 		return;
 	}
 	const root = ensureSessionHistoryRoot(session);
@@ -5148,9 +5293,8 @@ function upsertToolHistoryEntry(
 		setSessionHistoryRoot(session, ensureMessageVersioningShape(toolEntry), sessionId || undefined);
 		return;
 	}
-	const nextRoot = cloneAndRepairTree(root);
-	appendEntriesToActiveLeaf(nextRoot, [toolEntry]);
-	setSessionHistoryRoot(session, nextRoot, sessionId || undefined);
+	appendToActiveLeafInPlace(root, [toolEntry]);
+	if (sessionId) sessionFlatHistoryCache.delete(sessionId);
 }
 
 function setVideoBubbleControlsDisabled(
@@ -5463,7 +5607,6 @@ function createCopyableToolValueElement(
 	const text = document.createElement("span");
 	text.className = "video-tool-copyable-text";
 	text.textContent = truncateToolValue(value, maxChars);
-	// Avoid huge titles (e.g., data URIs) that can bog down the DOM/tooltip.
 	text.title = value.length <= 2048 ? value : `${value.slice(0, 2048)}...`;
 
 	const copyBtn = document.createElement("button");
@@ -6033,9 +6176,8 @@ window.ollama.onNewAsset((msg) => {
 	if (!root) {
 		setSessionHistoryRoot(session, ensureMessageVersioningShape(mediaEntry), targetSessionId);
 	} else {
-		const nextRoot = cloneAndRepairTree(root);
-		appendEntriesToActiveLeaf(nextRoot, [mediaEntry]);
-		setSessionHistoryRoot(session, nextRoot, targetSessionId);
+		appendToActiveLeafInPlace(root, [mediaEntry]);
+		sessionFlatHistoryCache.delete(targetSessionId);
 	}
 	if (msg.role === "image") {
 		bumpUsage("imagesDaily");
@@ -6127,7 +6269,7 @@ window.ollama.onToolCall((call) => {
 	if (call.name === "generate_audio") {
 		console.log("Processing generate_audio tool call:", call);
 		const options = getAudioOptionsFromToolCall(call);
-		console.log(options)
+		console.log(options);
 		const payload = {
 			status: call.state,
 			options,
