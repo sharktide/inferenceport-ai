@@ -375,6 +375,31 @@ async function persistGeneratedImage(dataUrl: string, sessionId?: string): Promi
 	}
 }
 
+function toInlineMediaDataUrl(
+	bytes: Uint8Array | ArrayBuffer,
+	mimeType: string,
+): string {
+	const typed = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+	return `data:${mimeType};base64,${Buffer.from(typed).toString("base64")}`;
+}
+
+async function ensureInlineImageDataUrl(
+	value: string,
+): Promise<string> {
+	const trimmed = typeof value === "string" ? value.trim() : "";
+	if (!trimmed) return trimmed;
+	if (trimmed.startsWith("data:")) return trimmed;
+	try {
+		const response = await fetch(trimmed);
+		if (!response.ok) return trimmed;
+		const blob = await response.blob();
+		const mimeType = blob.type || "image/png";
+		return toInlineMediaDataUrl(await blob.arrayBuffer(), mimeType);
+	} catch {
+		return trimmed;
+	}
+}
+
 async function runDirectImageToolCall(
 	toolCallId: string,
 	payload?: unknown,
@@ -419,7 +444,7 @@ async function runDirectImageToolCall(
 			});
 
 			const { dataUrl } = await GenerateImage(selected);
-			const persisted = await persistGeneratedImage(dataUrl);
+			const persisted = await ensureInlineImageDataUrl(dataUrl);
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "image",
 				content: persisted,
@@ -492,12 +517,7 @@ async function runDirectVideoToolCall(
 			});
 
 			const video = await generateVideo(selected);
-			const videoBlob = new Blob([video], { type: "video/mp4" });
-			const assetID = await save_stream(videoBlob, {
-				kind: "video",
-				mimeType: "video/mp4",
-				name: `generated-video-${Date.now()}.mp4`,
-			});
+			const assetID = toInlineMediaDataUrl(video, "video/mp4");
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "video",
 				content: assetID,
@@ -568,12 +588,7 @@ async function runDirectAudioToolCall(
 			});
 
 			const audio = await generateAudioOrSFX(selected.prompt);
-			const audioBlob = new Blob([audio], { type: "audio/mpeg" });
-			const assetID = await save_stream(audioBlob, {
-				kind: "audio",
-				mimeType: "audio/mpeg",
-				name: `generated-audio-${Date.now()}.mp3`,
-			});
+			const assetID = toInlineMediaDataUrl(audio, "audio/mpeg");
 			broadcastIpcEvent("ollama:new-asset", {
 				role: "audio",
 				content: assetID,
