@@ -22,7 +22,7 @@
     "@gradio/client": "^2.2.0",
     "@supabase/supabase-js": "^2.105.0",
     "fix-path": "^5.0.0",
-    "html-to-text": "^9.0.5",
+    "html-to-text": "^10.0.0",
     "markdown-it": "^14.1.1",
     "markdown-it-footnote": "^4.0.0",
     "markdown-it-multimd-table": "^4.2.3",
