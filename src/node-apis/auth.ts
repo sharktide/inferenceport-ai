@@ -12,7 +12,7 @@ import fs from "fs";
 import path from "path";
 import { shell } from "electron";
 
-import type { Message, SessionType } from "./types/index.types.d.ts";
+import type { SessionType } from "./types/index.types.d.ts";
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
 
@@ -25,6 +25,7 @@ const subscriptionDetailsUrl = `${subscriptionApiBase}/subscription`;
 const subscriptionTiersUrl = `${subscriptionApiBase}/tiers`;
 const subscriptionTierConfigUrl = `${subscriptionApiBase}/tier-config`;
 const subscriptionUsageUrl = `${subscriptionApiBase}/usage`;
+const chatStorageApiBase = "https://sharktide-chat.hf.space/api";
 const verifyTokenUsageUrl = `${subscriptionApiBase}/usage/verify-token-with-email`;
 
 type SubscriptionTierView = {
@@ -923,6 +924,256 @@ function toSubscriptionView(
 
 void getSubscriptionTierConfigSafe();
 
+async function parseJsonSafe(response: Response): Promise<any> {
+	try {
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+
+function normalizeRemoteSessionForSync(
+	value: unknown,
+): (SessionType & { remoteId: string; created?: number }) | null {
+	if (!value || typeof value !== "object") return null;
+	const asRecord = value as Record<string, unknown>;
+	const id = asTrimmedString(asRecord.id);
+	if (!id) return null;
+
+	const clone = <T>(input: T): T => structuredClone(input) as T;
+	const applyActiveVersion = (message: Record<string, unknown>): Record<string, unknown> => {
+		const msg = clone(message);
+		const versions = Array.isArray(msg.versions)
+			? (msg.versions as Array<Record<string, unknown>>)
+			: [];
+		if (!versions.length) {
+			msg.versions = [
+				{
+					content: msg.content ?? "",
+					tail: [],
+					timestamp: Date.now(),
+				},
+			];
+			msg.currentVersionIdx = 0;
+			return msg;
+		}
+		const rawIndex =
+			typeof msg.currentVersionIdx === "number" &&
+			Number.isFinite(msg.currentVersionIdx)
+				? Math.round(msg.currentVersionIdx)
+				: 0;
+		const index = Math.max(0, Math.min(rawIndex, versions.length - 1));
+		msg.currentVersionIdx = index;
+		const current = versions[index] || {};
+		if (!Array.isArray(current.tail)) current.tail = [];
+			if (typeof current.content === "undefined" || current.content === null) {
+				current.content = msg.content ?? "";
+			}
+			versions[index] = current;
+		msg.versions = versions;
+		msg.content = current.content;
+		const toolCalls =
+			Array.isArray(current.tool_calls) || Array.isArray(current.toolCalls)
+				? ((current.tool_calls || current.toolCalls) as unknown[])
+				: Array.isArray(msg.tool_calls) || Array.isArray(msg.toolCalls)
+					? ((msg.tool_calls || msg.toolCalls) as unknown[])
+					: [];
+		if (toolCalls.length > 0) {
+			current.tool_calls = clone(toolCalls);
+			current.toolCalls = clone(toolCalls);
+			msg.tool_calls = clone(toolCalls);
+			msg.toolCalls = clone(toolCalls);
+		} else {
+			delete current.tool_calls;
+			delete current.toolCalls;
+			delete msg.tool_calls;
+			delete msg.toolCalls;
+		}
+		if (!msg.id) {
+			msg.id = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+		}
+		if (
+			typeof msg.timestamp !== "number" ||
+			!Number.isFinite(msg.timestamp)
+		) {
+			msg.timestamp = Date.now();
+		}
+		return msg;
+	};
+	const normalizeTreeNode = (node: Record<string, unknown>): Record<string, unknown> => {
+		const synced = applyActiveVersion(node);
+		const versions = Array.isArray(synced.versions)
+			? (synced.versions as Array<Record<string, unknown>>)
+			: [];
+		const idx =
+			typeof synced.currentVersionIdx === "number"
+				? Math.max(0, Math.min(Math.round(synced.currentVersionIdx), versions.length - 1))
+				: 0;
+		const active = versions[idx] || {};
+		const rawTail = Array.isArray(active.tail) ? active.tail : [];
+		const normalizedTail = rawTail
+			.filter((tailNode) => tailNode && typeof tailNode === "object")
+			.map((tailNode) => normalizeTreeNode(tailNode as Record<string, unknown>));
+		active.tail = normalizedTail;
+		versions[idx] = active;
+		synced.versions = versions;
+		synced.content = active.content;
+		return synced;
+	};
+	const toTreeHistory = (rawHistory: unknown[]): unknown[] => {
+		if (!Array.isArray(rawHistory) || rawHistory.length === 0) return [];
+		const looksTree =
+			rawHistory.length === 1 &&
+			rawHistory[0] &&
+			typeof rawHistory[0] === "object" &&
+			Array.isArray((rawHistory[0] as Record<string, unknown>).versions);
+		if (looksTree) {
+			return [normalizeTreeNode(rawHistory[0] as Record<string, unknown>)];
+		}
+		const nodes = rawHistory
+			.filter((entry) => entry && typeof entry === "object")
+			.filter((entry, index, arr) => {
+				const id = asTrimmedString((entry as Record<string, unknown>)?.id);
+				if (!id) return true;
+				for (let i = 0; i < index; i++) {
+					const prior = arr[i] as Record<string, unknown> | undefined;
+					if (asTrimmedString(prior?.id) === id) return false;
+				}
+				return true;
+			})
+			.map((entry) => applyActiveVersion(entry as Record<string, unknown>));
+		if (!nodes.length) return [];
+		const root = nodes[0];
+		if (!root) return [];
+		for (let i = 1; i < nodes.length; i++) {
+			const next = nodes[i];
+			if (!next) continue;
+			const versions = Array.isArray(root.versions)
+				? (root.versions as Array<Record<string, unknown>>)
+				: [];
+			const idx =
+				typeof root.currentVersionIdx === "number"
+					? Math.max(0, Math.min(Math.round(root.currentVersionIdx), versions.length - 1))
+					: 0;
+			const active = versions[idx] || {};
+			const tail = Array.isArray(active.tail) ? active.tail : [];
+			active.tail = [...tail, next];
+			versions[idx] = active;
+			root.versions = versions;
+		}
+		return [normalizeTreeNode(root)];
+	};
+	const historyRaw = Array.isArray(asRecord.history) ? asRecord.history : [];
+	const history = toTreeHistory(historyRaw);
+	const created =
+		typeof asRecord.created === "number" && Number.isFinite(asRecord.created)
+			? Math.round(asRecord.created)
+			: undefined;
+	const updatedAt = asTrimmedString(asRecord.updatedAt);
+
+	return {
+		name: asTrimmedString(asRecord.name) ?? "New Chat",
+		model: asTrimmedString(asRecord.model) ?? "",
+		favorite: false,
+		history: history as SessionType["history"],
+		remoteId: id,
+		...(typeof created === "number" ? { created } : {}),
+		...(updatedAt ? { updatedAt } : {}),
+	};
+}
+
+function normalizeRemoteIdFromLocalSession(
+	_localId: string,
+	session: SessionType,
+): string | null {
+	if (!session || typeof session !== "object") return null;
+	const fromSession = asTrimmedString((session as Record<string, unknown>).remoteId);
+	if (fromSession) return fromSession;
+	return null;
+}
+
+type ChatStorageAuthContext = {
+	accessToken: string;
+	authHeaders: Record<string, string>;
+};
+
+function toChatStorageError(
+	payload: unknown,
+	status: number,
+	fallback: string,
+): string {
+	if (!payload || typeof payload !== "object") {
+		return `${fallback} (${status})`;
+	}
+	const asRecord = payload as Record<string, unknown>;
+	return (
+		asTrimmedString(asRecord.message) ||
+		asTrimmedString(asRecord.error) ||
+		`${fallback} (${status})`
+	);
+}
+
+async function getChatStorageAuthContext(): Promise<
+	| { ok: true; value: ChatStorageAuthContext }
+	| { ok: false; error: string }
+> {
+	const { data: sessionData, error: sessionError } =
+		await supabase.auth.getSession();
+	if (sessionError || !sessionData.session?.access_token) {
+		return { ok: false, error: "Not authenticated" };
+	}
+
+	const accessToken = sessionData.session.access_token;
+	return {
+		ok: true,
+		value: {
+			accessToken,
+			authHeaders: {
+				Authorization: `Bearer ${accessToken}`,
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+		},
+	};
+}
+
+function normalizeMediaView(value: unknown): "all" | "active" | "trash" {
+	const normalized = String(value || "active").trim().toLowerCase();
+	if (normalized === "all" || normalized === "trash") return normalized;
+	return "active";
+}
+
+function normalizeParentId(value: unknown): string | null {
+	return asTrimmedString(value);
+}
+
+function buildMediaBreadcrumbs(
+	allItems: Array<Record<string, unknown>>,
+	parentId: string | null,
+): Array<{ id: string; name: string }> {
+	if (!parentId) return [];
+	const itemById = new Map<string, Record<string, unknown>>();
+	for (const item of allItems) {
+		const id = asTrimmedString(item?.id);
+		if (!id) continue;
+		itemById.set(id, item);
+	}
+	const breadcrumbs: Array<{ id: string; name: string }> = [];
+	const seen = new Set<string>();
+	let cursor: string | null = parentId;
+	while (cursor && !seen.has(cursor)) {
+		seen.add(cursor);
+		const item = itemById.get(cursor);
+		if (!item) break;
+		const id = asTrimmedString(item.id);
+		const name = asTrimmedString(item.name);
+		if (!id || !name) break;
+		breadcrumbs.unshift({ id, name });
+		cursor = asTrimmedString(item.parentId);
+	}
+	return breadcrumbs;
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -1262,69 +1513,36 @@ export default function register() {
 	});
 
 	// --- CHAT SYNC API ------------------------------------------------------
-	const RICH_CONTENT_PREFIX = "__ipai_json__:";
-
-	function encodeRemoteMessageContent(content: unknown): string {
-		if (typeof content === "string") return content;
-		try {
-			return RICH_CONTENT_PREFIX + JSON.stringify(content);
-		} catch {
-			// As a last resort, store something readable rather than crashing sync.
-			return RICH_CONTENT_PREFIX + JSON.stringify(String(content));
-		}
-	}
-
-	function decodeRemoteMessageContent(content: unknown): unknown {
-		if (typeof content !== "string") return content;
-		const trimmed = content.trim();
-		if (!trimmed.startsWith(RICH_CONTENT_PREFIX)) return content;
-		const json = trimmed.slice(RICH_CONTENT_PREFIX.length);
-		try {
-			return JSON.parse(json);
-		} catch {
-			return content;
-		}
-	}
-
 	ipcMain.handle("sync:getRemoteSessions", async (_event) => {
 		const { data: sessionData, error: sessionError } =
 			await supabase.auth.getSession();
-		if (sessionError || !sessionData.session)
+		if (sessionError || !sessionData.session?.access_token) {
 			return { error: "Not authenticated" };
+		}
 
-		const userId = sessionData.session.user.id;
-
-		const { data: sessions, error: sErr } = await supabase
-			.from("chat_sessions")
-			.select("*")
-			.eq("user_id", userId);
-
-		if (sErr) return { error: sErr.message };
-
-		const { data: messages, error: mErr } = await supabase
-			.from("chat_messages")
-			.select("*")
-			.eq("user_id", userId)
-			.order("created_at", { ascending: true });
-
-		if (mErr) return { error: mErr.message };
-
-		const safeSessions = sessions ?? [];
-		const safeMessages = messages ?? [];
-
-		const out: Record<string, any> = {};
-		for (const s of safeSessions) {
-			out[s.id] = {
-				name: s.name,
-				model: s.model,
-				favorite: s.favorite,
-				history: safeMessages
-					.filter((m) => m.session_id === s.id)
-					.map((m) => ({
-						role: m.role,
-						content: decodeRemoteMessageContent(m.content),
-					})),
+		const res = await fetch(`${chatStorageApiBase}/db/chats?includeHistory=1`, {
+			method: "GET",
+			headers: {
+				Authorization: `Bearer ${sessionData.session.access_token}`,
+				Accept: "application/json",
+			},
+		});
+		const payload = await parseJsonSafe(res);
+		if (!res.ok) {
+			return {
+				error:
+					asTrimmedString(payload?.message) ||
+					asTrimmedString(payload?.error) ||
+					`Remote session fetch failed (${res.status})`,
 			};
+		}
+
+		const out: Record<string, SessionType> = {};
+		const items = Array.isArray(payload?.items) ? payload.items : [];
+		for (const item of items) {
+			const normalized = normalizeRemoteSessionForSync(item);
+			if (!normalized) continue;
+			out[normalized.remoteId] = normalized;
 		}
 
 		return { sessions: out };
@@ -1341,80 +1559,675 @@ export default function register() {
 
 			const { data: sessionData, error: sessionError } =
 				await supabase.auth.getSession();
-			if (sessionError || !sessionData.session)
+			if (sessionError || !sessionData.session?.access_token) {
 				return { error: "Not authenticated" };
-
-			const userId = sessionData.session.user.id;
-
-			const { data: remoteSessions, error: rsErr } = await supabase
-				.from("chat_sessions")
-				.select("id")
-				.eq("user_id", userId);
-
-			if (rsErr) return { error: rsErr.message };
-
-			const safeRemoteSessions = remoteSessions ?? [];
-			const remoteIds = new Set(safeRemoteSessions.map((s) => s.id));
-			const localIds = new Set(Object.keys(allSessions));
-
-			const toDelete = [...remoteIds].filter((id) => !localIds.has(id));
-			if (toDelete.length > 0) {
-				await supabase
-					.from("chat_messages")
-					.delete()
-					.in("session_id", toDelete)
-					.eq("user_id", userId);
-				await supabase
-					.from("chat_sessions")
-					.delete()
-					.in("id", toDelete)
-					.eq("user_id", userId);
 			}
 
-			const sessionRows = Object.entries(allSessions).map(([id, s]) => ({
-				id,
-				name: s.name,
-				model: s.model,
-				favorite: s.favorite,
-				updated_at: new Date().toISOString(),
-				user_id: userId,
-			}));
+			const authHeaders = {
+				Authorization: `Bearer ${sessionData.session.access_token}`,
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			};
 
-			if (sessionRows.length > 0) {
-				const { error: upErr } = await supabase
-					.from("chat_sessions")
-					.upsert(sessionRows);
-				if (upErr) return { error: upErr.message };
+			const listRes = await fetch(
+				`${chatStorageApiBase}/db/chats?includeHistory=0`,
+				{
+					method: "GET",
+					headers: authHeaders,
+				},
+			);
+			const listPayload = await parseJsonSafe(listRes);
+			if (!listRes.ok) {
+				return {
+					error:
+						asTrimmedString(listPayload?.message) ||
+						asTrimmedString(listPayload?.error) ||
+						`Remote session list failed (${listRes.status})`,
+				};
 			}
 
-			for (const [sessionId, session] of Object.entries(allSessions)) {
-				await supabase
-					.from("chat_messages")
-					.delete()
-					.eq("session_id", sessionId)
-					.eq("user_id", userId);
+			const remoteItems = Array.isArray(listPayload?.items)
+				? listPayload.items
+				: [];
+			const remoteIds = new Set<string>();
+			const remoteIdMap: Record<string, string> = {};
+			for (const item of remoteItems) {
+				const id = asTrimmedString((item as Record<string, unknown>)?.id);
+				if (id) remoteIds.add(id);
+			}
 
-				const rows = session.history.map((m: Message) => ({
-					id: crypto.randomUUID(),
-					session_id: sessionId,
-					role: m.role,
-					content: encodeRemoteMessageContent(m.content),
-					created_at: new Date().toISOString(),
-					user_id: userId,
-				}));
+				const referencedRemoteIds = new Set<string>();
+				for (const [localId, localSession] of Object.entries(allSessions)) {
+					const remoteId =
+						normalizeRemoteIdFromLocalSession(localId, localSession) ||
+						(remoteIds.has(localId) ? localId : null);
+					if (remoteId) referencedRemoteIds.add(remoteId);
+				}
 
-				if (rows.length > 0) {
-					const { error: msgErr } = await supabase
-						.from("chat_messages")
-						.insert(rows);
-					process.stdout.write(`${msgErr}\n`);
-					if (msgErr) return { error: msgErr.message };
+			for (const remoteId of remoteIds) {
+				if (referencedRemoteIds.has(remoteId)) continue;
+				const deleteRes = await fetch(
+					`${chatStorageApiBase}/db/chats/${encodeURIComponent(remoteId)}`,
+					{
+						method: "DELETE",
+						headers: authHeaders,
+					},
+				);
+				if (!deleteRes.ok && deleteRes.status !== 404) {
+					const deletePayload = await parseJsonSafe(deleteRes);
+					return {
+						error:
+							asTrimmedString(deletePayload?.message) ||
+							asTrimmedString(deletePayload?.error) ||
+							`Remote session delete failed (${deleteRes.status})`,
+					};
 				}
 			}
 
-			return { success: true };
-		}
+			for (const [localId, localSession] of Object.entries(allSessions)) {
+					const localRecord = localSession as Record<string, unknown>;
+					const normalizeLocalHistoryToTree = (history: unknown): Record<string, unknown>[] => {
+						const rawHistory = Array.isArray(history) ? history : [];
+						if (!rawHistory.length) return [];
+						const isInlineMediaSource = (value: unknown): boolean => {
+							if (typeof value !== "string") return false;
+							const v = value.trim();
+							return (
+								v.startsWith("data:") ||
+								v.startsWith("blob:") ||
+								v.startsWith("http://") ||
+								v.startsWith("https://")
+							);
+						};
+						const normalizeMediaContent = (
+							role: unknown,
+							content: unknown,
+							mimeType: unknown,
+							name: unknown,
+						): unknown => {
+							const roleName = asTrimmedString(role);
+							const mediaRole = roleName === "image" || roleName === "video" || roleName === "audio";
+							if (!mediaRole) return content;
+							if (typeof content === "string") {
+								const trimmed = content.trim();
+								if (!trimmed || isInlineMediaSource(trimmed)) return content;
+								const fallbackMimeType =
+									roleName === "image"
+										? "image/png"
+										: roleName === "video"
+											? "video/mp4"
+											: "audio/mpeg";
+								return {
+									assetId: trimmed,
+									mimeType: asTrimmedString(mimeType) || fallbackMimeType,
+									name: asTrimmedString(name) || `${roleName}`,
+								};
+							}
+							if (content && typeof content === "object") {
+								const asRec = content as Record<string, unknown>;
+								const assetId = asTrimmedString(asRec.assetId) || asTrimmedString(asRec.id);
+								if (!assetId) return content;
+								const fallbackMimeType =
+									roleName === "image"
+										? "image/png"
+										: roleName === "video"
+											? "video/mp4"
+											: "audio/mpeg";
+								return {
+									...asRec,
+									assetId,
+									mimeType: asTrimmedString(asRec.mimeType) || asTrimmedString(mimeType) || fallbackMimeType,
+									name: asTrimmedString(asRec.name) || asTrimmedString(name) || `${roleName}`,
+								};
+							}
+							return content;
+						};
+						const first = rawHistory[0];
+						const looksTree =
+							rawHistory.length === 1 &&
+							first &&
+							typeof first === "object" &&
+							Array.isArray((first as Record<string, unknown>).versions);
+						if (looksTree) {
+							return [structuredClone(first) as Record<string, unknown>];
+						}
+						const normalizedNodes = rawHistory
+							.filter((entry) => entry && typeof entry === "object")
+							.filter((entry, index, arr) => {
+								const id = asTrimmedString(
+									(entry as Record<string, unknown>)?.id,
+								);
+								if (!id) return true;
+								for (let i = 0; i < index; i++) {
+									const prior = arr[i] as Record<string, unknown> | undefined;
+									if (asTrimmedString(prior?.id) === id) return false;
+								}
+								return true;
+							})
+							.map((entry) => {
+								const msg = structuredClone(entry) as Record<string, unknown>;
+								const versions = Array.isArray(msg.versions)
+									? (msg.versions as Array<Record<string, unknown>>)
+									: [];
+								if (!versions.length) {
+									msg.versions = [{
+										content: msg.content ?? "",
+										tail: [],
+										timestamp:
+											typeof msg.timestamp === "number" && Number.isFinite(msg.timestamp)
+												? msg.timestamp
+												: Date.now(),
+									}];
+									msg.currentVersionIdx = 0;
+								}
+								const idx =
+									typeof msg.currentVersionIdx === "number" &&
+									Number.isFinite(msg.currentVersionIdx)
+										? Math.max(
+											0,
+											Math.min(Math.round(msg.currentVersionIdx), versions.length - 1),
+										)
+										: 0;
+								msg.currentVersionIdx = idx;
+								const active = (msg.versions as Array<Record<string, unknown>>)[idx] || {};
+								active.tail = [];
+								if (active.content === undefined || active.content === null) {
+									active.content = msg.content ?? "";
+								}
+								const toolCalls =
+									Array.isArray(active.tool_calls) || Array.isArray(active.toolCalls)
+										? ((active.tool_calls || active.toolCalls) as unknown[])
+										: Array.isArray(msg.tool_calls) || Array.isArray(msg.toolCalls)
+											? ((msg.tool_calls || msg.toolCalls) as unknown[])
+											: [];
+								if (toolCalls.length > 0) {
+									active.tool_calls = structuredClone(toolCalls);
+									active.toolCalls = structuredClone(toolCalls);
+									msg.tool_calls = structuredClone(toolCalls);
+									msg.toolCalls = structuredClone(toolCalls);
+								} else {
+									delete active.tool_calls;
+									delete active.toolCalls;
+									delete msg.tool_calls;
+									delete msg.toolCalls;
+								}
+								(msg.versions as Array<Record<string, unknown>>)[idx] = active;
+								msg.content = normalizeMediaContent(
+									msg.role,
+									active.content,
+									msg.mimeType,
+									msg.name,
+								);
+								active.content = msg.content;
+								return msg;
+							});
+						if (!normalizedNodes.length) return [];
+						const root = normalizedNodes[0] as Record<string, unknown>;
+						let cursor = root;
+						for (let i = 1; i < normalizedNodes.length; i++) {
+							const next = normalizedNodes[i];
+							if (!next) continue;
+							const cursorVersions = Array.isArray(cursor.versions)
+								? (cursor.versions as Array<Record<string, unknown>>)
+								: [];
+							const cursorIdx =
+								typeof cursor.currentVersionIdx === "number" &&
+								Number.isFinite(cursor.currentVersionIdx)
+									? Math.max(
+										0,
+										Math.min(Math.round(cursor.currentVersionIdx), cursorVersions.length - 1),
+									)
+									: 0;
+							const cursorActive = cursorVersions[cursorIdx] || {};
+							const cursorTail = Array.isArray(cursorActive.tail)
+								? (cursorActive.tail as Record<string, unknown>[])
+								: [];
+							cursorActive.tail = [...cursorTail, next];
+							cursorVersions[cursorIdx] = cursorActive;
+							cursor.versions = cursorVersions;
+							cursor = next;
+						}
+						return [root];
+					};
+					const historyPayload = normalizeLocalHistoryToTree(localSession.history);
+					const candidateRemoteId = normalizeRemoteIdFromLocalSession(
+						localId,
+						localSession,
+					) || (remoteIds.has(localId) ? localId : null);
+				const patch = {
+					name:
+						typeof localSession.name === "string" && localSession.name.trim()
+							? localSession.name.trim()
+							: "New Chat",
+					model:
+						typeof localSession.model === "string" &&
+						localSession.model.trim().length > 0
+							? localSession.model.trim()
+							: null,
+					history: historyPayload,
+					...(Number.isFinite(localRecord.created)
+						? { created: Math.round(Number(localRecord.created)) }
+						: {}),
+				};
+
+				if (candidateRemoteId && remoteIds.has(candidateRemoteId)) {
+					const patchRes = await fetch(
+						`${chatStorageApiBase}/db/chats/${encodeURIComponent(candidateRemoteId)}`,
+						{
+							method: "PATCH",
+							headers: authHeaders,
+							body: JSON.stringify(patch),
+						},
+					);
+					const patchPayload = await parseJsonSafe(patchRes);
+					if (!patchRes.ok) {
+						return {
+							error:
+								asTrimmedString(patchPayload?.message) ||
+								asTrimmedString(patchPayload?.error) ||
+								`Remote session update failed (${patchRes.status})`,
+						};
+					}
+					remoteIdMap[localId] = candidateRemoteId;
+					continue;
+				}
+
+				const createRes = await fetch(`${chatStorageApiBase}/db/chats`, {
+					method: "POST",
+					headers: authHeaders,
+					body: JSON.stringify(patch),
+				});
+				const createPayload = await parseJsonSafe(createRes);
+				if (!createRes.ok) {
+					return {
+						error:
+							asTrimmedString(createPayload?.message) ||
+							asTrimmedString(createPayload?.error) ||
+							`Remote session create failed (${createRes.status})`,
+					};
+				}
+				const createdId = asTrimmedString(createPayload?.item?.id);
+				if (createdId) {
+					remoteIdMap[localId] = createdId;
+					remoteIds.add(createdId);
+				}
+			}
+
+			return { success: true, remoteIdMap };
+		},
 	);
+
+	ipcMain.handle(
+		"sync:mediaList",
+		async (_event, params?: { view?: string; parentId?: string | null }) => {
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const view = normalizeMediaView(params?.view);
+			const parentId = normalizeParentId(params?.parentId);
+
+			const listRes = await fetch(
+				`${chatStorageApiBase}/db/media?view=${encodeURIComponent(view)}`,
+				{
+					method: "GET",
+					headers: authHeaders,
+				},
+			);
+			const listPayload = await parseJsonSafe(listRes);
+			if (!listRes.ok) {
+				return {
+					error: toChatStorageError(
+						listPayload,
+						listRes.status,
+						"Remote media list failed",
+					),
+				};
+			}
+
+			const allItems = Array.isArray(listPayload?.items)
+				? (listPayload.items as Array<Record<string, unknown>>)
+				: [];
+			const items =
+				view === "trash" || view === "all"
+					? allItems
+					: allItems.filter(
+							(item) => normalizeParentId(item.parentId) === parentId,
+						);
+			const breadcrumbs =
+				view === "active"
+					? buildMediaBreadcrumbs(allItems, parentId)
+					: [];
+
+			return {
+				items,
+				breadcrumbs,
+				usage:
+					listPayload && typeof listPayload === "object"
+						? (listPayload as Record<string, unknown>).usage ?? null
+						: null,
+			};
+		},
+	);
+
+	ipcMain.handle("sync:mediaGet", async (_event, id: string) => {
+		const mediaId = asTrimmedString(id);
+		if (!mediaId) return { error: "Media id is required" };
+		const auth = await getChatStorageAuthContext();
+		if (!auth.ok) return { error: auth.error };
+		const { authHeaders } = auth.value;
+
+		const res = await fetch(
+			`${chatStorageApiBase}/db/media/${encodeURIComponent(mediaId)}`,
+			{
+				method: "GET",
+				headers: authHeaders,
+			},
+		);
+		const payload = await parseJsonSafe(res);
+		if (!res.ok) {
+			return {
+				error: toChatStorageError(
+					payload,
+					res.status,
+					"Remote media get failed",
+				),
+			};
+		}
+		const item =
+			payload && typeof payload === "object"
+				? (payload as Record<string, unknown>).item
+				: null;
+		return { item };
+	});
+
+	ipcMain.handle(
+		"sync:mediaGetContent",
+		async (
+			_event,
+			id: string,
+			params?: { format?: "text" | "base64" },
+		) => {
+			const mediaId = asTrimmedString(id);
+			if (!mediaId) return { error: "Media id is required" };
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const format =
+				params?.format === "text" || params?.format === "base64"
+					? params.format
+					: null;
+			const query = format ? `?format=${encodeURIComponent(format)}` : "";
+
+			const res = await fetch(
+				`${chatStorageApiBase}/db/media/${encodeURIComponent(mediaId)}/content${query}`,
+				{
+					method: "GET",
+					headers: authHeaders,
+				},
+			);
+			const payload = await parseJsonSafe(res);
+			if (!res.ok) {
+				return {
+					error: toChatStorageError(
+						payload,
+						res.status,
+						"Remote media content fetch failed",
+					),
+				};
+			}
+			return payload || {};
+		},
+	);
+
+	ipcMain.handle(
+		"sync:mediaCreateFile",
+		async (
+			_event,
+			payload: {
+				name?: string;
+				mimeType?: string;
+				parentId?: string | null;
+				sessionId?: string | null;
+				kind?: string | null;
+				text?: string;
+				base64?: string;
+				source?: string;
+			},
+		) => {
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const res = await fetch(`${chatStorageApiBase}/db/media/files`, {
+				method: "POST",
+				headers: authHeaders,
+				body: JSON.stringify(payload || {}),
+			});
+			const body = await parseJsonSafe(res);
+			if (!res.ok) {
+				return {
+					error: toChatStorageError(
+						body,
+						res.status,
+						"Remote media create failed",
+					),
+					usage:
+						body && typeof body === "object"
+							? (body as Record<string, unknown>).usage ?? null
+							: null,
+				};
+			}
+			return body || {};
+		},
+	);
+
+	ipcMain.handle(
+		"sync:mediaCreateFolder",
+		async (_event, payload: { name?: string; parentId?: string | null }) => {
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const res = await fetch(`${chatStorageApiBase}/db/media/folders`, {
+				method: "POST",
+				headers: authHeaders,
+				body: JSON.stringify(payload || {}),
+			});
+			const body = await parseJsonSafe(res);
+			if (!res.ok) {
+				return {
+					error: toChatStorageError(
+						body,
+						res.status,
+						"Remote media folder create failed",
+					),
+				};
+			}
+			return body || {};
+		},
+	);
+
+	ipcMain.handle(
+		"sync:mediaUpdate",
+		async (
+			_event,
+			id: string,
+			payload: { name?: string; parentId?: string | null },
+		) => {
+			const mediaId = asTrimmedString(id);
+			if (!mediaId) return { error: "Media id is required" };
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const res = await fetch(
+				`${chatStorageApiBase}/db/media/${encodeURIComponent(mediaId)}`,
+				{
+					method: "PATCH",
+					headers: authHeaders,
+					body: JSON.stringify(payload || {}),
+				},
+			);
+			const body = await parseJsonSafe(res);
+			if (!res.ok) {
+				return {
+					error: toChatStorageError(
+						body,
+						res.status,
+						"Remote media update failed",
+					),
+				};
+			}
+			return body || {};
+		},
+	);
+
+	ipcMain.handle(
+		"sync:mediaUpdateContent",
+		async (
+			_event,
+			id: string,
+			payload: {
+				text?: string;
+				base64?: string;
+				mimeType?: string | null;
+				name?: string | null;
+				kind?: string | null;
+			},
+		) => {
+			const mediaId = asTrimmedString(id);
+			if (!mediaId) return { error: "Media id is required" };
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const res = await fetch(
+				`${chatStorageApiBase}/db/media/${encodeURIComponent(mediaId)}/content`,
+				{
+					method: "PUT",
+					headers: authHeaders,
+					body: JSON.stringify(payload || {}),
+				},
+			);
+			const body = await parseJsonSafe(res);
+			if (!res.ok) {
+				return {
+					error: toChatStorageError(
+						body,
+						res.status,
+						"Remote media content update failed",
+					),
+					usage:
+						body && typeof body === "object"
+							? (body as Record<string, unknown>).usage ?? null
+							: null,
+				};
+			}
+			return body || {};
+		},
+	);
+
+	ipcMain.handle(
+		"sync:mediaMove",
+		async (
+			_event,
+			payload: { ids?: string[]; parentId?: string | null },
+		) => {
+			const auth = await getChatStorageAuthContext();
+			if (!auth.ok) return { error: auth.error };
+			const { authHeaders } = auth.value;
+			const ids = Array.isArray(payload?.ids)
+				? payload.ids.map((id) => asTrimmedString(id)).filter(Boolean)
+				: [];
+			const parentId = normalizeParentId(payload?.parentId);
+			if (!ids.length) return { items: [] };
+
+			const moved: unknown[] = [];
+			let usage: unknown = null;
+			for (const id of ids) {
+				const res = await fetch(
+					`${chatStorageApiBase}/db/media/${encodeURIComponent(id as string)}`,
+					{
+						method: "PATCH",
+						headers: authHeaders,
+						body: JSON.stringify({ parentId }),
+					},
+				);
+				const body = await parseJsonSafe(res);
+				if (!res.ok) {
+					return {
+						error: toChatStorageError(body, res.status, "Remote media move failed"),
+					};
+				}
+				if (body && typeof body === "object") {
+					const asRecord = body as Record<string, unknown>;
+					if (Array.isArray(asRecord.updates)) moved.push(...asRecord.updates);
+					else if (asRecord.item) moved.push(asRecord.item);
+					if (typeof asRecord.usage !== "undefined") usage = asRecord.usage;
+				}
+			}
+			return { items: moved, usage };
+		},
+	);
+
+	ipcMain.handle("sync:mediaTrash", async (_event, payload: { ids?: string[] }) => {
+		const auth = await getChatStorageAuthContext();
+		if (!auth.ok) return { error: auth.error };
+		const { authHeaders } = auth.value;
+		const ids = Array.isArray(payload?.ids)
+			? payload.ids.map((id) => asTrimmedString(id)).filter(Boolean)
+			: [];
+		const res = await fetch(`${chatStorageApiBase}/db/media/trash`, {
+			method: "POST",
+			headers: authHeaders,
+			body: JSON.stringify({ ids }),
+		});
+		const body = await parseJsonSafe(res);
+		if (!res.ok) {
+			return {
+				error: toChatStorageError(body, res.status, "Remote media trash failed"),
+			};
+		}
+		return body || {};
+	});
+
+	ipcMain.handle("sync:mediaRestore", async (_event, payload: { ids?: string[] }) => {
+		const auth = await getChatStorageAuthContext();
+		if (!auth.ok) return { error: auth.error };
+		const { authHeaders } = auth.value;
+		const ids = Array.isArray(payload?.ids)
+			? payload.ids.map((id) => asTrimmedString(id)).filter(Boolean)
+			: [];
+		const res = await fetch(`${chatStorageApiBase}/db/media/restore`, {
+			method: "POST",
+			headers: authHeaders,
+			body: JSON.stringify({ ids }),
+		});
+		const body = await parseJsonSafe(res);
+		if (!res.ok) {
+			return {
+				error: toChatStorageError(body, res.status, "Remote media restore failed"),
+			};
+		}
+		return body || {};
+	});
+
+	ipcMain.handle("sync:mediaDelete", async (_event, payload: { ids?: string[] }) => {
+		const auth = await getChatStorageAuthContext();
+		if (!auth.ok) return { error: auth.error };
+		const { authHeaders } = auth.value;
+		const ids = Array.isArray(payload?.ids)
+			? payload.ids.map((id) => asTrimmedString(id)).filter(Boolean)
+			: [];
+		const res = await fetch(`${chatStorageApiBase}/db/media`, {
+			method: "DELETE",
+			headers: authHeaders,
+			body: JSON.stringify({ ids }),
+		});
+		const body = await parseJsonSafe(res);
+		if (!res.ok) {
+			return {
+				error: toChatStorageError(body, res.status, "Remote media delete failed"),
+			};
+		}
+		return body || {};
+	});
 
 	ipcMain.handle("auth:verify-password", async (event, { password }) => {
 		const { data, error } = await supabase.auth.getSession();

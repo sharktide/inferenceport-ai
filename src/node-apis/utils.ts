@@ -26,11 +26,27 @@ import MDIT from "markdown-it";
 import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
+import { getStartupSettings } from "./startup.js";
 
 // @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
 import mdFootnote from "markdown-it-footnote";
 
+const CSS_SANITIZE_RE =
+	/@import[^;]+;|expression\s*\([^)]*\)|url\s*\(\s*['"]?\s*javascript:[^)]*\)|url\s*\(\s*['"]?\s*(?!data:)[^'")]+['"]?\s*\)/gi;
+
+function sanitizeCSS(css: string): string {
+	return css.replace(CSS_SANITIZE_RE, "").trim();
+}
+
 const dataDir: string = app.getPath("userData");
+const chatStorageApiBase = "https://sharktide-chat.hf.space/api";
+
+type SaveStreamOptions = {
+	name?: string;
+	mimeType?: string;
+	kind?: "image" | "video" | "audio" | "file" | "text" | "rich_text";
+	sessionId?: string | null;
+};
 
 type SnipTarget = {
 	displayId: number;
@@ -53,7 +69,59 @@ export function is52458(url: string): boolean {
 	}
 }
 
-export async function save_stream(response: Blob): Promise<UUID> {
+function inferFileExtensionFromMime(mimeType: string): string {
+	const mime = String(mimeType || "").toLowerCase();
+	if (mime === "image/png") return "png";
+	if (mime === "image/jpeg") return "jpg";
+	if (mime === "image/webp") return "webp";
+	if (mime === "image/gif") return "gif";
+	if (mime === "image/svg+xml") return "svg";
+	if (mime === "video/mp4") return "mp4";
+	if (mime === "video/webm") return "webm";
+	if (mime === "audio/mpeg") return "mp3";
+	if (mime === "audio/wav") return "wav";
+	if (mime === "audio/ogg") return "ogg";
+	if (!mime.includes("/")) return "bin";
+	return mime.split("/")[1]?.trim() || "bin";
+}
+
+function inferKindFromMime(mimeType: string): SaveStreamOptions["kind"] {
+	const mime = String(mimeType || "").toLowerCase();
+	if (mime.startsWith("image/")) return "image";
+	if (mime.startsWith("video/")) return "video";
+	if (mime.startsWith("audio/")) return "audio";
+	if (mime.startsWith("text/")) return "text";
+	return "file";
+}
+
+function buildAssetName(
+	mimeType: string,
+	kind: SaveStreamOptions["kind"],
+	explicitName?: string,
+): string {
+	if (explicitName && explicitName.trim()) return explicitName.trim();
+	const ext = inferFileExtensionFromMime(mimeType);
+	const prefix =
+		kind === "image"
+			? "generated-image"
+			: kind === "video"
+				? "generated-video"
+				: kind === "audio"
+					? "generated-audio"
+					: "upload";
+	return `${prefix}-${Date.now()}.${ext}`;
+}
+
+async function getSignedInAccessToken(): Promise<string | null> {
+	try {
+		const session = await getSession();
+		return session?.access_token || null;
+	} catch {
+		return null;
+	}
+}
+
+async function saveStreamToLocalDisk(response: Blob): Promise<UUID> {
 	const asset_id = crypto.randomUUID();
 	const assetsDir = path.join(dataDir, "assets");
 	const file_path = path.join(assetsDir, `${asset_id}.blob`);
@@ -80,8 +148,115 @@ export async function save_stream(response: Blob): Promise<UUID> {
 	return asset_id;
 }
 
+export async function save_stream(
+	response: Blob,
+	options: SaveStreamOptions = {},
+): Promise<UUID> {
+	const mimeType =
+		options.mimeType?.trim() || response.type || "application/octet-stream";
+	const kind = options.kind || inferKindFromMime(mimeType);
+	const name = buildAssetName(mimeType, kind, options.name);
+	const startupSettings = getStartupSettings();
+	const canUseRemoteMediaStorage =
+		startupSettings.mediaLibraryStorageEnabled !== false;
+	const accessToken = await getSignedInAccessToken();
+
+	if (accessToken && canUseRemoteMediaStorage) {
+		try {
+			const buffer = Buffer.from(await response.arrayBuffer());
+			const payload: Record<string, unknown> = {
+				name,
+				mimeType,
+				base64: buffer.toString("base64"),
+				kind,
+				source: "inferenceport_desktop",
+			};
+			if (options.sessionId && options.sessionId.trim()) {
+				payload.sessionId = options.sessionId.trim();
+			}
+
+			const res = await fetch(`${chatStorageApiBase}/db/media/files`, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+			});
+
+			let body: any = null;
+			try {
+				body = await res.json();
+			} catch {
+				body = null;
+			}
+
+			if (res.ok && typeof body?.item?.id === "string") {
+				return body.item.id;
+			}
+			const remoteError =
+				typeof body?.message === "string"
+					? body.message
+					: typeof body?.error === "string"
+						? body.error
+						: `remote media save failed (${res.status})`;
+			throw new Error(remoteError);
+		} catch (err) {
+			console.warn(
+				"[media] Remote save failed, using local fallback:",
+				err,
+			);
+		}
+	}
+
+	return await saveStreamToLocalDisk(response);
+}
+
 export async function load_blob(asset_id: UUID): Promise<Buffer> {
 	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
+	try {
+		return await fs.promises.readFile(file_path);
+	} catch (err: Error | any) {
+		if (err.code !== "ENOENT") throw err;
+	}
+
+	const accessToken = await getSignedInAccessToken();
+	if (accessToken) {
+		try {
+			const res = await fetch(
+				`${chatStorageApiBase}/db/media/${encodeURIComponent(String(asset_id))}/content`,
+				{
+					method: "GET",
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: "application/json",
+					},
+				},
+			);
+
+			if (res.ok) {
+				const payload = (await res.json()) as {
+					encoding?: string;
+					content?: string;
+				};
+				if (
+					payload?.encoding === "base64" &&
+					typeof payload?.content === "string"
+				) {
+					return Buffer.from(payload.content, "base64");
+				}
+				if (typeof payload?.content === "string") {
+					return Buffer.from(payload.content, "utf8");
+				}
+			}
+		} catch (err) {
+			console.warn(
+				"[media] Remote read failed, trying local fallback:",
+				err,
+			);
+		}
+	}
 	return await fs.promises.readFile(file_path);
 }
 
@@ -89,8 +264,36 @@ export async function delete_blob(asset_id: UUID): Promise<void> {
 	const file_path = path.join(dataDir, "assets", `${asset_id}.blob`);
 	try {
 		await fs.promises.unlink(file_path);
+		return;
 	} catch (err: Error | any) {
-		if (err.code != "ENOENT") throw err;
+		if (err.code !== "ENOENT") throw err;
+	}
+
+	const accessToken = await getSignedInAccessToken();
+	if (accessToken) {
+		try {
+			const res = await fetch(`${chatStorageApiBase}/db/media`, {
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ ids: [String(asset_id)] }),
+			});
+			if (!res.ok && res.status !== 404) {
+				const payload = await res.json().catch(() => null);
+				console.warn(
+					"[media] Remote delete failed:",
+					payload?.error || payload?.message || res.status,
+				);
+			}
+		} catch (err) {
+			console.warn(
+				"[media] Remote delete failed, trying local fallback:",
+				err,
+			);
+		}
 	}
 }
 
@@ -160,7 +363,7 @@ const mdit = MDIT({
 	html: true,
 	linkify: true,
 	breaks: true,
-	typographer: true
+	typographer: true,
 });
 
 // Add markdown-it plugins
@@ -168,25 +371,28 @@ mdit.use(mdTable as any);
 mdit.use(mdFootnote as any);
 
 function preserveMathDelimiters(md: any) {
-    const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
+	const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
 
-    md.inline.ruler.before("escape", "preserve_math", function (state: any) {
-        state.src = state.src.replace(escapeRE, (match: string) => {
-            return match.replace(/\\/g, "\uFFF0");
-        });
-        return false;
-    });
-    md.core.ruler.after("inline", "restore_math", function (state: any) {
-        state.tokens.forEach((blockToken: any) => {
-            if (blockToken.type !== "inline" || !blockToken.children) return;
+	md.inline.ruler.before("escape", "preserve_math", function (state: any) {
+		state.src = state.src.replace(escapeRE, (match: string) => {
+			return match.replace(/\\/g, "\uFFF0");
+		});
+		return false;
+	});
+	md.core.ruler.after("inline", "restore_math", function (state: any) {
+		state.tokens.forEach((blockToken: any) => {
+			if (blockToken.type !== "inline" || !blockToken.children) return;
 
-            blockToken.children.forEach((token: any) => {
-                if (token.type === "text" && typeof token.content === "string") {
-                    token.content = token.content.replace(/\uFFF0/g, "\\");
-                }
-            });
-        });
-    });
+			blockToken.children.forEach((token: any) => {
+				if (
+					token.type === "text" &&
+					typeof token.content === "string"
+				) {
+					token.content = token.content.replace(/\uFFF0/g, "\\");
+				}
+			});
+		});
+	});
 }
 
 mdit.use(detailsBlock);
@@ -322,9 +528,10 @@ export default function register() {
 				);
 			}
 
-			const source = (displayId != null
-				? sources.find((s) => s.display_id === String(displayId))
-				: null) ?? (displayId == null ? sources[0] : undefined);
+			const source =
+				(displayId != null
+					? sources.find((s) => s.display_id === String(displayId))
+					: null) ?? (displayId == null ? sources[0] : undefined);
 
 			if (!source) {
 				throw new Error("No screen sources available for snipping.");
@@ -333,12 +540,12 @@ export default function register() {
 			if (displayId != null && !source) {
 				throw new Error(
 					`Screen source for displayId ${displayId} not found. ` +
-					"Check that the requested monitor is available and that your app has the necessary permissions.",
+						"Check that the requested monitor is available and that your app has the necessary permissions.",
 				);
 			}
 
 			const finalSource = source ?? sources[0];
-			
+
 			const thumb = finalSource.thumbnail;
 			return {
 				dataUrl: thumb.toDataURL(),
@@ -372,13 +579,193 @@ export default function register() {
 		resetFirstLaunch();
 		return true;
 	});
+	ipcMain.handle(
+		"utils:sanitizeSVG",
+		async (_event: IpcMainInvokeEvent, svg: string) => {
+			try {
+				const cleanSVG = sanitizeHtml(svg, {
+					allowedTags: [
+						"svg",
+						"g",
+						"defs",
+						"desc",
+						"title",
+						"symbol",
+						"use",
 
+						"path",
+						"rect",
+						"circle",
+						"ellipse",
+						"line",
+						"polyline",
+						"polygon",
+
+						"text",
+						"tspan",
+						"textPath",
+
+						"image",
+
+						"linearGradient",
+						"radialGradient",
+						"stop",
+						"pattern",
+						"mask",
+						"clipPath",
+
+						"filter",
+						"feBlend",
+						"feColorMatrix",
+						"feComponentTransfer",
+						"feComposite",
+						"feConvolveMatrix",
+						"feDiffuseLighting",
+						"feDisplacementMap",
+						"feFlood",
+						"feGaussianBlur",
+						"feImage",
+						"feMerge",
+						"feMergeNode",
+						"feMorphology",
+						"feOffset",
+						"feSpecularLighting",
+						"feTile",
+						"feTurbulence",
+
+						"style",
+					],
+
+					allowedAttributes: {
+						"*": [
+							"id",
+							"class",
+							"style",
+							"x",
+							"y",
+							"x1",
+							"y1",
+							"x2",
+							"y2",
+							"cx",
+							"cy",
+							"r",
+							"rx",
+							"ry",
+							"width",
+							"height",
+							"viewBox",
+							"d",
+							"points",
+							"transform",
+
+							"fill",
+							"stroke",
+							"stroke-width",
+							"stroke-linecap",
+							"stroke-linejoin",
+							"stroke-dasharray",
+							"stroke-dashoffset",
+							"opacity",
+							"fill-opacity",
+							"stroke-opacity",
+
+							"offset",
+							"stop-color",
+							"stop-opacity",
+							"gradientUnits",
+							"gradientTransform",
+							"fill-rule",
+							"clip-rule",
+							"stroke-miterlimit",
+							"font-size",
+							"font-family",
+							"text-anchor",
+
+							"href",
+							"xlink:href",
+
+							"preserveAspectRatio",
+							"clip-path",
+							"mask",
+							"filter",
+						],
+
+						svg: ["xmlns", "viewbox", "width", "height"],
+						use: ["href", "xlink:href"],
+						image: ["href", "xlink:href", "width", "height"],
+					},
+
+					allowedSchemes: ["http", "https", "data"],
+
+					transformTags: {
+						"*": (tagName, attribs) => {
+							const cleanAttribs: Record<string, string> = {};
+
+							for (const [key, value] of Object.entries(
+								attribs,
+							)) {
+								const lower = key.toLowerCase();
+
+								if (lower.startsWith("on")) continue;
+
+								if (
+									typeof value === "string" &&
+									["javascript:", "data:", "vbscript:"].some((scheme) =>
+										value.trim().toLowerCase().startsWith(scheme),
+									)
+								)
+									continue;
+
+								cleanAttribs[key] = value;
+							}
+
+							return { tagName, attribs: cleanAttribs };
+						},
+					},
+
+					textFilter: (text, tagName) => {
+						if (tagName === "style") {
+							return sanitizeCSS(text);
+						}
+						return text;
+					},
+
+					disallowedTagsMode: "discard",
+
+					exclusiveFilter: (frame) => {
+						const tag = frame.tag.toLowerCase();
+						return (
+							tag === "script" ||
+							tag === "foreignobject" ||
+							tag === "iframe"
+						);
+					},
+				});
+				console.log("ORIGINAL:", svg);
+				console.log("CLEAN:", cleanSVG);
+				const normalizeSVG = (svg: string) =>
+				svg
+					.replace(/viewbox=/g, "viewBox=")
+					.replace(/preserveaspectratio=/g, "preserveAspectRatio=")
+					.replace(/clip-path=/g, "clipPath=");
+
+				return normalizeSVG(cleanSVG);
+				} catch (err) {
+					throw new Error(
+						`Error sanitizing SVG: ${
+							err instanceof Error ? err.message : String(err)
+						}`,
+				);
+			}
+		},
+	);
 	ipcMain.handle(
 		"utils:web_open",
 		async (_event: IpcMainInvokeEvent, url: string) => {
 			let session = null;
 			try {
-				session = await getSession()
+				session = await getSession();
 			} catch (err) {
 				void 0;
 			}
@@ -397,7 +784,10 @@ export default function register() {
 						url += `${separator}locked_prefilled_email=${encodeURIComponent(email)}`;
 					}
 				} catch (err) {
-					console.error("Error occurred while fetching session:", err);
+					console.error(
+						"Error occurred while fetching session:",
+						err,
+					);
 				}
 				shell.openExternal(url);
 				return;
@@ -405,27 +795,34 @@ export default function register() {
 				try {
 					if (session && session.user && session.user.email) {
 						const email = session.user.email;
-						const url_res: Response = await fetch("https://sharktide-lightning.hf.space/portal", {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
+						const url_res: Response = await fetch(
+							"https://sharktide-lightning.hf.space/portal",
+							{
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+								},
+								body: JSON.stringify({ email: email }),
 							},
-							body: JSON.stringify({"email": email}),
-						})
+						);
 						if (url_res.ok) {
-							const stripe_url = (await url_res.json()).redirect_url;
+							const stripe_url = (await url_res.json())
+								.redirect_url;
 							if (stripe_url) {
 								shell.openExternal(stripe_url);
 							} else shell.openExternal(url);
 						} else shell.openExternal(url);
 					}
 				} catch (err) {
-					console.error("Error occurred while fetching session:", err);
+					console.error(
+						"Error occurred while fetching session:",
+						err,
+					);
 				}
 				return;
 			}
 			shell.openExternal(url);
-			return
+			return;
 		},
 	);
 
@@ -471,7 +868,13 @@ export default function register() {
 						table: ["align"],
 						tr: ["align"],
 						th: ["align", "style", "data-color"],
-						td: ["align", "style", "colspan", "rowspan", "data-color"],
+						td: [
+							"align",
+							"style",
+							"colspan",
+							"rowspan",
+							"data-color",
+						],
 						span: ["style", "data-color"],
 						div: ["style", "data-color"],
 						p: ["style", "data-color"],

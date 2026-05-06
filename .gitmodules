@@ -4,6 +4,3 @@
 [submodule "webchat"]
 	path = webchat
 	url = https://github.com/incognitolm/inferenceport-pages
-[submodule "webchat-server"]
-	path = webchat-server
-	url = https://huggingface.co/spaces/incognitolm/chat.git

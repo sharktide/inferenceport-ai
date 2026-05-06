@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inference.js.org/MISC/prod/chatSchema.json",
+  "title": "InferencePort Chat Session Schema",
+  "description": "Canonical chat session storage schema shared by /server, /src, and /webchat.",
+  "oneOf": [
+    { "$ref": "#/$defs/sessionObject" },
+    { "$ref": "#/$defs/sessionMap" },
+    { "$ref": "#/$defs/sessionListPayload" }
+  ],
+  "$defs": {
+    "userContentPart": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["type", "text"],
+          "properties": {
+            "type": { "const": "text" },
+            "text": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        {
+          "required": ["type", "image_url"],
+          "properties": {
+            "type": { "const": "image_url" },
+            "image_url": {
+              "type": "object",
+              "required": ["url"],
+              "properties": {
+                "url": { "type": "string" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "messageContent": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/userContentPart" }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "toolCall": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "args": {},
+        "state": { "type": "string" },
+        "result": {}
+      },
+      "additionalProperties": true
+    },
+    "messageVersion": {
+      "type": "object",
+      "required": ["content", "tail"],
+      "properties": {
+        "content": { "$ref": "#/$defs/messageContent" },
+        "tail": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/messageNode" }
+        },
+        "timestamp": { "type": "number" },
+        "toolCalls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolCall" }
+        },
+        "tool_calls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolCall" }
+        },
+        "responseEdits": { "type": "array" },
+        "responseSegments": { "type": "array" },
+        "error": {}
+      },
+      "additionalProperties": true
+    },
+    "messageNode": {
+      "type": "object",
+      "required": ["role", "content", "versions"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "$ref": "#/$defs/messageContent" },
+        "timestamp": { "type": "number" },
+        "currentVersionIdx": { "type": "number" },
+        "versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/messageVersion" }
+        },
+        "tool_call_id": { "type": "string" },
+        "toolCalls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolCall" }
+        },
+        "tool_calls": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toolCall" }
+        },
+        "responseEdits": { "type": "array" },
+        "responseSegments": { "type": "array" },
+        "mimeType": { "type": "string" },
+        "linkedMediaIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "sessionObject": {
+      "type": "object",
+      "required": ["id", "name", "created", "history"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "created": { "type": "number" },
+        "model": {
+          "type": ["string", "null"]
+        },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/messageNode" },
+          "description": "Canonical tree history: [] for empty or [rootMessage] for populated sessions."
+        },
+        "favorite": { "type": "boolean" },
+        "remoteId": { "type": "string" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "sessionMapEntry": {
+      "type": "object",
+      "required": ["name", "history"],
+      "properties": {
+        "name": { "type": "string" },
+        "model": { "type": ["string", "null"] },
+        "history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/messageNode" }
+        },
+        "favorite": { "type": "boolean" },
+        "remoteId": { "type": "string" },
+        "created": { "type": "number" },
+        "updatedAt": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "sessionMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/sessionMapEntry"
+      }
+    },
+    "sessionListPayload": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sessionObject" }
+    }
+  }
+}

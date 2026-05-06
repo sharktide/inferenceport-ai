@@ -199,6 +199,7 @@ declare global {
 			web_open: (url: string) => Promise<void>;
 			markdown_parse_and_purify: (markdown: string) => Promise<string>;
 			DOMPurify: (html: string) => Promise<string>;
+			sanitizeSVG: (svg: string) => Promise<string>;
 			saveFile: (filePath: string, content: string) => Promise<void>;
 			getPath: () => Promise<string>;
 			getWarning: (modelSize: string, clientUrl?: string) => Promise<{
@@ -280,10 +281,107 @@ declare global {
 		};
 
 		sync: {
-			getRemoteSessions: () => Promise<Record<string, Session>>;
+			getRemoteSessions: () => Promise<{
+				sessions?: Record<string, Session>;
+				error?: string;
+			}>;
 			saveAllSessions: (
-				sessions: Record<string, Sessions>
-			) => Promise<string | { error: string }>;
+				sessions: Record<string, Session>
+			) => Promise<{
+				success?: boolean;
+				error?: string;
+				remoteIdMap?: Record<string, string>;
+			}>;
+			mediaList: (params?: {
+				view?: "all" | "active" | "trash";
+				parentId?: string | null;
+			}) => Promise<{
+				items?: MediaItem[];
+				breadcrumbs?: Array<{ id: string; name: string }>;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaGet: (id: string) => Promise<{
+				item?: MediaItem;
+				error?: string;
+			}>;
+			mediaGetContent: (
+				id: string,
+				params?: { format?: "text" | "base64" },
+			) => Promise<{
+				item?: MediaItem;
+				encoding?: "utf8" | "base64" | string;
+				content?: string;
+				error?: string;
+			}>;
+			mediaCreateFile: (payload: {
+				name?: string;
+				mimeType?: string;
+				parentId?: string | null;
+				sessionId?: string | null;
+				kind?: string | null;
+				text?: string;
+				base64?: string;
+				source?: string;
+			}) => Promise<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaCreateFolder: (payload: {
+				name?: string;
+				parentId?: string | null;
+			}) => Promise<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaUpdate: (
+				id: string,
+				payload: { name?: string; parentId?: string | null },
+			) => Promise<{
+				item?: MediaItem;
+				updates?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaUpdateContent: (
+				id: string,
+				payload: {
+					text?: string;
+					base64?: string;
+					mimeType?: string | null;
+					name?: string | null;
+					kind?: string | null;
+				},
+			) => Promise<{
+				item?: MediaItem;
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaMove: (payload: {
+				ids: string[];
+				parentId?: string | null;
+			}) => Promise<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaTrash: (payload: { ids: string[] }) => Promise<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaRestore: (payload: { ids: string[] }) => Promise<{
+				items?: MediaItem[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
+			mediaDelete: (payload: { ids: string[] }) => Promise<{
+				ids?: string[];
+				usage?: MediaUsage | null;
+				error?: string;
+			}>;
 		};
 
 		storageSync: {
@@ -309,6 +407,7 @@ declare global {
 				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
+				mediaLibraryStorageEnabled: boolean;
 			}>;
 			updateSettings: (patch: {
 				runAtLogin?: boolean;
@@ -316,6 +415,7 @@ declare global {
 				proxyPort?: number;
 				uiPort?: number;
 				snipHotkeyInBackground?: boolean;
+				mediaLibraryStorageEnabled?: boolean;
 				proxyUsers?: { email: string; role: string }[];
 				serverApiKeys?: string[];
 			}) => Promise<{
@@ -326,6 +426,7 @@ declare global {
 				serverApiKeys: string[];
 				uiPort: number;
 				snipHotkeyInBackground: boolean;
+				mediaLibraryStorageEnabled: boolean;
 			}>;
 		};
 
@@ -394,10 +495,57 @@ declare global {
 		history: Array<{
 			role: string;
 			content: MessageContent;
+			id?: string;
+			timestamp?: number;
+			tool_call_id?: string;
 			tool_calls?: any[];
+			versions?: Array<{
+				content: unknown;
+				timestamp?: number;
+				tail?: any[];
+				[key: string]: unknown;
+			}>;
+			currentVersionIdx?: number;
+			mimeType?: string;
+			[key: string]: unknown;
 		}>;
 		favorite: boolean;
+		remoteId?: string;
+		created?: number;
+		updatedAt?: string;
+		[key: string]: unknown;
 	};
 
 	type Sessions = Record<string, Session>;
+
+	type MediaItem = {
+		id: string;
+		type: "file" | "folder";
+		name: string;
+		parentId?: string | null;
+		ownerType?: string;
+		ownerId?: string;
+		mimeType?: string | null;
+		kind?: string | null;
+		size?: number;
+		source?: string | null;
+		createdAt?: string;
+		updatedAt?: string;
+		trashedAt?: string | null;
+		purgeAt?: string | null;
+		sessionIds?: string[];
+		deletedByAssistant?: boolean;
+		[key: string]: unknown;
+	};
+
+	type MediaUsage = {
+		quotaBytes: number;
+		totalBytes: number;
+		activeBytes: number;
+		trashBytes: number;
+		remainingBytes: number;
+		percentUsed: number;
+		fileCount: number;
+		trashFileCount: number;
+	};
 }

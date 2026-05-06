@@ -146,10 +146,6 @@
 			<div class="chat-container">
 				<aside class="sidebar">
 					<button id="new-session-btn" type="button">+ New chat</button>
-						<a class="studio-launch-button" href="studio.html">
-							<span class="studio-launch-title">Open Studio</span>
-							<span class="studio-launch-subtitle">Generate images, edit uploads, and create video or audio.</span>
-						</a>
 					<div class="lightning-sidebar-banner">
 						<div class="lightning-sidebar-copy">
 							Lightning Text v2 (Cloud) delivers ultra fast responses up to 1000 words/sec.
@@ -246,18 +242,61 @@
 						type="hidden"
 						id="session-search"
 					/>
-					<ul id="session-list"></ul>
-					<div class="sidebar-controls" id="sidebar-controls">
-						<div id="standard-model-controls">
-							<label for="host-select">Host</label>
-							<select id="host-select"></select>
-							<label for="model-select">Model</label>
-							<select id="model-select"></select>
+					<div class="sidebar-mode-tabs-wrap">
+						<div class="sidebar-mode-tabs">
+							<button class="sidebar-mode-tab active" data-sidebar-mode="chats" type="button">Chats</button>
+							<button class="sidebar-mode-tab" data-sidebar-mode="media" type="button">Media</button>
 						</div>
-						<div id="lightning-status" class="lightning-status" aria-hidden="true">
-							<p class="lightning-status-title">Lightning is Enabled.</p>
-							<p class="lightning-status-model">Text model selected: @InferencePort/Lightning-Text-v2.</p>
-							<p class="lightning-status-image">Default image model: @InferencePort/Lightning-Image-Turbo (free).</p>
+						<button id="sidebar-trash-btn" class="sidebar-trash-btn" title="Open Trash" type="button">Trash</button>
+					</div>
+					<div class="sidebar-sessions" id="sidebar-sessions">
+						<div id="sidebar-chat-pane" class="sidebar-pane active">
+							<ul id="session-list"></ul>
+							<div class="sidebar-controls" id="sidebar-controls">
+								<div id="standard-model-controls">
+									<label for="host-select">Host</label>
+									<select id="host-select"></select>
+									<label for="model-select">Model</label>
+									<select id="model-select"></select>
+								</div>
+								<div id="lightning-status" class="lightning-status" aria-hidden="true">
+									<p class="lightning-status-title">Lightning is Enabled.</p>
+									<p class="lightning-status-model">Text model selected: @InferencePort/Lightning-Text-v2.</p>
+									<p class="lightning-status-image">Default image model: @InferencePort/Lightning-Image-Turbo (free).</p>
+								</div>
+							</div>
+						</div>
+						<div id="sidebar-media-pane" class="sidebar-pane hidden" style="display: none">
+							<div class="sidebar-subtabs">
+								<div class="sidebar-pane-heading">
+									<div class="sidebar-pane-kicker">Media</div>
+									<div class="sidebar-pane-title">Cloud Files</div>
+								</div>
+								<div class="sidebar-subtab-actions">
+									<button id="media-delete-all-btn" class="sidebar-back-btn sidebar-danger-btn" title="Move all visible items to trash" type="button">Delete All</button>
+									<button id="media-create-btn" class="sidebar-create-btn" title="Create or upload" aria-label="Create or upload media" type="button">
+										<span class="sidebar-create-plus">+</span>
+									</button>
+								</div>
+							</div>
+							<div id="media-breadcrumbs" class="media-breadcrumbs"></div>
+							<div id="media-list" class="media-list"></div>
+							<div id="media-usage-panel" class="media-usage-panel"></div>
+						</div>
+
+						<div id="sidebar-trash-pane" class="sidebar-pane hidden" style="display: none;">
+							<div class="sidebar-subtabs">
+								<div class="sidebar-pane-heading">
+									<div id="sidebar-trash-subtitle" class="sidebar-pane-kicker">Media</div>
+									<div id="sidebar-trash-title" class="sidebar-pane-title">Trash</div>
+								</div>
+								<div class="sidebar-subtab-actions">
+									<button id="sidebar-trash-delete-all" class="sidebar-back-btn sidebar-danger-btn" title="Delete all trash items forever" type="button">Delete All</button>
+									<button id="sidebar-trash-back" class="sidebar-back-btn" title="Back" type="button">← Back</button>
+								</div>
+							</div>
+							<div id="sidebar-trash-selection-bar" class="sidebar-selection-bar" style="display: none;"></div>
+							<div id="sidebar-trash-list" class="sidebar-trash-list"></div>
 						</div>
 					</div>
 				</aside>
@@ -288,6 +327,30 @@
 					</div>
 				</section>
 			</div>
+
+			<aside id="media-editor-panel" class="media-editor-panel hidden" aria-hidden="true">
+				<div class="media-editor-header">
+					<div class="media-editor-heading">
+						<div class="media-editor-title" id="media-editor-title">Untitled</div>
+						<div class="media-editor-meta" id="media-editor-meta"></div>
+					</div>
+					<a id="media-editor-close" class="sidebar-icon-btn" title="Close editor" type="button" style="text-decoration: none; cursor: pointer">✕</a>
+				</div>
+				<!-- Name row: only shown when creating a new file -->
+				<div class="media-editor-name-row hidden" id="media-editor-name-row">
+					<label for="media-editor-filename">Name</label>
+					<input id="media-editor-filename" type="text" placeholder="File name" />
+				</div>
+				<div id="media-editor-toolbar" class="media-editor-toolbar hidden"></div>
+				<div id="media-editor-status" class="media-editor-status hidden"></div>
+				<div id="media-editor-content" class="media-editor-content"></div>
+				<div class="media-editor-footer">
+					<button class="btn-ghost" id="media-editor-cancel" type="button">Close</button>
+					<button class="btn-primary" id="media-editor-save" type="button">Save</button>
+				</div>
+			</aside>
+
+			<input type="file" id="media-upload-input" multiple style="display:none" />
 			<div id="notification-container"></div>
 		</main>
 		<script type="module" src="../scripts/renderer/chat.js"></script>

@@ -164,6 +164,8 @@ contextBridge.exposeInMainWorld("utils", {
 		ipcRenderer.invoke("utils:markdown_parse_and_purify", markdown),
 	DOMPurify: (html: string): string =>
 		ipcRenderer.invoke("utils:DOMPurify", html),
+	sanitizeSVG: (svg: string): string =>
+		ipcRenderer.invoke("utils:sanitizeSVG", svg),
 	saveFile: (filePath: string, content: string) =>
 		ipcRenderer.invoke("utils:saveFile", filePath, content),
 	getPath: (): Promise<string> => ipcRenderer.invoke("utils:getPath"),
@@ -233,8 +235,51 @@ contextBridge.exposeInMainWorld("auth", {
 // ===== Sync =====
 contextBridge.exposeInMainWorld("sync", {
 	getRemoteSessions: () => ipcRenderer.invoke("sync:getRemoteSessions"),
-	saveAllSessions: (sessions: Record<string, Sessions>) =>
+	saveAllSessions: (sessions: Sessions) =>
 		ipcRenderer.invoke("sync:saveAllSessions", sessions),
+	mediaList: (params?: { view?: "all" | "active" | "trash"; parentId?: string | null }) =>
+		ipcRenderer.invoke("sync:mediaList", params),
+	mediaGet: (id: string) => ipcRenderer.invoke("sync:mediaGet", id),
+	mediaGetContent: (
+		id: string,
+		params?: { format?: "text" | "base64" },
+	) => ipcRenderer.invoke("sync:mediaGetContent", id, params),
+	mediaCreateFile: (payload: {
+		name?: string;
+		mimeType?: string;
+		parentId?: string | null;
+		sessionId?: string | null;
+		kind?: string | null;
+		text?: string;
+		base64?: string;
+		source?: string;
+	}) => ipcRenderer.invoke("sync:mediaCreateFile", payload),
+	mediaCreateFolder: (payload: {
+		name?: string;
+		parentId?: string | null;
+	}) => ipcRenderer.invoke("sync:mediaCreateFolder", payload),
+	mediaUpdate: (
+		id: string,
+		payload: { name?: string; parentId?: string | null },
+	) => ipcRenderer.invoke("sync:mediaUpdate", id, payload),
+	mediaUpdateContent: (
+		id: string,
+		payload: {
+			text?: string;
+			base64?: string;
+			mimeType?: string | null;
+			name?: string | null;
+			kind?: string | null;
+		},
+	) => ipcRenderer.invoke("sync:mediaUpdateContent", id, payload),
+	mediaMove: (payload: { ids: string[]; parentId?: string | null }) =>
+		ipcRenderer.invoke("sync:mediaMove", payload),
+	mediaTrash: (payload: { ids: string[] }) =>
+		ipcRenderer.invoke("sync:mediaTrash", payload),
+	mediaRestore: (payload: { ids: string[] }) =>
+		ipcRenderer.invoke("sync:mediaRestore", payload),
+	mediaDelete: (payload: { ids: string[] }) =>
+		ipcRenderer.invoke("sync:mediaDelete", payload),
 });
 
 contextBridge.exposeInMainWorld("storageSync", {
@@ -270,6 +315,7 @@ contextBridge.exposeInMainWorld("startup", {
 		proxyPort?: number;
 		uiPort?: number;
 		snipHotkeyInBackground?: boolean;
+		mediaLibraryStorageEnabled?: boolean;
 		proxyUsers?: { email: string; role: string }[];
 		serverApiKeys?: string[];
 	}) => ipcRenderer.invoke("startup:update-settings", patch),

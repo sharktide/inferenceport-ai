@@ -69,10 +69,17 @@ async function loadHistoryFromStorage(): Promise<PersistentHistoryItem[]> {
 }
 
 const historyStore: PersistentHistoryItem[] = [];
+const studioUrlParams = new URLSearchParams(window.location.search);
+const openHistoryOnLoad =
+	studioUrlParams.get("open") === "history" ||
+	window.location.hash === "#history";
 
 void loadHistoryFromStorage().then(items => {
     historyStore.push(...items);
     renderHistoryList();
+	if (openHistoryOnLoad && historyModal && !historyModal.open) {
+		historyModal.showModal();
+	}
 });
 
 const historyModal = document.getElementById("history-modal") as HTMLDialogElement | null;

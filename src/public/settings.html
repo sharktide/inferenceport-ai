@@ -73,6 +73,7 @@
 								Reserved ports: 52440-52458.
 							</p>
 							<p id="startup-snip-status" class="muted"></p>
+							<p id="startup-media-storage-status" class="muted"></p>
 							<p id="startup-status" class="muted"></p>
 						</div>
 						<div class="tab-pane" id="account">
@@ -142,8 +143,22 @@
 							<label class="settings-checkbox">
 								<input type="checkbox" id="sync-chats"> Enable chat sync
 							</label>
-						<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
-						<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
+							<p class="muted">Syncing is <strong>off by default</strong>. When enabled, your chat sessions will be synced to InferencePort AI. Only you and InferencePort AI can access your chats.</p>
+							<p class="muted">Signing in is optional — you only need an account to enable sync.</p>
+
+							<label class="settings-checkbox">
+								<input type="checkbox" id="startup-media-library-storage">
+								Enable Media Library cloud storage
+							</label>
+
+							<p class="muted">
+							The Media Library provides up to <strong>5 GB of encrypted cloud storage</strong> for your generated and uploaded content.
+							You can store images, text, rich text, audio, and video, and access them across the web app and desktop app.
+							</p>
+
+							<p class="muted">
+							When enabled, generated images, audio, and video from chats are automatically saved and synced across devices.
+							</p>
 						</div>
 						<div class="tab-pane" id="host">
 						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the list of allowed emails, then click <strong>Start Hosting</strong>.</p>

@@ -7,6 +7,7 @@
 !.vscode/tasks.json
 !?*.[Cc]ache/
 !Directory.Build.rsp
+server
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
 # (https://github.com/github/gitignore/pull/3736)
@@ -1793,6 +1794,14 @@ public\scripts\renderer\db.d.ts
 public\scripts\renderer\db.d.ts.map
 public\scripts\renderer\db.js
 public\scripts\renderer\db.js.map
+public\scripts\renderer\mediaLibrary.d.d.ts
+public\scripts\renderer\mediaLibrary.d.d.ts.map
+public\scripts\renderer\mediaLibrary.d.js
+public\scripts\renderer\mediaLibrary.d.js.map
+public\scripts\renderer\mediaLibrary.d.ts
+public\scripts\renderer\mediaLibrary.d.ts.map
+public\scripts\renderer\mediaLibrary.js
+public\scripts\renderer\mediaLibrary.js.map
 public\scripts\renderer\snip-chat.d.d.ts
 public\scripts\renderer\snip-chat.d.d.ts.map
 public\scripts\renderer\snip-chat.d.js

@@ -10,15 +10,31 @@ export type UserContentPart =
 
 export type MessageContent = string | UserContentPart[];
 
+export type MessageVersion = {
+  content: unknown;
+  timestamp?: number;
+  tail?: ChatMessage[];
+  [key: string]: unknown;
+};
+
 export type ChatMessage = {
   role: Role;
   content: MessageContent;
+  id?: string;
+  timestamp?: number;
+  tool_call_id?: string;
   tool_calls?: ToolCall[];
+  versions?: MessageVersion[];
+  currentVersionIdx?: number;
+  mimeType?: string;
+  [key: string]: unknown;
 };
 
 export type ChatAsset = {
   role: AssetRole;
   content: string;
+  mimeType?: string;
+  name?: string;
 };
 
 export type ModelInfo = {
@@ -40,6 +56,10 @@ export type SessionType = {
   model: string;
   favorite: boolean;
   history: ChatMessage[];
+  remoteId?: string;
+  created?: number;
+  updatedAt?: string;
+  [key: string]: unknown;
 };
 
 export type Session = SessionType;
