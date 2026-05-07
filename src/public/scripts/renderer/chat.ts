@@ -2157,7 +2157,7 @@ async function loadOptions() {
 		const orphans = assetsOnDisk.filter((id) => !usedAssets.has(id));
 		const BATCH = 8;
 		for (let i = 0; i < orphans.length; i += BATCH) {
-			await Promise.all(orphans.slice(i, i + BATCH).map((id) => window.utils.rmAsset(id)));
+await Promise.all(orphans.slice(i, i + BATCH).map((id) => window.utils.rmAsset(id).catch(() => {})));
 			// Yield between batches so the UI stays responsive
 			if (i + BATCH < orphans.length) {
 				await new Promise((r) => setTimeout(r, 0));
