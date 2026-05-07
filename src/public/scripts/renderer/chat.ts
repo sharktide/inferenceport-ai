@@ -439,10 +439,9 @@ const sessionHistoryRoots = new Map<string, any>();
 function ensureSessionHistoryRoot(session: any, sessionId?: string): any | null {
 	if (!session) return null;
 
-	// Trigger lazy normalization on first access
-	if (sessionId && !normalizedSessionIds.has(sessionId)) {
-		normalizedSessionIds.add(sessionId);
-		normalizeSessionHistoryShape(session, sessionId);
+	// Trigger lazy normalization on first access using shared helper
+	if (sessionId) {
+		ensureSessionNormalized(sessionId);
 	}
 
 	if (sessionId && sessionHistoryRoots.has(sessionId)) {
@@ -750,6 +749,14 @@ const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
 let lightningEnabled = forceLightning ? true : readLightningSetting();
 const assetObjectUrlCache = new Map<string, string>();
+
+// Centralized cache key parser. Expected format: "<type>:<assetId>"
+// where assetId itself may contain colons.
+function getAssetIdFromObjectUrlCacheKey(cacheKey: string): string | null {
+	const colonIdx = cacheKey.indexOf(":");
+	if (colonIdx === -1) return null;
+	return cacheKey.slice(colonIdx + 1) || null;
+}
 const IMAGE_MODE_OPTIONS = ["auto", "fantasy", "realistic"];
 const VIDEO_RATIO_OPTIONS = ["3:2", "2:3", "1:1"];
 const VIDEO_MODE_OPTIONS = ["normal", "fun"];
@@ -4224,32 +4231,7 @@ async function makeSafeImageUrl(url: string): Promise<string | null> {
 	}
 
 	if (/^data:image\/svg\+xml/i.test(url)) {
-		const match = url.match(/^data:image\/svg\+xml(;base64)?,(.*)$/i);
-		if (!match) return null;
-
-		const isBase64 = !!match[1];
-		const payload = match[2] || "";
-
-		let svgXml: string;
-		try {
-			if (isBase64) {
-				svgXml = atob(payload);
-			} else {
-				svgXml = decodeURIComponent(payload);
-			}
-		} catch {
-			return null;
-		}
-
-		const sanitized = await window.utils.sanitizeSVG(svgXml);
-
-		if (isBase64) {
-			const encoded = btoa(sanitized);
-			return `data:image/svg+xml;base64,${encoded}`;
-		} else {
-			const encoded = encodeURIComponent(sanitized);
-			return `data:image/svg+xml,${encoded}`;
-		}
+		return sanitizeSvgDataUrl(url);
 	}
 
 	return url;
@@ -4305,9 +4287,10 @@ async function getCachedMarkdown(
 	messageId: string,
 	content: string,
 ): Promise<string> {
-	// Cheap fingerprint: length + first 128 chars is sufficient to detect edits
-	// without hashing the full content string on every render.
-	const contentKey = `${content.length}:${content.slice(0, 128)}`;
+	// Use the full content string as the cache key to guarantee correctness.
+	// Modern JS engines handle string equality checks efficiently, and this
+	// avoids false cache hits when edits occur beyond the first 128 characters.
+	const contentKey = content;
 	const cached = getMarkdownCacheEntry(sessionId, messageId, contentKey);
 	if (cached !== null) return cached;
 
@@ -4349,7 +4332,8 @@ async function renderChat() {
 
 	// Revoke only orphaned object URLs
 	for (const [cacheKey, url] of assetObjectUrlCache) {
-		const assetId = cacheKey.split(":").slice(1).join(":");
+		const assetId = getAssetIdFromObjectUrlCacheKey(cacheKey);
+		if (!assetId) continue;
 		if (!liveAssetIds.has(assetId)) {
 			try { URL.revokeObjectURL(url); } catch {}
 			assetObjectUrlCache.delete(cacheKey);
@@ -5267,20 +5251,19 @@ function upsertToolHistoryEntry(
 	session: any,
 	call: any,
 	content: string,
+	sessionId?: string,
 ): void {
-	const existing = getSessionFlatHistory(session, findSessionIdByRef(session) || undefined).find(
+	const existing = getSessionFlatHistory(session, sessionId).find(
 		(msg: any) => msg.role === "tool" && msg.tool_call_id === call.id,
 	);
 	if (existing) {
 		existing.content = content;
 		existing.name = call.name;
 		// Invalidate flat cache since we mutated an existing entry
-		const sid = findSessionIdByRef(session);
-		if (sid) sessionFlatHistoryCache.delete(sid);
+		if (sessionId) sessionFlatHistoryCache.delete(sessionId);
 		return;
 	}
-	const root = ensureSessionHistoryRoot(session);
-	const sessionId = findSessionIdByRef(session);
+	const root = ensureSessionHistoryRoot(session, sessionId);
 	const toolEntry = {
 		id: `tool-${call.id}`,
 		timestamp: Date.now(),
@@ -5290,7 +5273,7 @@ function upsertToolHistoryEntry(
 		content,
 	};
 	if (!root) {
-		setSessionHistoryRoot(session, ensureMessageVersioningShape(toolEntry), sessionId || undefined);
+		setSessionHistoryRoot(session, ensureMessageVersioningShape(toolEntry), sessionId);
 		return;
 	}
 	appendToActiveLeafInPlace(root, [toolEntry]);
@@ -6211,7 +6194,7 @@ window.ollama.onToolCall((call) => {
 			payload.message = call.result;
 		}
 
-		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
+		upsertToolHistoryEntry(session, call, JSON.stringify(payload), targetSessionId);
 		if (shouldRender) {
 			let bubble = liveToolBubbles.get(call.id);
 			if (!bubble) {
@@ -6244,7 +6227,7 @@ window.ollama.onToolCall((call) => {
 			payload.message = call.result;
 		}
 
-		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
+		upsertToolHistoryEntry(session, call, JSON.stringify(payload), targetSessionId);
 		if (shouldRender) {
 			let bubble = liveToolBubbles.get(call.id);
 			if (!bubble) {
@@ -6277,7 +6260,7 @@ window.ollama.onToolCall((call) => {
 		if (typeof call.result === "string" && call.result.length > 0) {
 			payload.message = call.result;
 		}
-		upsertToolHistoryEntry(session, call, JSON.stringify(payload));
+		upsertToolHistoryEntry(session, call, JSON.stringify(payload), targetSessionId);
 
 		if (shouldRender) {
 			let bubble = liveToolBubbles.get(call.id);
@@ -6301,7 +6284,7 @@ window.ollama.onToolCall((call) => {
 	}
 
 	if (call.state === "pending") {
-		upsertToolHistoryEntry(session, call, "⏳ Running…");
+		upsertToolHistoryEntry(session, call, "⏳ Running…", targetSessionId);
 		void window.ollama.save(sessions);
 		return;
 	}
@@ -6311,6 +6294,7 @@ window.ollama.onToolCall((call) => {
 			session,
 			call,
 			typeof call.result === "string" ? call.result : "✅ Done",
+			targetSessionId,
 		);
 		void window.ollama.save(sessions);
 		return;
@@ -6323,6 +6307,7 @@ window.ollama.onToolCall((call) => {
 			typeof call.result === "string"
 				? call.result
 				: "Tool request canceled.",
+			targetSessionId,
 		);
 		void window.ollama.save(sessions);
 	}
