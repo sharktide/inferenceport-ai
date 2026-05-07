@@ -2157,8 +2157,7 @@ async function loadOptions() {
 		const orphans = assetsOnDisk.filter((id) => !usedAssets.has(id));
 		const BATCH = 8;
 		for (let i = 0; i < orphans.length; i += BATCH) {
-await Promise.all(orphans.slice(i, i + BATCH).map((id) => window.utils.rmAsset(id).catch(() => {})));
-			// Yield between batches so the UI stays responsive
+			await Promise.all(orphans.slice(i, i + BATCH).map((id) => window.utils.rmAsset(id).catch(() => {})));
 			if (i + BATCH < orphans.length) {
 				await new Promise((r) => setTimeout(r, 0));
 			}
@@ -5253,17 +5252,17 @@ function upsertToolHistoryEntry(
 	content: string,
 	sessionId?: string,
 ): void {
-	const existing = getSessionFlatHistory(session, sessionId).find(
-		(msg: any) => msg.role === "tool" && msg.tool_call_id === call.id,
-	);
-	if (existing) {
-		existing.content = content;
-		existing.name = call.name;
-		// Invalidate flat cache since we mutated an existing entry
+	// Search and update directly in the live tree, not the flat clone array.
+	// getSessionFlatHistory returns deep-cloned nodes, so mutating them would
+	// not affect the actual tree and changes would be lost on next cache miss.
+	const root = ensureSessionHistoryRoot(session, sessionId);
+	if (root && findAndUpdateMessage(root, `tool-${call.id}`, (msg: any) => {
+		msg.content = content;
+		msg.name = call.name;
+	})) {
 		if (sessionId) sessionFlatHistoryCache.delete(sessionId);
 		return;
 	}
-	const root = ensureSessionHistoryRoot(session, sessionId);
 	const toolEntry = {
 		id: `tool-${call.id}`,
 		timestamp: Date.now(),
