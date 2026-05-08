@@ -18,7 +18,7 @@ const secureRandomHex = Array.from(window.crypto.getRandomValues(new Uint8Array(
 	.join("");
 const sessionId = `snip-${Date.now()}-${secureRandomHex}`;
 const DEFAULT_PROMPT =
-	"Analyze the image, extract any text, and determine whether the user expects a description, an answer, or a solution. If the image contains a question or problem, solve it. If it contains objects or scenes, describe only what is visually evident. Do not infer identity, emotions, or private details.";
+	"Analyze the image, extract any text, and determine whether the user expects a description, an answer, or a solution. If the image contains a question or problem, solve it. If it contains objects or scenes, describe only what is visually evident. Do not infer identity, emotions, or private details. Do not use data-color tags.";
 const MODEL = "lightning";
 const CLIENT_URL = "lightning";
 
