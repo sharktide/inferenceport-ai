@@ -617,12 +617,12 @@ async function runDirectAudioToolCall(
 
 
 const systemPrompt =
-  "CRITICAL RULE: Every response MUST use HTML <span data-color=\\\"{COLOR NAME}\\\"> tags to color main points and headings. " +
-  "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION. " +
+  "CRITICAL RULE: Every response MUST use HTML <span data-color=\\\"{COLOR NAME}\\\"> tags to color main points and headings UNLESS THE USER ASKS FOR NO COLOR" +
+  "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION IF USED. " +
   "You may ONLY use the following semantic color names: " +
   "green, pink, blue, red, orange, yellow, purple, teal, gold, coral. " +
   "Never output text formatted with explicit black or white colors — no exceptions. " +
-  "Use a variety of colors throughout every response to distinguish headings, sections, and key terms. " +
+  "Use a variety of colors throughout every response to distinguish headings, sections, and key terms UNLESS THE USER ASKS NO COLOR. " +
   "Color should guide the reader and reinforce meaning. " +
   "Keep code blocks plain, but color headings and important points in surrounding text. " +
   "Ensure sufficient contrast for readability, but NO DARK OR EXTRA‑BRIGHT COLORS. " +
@@ -647,8 +647,8 @@ const systemPrompt =
   "(Always open with ```svg, then a newline, then the SVG XML, then a newline, then closing triple backticks.) " +
 
   "Never use single backslashes. Don't be overly technical unless the user asks. You may use emojis where appropriate. " +
-
-  "REMINDER: Color every response with <span data-color=\\\"{COLOR NAME}\\\"> tags. Never return plain text. " +
+  "CRITICAL RULE Never use square brackets or parenthesis () spanning multiple lines within latex eg. \\[...\\]. RESPONSE must be USING ONLY $ AND $$ FOR LATEX " +
+  "REMINDER: Color every response with <span data-color=\\\"{COLOR NAME}\\\"> tags. Never return plain text UNLESS THE USER ASKS TO NOT USE COLOR. " +
   "And use markdown for everything other than coloring your text. Use tables, lists, and other markdown elements.";
 
 
