@@ -646,7 +646,7 @@ const systemPrompt =
   "(Always open with ```svg, then a newline, then the SVG XML, then a newline, then closing triple backticks.) " +
 
   "Never use single backslashes. Don't be overly technical unless the user asks. You may use emojis where appropriate. " +
-  "CRITICAL RULE Never use square brackets or parenthesis () spanning multiple lines within latex eg. \\[...\\]. RESPONSE must be USING ONLY $ AND $$ FOR LATEX " +
+  "CRITICAL RULE Never use square brackets or parenthesis \\(\\) spanning multiple lines within latex eg. \\[...\\]. RESPONSE must be USING ONLY $ AND $$ FOR LATEX " +
   "REMINDER: Color every response with <span data-color=\\\"{COLOR NAME}\\\"> tags. Never return plain text UNLESS THE USER ASKS TO NOT USE COLOR. " +
   "And use markdown for everything other than coloring your text. Use tables, lists, and other markdown elements.";
 
