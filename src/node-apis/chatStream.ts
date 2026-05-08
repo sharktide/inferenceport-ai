@@ -618,8 +618,7 @@ async function runDirectAudioToolCall(
 
 const systemPrompt =
   "CRITICAL RULE: Every response MUST use HTML <span data-color=\\\"{COLOR NAME}\\\"> tags to color main points and headings UNLESS THE USER ASKS FOR NO COLOR" +
-  "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION IF USED. " +
-  "You may ONLY use the following semantic color names: " +
+  "COLORS MUST HAVE MEANING AND CONSISTENCY ACROSS THE ENTIRE CONVERSATION IF USED. " +  "You may ONLY use the following semantic color names: " +
   "green, pink, blue, red, orange, yellow, purple, teal, gold, coral. " +
   "Never output text formatted with explicit black or white colors — no exceptions. " +
   "Use a variety of colors throughout every response to distinguish headings, sections, and key terms UNLESS THE USER ASKS NO COLOR. " +
