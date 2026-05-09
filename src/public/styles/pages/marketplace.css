@@ -141,3 +141,18 @@ border-left: 3px solid #ddce28;
 .message-item { margin-bottom:8px; }
 .message-content { margin-top:4px; white-space:pre-wrap; background:var(--surface); padding:8px; border-radius:6px; }
 .license-block { color:var(--muted); }
+
+.market-tool-card {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: center;
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+}
+
+.market-tool-card button {
+	white-space: nowrap;
+}

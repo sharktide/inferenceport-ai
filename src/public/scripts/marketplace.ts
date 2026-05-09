@@ -61,7 +61,7 @@ const fileModal = new window.ic.iModal(
 	true,
 );
 
-type ImportType = "space" | "website" | "huggingface" | "gguf";
+type ImportType = "space" | "website" | "huggingface" | "gguf" | "tools";
 interface RemoteHost {
 	url: string;
 	alias: string;
@@ -967,6 +967,7 @@ function setupImportCards() {
 			if (type === "space") openSpaceModal();
 			else if (type === "huggingface") openHuggingFaceModal();
             else if (type === "gguf") openGGUFModal();
+			else if (type === "tools") void window.utils.web_open("https://inference.js.org/tools.html");
 			else openWebsiteModal();
 		});
 	});

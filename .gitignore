@@ -7,7 +7,6 @@
 !.vscode/tasks.json
 !?*.[Cc]ache/
 !Directory.Build.rsp
-server
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 # (https://github.com/github/gitignore/pull/2483#issue-259490424)
 # (https://github.com/github/gitignore/pull/3736)
@@ -1039,6 +1038,14 @@ node-apis\helper\createModel.d.ts
 node-apis\helper\createModel.d.ts.map
 node-apis\helper\createModel.js
 node-apis\helper\createModel.js.map
+node-apis\helper\customTools.d.d.ts
+node-apis\helper\customTools.d.d.ts.map
+node-apis\helper\customTools.d.js
+node-apis\helper\customTools.d.js.map
+node-apis\helper\customTools.d.ts
+node-apis\helper\customTools.d.ts.map
+node-apis\helper\customTools.js
+node-apis\helper\customTools.js.map
 node-apis\helper\ecdhAesSession.d.d.ts
 node-apis\helper\ecdhAesSession.d.d.ts.map
 node-apis\helper\ecdhAesSession.d.js
@@ -2013,6 +2020,7 @@ scripts\bundler\unzip.d.ts
 scripts\bundler\unzip.d.ts.map
 scripts\bundler\unzip.js
 scripts\bundler\unzip.js.map
+server
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.js

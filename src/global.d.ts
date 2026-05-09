@@ -128,6 +128,67 @@ declare global {
 		error?: string;
 	};
 
+	type CustomToolManifest = {
+		id: string;
+		name: string;
+		functionality: string;
+		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		codeFile: string;
+		authorEmail: string;
+		openai: {
+			functionName: string;
+			description: string;
+			parameters: {
+				type: "object";
+				properties: Record<string, unknown>;
+				required?: string[];
+				additionalProperties?: boolean;
+			};
+		};
+		requirements: {
+			runtime: string[];
+			build: string[];
+		};
+		visibility: "private" | "public" | "unlisted";
+		published: boolean;
+		createdAt: string;
+		updatedAt: string;
+		registry?: {
+			source: "lightning";
+			uploadedAt?: string;
+			updatedAt?: string;
+		};
+	};
+
+	type CustomToolRegistryRecord = {
+		id: string;
+		name: string;
+		functionality: string;
+		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		authorEmail: string;
+		visibility: "public" | "unlisted";
+		publishedAt: string;
+		updatedAt: string;
+		requirements: {
+			runtime: string[];
+			build: string[];
+		};
+		openai: {
+			functionName: string;
+			description: string;
+			parameters: {
+				type: "object";
+				properties: Record<string, unknown>;
+				required?: string[];
+				additionalProperties?: boolean;
+			};
+		};
+		files: {
+			manifestPath: string;
+			codePath: string;
+		};
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -154,6 +215,7 @@ declare global {
 					imageGen: boolean;
 					videoGen: boolean;
 					audioGen: boolean;
+					customToolIds?: string[];
 				},
 				clientUrl?: string,
 				sessionId?: string,
@@ -186,9 +248,66 @@ declare global {
 			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			resolveCustomToolCall: (toolCallId: string, approved: boolean) => Promise<boolean>;
 			startImageToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startVideoToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startAudioToolCall: (payload?: Record<string, unknown>) => Promise<string>;
+			listCustomTools: () => Promise<CustomToolManifest[]>;
+			createCustomTool: (payload: {
+				name: string;
+				functionality: string;
+				language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+				codeFileName: string;
+				codeContent: string;
+				visibility?: "private" | "public" | "unlisted";
+				publishToRegistry?: boolean;
+				openai?: {
+					functionName?: string;
+					description?: string;
+					parameters?: Record<string, unknown>;
+				};
+			}) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			getCustomToolSource: (toolId: string) => Promise<{
+				manifest: CustomToolManifest;
+				code: string;
+			} | null>;
+			updateCustomTool: (payload: {
+				id: string;
+				name?: string;
+				functionality?: string;
+				language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+				codeFileName?: string;
+				codeContent?: string;
+				visibility?: "private" | "public" | "unlisted";
+				openai?: {
+					functionName?: string;
+					description?: string;
+					parameters?: Record<string, unknown>;
+				};
+			}) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			publishCustomTool: (toolId: string) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+				record?: CustomToolRegistryRecord;
+			}>;
+			importCustomTool: (toolId: string) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			getCustomToolRegistryItem: (toolId: string) => Promise<CustomToolRegistryRecord | null>;
+			listCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
+			deleteCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
+			deleteRegistryCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 		};
 
