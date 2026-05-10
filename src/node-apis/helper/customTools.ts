@@ -841,6 +841,7 @@ export async function executeCustomTool(
 ): Promise<string> {
 	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 	const sourcePath = path.join(toolDir, manifest.codeFile);
+
 	if (!fileExists(sourcePath)) {
 		throw new Error(`Missing tool source file: ${manifest.codeFile}`);
 	}
@@ -848,67 +849,163 @@ export async function executeCustomTool(
 	const cliArgs = appendCliArgs(args);
 	const tempDir = createExecutionTempDir(manifest.id);
 
+	// JavaScript
 	if (manifest.language === "javascript") {
 		const result = await runCommand("node", [sourcePath, ...cliArgs], toolDir);
+
 		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	if (manifest.language === "python") {
-		const cmd = process.platform === "win32" ? "python" : "python3";
-		const result = await runCommand(cmd, [sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	if (manifest.language === "java") {
-		const result = await runCommand("java", [sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	if (manifest.language === "c" || manifest.language === "cpp" || manifest.language === "rust") {
-		const ext = process.platform === "win32" ? ".exe" : "";
-		const binaryPath = path.join(tempDir, `tool-bin${ext}`);
-		let compileCommand = "";
-		let compileArgs: string[] = [];
-
-		if (manifest.language === "c") {
-			compileCommand = "gcc";
-			compileArgs = [sourcePath, "-O2", "-o", binaryPath];
-		}
-		if (manifest.language === "cpp") {
-			compileCommand = "clang++";
-			compileArgs = [sourcePath, "-O2", "-std=c++17", "-o", binaryPath];
-		}
-		if (manifest.language === "rust") {
-			compileCommand = "rustc";
-			compileArgs = [sourcePath, "-O", "-o", binaryPath];
-		}
-
-		let compile = await runCommand(compileCommand, compileArgs, toolDir);
-		if (compile.code !== 0 && manifest.language === "cpp" && compileCommand === "clang++") {
-			compile = await runCommand("g++", [sourcePath, "-O2", "-std=c++17", "-o", binaryPath], toolDir);
-		}
-		if (compile.code !== 0 && manifest.language === "c" && compileCommand === "gcc") {
-			compile = await runCommand("clang", [sourcePath, "-O2", "-o", binaryPath], toolDir);
-		}
-		if (compile.code !== 0) {
-			throw new Error(compile.stderr.trim() || `Compilation failed with code ${String(compile.code)}`);
-		}
-
-		const executeResult = await runCommand(binaryPath, cliArgs, toolDir);
-		if (executeResult.code !== 0) {
 			throw new Error(
-				executeResult.stderr.trim() || `Tool exited with code ${String(executeResult.code)}`,
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
 			);
 		}
+
+		return result.stdout;
+	}
+
+	// Python
+	if (manifest.language === "python") {
+		const cmd = process.platform === "win32" ? "python" : "python3";
+
+		const result = await runCommand(cmd, [sourcePath, ...cliArgs], toolDir);
+
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
+			);
+		}
+
+		return result.stdout;
+	}
+
+	// Java (Java 11+ single-file source execution)
+	if (manifest.language === "java") {
+		const result = await runCommand(
+			"java",
+			[sourcePath, ...cliArgs],
+			toolDir,
+		);
+
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
+			);
+		}
+
+		return result.stdout;
+	}
+
+	// Native compiled languages
+	if (
+		manifest.language === "c" ||
+		manifest.language === "cpp" ||
+		manifest.language === "rust"
+	) {
+		const ext = process.platform === "win32" ? ".exe" : "";
+
+		const binaryPath = path.join(tempDir, `tool-bin${ext}`);
+
+		type CompileAttempt = {
+			command: string;
+			args: string[];
+		};
+
+		const compileAttempts: CompileAttempt[] = [];
+
+		// C
+		if (manifest.language === "c") {
+			compileAttempts.push(
+				{
+					command: "clang",
+					args: [sourcePath, "-O2", "-o", binaryPath],
+				},
+				{
+					command: "gcc",
+					args: [sourcePath, "-O2", "-o", binaryPath],
+				},
+			);
+		}
+
+		// C++
+		if (manifest.language === "cpp") {
+			compileAttempts.push(
+				{
+					command: "clang++",
+					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
+				},
+				{
+					command: "g++",
+					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
+				},
+			);
+		}
+
+		// Rust
+		if (manifest.language === "rust") {
+			compileAttempts.push({
+				command: "rustc",
+				args: [sourcePath, "-O", "-o", binaryPath],
+			});
+		}
+
+		let compileResult:
+			| {
+					code: number | null;
+					stdout: string;
+					stderr: string;
+			}
+			| undefined;
+
+		let lastError: unknown;
+
+		for (const attempt of compileAttempts) {
+			try {
+				const result = await runCommand(
+					attempt.command,
+					attempt.args,
+					toolDir,
+				);
+
+				if (result.code === 0) {
+					compileResult = result;
+					break;
+				}
+
+				compileResult = result;
+			} catch (error) {
+				lastError = error;
+			}
+		}
+
+		if (!compileResult || compileResult.code !== 0) {
+			if (compileResult?.stderr?.trim()) {
+				throw new Error(compileResult.stderr.trim());
+			}
+
+			if (lastError instanceof Error) {
+				throw new Error(lastError.message);
+			}
+
+			throw new Error(
+				`Failed to compile ${manifest.language} tool`,
+			);
+		}
+
+		const executeResult = await runCommand(
+			binaryPath,
+			cliArgs,
+			toolDir,
+		);
+
+		if (executeResult.code !== 0) {
+			throw new Error(
+				executeResult.stderr.trim() ||
+					`Tool exited with code ${String(executeResult.code)}`,
+			);
+		}
+
 		return executeResult.stdout;
 	}
 

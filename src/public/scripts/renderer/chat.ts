@@ -3200,7 +3200,7 @@ function openImportCustomToolModal(prefillId = ""): void {
 
 async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 	await refreshCustomTools();
-	modal.open({
+	customToolModal.open({
 		title: "Tools",
 		html: `
 			<div class=\"tools-modal-grid\">
