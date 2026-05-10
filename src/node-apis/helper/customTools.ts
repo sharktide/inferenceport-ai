@@ -30,6 +30,7 @@ export type CustomToolManifest = {
 	functionality: string;
 	language: CustomToolLanguage;
 	codeFile: string;
+	codeHash?: string;
 	authorEmail: string;
 	authorUserId?: string | null;
 	openai: {
@@ -88,6 +89,8 @@ export type CustomToolRegistryRecord = {
 	functionality: string;
 	language: CustomToolLanguage;
 	authorEmail: string;
+	authorUserId?: string | null;
+	codeHash?: string;
 	visibility: "public" | "unlisted";
 	publishedAt: string;
 	updatedAt: string;
@@ -233,6 +236,10 @@ function writeJsonFile(filePath: string, value: unknown): void {
 	fs.writeFileSync(filePath, JSON.stringify(value, null, 2), "utf-8");
 }
 
+function hashCodeContent(codeContent: string): string {
+	return crypto.createHash("sha256").update(codeContent, "utf-8").digest("hex");
+}
+
 function manifestPathFor(toolId: string): string {
 	return path.join(getCustomToolsRoot(), toolId, "manifest.json");
 }
@@ -254,6 +261,37 @@ function getLanguageFromFileName(fileName: string): CustomToolLanguage | null {
 	return null;
 }
 
+function readVerifiedToolSource(manifest: CustomToolManifest): {
+	sourcePath: string;
+	code: string;
+	codeHash: string;
+} {
+	const sourcePath = codePathFor(manifest.id, manifest.codeFile);
+	if (!fileExists(sourcePath)) {
+		throw new Error(`Missing tool source file: ${manifest.codeFile}`);
+	}
+	const code = fs.readFileSync(sourcePath, "utf-8");
+	const codeHash = hashCodeContent(code);
+	if (manifest.codeHash && manifest.codeHash !== codeHash) {
+		throw new Error(
+			`Tool source changed after it was saved. Expected sha256 ${manifest.codeHash}, got ${codeHash}. Review and save the tool again before running it.`,
+		);
+	}
+	return { sourcePath, code, codeHash };
+}
+
+function ensureManifestCodeHash(manifest: CustomToolManifest): CustomToolManifest {
+	if (manifest.codeHash) return manifest;
+	try {
+		const { codeHash } = readVerifiedToolSource(manifest);
+		const nextManifest = { ...manifest, codeHash };
+		writeJsonFile(manifestPathFor(manifest.id), nextManifest);
+		return nextManifest;
+	} catch {
+		return manifest;
+	}
+}
+
 function listToolIds(): string[] {
 	const root = getCustomToolsRoot();
 	if (!fs.existsSync(root)) return [];
@@ -270,7 +308,9 @@ export function listLocalCustomTools(): CustomToolManifest[] {
 		const manifestPath = manifestPathFor(toolId);
 		if (!fs.existsSync(manifestPath)) continue;
 		try {
-			manifests.push(readJsonFile<CustomToolManifest>(manifestPath));
+			manifests.push(
+				ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath)),
+			);
 		} catch {
 			continue;
 		}
@@ -285,7 +325,7 @@ export function getLocalCustomToolById(toolId: string): CustomToolManifest | nul
 	const manifestPath = manifestPathFor(normalizedToolId);
 	if (!fs.existsSync(manifestPath)) return null;
 	try {
-		return readJsonFile<CustomToolManifest>(manifestPath);
+		return ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath));
 	} catch {
 		return null;
 	}
@@ -349,8 +389,7 @@ export async function publishCustomToolToRegistry(
 	manifest: CustomToolManifest,
 ): Promise<{ ok: true; record: CustomToolRegistryRecord } | { ok: false; error: string }> {
 	try {
-		const codePath = codePathFor(manifest.id, manifest.codeFile);
-		const code = fs.readFileSync(codePath, "utf-8");
+		const { code, codeHash } = readVerifiedToolSource(manifest);
 		const headers = await getLightningAuthHeaders();
 		if (!headers.Authorization) {
 			return { ok: false, error: "You must sign in to publish tools." };
@@ -360,7 +399,7 @@ export async function publishCustomToolToRegistry(
 			method: "POST",
 			headers,
 			body: JSON.stringify({
-				manifest,
+				manifest: { ...manifest, codeHash },
 				code,
 			}),
 		});
@@ -444,6 +483,7 @@ export async function importCustomToolFromRegistry(
 			return { ok: false, error: "Registry tool id must be a UUID." };
 		}
 		manifest.codeFile = sanitizeFileName(path.basename(manifest.codeFile));
+		manifest.codeHash = hashCodeContent(payload.code);
 		const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 		ensureDirSync(toolDir);
 		const codePath = path.join(toolDir, manifest.codeFile);
@@ -534,6 +574,7 @@ export async function createCustomTool(
 		functionality,
 		language,
 		codeFile,
+		codeHash: hashCodeContent(codeContent),
 		authorEmail,
 		authorUserId,
 		openai: {
@@ -622,35 +663,30 @@ export async function updateCustomTool(
 
 	const visibility = input.visibility || existing.visibility;
 	const codeWasProvided = typeof input.codeContent === "string";
-	const defaultExt = LANGUAGE_TO_EXT[language];
-	const rawCodeFile =
-		typeof input.codeFileName === "string" && input.codeFileName.trim()
-			? input.codeFileName
-			: existing.codeFile;
-	const providedName = sanitizeFileName(rawCodeFile || `tool${defaultExt}`);
-	const providedExt = path.extname(providedName).toLowerCase();
-	const expectedLanguage = getLanguageFromFileName(providedName);
+	const codeFile = existing.codeFile;
+	const expectedLanguage = getLanguageFromFileName(codeFile);
 	if (expectedLanguage && expectedLanguage !== language) {
 		return {
 			ok: false,
 			error: `Code file extension does not match ${language}.`,
 		};
 	}
-	const codeFile = providedExt ? providedName : `${providedName}${defaultExt}`;
 	const toolDir = path.join(getCustomToolsRoot(), toolId);
 	ensureDirSync(toolDir);
 
+	let codeHash = existing.codeHash;
 	if (codeWasProvided) {
 		if (!input.codeContent!.trim()) {
 			return { ok: false, error: "Tool source code is required." };
 		}
-		if (codeFile !== existing.codeFile) {
-			const oldPath = codePathFor(toolId, existing.codeFile);
-			if (fs.existsSync(oldPath)) {
-				fs.rmSync(oldPath, { force: true });
-			}
-		}
 		fs.writeFileSync(path.join(toolDir, codeFile), input.codeContent!, "utf-8");
+		codeHash = hashCodeContent(input.codeContent!);
+	} else if (!codeHash) {
+		try {
+			codeHash = readVerifiedToolSource(existing).codeHash;
+		} catch {
+			codeHash = undefined;
+		}
 	}
 
 	const parameters =
@@ -680,6 +716,7 @@ export async function updateCustomTool(
 		visibility,
 		updatedAt: now,
 	};
+	if (codeHash) manifest.codeHash = codeHash;
 	writeJsonFile(path.join(toolDir, "manifest.json"), manifest);
 	return { ok: true, manifest };
 }
@@ -840,14 +877,15 @@ export async function executeCustomTool(
 	args: Record<string, unknown>,
 ): Promise<string> {
 	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
-	const sourcePath = path.join(toolDir, manifest.codeFile);
-
-	if (!fileExists(sourcePath)) {
-		throw new Error(`Missing tool source file: ${manifest.codeFile}`);
-	}
-
+	const { code, codeHash } = readVerifiedToolSource(manifest);
 	const cliArgs = appendCliArgs(args);
 	const tempDir = createExecutionTempDir(manifest.id);
+	const sourcePath = path.join(tempDir, path.basename(manifest.codeFile));
+	fs.writeFileSync(sourcePath, code, "utf-8");
+	const copiedHash = hashCodeContent(fs.readFileSync(sourcePath, "utf-8"));
+	if (copiedHash !== codeHash) {
+		throw new Error("Tool source copy failed integrity verification.");
+	}
 
 	// JavaScript
 	if (manifest.language === "javascript") {
@@ -993,6 +1031,18 @@ export async function executeCustomTool(
 			);
 		}
 
+		const binaryBeforeRun = fs.readFileSync(binaryPath);
+		const binaryHash = crypto
+			.createHash("sha256")
+			.update(binaryBeforeRun)
+			.digest("hex");
+		const binaryStillHash = crypto
+			.createHash("sha256")
+			.update(fs.readFileSync(binaryPath))
+			.digest("hex");
+		if (binaryStillHash !== binaryHash) {
+			throw new Error("Compiled tool changed before execution.");
+		}
 		const executeResult = await runCommand(
 			binaryPath,
 			cliArgs,
@@ -1029,6 +1079,7 @@ export async function createCustomToolFromRegistryRecord(
 			functionality: record.functionality,
 			language: record.language,
 			codeFile: path.basename(record.files.codePath),
+			codeHash: hashCodeContent(code),
 			authorEmail: record.authorEmail,
 			openai: record.openai,
 			requirements: record.requirements,

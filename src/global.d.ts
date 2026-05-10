@@ -134,7 +134,9 @@ declare global {
 		functionality: string;
 		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		codeFile: string;
+		codeHash?: string;
 		authorEmail: string;
+		authorUserId?: string | null;
 		openai: {
 			functionName: string;
 			description: string;
@@ -166,6 +168,8 @@ declare global {
 		functionality: string;
 		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		authorEmail: string;
+		authorUserId?: string | null;
+		codeHash?: string;
 		visibility: "public" | "unlisted";
 		publishedAt: string;
 		updatedAt: string;

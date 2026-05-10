@@ -3294,21 +3294,30 @@ a.media-choice-btn:focus-visible {
 	align-items: center;
 	gap: 6px;
 	flex: 0 0 auto;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 }
 
 .tool-card-action {
-	width: 34px;
-	height: 34px;
+	min-height: 34px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: 6px;
 	border-radius: 10px;
 	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
 	background: transparent;
 	color: var(--text-dark);
 	cursor: pointer;
-	padding: 0;
+	padding: 0 9px;
 	margin: 0;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.tool-card-action-label {
+	line-height: 1;
+	white-space: nowrap;
 }
 
 .tool-card-action:hover {
@@ -3401,6 +3410,12 @@ a.media-choice-btn:focus-visible {
 	max-width: none;
 }
 
+.custom-tool-form-grid input[readonly] {
+	cursor: default;
+	color: color-mix(in srgb, var(--text-dark) 58%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 88%, var(--gray) 12%);
+}
+
 .custom-tool-code-editor {
 	font-family: "Fira Mono", Consolas, monospace;
 	line-height: 1.45;
@@ -3424,6 +3439,54 @@ a.media-choice-btn:focus-visible {
 	min-height: 48px;
 	font-size: 12px;
 	white-space: pre-wrap;
+}
+
+.custom-tool-run-review {
+	display: grid;
+	gap: 10px;
+	text-align: left;
+}
+
+.custom-tool-run-review p {
+	margin: 0;
+}
+
+.custom-tool-run-warning {
+	color: #b54708;
+	font-weight: 700;
+}
+
+.custom-tool-run-review details {
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+	border-radius: 8px;
+	padding: 8px;
+}
+
+.custom-tool-run-review summary {
+	cursor: pointer;
+	font-weight: 700;
+}
+
+.custom-tool-run-review pre {
+	max-height: 260px;
+	overflow: auto;
+	white-space: pre-wrap;
+	font-family: "Fira Mono", Consolas, monospace;
+	font-size: 12px;
+	line-height: 1.45;
+	margin: 8px 0 0;
+}
+
+.custom-tool-run-confirm-input {
+	width: 100%;
+	box-sizing: border-box;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--bg-light) 96%, var(--gray) 4%);
+	color: var(--text-dark);
+	padding: 10px 12px;
+	font: inherit;
+	font-size: 13px;
 }
 
 [data-theme="dark"] .tools-flow-card,

@@ -1273,6 +1273,7 @@ export default function registerChatStream() {
 									name: customTool.name,
 									authorEmail: customTool.authorEmail,
 									language: customTool.language,
+									codeHash: customTool.codeHash,
 								},
 							});
 
@@ -1298,6 +1299,7 @@ export default function registerChatStream() {
 										name: customTool.name,
 										authorEmail: customTool.authorEmail,
 										language: customTool.language,
+										codeHash: customTool.codeHash,
 									},
 								});
 								toolResult = await executeCustomTool(customTool, args);
