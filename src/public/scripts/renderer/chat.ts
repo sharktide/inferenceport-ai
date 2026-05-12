@@ -5372,7 +5372,10 @@ async function renderChat() {
 				) {
 					const preEl = el as HTMLPreElement;
 					const codeEl = preEl.querySelector("code");
-
+					if (!codeEl) {
+						botContainer.appendChild(node.cloneNode(true));
+						return;
+					}
 					let lang = "code";
 
 					if (codeEl.className) {
