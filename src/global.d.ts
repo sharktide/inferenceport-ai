@@ -132,6 +132,9 @@ declare global {
 		id: string;
 		name: string;
 		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
 		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		codeFile: string;
 		codeHash?: string;
@@ -151,6 +154,7 @@ declare global {
 			runtime: string[];
 			build: string[];
 		};
+		userInputs?: CustomToolUserInput[];
 		visibility: "private" | "public" | "unlisted";
 		published: boolean;
 		createdAt: string;
@@ -162,10 +166,21 @@ declare global {
 		};
 	};
 
+	type CustomToolUserInput = {
+		name: string;
+		label?: string;
+		description?: string;
+		required?: boolean;
+		secret?: boolean;
+	};
+
 	type CustomToolRegistryRecord = {
 		id: string;
 		name: string;
 		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
 		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		authorEmail: string;
 		authorUserId?: string | null;
@@ -177,6 +192,7 @@ declare global {
 			runtime: string[];
 			build: string[];
 		};
+		userInputs?: CustomToolUserInput[];
 		openai: {
 			functionName: string;
 			description: string;
@@ -252,7 +268,10 @@ declare global {
 			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
-			resolveCustomToolCall: (toolCallId: string, approved: boolean) => Promise<boolean>;
+			resolveCustomToolCall: (
+				toolCallId: string,
+				approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+			) => Promise<boolean>;
 			startImageToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startVideoToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startAudioToolCall: (payload?: Record<string, unknown>) => Promise<string>;
@@ -260,6 +279,9 @@ declare global {
 			createCustomTool: (payload: {
 				name: string;
 				functionality: string;
+				version?: string;
+				releaseNotes?: string;
+				websiteUrl?: string;
 				language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 				codeFileName: string;
 				codeContent: string;
@@ -270,6 +292,7 @@ declare global {
 					description?: string;
 					parameters?: Record<string, unknown>;
 				};
+				userInputs?: CustomToolUserInput[];
 			}) => Promise<{
 				ok: boolean;
 				error?: string;
@@ -283,6 +306,9 @@ declare global {
 				id: string;
 				name?: string;
 				functionality?: string;
+				version?: string;
+				releaseNotes?: string;
+				websiteUrl?: string;
 				language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 				codeFileName?: string;
 				codeContent?: string;
@@ -292,6 +318,7 @@ declare global {
 					description?: string;
 					parameters?: Record<string, unknown>;
 				};
+				userInputs?: CustomToolUserInput[];
 			}) => Promise<{
 				ok: boolean;
 				error?: string;
@@ -310,6 +337,7 @@ declare global {
 			}>;
 			getCustomToolRegistryItem: (toolId: string) => Promise<CustomToolRegistryRecord | null>;
 			listCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
+			listMyCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
 			deleteCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
 			deleteRegistryCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
 			onToolCall: (cb: (calls: any[]) => void) => void;

@@ -1140,10 +1140,13 @@ export function installWebSocketTransportFallback(): void {
 				toolCallId,
 				payload,
 			]),
-		resolveCustomToolCall: async (toolCallId: string, approved: boolean) =>
+		resolveCustomToolCall: async (
+			toolCallId: string,
+			approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+		) =>
 			invokeOrDefault<boolean>("ollama:resolve-custom-tool-call", [
 				toolCallId,
-				approved,
+				approval,
 			]),
 		startImageToolCall: async (payload?: Record<string, unknown>) =>
 			invokeOrDefault<string>("ollama:start-image-tool-call", [payload]),
@@ -1156,6 +1159,9 @@ export function installWebSocketTransportFallback(): void {
 		createCustomTool: async (payload: {
 			name: string;
 			functionality: string;
+			version?: string;
+			releaseNotes?: string;
+			websiteUrl?: string;
 			language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 			codeFileName: string;
 			codeContent: string;
@@ -1166,6 +1172,7 @@ export function installWebSocketTransportFallback(): void {
 				description?: string;
 				parameters?: Record<string, unknown>;
 			};
+			userInputs?: CustomToolUserInput[];
 		}) =>
 			invokeOrDefault<{
 				ok: boolean;
@@ -1181,6 +1188,9 @@ export function installWebSocketTransportFallback(): void {
 			id: string;
 			name?: string;
 			functionality?: string;
+			version?: string;
+			releaseNotes?: string;
+			websiteUrl?: string;
 			language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 			codeFileName?: string;
 			codeContent?: string;
@@ -1190,6 +1200,7 @@ export function installWebSocketTransportFallback(): void {
 				description?: string;
 				parameters?: Record<string, unknown>;
 			};
+			userInputs?: CustomToolUserInput[];
 		}) =>
 			invokeOrDefault<{
 				ok: boolean;
@@ -1217,6 +1228,11 @@ export function installWebSocketTransportFallback(): void {
 		listCustomToolRegistry: async () =>
 			invokeOrDefault<CustomToolRegistryRecord[]>(
 				"ollama:list-custom-tool-registry",
+				[],
+			),
+		listMyCustomToolRegistry: async () =>
+			invokeOrDefault<CustomToolRegistryRecord[]>(
+				"ollama:list-my-custom-tool-registry",
 				[],
 			),
 		deleteCustomTool: async (toolId: string) =>

@@ -84,12 +84,12 @@ contextBridge.exposeInMainWorld("ollama", {
 		),
 	resolveCustomToolCall: (
 		toolCallId: string,
-		approved: boolean,
+		approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
 	): Promise<boolean> =>
 		ipcRenderer.invoke(
 			"ollama:resolve-custom-tool-call",
 			toolCallId,
-			approved,
+			approval,
 		),
 	startImageToolCall: (
 		payload?: Record<string, unknown>,
@@ -108,6 +108,9 @@ contextBridge.exposeInMainWorld("ollama", {
 	createCustomTool: (payload: {
 		name: string;
 		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
 		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		codeFileName: string;
 		codeContent: string;
@@ -118,6 +121,7 @@ contextBridge.exposeInMainWorld("ollama", {
 			description?: string;
 			parameters?: Record<string, unknown>;
 		};
+		userInputs?: CustomToolUserInput[];
 	}): Promise<{
 		ok: boolean;
 		error?: string;
@@ -132,6 +136,9 @@ contextBridge.exposeInMainWorld("ollama", {
 		id: string;
 		name?: string;
 		functionality?: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
 		language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
 		codeFileName?: string;
 		codeContent?: string;
@@ -141,6 +148,7 @@ contextBridge.exposeInMainWorld("ollama", {
 			description?: string;
 			parameters?: Record<string, unknown>;
 		};
+		userInputs?: CustomToolUserInput[];
 	}): Promise<{
 		ok: boolean;
 		error?: string;
@@ -161,6 +169,8 @@ contextBridge.exposeInMainWorld("ollama", {
 		ipcRenderer.invoke("ollama:get-custom-tool-registry-item", toolId),
 	listCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>
 		ipcRenderer.invoke("ollama:list-custom-tool-registry"),
+	listMyCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>
+		ipcRenderer.invoke("ollama:list-my-custom-tool-registry"),
 	deleteCustomTool: (toolId: string): Promise<{ ok: boolean; error?: string }> =>
 		ipcRenderer.invoke("ollama:delete-custom-tool", toolId),
 	deleteRegistryCustomTool: (toolId: string): Promise<{ ok: boolean; error?: string }> =>

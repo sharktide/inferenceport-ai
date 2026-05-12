@@ -76,6 +76,9 @@ type CustomToolManifest = {
 	id: string;
 	name: string;
 	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language: CustomToolLanguage;
 	codeFile: string;
 	codeHash?: string;
@@ -95,6 +98,7 @@ type CustomToolManifest = {
 		runtime: string[];
 		build: string[];
 	};
+	userInputs?: CustomToolUserInput[];
 	visibility: "private" | "public" | "unlisted";
 	published: boolean;
 	createdAt: string;
@@ -106,10 +110,21 @@ type CustomToolManifest = {
 	};
 };
 
+type CustomToolUserInput = {
+	name: string;
+	label?: string;
+	description?: string;
+	required?: boolean;
+	secret?: boolean;
+};
+
 type CustomToolRegistryRecord = {
 	id: string;
 	name: string;
 	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language: CustomToolLanguage;
 	authorEmail: string;
 	authorUserId?: string | null;
@@ -121,6 +136,7 @@ type CustomToolRegistryRecord = {
 		runtime: string[];
 		build: string[];
 	};
+	userInputs?: CustomToolUserInput[];
 	openai: {
 		functionName: string;
 		description: string;
@@ -794,6 +810,7 @@ let audioEnabled = currentToolSettings.audioGen;
 let enabledCustomToolIds: string[] = currentToolSettings.customToolIds || [];
 let cachedCustomTools: CustomToolManifest[] = [];
 let cachedCustomToolRegistryRecords: CustomToolRegistryRecord[] = [];
+let cachedMyUploadedRegistryRecords: CustomToolRegistryRecord[] = [];
 let sessions = {};
 let sessionSortOrder: string[] | null = null;
 let currentSessionId = null;
@@ -2745,6 +2762,8 @@ async function refreshCustomTools(): Promise<void> {
 		const list = await window.ollama.listCustomTools();
 		cachedCustomTools = Array.isArray(list) ? list : [];
 		const registry = await window.ollama.listCustomToolRegistry().catch(() => []);
+		const myRegistry = await window.ollama.listMyCustomToolRegistry().catch(() => []);
+		cachedMyUploadedRegistryRecords = Array.isArray(myRegistry) ? myRegistry : [];
 		const registryRecords = Array.isArray(registry) ? registry : [];
 		const installedRegistryIds = cachedCustomTools
 			.filter((tool) => tool.registry)
@@ -2771,6 +2790,7 @@ async function refreshCustomTools(): Promise<void> {
 	} catch {
 		cachedCustomTools = [];
 		cachedCustomToolRegistryRecords = [];
+		cachedMyUploadedRegistryRecords = [];
 	}
 }
 
@@ -2879,6 +2899,20 @@ function toolActionButtonHtml(
 	`;
 }
 
+function customToolUserInputsPlaceholder(): string {
+	return '[{"name":"api_key","label":"API key","description":"Private token used by this tool","secret":true,"required":true}]';
+}
+
+function parseCustomToolUserInputs(raw: string): CustomToolUserInput[] | undefined {
+	const trimmed = raw.trim();
+	if (!trimmed) return [];
+	const parsed = JSON.parse(trimmed);
+	if (!Array.isArray(parsed)) {
+		throw new Error("Private user inputs must be a JSON array.");
+	}
+	return parsed as CustomToolUserInput[];
+}
+
 function renderCustomToolCards(
 	tools: CustomToolManifest[],
 	emptyTitle: string,
@@ -2899,6 +2933,7 @@ function renderCustomToolCards(
 			const safeAuthor = escapeHtmlUnsafe(tool.authorEmail);
 			const safeId = escapeHtmlUnsafe(tool.id);
 			const safeFunction = escapeHtmlUnsafe(tool.openai?.functionName || "");
+			const safeVersion = escapeHtmlUnsafe(tool.version || "0.1.0");
 			const ownedByCurrentUser = isToolOwnedByCurrentUser(tool);
 			const updateAvailable = tool.registry ? isRegistryRecordNewer(tool) : false;
 			const safeStatus = updateAvailable
@@ -2906,7 +2941,7 @@ function renderCustomToolCards(
 				: tool.published
 					? "Registry"
 					: "Local";
-			const publishLabel = tool.published ? "Update" : "Publish";
+			const publishLabel = tool.published ? "Push update" : "Publish";
 			const ownerActions = ownedByCurrentUser
 				? `
 					${toolActionButtonHtml("edit-custom-tool", tool.id, `Edit`, "edit")}
@@ -2936,6 +2971,7 @@ function renderCustomToolCards(
 								<span class=\"custom-tool-badge\">${safeStatus}</span>
 							</div>
 							<div class=\"custom-tool-meta\">${tool.language.toUpperCase()} • ${safeFunction}</div>
+							<div class=\"custom-tool-meta\">Version ${safeVersion}${tool.websiteUrl ? ` • <a href=\"#\" data-open-tool-website=\"${escapeHtmlUnsafe(tool.websiteUrl)}\">Website</a>` : ""}</div>
 							<div class=\"custom-tool-meta\">${safeAuthor}</div>
 							${tool.codeHash ? `<div class=\"custom-tool-id\">sha256:${escapeHtmlUnsafe(tool.codeHash.slice(0, 16))}</div>` : ""}
 							<div class=\"custom-tool-id\">${safeId}</div>
@@ -2945,6 +2981,50 @@ function renderCustomToolCards(
 						${ownerActions}
 						${consumerActions}
 						${toolActionButtonHtml("delete-custom-tool", tool.id, `Delete`, "trash", true)}
+					</div>
+				</div>
+			`;
+		})
+		.join("");
+}
+
+function renderUploadedRegistryCards(records: CustomToolRegistryRecord[]): string {
+	if (!records.length) {
+		return `
+			<div class=\"custom-tool-empty\">
+				<strong>No uploaded registry tools</strong>
+				<span>Tools you publish remain manageable here even after you delete the local copy.</span>
+			</div>
+		`;
+	}
+	const localIds = new Set(cachedCustomTools.map((tool) => tool.id));
+	return records
+		.map((record) => {
+			const safeId = escapeHtmlUnsafe(record.id);
+			const safeName = escapeHtmlUnsafe(record.name);
+			const safeFunction = escapeHtmlUnsafe(record.openai?.functionName || "");
+			const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
+			const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
+			const installed = localIds.has(record.id);
+			return `
+				<div class=\"custom-tool-item\" data-registry-tool-id=\"${safeId}\">
+					<div class=\"custom-tool-main\">
+						<div class=\"custom-tool-flow-icon\">${toolIconSvg("upload")}</div>
+						<div class=\"custom-tool-copy\">
+							<div class=\"custom-tool-title-row\">
+								<strong>${safeName}</strong>
+								<span class=\"custom-tool-badge\">Uploaded</span>
+							</div>
+							<div class=\"custom-tool-meta\">${record.language.toUpperCase()} • ${safeFunction}</div>
+							<div class=\"custom-tool-meta\">Version ${safeVersion} • ${escapeHtmlUnsafe(record.visibility)}${record.websiteUrl ? ` • <a href=\"#\" data-open-tool-website=\"${escapeHtmlUnsafe(record.websiteUrl)}\">Website</a>` : ""}</div>
+							<div class=\"custom-tool-meta\">${safeAuthor}</div>
+							${record.releaseNotes ? `<div class=\"custom-tool-meta\">${escapeHtmlUnsafe(record.releaseNotes.slice(0, 160))}</div>` : ""}
+							<div class=\"custom-tool-id\">${safeId}</div>
+						</div>
+					</div>
+					<div class=\"custom-tool-actions\">
+						${installed ? toolActionButtonHtml("publish-custom-tool", record.id, "Push local update", "upload") : toolActionButtonHtml("install-uploaded-custom-tool", record.id, "Install locally", "download")}
+						${toolActionButtonHtml("unpublish-custom-tool", record.id, "Take down", "unpublish")}
 					</div>
 				</div>
 			`;
@@ -2989,12 +3069,28 @@ function openCreateCustomToolModal(): void {
 						<input id=\"custom-tool-function-name\" placeholder=\"weather_lookup\" />
 					</label>
 
+					<label>Version
+						<input id=\"custom-tool-version\" placeholder=\"0.1.0\" value=\"0.1.0\" />
+					</label>
+
 					<label>Description
 						<input id=\"custom-tool-description\" placeholder=\"Get weather data from a local script\" />
 					</label>
 
+					<label>Website
+						<input id=\"custom-tool-website\" placeholder=\"https://example.com/tool-docs\" />
+					</label>
+
 					<label class=\"span-2\">Input Parameters JSON Schema
 						<textarea id=\"custom-tool-params\" rows=\"6\" placeholder='{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}'></textarea>
+					</label>
+
+					<label class=\"span-2\">Private User Inputs JSON
+						<textarea id=\"custom-tool-user-inputs\" rows=\"4\" placeholder='${escapeHtmlUnsafe(customToolUserInputsPlaceholder())}'></textarea>
+					</label>
+
+					<label class=\"span-2\">Release Notes
+						<textarea id=\"custom-tool-release-notes\" rows=\"3\" placeholder=\"Initial release.\"></textarea>
 					</label>
 
 					<label>Code File
@@ -3022,10 +3118,18 @@ function openCreateCustomToolModal(): void {
 					const language = (document.getElementById("custom-tool-language") as HTMLSelectElement | null)?.value || "javascript";
 					const functionName =
 						(document.getElementById("custom-tool-function-name") as HTMLInputElement | null)?.value?.trim() || "";
+					const version =
+						(document.getElementById("custom-tool-version") as HTMLInputElement | null)?.value?.trim() || "0.1.0";
 					const openaiDescription =
 						(document.getElementById("custom-tool-description") as HTMLInputElement | null)?.value?.trim() || "";
+					const websiteUrl =
+						(document.getElementById("custom-tool-website") as HTMLInputElement | null)?.value?.trim() || "";
+					const releaseNotes =
+						(document.getElementById("custom-tool-release-notes") as HTMLTextAreaElement | null)?.value?.trim() || "";
 					const paramsRaw =
 						(document.getElementById("custom-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const userInputsRaw =
+						(document.getElementById("custom-tool-user-inputs") as HTMLTextAreaElement | null)?.value?.trim() || "";
 					const visibility =
 						(document.getElementById("custom-tool-visibility") as HTMLSelectElement | null)?.value || "private";
 					const publish = visibility === "public" || visibility === "unlisted";
@@ -3044,10 +3148,20 @@ function openCreateCustomToolModal(): void {
 							return;
 						}
 					}
+					let userInputs: CustomToolUserInput[] | undefined;
+					try {
+						userInputs = parseCustomToolUserInputs(userInputsRaw);
+					} catch (err) {
+						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+						return;
+					}
 					const codeContent = await file.text();
 					const result = await window.ollama.createCustomTool({
 						name,
 						functionality,
+						version,
+						releaseNotes,
+						websiteUrl,
 						language,
 						codeFileName: file.name,
 						codeContent,
@@ -3058,6 +3172,7 @@ function openCreateCustomToolModal(): void {
 							description: openaiDescription || undefined,
 							parameters,
 						},
+						userInputs,
 					});
 					if (!result?.ok) {
 						showNotification({
@@ -3097,6 +3212,7 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 		return;
 	}
 	const params = JSON.stringify(tool.openai?.parameters || { type: "object", properties: {} }, null, 2);
+	const userInputs = JSON.stringify(tool.userInputs || [], null, 2);
 	customToolModal.open({
 		title: "Edit Custom Tool",
 		html: `
@@ -3125,6 +3241,9 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 					<label>Function Name
 						<input id=\"edit-tool-function-name\" value=\"${escapeHtmlUnsafe(tool.openai?.functionName || "")}\" />
 					</label>
+					<label>Version
+						<input id=\"edit-tool-version\" value=\"${escapeHtmlUnsafe(tool.version || "0.1.0")}\" />
+					</label>
 					<label>Visibility
 						<select id=\"edit-tool-visibility\">
 							${["private", "unlisted", "public"]
@@ -3135,11 +3254,20 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 					<label class=\"span-2\">Description
 						<input id=\"edit-tool-description\" value=\"${escapeHtmlUnsafe(tool.openai?.description || "")}\" />
 					</label>
+					<label>Website
+						<input id=\"edit-tool-website\" value=\"${escapeHtmlUnsafe(tool.websiteUrl || "")}\" />
+					</label>
 					<label>Code File Name
 						<input id=\"edit-tool-code-file\" value=\"${escapeHtmlUnsafe(tool.codeFile)}\" readonly />
 					</label>
 					<label class=\"span-2\">Input Parameters JSON Schema
 						<textarea id=\"edit-tool-params\" rows=\"6\">${escapeHtmlUnsafe(params)}</textarea>
+					</label>
+					<label class=\"span-2\">Private User Inputs JSON
+						<textarea id=\"edit-tool-user-inputs\" rows=\"4\">${escapeHtmlUnsafe(userInputs)}</textarea>
+					</label>
+					<label class=\"span-2\">Release Notes
+						<textarea id=\"edit-tool-release-notes\" rows=\"3\">${escapeHtmlUnsafe(tool.releaseNotes || "")}</textarea>
 					</label>
 					<label class=\"span-2\">Source Code
 						<textarea id=\"edit-tool-code\" class=\"custom-tool-code-editor\" rows=\"12\">${escapeHtmlUnsafe(source.code || "")}</textarea>
@@ -3162,10 +3290,20 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 							return;
 						}
 					}
+					let userInputs: CustomToolUserInput[] | undefined;
+					try {
+						userInputs = parseCustomToolUserInputs((document.getElementById("edit-tool-user-inputs") as HTMLTextAreaElement | null)?.value || "");
+					} catch (err) {
+						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+						return;
+					}
 					const result = await window.ollama.updateCustomTool({
 						id: toolId,
 						name: (document.getElementById("edit-tool-name") as HTMLInputElement | null)?.value?.trim(),
 						functionality: (document.getElementById("edit-tool-functionality") as HTMLTextAreaElement | null)?.value?.trim(),
+						version: (document.getElementById("edit-tool-version") as HTMLInputElement | null)?.value?.trim(),
+						releaseNotes: (document.getElementById("edit-tool-release-notes") as HTMLTextAreaElement | null)?.value?.trim(),
+						websiteUrl: (document.getElementById("edit-tool-website") as HTMLInputElement | null)?.value?.trim(),
 						language: (document.getElementById("edit-tool-language") as HTMLSelectElement | null)?.value,
 						codeContent: (document.getElementById("edit-tool-code") as HTMLTextAreaElement | null)?.value || "",
 						visibility: (document.getElementById("edit-tool-visibility") as HTMLSelectElement | null)?.value,
@@ -3174,6 +3312,7 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 							description: (document.getElementById("edit-tool-description") as HTMLInputElement | null)?.value?.trim(),
 							parameters,
 						},
+						userInputs,
 					});
 					if (!result?.ok) {
 						showNotification({ type: "error", message: result?.error || "Failed to save tool." });
@@ -3225,12 +3364,16 @@ function openImportCustomToolModal(prefillId = ""): void {
 						const safeId = escapeHtmlUnsafe(record.id);
 						const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
 						const safeLang = escapeHtmlUnsafe(record.language);
+						const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
+						const safeWebsite = escapeHtmlUnsafe(record.websiteUrl || "");
 						const safeRuntime = escapeHtmlUnsafe((record.requirements.runtime || []).join(", ") || "none");
 						const safeBuild = escapeHtmlUnsafe((record.requirements.build || []).join(", ") || "none");
 						preview.innerHTML = `
 							<div><strong>${safeName}</strong> (${safeId})</div>
 							<div>Author: ${safeAuthor}</div>
 							<div>Language: ${safeLang}</div>
+							<div>Version: ${safeVersion}</div>
+							${safeWebsite ? `<div>Website: ${safeWebsite}</div>` : ""}
 							<div>Runtime: ${safeRuntime}</div>
 							<div>Build: ${safeBuild}</div>
 						`;
@@ -3319,6 +3462,10 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 					<h4>Registry Tools</h4>
 					${renderCustomToolCards(registryTools, "No registry tools installed", "Import tools by UUID or publish one of your local tools.")}
 				</div>
+				<div class=\"tools-modal-section\">
+					<h4>My Uploaded Tools</h4>
+					${renderUploadedRegistryCards(cachedMyUploadedRegistryRecords)}
+				</div>
 			</div>
 		`,
 		actions: [],
@@ -3398,18 +3545,35 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 			const toolId = btn.getAttribute("data-unpublish-custom-tool");
 			if (!toolId) return;
 			const tool = cachedCustomTools.find((item) => item.id === toolId);
-			if (!tool) return;
-			if (!isToolOwnedByCurrentUser(tool)) {
+			const uploadedRecord = cachedMyUploadedRegistryRecords.find((item) => item.id === toolId);
+			if (!tool && !uploadedRecord) return;
+			if (tool && !isToolOwnedByCurrentUser(tool)) {
 				showNotification({ type: "warning", message: "Only the author can take down a registry tool." });
 				return;
 			}
-			if (!window.confirm(`Take down "${tool.name}" from the public tool registry?`)) return;
+			const toolName = tool?.name || uploadedRecord?.name || toolId;
+			if (!window.confirm(`Take down "${toolName}" from the public tool registry?`)) return;
 			const result = await window.ollama.deleteRegistryCustomTool(toolId);
 			if (!result?.ok) {
 				showNotification({ type: "error", message: result?.error || "Failed to take down tool." });
 				return;
 			}
 			showNotification({ type: "success", message: "Tool taken down from registry." });
+			await refreshCustomTools();
+			void openToolsManagerModal();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-install-uploaded-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-install-uploaded-custom-tool");
+			if (!toolId) return;
+			const result = await window.ollama.importCustomTool(toolId);
+			if (!result?.ok) {
+				showNotification({ type: "error", message: result?.error || "Failed to install registry tool." });
+				return;
+			}
+			showNotification({ type: "success", message: "Registry tool installed locally." });
 			await refreshCustomTools();
 			void openToolsManagerModal();
 		});
@@ -3464,6 +3628,14 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 
 	document.getElementById("tools-browse-web-btn")?.addEventListener("click", () => {
 		void window.utils.web_open("https://inference.js.org/tools.html");
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-open-tool-website]").forEach((link) => {
+		link.addEventListener("click", (event) => {
+			event.preventDefault();
+			const url = link.getAttribute("data-open-tool-website");
+			if (url) void window.utils.web_open(url);
+		});
 	});
 }
 
@@ -7059,8 +7231,31 @@ window.ollama.onToolCall((call) => {
 					: null;
 			const sourceCode = source?.code || "Source code could not be loaded.";
 			const sourceHash = source?.manifest?.codeHash || call?.customTool?.codeHash || "unknown";
+			const privateInputs: CustomToolUserInput[] =
+				source?.manifest?.userInputs ||
+				(Array.isArray(call?.customTool?.userInputs) ? call.customTool.userInputs : []);
 			const safeSourceHash = escapeHtmlUnsafe(sourceHash);
 			const safeCodeFile = escapeHtmlUnsafe(source?.manifest?.codeFile || "unknown file");
+			const privateInputHtml = privateInputs.length
+				? privateInputs
+						.map((input, index) => {
+							const safeLabel = escapeHtmlUnsafe(input.label || input.name);
+							const safeDescription = escapeHtmlUnsafe(input.description || "");
+							return `
+								<label class=\"custom-tool-private-input\">
+									<span>${safeLabel}${input.required === false ? "" : " *"}</span>
+									<input
+										id=\"custom-tool-private-input-${index}\"
+										type=\"${input.secret === false ? "text" : "password"}\"
+										autocomplete=\"off\"
+										data-private-input-name=\"${escapeHtmlUnsafe(input.name)}\"
+										data-private-input-required=\"${String(input.required !== false)}\" />
+									${safeDescription ? `<small>${safeDescription}</small>` : ""}
+								</label>
+							`;
+						})
+						.join("")
+				: "";
 			modal.open({
 				title: "Run Custom Tool?",
 				html: `
@@ -7101,6 +7296,7 @@ window.ollama.onToolCall((call) => {
 								html: `
 									<div class=\"custom-tool-run-review\">
 										<p><strong>${safeToolTitle}</strong> will run local code on this computer.</p>
+										${privateInputHtml ? `<div class=\"custom-tool-private-inputs\"><strong>Private user inputs</strong>${privateInputHtml}</div>` : ""}
 										<p>Type <code>RUN</code> to confirm.</p>
 										<input id=\"custom-tool-run-confirm-input\" class=\"custom-tool-run-confirm-input\" autocomplete=\"off\" />
 									</div>
@@ -7124,7 +7320,20 @@ window.ollama.onToolCall((call) => {
 												showNotification({ type: "warning", message: "Type RUN to confirm tool execution." });
 												return;
 											}
-											await window.ollama.resolveCustomToolCall(call.id, true);
+											const userInputs: Record<string, unknown> = {};
+											for (const input of Array.from(document.querySelectorAll<HTMLInputElement>("[data-private-input-name]"))) {
+												const name = input.getAttribute("data-private-input-name") || "";
+												const required = input.getAttribute("data-private-input-required") === "true";
+												if (required && !input.value.trim()) {
+													showNotification({ type: "warning", message: "Fill in required private inputs before running." });
+													return;
+												}
+												if (name && input.value) userInputs[name] = input.value;
+											}
+											await window.ollama.resolveCustomToolCall(call.id, {
+												approved: true,
+												userInputs,
+											});
 											modal.close();
 										},
 									},

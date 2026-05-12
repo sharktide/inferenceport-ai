@@ -24,10 +24,21 @@ export type CustomToolParameterSchema = {
 	additionalProperties?: boolean;
 };
 
+export type CustomToolUserInput = {
+	name: string;
+	label?: string;
+	description?: string;
+	required?: boolean;
+	secret?: boolean;
+};
+
 export type CustomToolManifest = {
 	id: string;
 	name: string;
 	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language: CustomToolLanguage;
 	codeFile: string;
 	codeHash?: string;
@@ -42,6 +53,7 @@ export type CustomToolManifest = {
 		runtime: string[];
 		build: string[];
 	};
+	userInputs?: CustomToolUserInput[];
 	visibility: CustomToolVisibility;
 	published: boolean;
 	createdAt: string;
@@ -56,6 +68,9 @@ export type CustomToolManifest = {
 export type CustomToolCreateInput = {
 	name: string;
 	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language: CustomToolLanguage;
 	codeFileName: string;
 	codeContent: string;
@@ -64,6 +79,7 @@ export type CustomToolCreateInput = {
 		description?: string;
 		parameters?: unknown;
 	};
+	userInputs?: unknown;
 	visibility?: CustomToolVisibility;
 	publishToRegistry?: boolean;
 };
@@ -72,6 +88,9 @@ export type CustomToolUpdateInput = {
 	id: string;
 	name?: string;
 	functionality?: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language?: CustomToolLanguage;
 	codeFileName?: string;
 	codeContent?: string;
@@ -80,6 +99,7 @@ export type CustomToolUpdateInput = {
 		description?: string;
 		parameters?: unknown;
 	};
+	userInputs?: unknown;
 	visibility?: CustomToolVisibility;
 };
 
@@ -87,6 +107,9 @@ export type CustomToolRegistryRecord = {
 	id: string;
 	name: string;
 	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
 	language: CustomToolLanguage;
 	authorEmail: string;
 	authorUserId?: string | null;
@@ -98,6 +121,7 @@ export type CustomToolRegistryRecord = {
 		runtime: string[];
 		build: string[];
 	};
+	userInputs?: CustomToolUserInput[];
 	openai: {
 		functionName: string;
 		description: string;
@@ -227,6 +251,54 @@ function normalizeParametersSchema(value: unknown): CustomToolParameterSchema {
 	};
 }
 
+function normalizeVersion(value: unknown, fallback = "0.1.0"): string {
+	const raw = typeof value === "string" ? value.trim() : "";
+	const version = raw || fallback;
+	return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)
+		? version.slice(0, 64)
+		: fallback;
+}
+
+function normalizeOptionalText(value: unknown, maxLength: number): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	return trimmed ? trimmed.slice(0, maxLength) : undefined;
+}
+
+function normalizeWebsiteUrl(value: unknown): string | undefined {
+	const raw = normalizeOptionalText(value, 512);
+	if (!raw) return undefined;
+	try {
+		const parsed = new URL(raw);
+		return parsed.protocol === "https:" ? parsed.toString() : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function normalizeUserInputs(value: unknown): CustomToolUserInput[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	const inputs: CustomToolUserInput[] = [];
+	for (const item of value) {
+		if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+		const record = item as Record<string, unknown>;
+		const name = sanitizeFunctionName(String(record.name || "")).slice(0, 64);
+		if (!name || seen.has(name)) continue;
+		seen.add(name);
+		const label = normalizeOptionalText(record.label, 80);
+		const description = normalizeOptionalText(record.description, 240);
+		inputs.push({
+			name,
+			...(label ? { label } : {}),
+			...(description ? { description } : {}),
+			required: record.required !== false,
+			secret: record.secret !== false,
+		});
+	}
+	return inputs.slice(0, 20);
+}
+
 function readJsonFile<T>(filePath: string): T {
 	const raw = fs.readFileSync(filePath, "utf-8");
 	return JSON.parse(raw) as T;
@@ -345,11 +417,17 @@ export function getLocalCustomToolSourceById(toolId: string): CustomToolWithSour
 }
 
 export function toToolDefinition(manifest: CustomToolManifest): ToolDefinition {
+	const userInputNames = (manifest.userInputs || [])
+		.map((input) => input.label || input.name)
+		.filter(Boolean);
+	const userInputNote = userInputNames.length
+		? ` The app will ask the user privately for: ${userInputNames.join(", ")}. Do not ask for or guess those values.`
+		: "";
 	return {
 		type: "function",
 		function: {
 			name: manifest.openai.functionName,
-			description: manifest.openai.description,
+			description: `${manifest.openai.description}${userInputNote}`,
 			parameters: manifest.openai.parameters,
 		},
 	};
@@ -426,6 +504,23 @@ export async function publishCustomToolToRegistry(
 export async function fetchRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
 	try {
 		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/tools`);
+		if (!response.ok) return [];
+		const payload = (await response.json()) as {
+			tools?: CustomToolRegistryRecord[];
+		};
+		return Array.isArray(payload.tools) ? payload.tools : [];
+	} catch {
+		return [];
+	}
+}
+
+export async function fetchMyRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
+	try {
+		const headers = await getLightningAuthHeaders();
+		if (!headers.Authorization) return [];
+		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/my-tools`, {
+			headers,
+		});
 		if (!response.ok) return [];
 		const payload = (await response.json()) as {
 			tools?: CustomToolRegistryRecord[];
@@ -514,6 +609,9 @@ export async function createCustomTool(
 ): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
 	const name = input.name?.trim();
 	const functionality = input.functionality?.trim();
+	const version = normalizeVersion(input.version);
+	const releaseNotes = normalizeOptionalText(input.releaseNotes, 4000);
+	const websiteUrl = normalizeWebsiteUrl(input.websiteUrl);
 	const language = input.language;
 	const codeContent = typeof input.codeContent === "string" ? input.codeContent : "";
 
@@ -572,6 +670,9 @@ export async function createCustomTool(
 		id: toolId,
 		name,
 		functionality,
+		version,
+		...(releaseNotes ? { releaseNotes } : {}),
+		...(websiteUrl ? { websiteUrl } : {}),
 		language,
 		codeFile,
 		codeHash: hashCodeContent(codeContent),
@@ -586,6 +687,7 @@ export async function createCustomTool(
 			runtime: [...LANGUAGE_REQUIREMENTS[language].runtime],
 			build: [...LANGUAGE_REQUIREMENTS[language].build],
 		},
+		userInputs: normalizeUserInputs(input.userInputs),
 		visibility,
 		published: false,
 		createdAt: now,
@@ -636,6 +738,18 @@ export async function updateCustomTool(
 		typeof input.functionality === "string"
 			? input.functionality.trim()
 			: existing.functionality;
+	const version =
+		typeof input.version === "string"
+			? normalizeVersion(input.version, existing.version || "0.1.0")
+			: existing.version || "0.1.0";
+	const releaseNotes =
+		typeof input.releaseNotes === "string"
+			? normalizeOptionalText(input.releaseNotes, 4000)
+			: existing.releaseNotes;
+	const websiteUrl =
+		typeof input.websiteUrl === "string"
+			? normalizeWebsiteUrl(input.websiteUrl)
+			: existing.websiteUrl;
 	const language = input.language || existing.language;
 	if (!name) return { ok: false, error: "Tool name is required." };
 	if (!functionality) return { ok: false, error: "Functionality is required." };
@@ -698,6 +812,9 @@ export async function updateCustomTool(
 		...existing,
 		name,
 		functionality,
+		version,
+		...(releaseNotes ? { releaseNotes } : {}),
+		...(websiteUrl ? { websiteUrl } : {}),
 		language,
 		codeFile,
 		openai: {
@@ -713,6 +830,10 @@ export async function updateCustomTool(
 			runtime: [...LANGUAGE_REQUIREMENTS[language].runtime],
 			build: [...LANGUAGE_REQUIREMENTS[language].build],
 		},
+		userInputs:
+			typeof input.userInputs === "undefined"
+				? existing.userInputs || []
+				: normalizeUserInputs(input.userInputs),
 		visibility,
 		updatedAt: now,
 	};
@@ -875,10 +996,22 @@ function runCommand(
 export async function executeCustomTool(
 	manifest: CustomToolManifest,
 	args: Record<string, unknown>,
+	userInputs: Record<string, unknown> = {},
 ): Promise<string> {
 	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 	const { code, codeHash } = readVerifiedToolSource(manifest);
-	const cliArgs = appendCliArgs(args);
+	const executionArgs = { ...args };
+	for (const input of manifest.userInputs || []) {
+		const value = userInputs[input.name];
+		if (typeof value === "undefined" || value === "") {
+			if (input.required) {
+				throw new Error(`Missing required private input: ${input.label || input.name}`);
+			}
+			continue;
+		}
+		executionArgs[input.name] = value;
+	}
+	const cliArgs = appendCliArgs(executionArgs);
 	const tempDir = createExecutionTempDir(manifest.id);
 	const sourcePath = path.join(tempDir, path.basename(manifest.codeFile));
 	fs.writeFileSync(sourcePath, code, "utf-8");
@@ -1077,12 +1210,17 @@ export async function createCustomToolFromRegistryRecord(
 			id: record.id,
 			name: record.name,
 			functionality: record.functionality,
+			version: record.version || "0.1.0",
+			...(record.releaseNotes ? { releaseNotes: record.releaseNotes } : {}),
+			...(record.websiteUrl ? { websiteUrl: record.websiteUrl } : {}),
 			language: record.language,
 			codeFile: path.basename(record.files.codePath),
 			codeHash: hashCodeContent(code),
 			authorEmail: record.authorEmail,
+			...(record.authorUserId ? { authorUserId: record.authorUserId } : {}),
 			openai: record.openai,
 			requirements: record.requirements,
+			userInputs: record.userInputs || [],
 			visibility: record.visibility,
 			published: true,
 			createdAt: record.publishedAt,

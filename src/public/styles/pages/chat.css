@@ -3489,6 +3489,42 @@ a.media-choice-btn:focus-visible {
 	font-size: 13px;
 }
 
+.custom-tool-private-inputs {
+	display: grid;
+	gap: 8px;
+	padding: 10px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--bg-light) 92%, var(--gray) 8%);
+}
+
+.custom-tool-private-input {
+	display: grid;
+	gap: 5px;
+}
+
+.custom-tool-private-input span {
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.custom-tool-private-input small {
+	color: color-mix(in srgb, var(--text-dark) 62%, transparent);
+	font-size: 11px;
+}
+
+.custom-tool-private-input input {
+	width: 100%;
+	box-sizing: border-box;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 14%, transparent);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--bg-light) 96%, var(--gray) 4%);
+	color: var(--text-dark);
+	padding: 9px 10px;
+	font: inherit;
+	font-size: 13px;
+}
+
 [data-theme="dark"] .tools-flow-card,
 [data-theme="dark"] .custom-tool-item,
 [data-theme="dark"] .custom-tool-empty {

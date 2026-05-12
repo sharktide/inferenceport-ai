@@ -159,8 +159,13 @@ const pendingAudioToolResolvers = new Map<
 >();
 const pendingCustomToolResolvers = new Map<
 	string,
-	PendingToolResolver<boolean>
+	PendingToolResolver<CustomToolApproval>
 >();
+
+type CustomToolApproval = {
+	approved: boolean;
+	userInputs: Record<string, unknown>;
+};
 
 function normalizeImageMode(value: unknown): ImageMode {
     if (typeof value === "string") {
@@ -367,11 +372,11 @@ function waitForCustomToolApproval(
 	toolCallId: string,
 	abortSignal: AbortSignal,
 	timeoutMs = 90000,
-): Promise<boolean | null> {
+): Promise<CustomToolApproval | null> {
 	return waitForToolRequestInput(
 		pendingCustomToolResolvers,
 		toolCallId,
-		false,
+		{ approved: false, userInputs: {} },
 		abortSignal,
 		timeoutMs,
 	);
@@ -848,7 +853,20 @@ export default function registerChatStream() {
                 if (!toolCallId || typeof toolCallId !== "string") return false;
                 const pending = pendingCustomToolResolvers.get(toolCallId);
                 if (!pending) return false;
-                pending.resolve(Boolean(approved));
+				const userInputs =
+					approved &&
+					typeof approved === "object" &&
+					!Array.isArray(approved) &&
+					(approved as { userInputs?: unknown }).userInputs &&
+					typeof (approved as { userInputs?: unknown }).userInputs === "object" &&
+					!Array.isArray((approved as { userInputs?: unknown }).userInputs)
+						? ((approved as { userInputs: Record<string, unknown> }).userInputs)
+						: {};
+				const allowed =
+					typeof approved === "boolean"
+						? approved
+						: Boolean((approved as { approved?: unknown })?.approved);
+                pending.resolve({ approved: allowed, userInputs });
                 return true;
             },
         );
@@ -1274,6 +1292,8 @@ export default function registerChatStream() {
 									authorEmail: customTool.authorEmail,
 									language: customTool.language,
 									codeHash: customTool.codeHash,
+									userInputs: customTool.userInputs || [],
+									version: customTool.version,
 								},
 							});
 
@@ -1284,7 +1304,7 @@ export default function registerChatStream() {
 
 							abortIfNeeded();
 
-							if (!approved) {
+							if (!approved?.approved) {
 								toolState = "canceled";
 								toolResult =
 									"Custom tool execution was canceled by the user.";
@@ -1300,9 +1320,15 @@ export default function registerChatStream() {
 										authorEmail: customTool.authorEmail,
 										language: customTool.language,
 										codeHash: customTool.codeHash,
+										userInputs: customTool.userInputs || [],
+										version: customTool.version,
 									},
 								});
-								toolResult = await executeCustomTool(customTool, args);
+								toolResult = await executeCustomTool(
+									customTool,
+									args,
+									approved.userInputs,
+								);
 							}
 						}
 
