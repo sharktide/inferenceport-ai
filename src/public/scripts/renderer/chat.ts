@@ -3470,13 +3470,13 @@ function openImportCustomToolModal(prefillId = ""): void {
 			<div class=\"custom-tool-preview-row\">Author: ${safeAuthor}</div>
 			<div class=\"custom-tool-preview-row\">Language: ${safeLang}</div>
 			<div class=\"custom-tool-preview-row\">Version: ${safeVersion}</div>
-			${safeWebsite ? `<div class=\"custom-tool-preview-row\">Website: ${safeWebsite}</div>` : ""}
+			${safeWebsite ? `<div class=\"custom-tool-preview-row\">Website: <a href=\"javascript:window.utils.web_open('${safeWebsite}')\">${safeWebsite}</a></div>` : ""}
 			<div class=\"custom-tool-preview-row\">Runtime: ${safeRuntime}</div>
 			<div class=\"custom-tool-preview-row\">Build: ${safeBuild}</div>
 		`;
 	};
 	customToolModal.close();
-	modal.open({
+	customToolModal.open({
 		title: "Import Tool by ID",
 		html: `
 			<div class=\"custom-tool-form\">
@@ -3516,7 +3516,7 @@ function openImportCustomToolModal(prefillId = ""): void {
 					}
 					updateToolButtonActiveState();
 					showNotification({ type: "success", message: "Tool imported." });
-					modal.close();
+					customToolModal.close();
 					void openToolsManagerModal();
 				},
 			},

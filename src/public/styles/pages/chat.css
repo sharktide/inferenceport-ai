@@ -3442,10 +3442,6 @@ a.media-choice-btn:focus-visible {
 	white-space: pre-wrap;
 }
 
-.custom-tool-preview-row {
-	margin: 0 0 4px;
-}
-
 .custom-tool-preview-row:last-child {
 	margin-bottom: 0;
 }
