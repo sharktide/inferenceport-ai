@@ -1162,7 +1162,19 @@ export function installWebSocketTransportFallback(): void {
 			version?: string;
 			releaseNotes?: string;
 			websiteUrl?: string;
-			language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+			language:
+				| "javascript"
+				| "typescript"
+				| "python"
+				| "cpp"
+				| "c"
+				| "rust"
+				| "java"
+				| "go"
+				| "ruby"
+				| "php"
+				| "swift"
+				| "powershell";
 			codeFileName: string;
 			codeContent: string;
 			visibility?: "private" | "public" | "unlisted";
@@ -1191,7 +1203,19 @@ export function installWebSocketTransportFallback(): void {
 			version?: string;
 			releaseNotes?: string;
 			websiteUrl?: string;
-			language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+			language?:
+				| "javascript"
+				| "typescript"
+				| "python"
+				| "cpp"
+				| "c"
+				| "rust"
+				| "java"
+				| "go"
+				| "ruby"
+				| "php"
+				| "swift"
+				| "powershell";
 			codeFileName?: string;
 			codeContent?: string;
 			visibility?: "private" | "public" | "unlisted";
@@ -1223,6 +1247,11 @@ export function installWebSocketTransportFallback(): void {
 		getCustomToolRegistryItem: async (toolId: string) =>
 			invokeOrDefault<CustomToolRegistryRecord | null>(
 				"ollama:get-custom-tool-registry-item",
+				[toolId],
+			),
+		getCustomToolRegistrySource: async (toolId: string) =>
+			invokeOrDefault<{ manifest: CustomToolManifest; code: string } | null>(
+				"ollama:get-custom-tool-registry-source",
 				[toolId],
 			),
 		listCustomToolRegistry: async () =>

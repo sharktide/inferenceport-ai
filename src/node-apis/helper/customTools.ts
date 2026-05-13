@@ -9,11 +9,17 @@ import { getLightningClientId } from "./lightningClient.js";
 
 export type CustomToolLanguage =
 	| "javascript"
+	| "typescript"
 	| "python"
 	| "cpp"
 	| "c"
 	| "rust"
-	| "java";
+	| "java"
+	| "go"
+	| "ruby"
+	| "php"
+	| "swift"
+	| "powershell";
 
 export type CustomToolVisibility = "private" | "public" | "unlisted";
 
@@ -142,11 +148,17 @@ const LIGHTNING_BASE_URL = "https://sharktide-lightning.hf.space";
 
 const LANGUAGE_TO_EXT: Record<CustomToolLanguage, string> = {
 	javascript: ".js",
+	typescript: ".ts",
 	python: ".py",
 	cpp: ".cpp",
 	c: ".c",
 	rust: ".rs",
 	java: ".java",
+	go: ".go",
+	ruby: ".rb",
+	php: ".php",
+	swift: ".swift",
+	powershell: ".ps1",
 };
 
 const LANGUAGE_REQUIREMENTS: Record<
@@ -154,11 +166,17 @@ const LANGUAGE_REQUIREMENTS: Record<
 	{ runtime: string[]; build: string[] }
 > = {
 	javascript: { runtime: ["node"], build: [] },
+	typescript: { runtime: ["bun", "deno", "tsx"], build: [] },
 	python: { runtime: ["python3"], build: [] },
 	cpp: { runtime: ["clang++", "g++"], build: ["clang++", "g++"] },
 	c: { runtime: ["gcc", "clang"], build: ["gcc", "clang"] },
 	rust: { runtime: ["rustc"], build: ["rustc"] },
 	java: { runtime: ["java"], build: [] },
+	go: { runtime: ["go"], build: [] },
+	ruby: { runtime: ["ruby"], build: [] },
+	php: { runtime: ["php"], build: [] },
+	swift: { runtime: ["swift"], build: [] },
+	powershell: { runtime: ["pwsh"], build: [] },
 };
 
 const RESERVED_FUNCTION_NAMES = new Set([
@@ -325,11 +343,17 @@ function getLanguageFromFileName(fileName: string): CustomToolLanguage | null {
 	if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) {
 		return "javascript";
 	}
+	if (lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".cts")) return "typescript";
 	if (lower.endsWith(".py")) return "python";
 	if (lower.endsWith(".cpp") || lower.endsWith(".cc") || lower.endsWith(".cxx")) return "cpp";
 	if (lower.endsWith(".c")) return "c";
 	if (lower.endsWith(".rs")) return "rust";
 	if (lower.endsWith(".java")) return "java";
+	if (lower.endsWith(".go")) return "go";
+	if (lower.endsWith(".rb")) return "ruby";
+	if (lower.endsWith(".php")) return "php";
+	if (lower.endsWith(".swift")) return "swift";
+	if (lower.endsWith(".ps1")) return "powershell";
 	return null;
 }
 
@@ -545,6 +569,27 @@ export async function fetchRegistryCustomToolById(
 			tool?: CustomToolRegistryRecord;
 		};
 		return payload.tool || null;
+	} catch {
+		return null;
+	}
+}
+
+export async function fetchRegistryCustomToolSourceById(
+	toolId: string,
+): Promise<{ manifest: CustomToolManifest; code: string } | null> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) return null;
+	try {
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}/source`,
+		);
+		if (!response.ok) return null;
+		const payload = (await response.json().catch(() => ({}))) as {
+			manifest?: CustomToolManifest;
+			code?: string;
+		};
+		if (!payload.manifest || typeof payload.code !== "string") return null;
+		return { manifest: payload.manifest, code: payload.code };
 	} catch {
 		return null;
 	}
@@ -777,14 +822,13 @@ export async function updateCustomTool(
 
 	const visibility = input.visibility || existing.visibility;
 	const codeWasProvided = typeof input.codeContent === "string";
-	const codeFile = existing.codeFile;
-	const expectedLanguage = getLanguageFromFileName(codeFile);
-	if (expectedLanguage && expectedLanguage !== language) {
-		return {
-			ok: false,
-			error: `Code file extension does not match ${language}.`,
-		};
-	}
+	const currentCodeFile = existing.codeFile;
+	const desiredExt = LANGUAGE_TO_EXT[language];
+	const currentExt = path.extname(currentCodeFile).toLowerCase();
+	const codeFile =
+		currentExt === desiredExt
+			? currentCodeFile
+			: `${path.basename(currentCodeFile, currentExt)}${desiredExt}`;
 	const toolDir = path.join(getCustomToolsRoot(), toolId);
 	ensureDirSync(toolDir);
 
@@ -800,6 +844,13 @@ export async function updateCustomTool(
 			codeHash = readVerifiedToolSource(existing).codeHash;
 		} catch {
 			codeHash = undefined;
+		}
+	}
+	if (codeFile !== currentCodeFile) {
+		const oldPath = path.join(toolDir, currentCodeFile);
+		const newPath = path.join(toolDir, codeFile);
+		if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+			fs.renameSync(oldPath, newPath);
 		}
 	}
 
@@ -1034,6 +1085,28 @@ export async function executeCustomTool(
 		return result.stdout;
 	}
 
+	// TypeScript
+	if (manifest.language === "typescript") {
+		const attempts: Array<{ command: string; args: string[] }> = [
+			{ command: "bun", args: [sourcePath, ...cliArgs] },
+			{ command: "deno", args: ["run", "--quiet", sourcePath, ...cliArgs] },
+			{ command: "tsx", args: [sourcePath, ...cliArgs] },
+		];
+		let lastErr: Error | null = null;
+		for (const attempt of attempts) {
+			try {
+				const result = await runCommand(attempt.command, attempt.args, toolDir);
+				if (result.code === 0) return result.stdout;
+				lastErr = new Error(
+					result.stderr.trim() || `Tool exited with code ${String(result.code)}`,
+				);
+			} catch (err) {
+				lastErr = err instanceof Error ? err : new Error(String(err));
+			}
+		}
+		throw lastErr || new Error("Failed to execute TypeScript tool.");
+	}
+
 	// Python
 	if (manifest.language === "python") {
 		const cmd = process.platform === "win32" ? "python" : "python3";
@@ -1065,6 +1138,52 @@ export async function executeCustomTool(
 			);
 		}
 
+		return result.stdout;
+	}
+
+	// Go
+	if (manifest.language === "go") {
+		const result = await runCommand("go", ["run", sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// Ruby
+	if (manifest.language === "ruby") {
+		const result = await runCommand("ruby", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// PHP
+	if (manifest.language === "php") {
+		const result = await runCommand("php", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// Swift
+	if (manifest.language === "swift") {
+		const result = await runCommand("swift", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// PowerShell
+	if (manifest.language === "powershell") {
+		const command = process.platform === "win32" ? "powershell" : "pwsh";
+		const result = await runCommand(command, ["-File", sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
 		return result.stdout;
 	}
 

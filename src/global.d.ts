@@ -135,7 +135,19 @@ declare global {
 		version?: string;
 		releaseNotes?: string;
 		websiteUrl?: string;
-		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
 		codeFile: string;
 		codeHash?: string;
 		authorEmail: string;
@@ -181,7 +193,19 @@ declare global {
 		version?: string;
 		releaseNotes?: string;
 		websiteUrl?: string;
-		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
 		authorEmail: string;
 		authorUserId?: string | null;
 		codeHash?: string;
@@ -282,7 +306,19 @@ declare global {
 				version?: string;
 				releaseNotes?: string;
 				websiteUrl?: string;
-				language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+				language:
+					| "javascript"
+					| "typescript"
+					| "python"
+					| "cpp"
+					| "c"
+					| "rust"
+					| "java"
+					| "go"
+					| "ruby"
+					| "php"
+					| "swift"
+					| "powershell";
 				codeFileName: string;
 				codeContent: string;
 				visibility?: "private" | "public" | "unlisted";
@@ -309,7 +345,19 @@ declare global {
 				version?: string;
 				releaseNotes?: string;
 				websiteUrl?: string;
-				language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+				language?:
+					| "javascript"
+					| "typescript"
+					| "python"
+					| "cpp"
+					| "c"
+					| "rust"
+					| "java"
+					| "go"
+					| "ruby"
+					| "php"
+					| "swift"
+					| "powershell";
 				codeFileName?: string;
 				codeContent?: string;
 				visibility?: "private" | "public" | "unlisted";
@@ -336,6 +384,7 @@ declare global {
 				manifest?: CustomToolManifest;
 			}>;
 			getCustomToolRegistryItem: (toolId: string) => Promise<CustomToolRegistryRecord | null>;
+			getCustomToolRegistrySource: (toolId: string) => Promise<{ manifest: CustomToolManifest; code: string } | null>;
 			listCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
 			listMyCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
 			deleteCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;

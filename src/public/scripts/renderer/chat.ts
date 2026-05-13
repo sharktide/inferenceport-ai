@@ -66,11 +66,17 @@ type AttachedFile = AttachedTextFile | AttachedImageFile;
 
 type CustomToolLanguage =
 	| "javascript"
+	| "typescript"
 	| "python"
 	| "cpp"
 	| "c"
 	| "rust"
-	| "java";
+	| "java"
+	| "go"
+	| "ruby"
+	| "php"
+	| "swift"
+	| "powershell";
 
 type CustomToolManifest = {
 	id: string;
@@ -1323,6 +1329,12 @@ function openUpgradeRequiresAccountDialog(kind: keyof typeof LIMIT_COPY) {
 				onClick: () => upgradeModal.close(),
 			},
 		],
+	});
+	const versionInput = document.getElementById("edit-tool-version") as HTMLInputElement | null;
+	versionInput?.addEventListener("input", () => {
+		allowSemverBypass = false;
+		const warning = document.getElementById("edit-tool-semver-warning");
+		if (warning) warning.textContent = "";
 	});
 }
 
@@ -2869,6 +2881,84 @@ function getRegistryRecordForTool(toolId: string): CustomToolRegistryRecord | un
 	return cachedCustomToolRegistryRecords.find((record) => record.id === toolId);
 }
 
+const CUSTOM_TOOL_LANGUAGES: Array<{ value: CustomToolLanguage; label: string }> = [
+	{ value: "javascript", label: "JavaScript (Node)" },
+	{ value: "typescript", label: "TypeScript" },
+	{ value: "python", label: "Python" },
+	{ value: "go", label: "Go" },
+	{ value: "ruby", label: "Ruby" },
+	{ value: "php", label: "PHP" },
+	{ value: "java", label: "Java" },
+	{ value: "c", label: "C" },
+	{ value: "cpp", label: "C++" },
+	{ value: "rust", label: "Rust" },
+	{ value: "swift", label: "Swift" },
+	{ value: "powershell", label: "PowerShell" },
+];
+
+function parseSemver(versionRaw?: string): { major: number; minor: number; patch: number; prerelease: string[] } | null {
+	const version = (versionRaw || "0.0.0").trim();
+	const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+	if (!match) return null;
+	return {
+		major: Number(match[1]),
+		minor: Number(match[2]),
+		patch: Number(match[3]),
+		prerelease: match[4] ? match[4].split(".") : [],
+	};
+}
+
+function compareSemver(aRaw?: string, bRaw?: string): number {
+	const a = parseSemver(aRaw);
+	const b = parseSemver(bRaw);
+	if (!a || !b) return 0;
+	if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+	if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+	if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+	const aPre = a.prerelease;
+	const bPre = b.prerelease;
+	if (!aPre.length && bPre.length) return 1;
+	if (aPre.length && !bPre.length) return -1;
+	if (!aPre.length && !bPre.length) return 0;
+	const len = Math.max(aPre.length, bPre.length);
+	for (let i = 0; i < len; i++) {
+		const av = aPre[i];
+		const bv = bPre[i];
+		if (typeof av === "undefined") return -1;
+		if (typeof bv === "undefined") return 1;
+		const an = /^\d+$/.test(av) ? Number(av) : NaN;
+		const bn = /^\d+$/.test(bv) ? Number(bv) : NaN;
+		if (!Number.isNaN(an) && !Number.isNaN(bn) && an !== bn) return an > bn ? 1 : -1;
+		if (Number.isNaN(an) && Number.isNaN(bn) && av !== bv) return av > bv ? 1 : -1;
+		if (Number.isNaN(an) && !Number.isNaN(bn)) return 1;
+		if (!Number.isNaN(an) && Number.isNaN(bn)) return -1;
+	}
+	return 0;
+}
+
+function shouldShowPushLocalUpdate(tool: CustomToolManifest): boolean {
+	const record = getRegistryRecordForTool(tool.id);
+	if (!tool.published || !record) return false;
+	return compareSemver(tool.version || "0.1.0", record.version || "0.1.0") > 0;
+}
+
+function buildCodeDiffSummary(oldCode: string, newCode: string, maxLines = 80): string {
+	const oldLines = oldCode.split(/\r?\n/);
+	const newLines = newCode.split(/\r?\n/);
+	const out: string[] = [];
+	const limit = Math.max(oldLines.length, newLines.length);
+	for (let i = 0; i < limit && out.length < maxLines; i++) {
+		const before = oldLines[i] ?? "";
+		const after = newLines[i] ?? "";
+		if (before === after) continue;
+		out.push(`- ${before}`);
+		out.push(`+ ${after}`);
+	}
+	if (!out.length) return "No source differences detected.";
+	if (limit > maxLines) out.push("...diff truncated...");
+	return out.join("\n");
+}
+
 function isRegistryRecordNewer(tool: CustomToolManifest): boolean {
 	const record = getRegistryRecordForTool(tool.id);
 	if (!record?.updatedAt) return false;
@@ -2945,7 +3035,7 @@ function renderCustomToolCards(
 			const ownerActions = ownedByCurrentUser
 				? `
 					${toolActionButtonHtml("edit-custom-tool", tool.id, `Edit`, "edit")}
-					${toolActionButtonHtml("publish-custom-tool", tool.id, `${publishLabel}`, "upload")}
+					${!tool.published || shouldShowPushLocalUpdate(tool) ? toolActionButtonHtml("publish-custom-tool", tool.id, `${publishLabel}`, "upload") : ""}
 					${tool.published ? toolActionButtonHtml("unpublish-custom-tool", tool.id, `Take down`, "unpublish") : ""}
 				`
 				: "";
@@ -3006,6 +3096,8 @@ function renderUploadedRegistryCards(records: CustomToolRegistryRecord[]): strin
 			const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
 			const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
 			const installed = localIds.has(record.id);
+			const installedTool = cachedCustomTools.find((tool) => tool.id === record.id);
+			const canPush = Boolean(installedTool && shouldShowPushLocalUpdate(installedTool));
 			return `
 				<div class=\"custom-tool-item\" data-registry-tool-id=\"${safeId}\">
 					<div class=\"custom-tool-main\">
@@ -3023,7 +3115,7 @@ function renderUploadedRegistryCards(records: CustomToolRegistryRecord[]): strin
 						</div>
 					</div>
 					<div class=\"custom-tool-actions\">
-						${installed ? toolActionButtonHtml("publish-custom-tool", record.id, "Push local update", "upload") : toolActionButtonHtml("install-uploaded-custom-tool", record.id, "Install locally", "download")}
+						${installed ? (canPush ? toolActionButtonHtml("publish-custom-tool", record.id, "Push local update", "upload") : "") : toolActionButtonHtml("install-uploaded-custom-tool", record.id, "Install locally", "download")}
 						${toolActionButtonHtml("unpublish-custom-tool", record.id, "Take down", "unpublish")}
 					</div>
 				</div>
@@ -3052,12 +3144,7 @@ function openCreateCustomToolModal(): void {
 
 					<label>Language
 						<select id=\"custom-tool-language\">
-							<option value=\"javascript\">JavaScript (Node)</option>
-							<option value=\"python\">Python</option>
-							<option value=\"cpp\">C++</option>
-							<option value=\"c\">C</option>
-							<option value=\"rust\">Rust</option>
-							<option value=\"java\">Java</option>
+							${CUSTOM_TOOL_LANGUAGES.map((language) => `<option value=\"${language.value}\">${language.label}</option>`).join("")}
 						</select>
 					</label>
 
@@ -3213,6 +3300,8 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 	}
 	const params = JSON.stringify(tool.openai?.parameters || { type: "object", properties: {} }, null, 2);
 	const userInputs = JSON.stringify(tool.userInputs || [], null, 2);
+	const originalVersion = tool.version || "0.1.0";
+	let allowSemverBypass = false;
 	customToolModal.open({
 		title: "Edit Custom Tool",
 		html: `
@@ -3230,8 +3319,7 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 					</label>
 					<label>Language
 						<select id=\"edit-tool-language\">
-							${["javascript", "python", "cpp", "c", "rust", "java"]
-								.map((language) => `<option value=\"${language}\" ${tool.language === language ? "selected" : ""}>${language}</option>`)
+							${CUSTOM_TOOL_LANGUAGES.map((language) => `<option value=\"${language.value}\" ${tool.language === language.value ? "selected" : ""}>${language.label}</option>`)
 								.join("")}
 						</select>
 					</label>
@@ -3297,6 +3385,22 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
 						return;
 					}
+					const nextVersion = (document.getElementById("edit-tool-version") as HTMLInputElement | null)?.value?.trim() || "0.1.0";
+					if (!allowSemverBypass && compareSemver(nextVersion, originalVersion) <= 0) {
+						const actions = document.querySelector("#custom-tool-modal .modal-actions");
+						let warning = document.getElementById("edit-tool-semver-warning");
+						if (!warning && actions) {
+							warning = document.createElement("div");
+							warning.id = "edit-tool-semver-warning";
+							warning.className = "custom-tool-save-warning";
+							actions.appendChild(warning);
+						}
+						if (warning) {
+							warning.textContent = `Version has not increased (${originalVersion} -> ${nextVersion}). Click Save again to continue anyway.`;
+						}
+						allowSemverBypass = true;
+						return;
+					}
 					const result = await window.ollama.updateCustomTool({
 						id: toolId,
 						name: (document.getElementById("edit-tool-name") as HTMLInputElement | null)?.value?.trim(),
@@ -3331,6 +3435,46 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 
 function openImportCustomToolModal(prefillId = ""): void {
 	const safePrefill = escapeHtmlUnsafe(prefillId);
+	let fetchToken = 0;
+	const runPreviewFetch = async () => {
+		const id = (document.getElementById("custom-tool-import-id") as HTMLInputElement | null)?.value?.trim() || "";
+		const preview = document.getElementById("custom-tool-import-preview") as HTMLDivElement | null;
+		if (!preview) return;
+		if (!id) {
+			preview.innerHTML = "";
+			return;
+		}
+		if (!isUuidToolId(id)) {
+			preview.textContent = "Tool ID must be a UUID.";
+			return;
+		}
+		const token = ++fetchToken;
+		preview.textContent = "Loading...";
+		const record = await window.ollama.getCustomToolRegistryItem(id);
+		if (token !== fetchToken) return;
+		if (!record) {
+			preview.textContent = "Tool not found.";
+			return;
+		}
+		const safeName = escapeHtmlUnsafe(record.name);
+		const safeId = escapeHtmlUnsafe(record.id);
+		const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
+		const safeLang = escapeHtmlUnsafe(record.language);
+		const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
+		const safeWebsite = escapeHtmlUnsafe(record.websiteUrl || "");
+		const safeRuntime = escapeHtmlUnsafe((record.requirements.runtime || []).join(", ") || "none");
+		const safeBuild = escapeHtmlUnsafe((record.requirements.build || []).join(", ") || "none");
+		preview.innerHTML = `
+			<div class=\"custom-tool-preview-row\"><strong>${safeName}</strong></div>
+			<div class=\"custom-tool-preview-row custom-tool-preview-id\">${safeId}</div>
+			<div class=\"custom-tool-preview-row\">Author: ${safeAuthor}</div>
+			<div class=\"custom-tool-preview-row\">Language: ${safeLang}</div>
+			<div class=\"custom-tool-preview-row\">Version: ${safeVersion}</div>
+			${safeWebsite ? `<div class=\"custom-tool-preview-row\">Website: ${safeWebsite}</div>` : ""}
+			<div class=\"custom-tool-preview-row\">Runtime: ${safeRuntime}</div>
+			<div class=\"custom-tool-preview-row\">Build: ${safeBuild}</div>
+		`;
+	};
 	customToolModal.close();
 	modal.open({
 		title: "Import Tool by ID",
@@ -3345,40 +3489,7 @@ function openImportCustomToolModal(prefillId = ""): void {
 			{
 				id: "custom-tool-import-preview-btn",
 				label: "Fetch Info",
-				onClick: async () => {
-					const id = (document.getElementById("custom-tool-import-id") as HTMLInputElement | null)?.value?.trim() || "";
-					if (!id) return;
-					if (!isUuidToolId(id)) {
-						showNotification({ type: "warning", message: "Tool ID must be a UUID." });
-						return;
-					}
-					const preview = document.getElementById("custom-tool-import-preview") as HTMLDivElement | null;
-					if (preview) preview.textContent = "Loading...";
-					const record = await window.ollama.getCustomToolRegistryItem(id);
-					if (!record) {
-						if (preview) preview.textContent = "Tool not found.";
-						return;
-					}
-					if (preview) {
-						const safeName = escapeHtmlUnsafe(record.name);
-						const safeId = escapeHtmlUnsafe(record.id);
-						const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
-						const safeLang = escapeHtmlUnsafe(record.language);
-						const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
-						const safeWebsite = escapeHtmlUnsafe(record.websiteUrl || "");
-						const safeRuntime = escapeHtmlUnsafe((record.requirements.runtime || []).join(", ") || "none");
-						const safeBuild = escapeHtmlUnsafe((record.requirements.build || []).join(", ") || "none");
-						preview.innerHTML = `
-							<div><strong>${safeName}</strong> (${safeId})</div>
-							<div>Author: ${safeAuthor}</div>
-							<div>Language: ${safeLang}</div>
-							<div>Version: ${safeVersion}</div>
-							${safeWebsite ? `<div>Website: ${safeWebsite}</div>` : ""}
-							<div>Runtime: ${safeRuntime}</div>
-							<div>Build: ${safeBuild}</div>
-						`;
-					}
-				},
+				onClick: runPreviewFetch,
 			},
 			{
 				id: "custom-tool-import-btn",
@@ -3411,6 +3522,15 @@ function openImportCustomToolModal(prefillId = ""): void {
 			},
 		],
 	});
+	const importInput = document.getElementById("custom-tool-import-id") as HTMLInputElement | null;
+	if (importInput) {
+		importInput.addEventListener("input", () => {
+			void runPreviewFetch();
+		});
+		if (importInput.value.trim()) {
+			void runPreviewFetch();
+		}
+	}
 }
 
 async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
@@ -3529,14 +3649,50 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 				showNotification({ type: "warning", message: "Only the author can update a registry tool." });
 				return;
 			}
-			const result = await window.ollama.publishCustomTool(toolId);
-			if (!result?.ok) {
-				showNotification({ type: "error", message: result?.error || "Failed to publish tool." });
+			if (!tool) return;
+			const record = getRegistryRecordForTool(tool.id);
+			const localVersion = tool.version || "0.1.0";
+			const registryVersion = record?.version || "0.1.0";
+			if (tool.published && compareSemver(localVersion, registryVersion) <= 0) {
+				showNotification({
+					type: "warning",
+					message: `Local version (${localVersion}) must be higher than registry version (${registryVersion}) to push an update.`,
+				});
 				return;
 			}
-			showNotification({ type: "success", message: "Tool published." });
-			await refreshCustomTools();
-			void openToolsManagerModal();
+			const localSource = await window.ollama.getCustomToolSource(tool.id);
+			const registrySource = tool.published ? await window.ollama.getCustomToolRegistrySource(tool.id) : null;
+			const diffSummary = buildCodeDiffSummary(registrySource?.code || "", localSource?.code || "");
+			customToolModal.open({
+				title: tool.published ? "Push Local Update" : "Publish Tool",
+				html: `
+					<div class="custom-tool-run-review">
+						<p><strong>${escapeHtmlUnsafe(tool.name)}</strong></p>
+						<p>Version: ${escapeHtmlUnsafe(localVersion)}${tool.published ? ` (registry: ${escapeHtmlUnsafe(registryVersion)})` : ""}</p>
+						<details open>
+							<summary>Source diff overview</summary>
+							<pre>${escapeHtmlUnsafe(diffSummary)}</pre>
+						</details>
+					</div>
+				`,
+				actions: [
+					{
+						id: "confirm-publish-custom-tool",
+						label: tool.published ? "Push Update" : "Publish",
+						onClick: async () => {
+							const result = await window.ollama.publishCustomTool(toolId);
+							if (!result?.ok) {
+								showNotification({ type: "error", message: result?.error || "Failed to publish tool." });
+								return;
+							}
+							showNotification({ type: "success", message: tool.published ? "Local update pushed." : "Tool published." });
+							await refreshCustomTools();
+							customToolModal.close();
+							void openToolsManagerModal();
+						},
+					},
+				],
+			});
 		});
 	});
 

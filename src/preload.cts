@@ -111,7 +111,19 @@ contextBridge.exposeInMainWorld("ollama", {
 		version?: string;
 		releaseNotes?: string;
 		websiteUrl?: string;
-		language: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
 		codeFileName: string;
 		codeContent: string;
 		visibility?: "private" | "public" | "unlisted";
@@ -139,7 +151,19 @@ contextBridge.exposeInMainWorld("ollama", {
 		version?: string;
 		releaseNotes?: string;
 		websiteUrl?: string;
-		language?: "javascript" | "python" | "cpp" | "c" | "rust" | "java";
+		language?:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
 		codeFileName?: string;
 		codeContent?: string;
 		visibility?: "private" | "public" | "unlisted";
@@ -167,6 +191,8 @@ contextBridge.exposeInMainWorld("ollama", {
 	}> => ipcRenderer.invoke("ollama:import-custom-tool", toolId),
 	getCustomToolRegistryItem: (toolId: string): Promise<CustomToolRegistryRecord | null> =>
 		ipcRenderer.invoke("ollama:get-custom-tool-registry-item", toolId),
+	getCustomToolRegistrySource: (toolId: string): Promise<{ manifest: CustomToolManifest; code: string } | null> =>
+		ipcRenderer.invoke("ollama:get-custom-tool-registry-source", toolId),
 	listCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>
 		ipcRenderer.invoke("ollama:list-custom-tool-registry"),
 	listMyCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>

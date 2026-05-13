@@ -39,6 +39,7 @@ import {
 	deleteRegistryCustomTool,
 	fetchMyRegistryCustomTools,
 	fetchRegistryCustomToolById,
+	fetchRegistryCustomToolSourceById,
 	fetchRegistryCustomTools,
 	getLocalCustomToolSourceById,
 	importCustomToolFromRegistry,
@@ -170,6 +171,12 @@ export default function register(): void {
 		"ollama:get-custom-tool-registry-item",
 		async (_event, toolId: string) => {
 			return await fetchRegistryCustomToolById(toolId);
+		},
+	);
+	ipcMain.handle(
+		"ollama:get-custom-tool-registry-source",
+		async (_event, toolId: string) => {
+			return await fetchRegistryCustomToolSourceById(toolId);
 		},
 	);
 
