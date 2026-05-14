@@ -1,0 +1,33 @@
+{
+  "name": "File Overview",
+  "functionality": "Lists a directory tree with file metadata for quick diagnostics and planning.",
+  "version": "1.0.0",
+  "language": "javascript",
+  "codeFile": "file_overview.js",
+  "openai": {
+    "functionName": "file_overview_js",
+    "description": "List files and folders under a directory with depth and entry limits.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "directory": { "type": "string", "description": "Path to inspect." },
+        "max_depth": { "type": "integer", "description": "Max recursion depth (0-8)." },
+        "max_entries": { "type": "integer", "description": "Hard cap on returned entries." },
+        "include_hidden": { "type": "boolean", "description": "Include dotfiles if true." }
+      },
+      "required": ["directory"],
+      "additionalProperties": false
+    }
+  },
+  "userInputs": [
+    {
+      "name": "workspace_root",
+      "label": "Workspace Root",
+      "description": "Optional path boundary. If provided, scanning is restricted to this root.",
+      "required": false,
+      "secret": false
+    }
+  ],
+  "visibility": "private",
+  "publishToRegistry": false
+}

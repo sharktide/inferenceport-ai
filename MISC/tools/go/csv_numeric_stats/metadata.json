@@ -1,0 +1,32 @@
+{
+  "name": "CSV Numeric Stats",
+  "functionality": "Computes numeric summary metrics from CSV files with optional grouping.",
+  "version": "1.0.0",
+  "language": "go",
+  "codeFile": "csv_numeric_stats.go",
+  "openai": {
+    "functionName": "csv_numeric_stats_go",
+    "description": "Calculate min/max/sum/average for a numeric CSV column.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "csv_path": { "type": "string", "description": "CSV file path." },
+        "numeric_column": { "type": "string", "description": "Column to aggregate." },
+        "group_by": { "type": "string", "description": "Optional grouping column." }
+      },
+      "required": ["csv_path", "numeric_column"],
+      "additionalProperties": false
+    }
+  },
+  "userInputs": [
+    {
+      "name": "allowed_root",
+      "label": "Allowed Data Root",
+      "description": "Optional path boundary for CSV reads.",
+      "required": false,
+      "secret": false
+    }
+  ],
+  "visibility": "private",
+  "publishToRegistry": false
+}

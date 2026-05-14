@@ -2847,7 +2847,7 @@ function toolIconSvg(kind: string): string {
 		image: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m8 13 2.2-2.2a1.4 1.4 0 0 1 2 0L17 16"/><circle cx="8.5" cy="9.5" r="1.2"/></svg>',
 		video: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>',
 		audio: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13"/><circle cx="7" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
-		custom: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 4.8 4.8l-8.4 8.4a2.1 2.1 0 0 1-3 0l-2.1-2.1a2.1 2.1 0 0 1 0-3l8.4-8.4z"/><path d="m16 5 3 3"/><path d="M7 17l3 3"/></svg>',
+		custom: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="10" height="16" rx="2"/><path d="M7 8h2"/><path d="M7 12h2"/><path d="M7 16h2"/><circle cx="18" cy="8" r="3"/><path d="M18 3.8v1.4"/><path d="M18 10.8v1.4"/><path d="M22.2 8h-1.4"/><path d="M15.2 8h-1.4"/><path d="m20.9 5.1-1 1"/><path d="m16.1 9.9-1 1"/><path d="m20.9 10.9-1-1"/><path d="m16.1 6.1-1-1"/></svg>',
 		code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-4 3 4 3"/><path d="m16 9 4 3-4 3"/><path d="m14 4-4 16"/></svg>',
 		upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>',
 		download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>',
