@@ -64,6 +64,12 @@ Complete Documentation
 
    developer/index
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contributing Docs
+
+   contributing/index
+
 Indices and tables
 ==================
 

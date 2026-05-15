@@ -1,62 +1,55 @@
 Security and Privacy
 ====================
 
-Local-first data model
+Local-first by default
 ----------------------
 
-InferencePort AI stores chat/session/runtime data primarily in local files
-under Electron's user-data directory.
+InferencePort AI is designed for local usage first. Your chats, model imports,
+and runtime state are primarily stored on your device.
 
-Examples:
+If you do not sign in, most workflows remain local-only.
 
-* ``chat-sessions/sessions.json``
-* ``assets/*.blob``
-* ``logs/InferencePort-Server.log``
-* ``supabase-session.json``
-
-Renderer isolation
-------------------
-
-Security posture relies on Electron preload boundaries:
-
-* Renderer code cannot directly call Node APIs.
-* Approved operations are mediated via ``contextBridge`` in
-  ``src/preload.cts``.
-* Main process validates and executes privileged file/network operations.
-
-Content sanitization
---------------------
-
-``src/node-apis/utils.ts`` sanitizes markdown/HTML output before rendering
-using:
-
-* ``markdown-it`` for markdown parsing
-* ``sanitize-html`` for output sanitization
-
-This reduces risk of unsafe markup from model output or imported content.
-
-Local proxy host protections
+When cloud features are used
 ----------------------------
 
-The optional hosting proxy in ``src/node-apis/helper/server.ts`` includes:
+Some features use network services, including:
 
-* Bearer token requirement
-* Remote token verification via Supabase edge function
-* Role-aware restrictions for non-admin users
-* Rate-limiting on health and forwarded requests
-* Header sanitization and request size limits
-* Log rotation for local log files
+* Lightning generation and Lightning usage tracking
+* Optional account sign-in and sync
+* Optional Hugging Face lookups/import flows
+* Optional website or tool registry access
 
-Auth/session handling
+Use these only when they match your privacy requirements.
+
+Custom tools safety
+-------------------
+
+Custom tools can execute code. Treat them like running scripts on your
+computer.
+
+Best practices:
+
+* Only import tools from trusted authors.
+* Review tool metadata and source details before running.
+* Deny execution when behavior is unclear.
+* Keep security software and OS updates current.
+
+Account and API key safety
+--------------------------
+
+If you use sign-in and Lightning API keys:
+
+* Use strong credentials for your account.
+* Revoke API keys you no longer use.
+* Avoid sharing keys in screenshots, logs, or chat text.
+
+Operational checklist
 ---------------------
 
-``src/node-apis/auth.ts`` persists auth session payloads locally for relaunch
-continuity and clears session files on sign-out.
+* Use a secure OS account and disk encryption where possible.
+* Avoid importing sensitive files unless needed.
+* Periodically remove old sessions, models, and tools you no longer need.
+* If using hosting/proxy mode, restrict allowed users and review logs.
 
-Operational recommendations
----------------------------
-
-* Keep machine and OS account secure since local files may include chat data.
-* Restrict allowed user emails when using hosted proxy mode.
-* Avoid sharing imported files containing sensitive metadata.
-* Rotate credentials and review Supabase policies for production deployments.
+Internal implementation details for contributors are documented in
+:doc:`../contributing/security-privacy`.

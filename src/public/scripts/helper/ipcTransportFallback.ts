@@ -999,6 +999,7 @@ export function installWebSocketTransportFallback(): void {
 				imageGen: boolean;
 				videoGen: boolean;
 				audioGen: boolean;
+				customToolIds?: string[];
 			},
 			clientUrl?: string,
 			sessionId?: string,
@@ -1139,12 +1140,140 @@ export function installWebSocketTransportFallback(): void {
 				toolCallId,
 				payload,
 			]),
+		resolveCustomToolCall: async (
+			toolCallId: string,
+			approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+		) =>
+			invokeOrDefault<boolean>("ollama:resolve-custom-tool-call", [
+				toolCallId,
+				approval,
+			]),
 		startImageToolCall: async (payload?: Record<string, unknown>) =>
 			invokeOrDefault<string>("ollama:start-image-tool-call", [payload]),
 		startVideoToolCall: async (payload?: Record<string, unknown>) =>
 			invokeOrDefault<string>("ollama:start-video-tool-call", [payload]),
 		startAudioToolCall: async (payload?: Record<string, unknown>) =>
 			invokeOrDefault<string>("ollama:start-audio-tool-call", [payload]),
+		listCustomTools: async () =>
+			invokeOrDefault<CustomToolManifest[]>("ollama:list-custom-tools", []),
+		createCustomTool: async (payload: {
+			name: string;
+			functionality: string;
+			version?: string;
+			releaseNotes?: string;
+			websiteUrl?: string;
+			language:
+				| "javascript"
+				| "typescript"
+				| "python"
+				| "cpp"
+				| "c"
+				| "rust"
+				| "java"
+				| "go"
+				| "ruby"
+				| "php"
+				| "swift"
+				| "powershell";
+			codeFileName: string;
+			codeContent: string;
+			visibility?: "private" | "public" | "unlisted";
+			publishToRegistry?: boolean;
+			openai?: {
+				functionName?: string;
+				description?: string;
+				parameters?: Record<string, unknown>;
+			};
+			userInputs?: CustomToolUserInput[];
+		}) =>
+			invokeOrDefault<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>("ollama:create-custom-tool", [payload]),
+		getCustomToolSource: async (toolId: string) =>
+			invokeOrDefault<{
+				manifest: CustomToolManifest;
+				code: string;
+			} | null>("ollama:get-custom-tool-source", [toolId]),
+		updateCustomTool: async (payload: {
+			id: string;
+			name?: string;
+			functionality?: string;
+			version?: string;
+			releaseNotes?: string;
+			websiteUrl?: string;
+			language?:
+				| "javascript"
+				| "typescript"
+				| "python"
+				| "cpp"
+				| "c"
+				| "rust"
+				| "java"
+				| "go"
+				| "ruby"
+				| "php"
+				| "swift"
+				| "powershell";
+			codeFileName?: string;
+			codeContent?: string;
+			visibility?: "private" | "public" | "unlisted";
+			openai?: {
+				functionName?: string;
+				description?: string;
+				parameters?: Record<string, unknown>;
+			};
+			userInputs?: CustomToolUserInput[];
+		}) =>
+			invokeOrDefault<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>("ollama:update-custom-tool", [payload]),
+		publishCustomTool: async (toolId: string) =>
+			invokeOrDefault<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+				record?: CustomToolRegistryRecord;
+			}>("ollama:publish-custom-tool", [toolId]),
+		importCustomTool: async (toolId: string) =>
+			invokeOrDefault<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>("ollama:import-custom-tool", [toolId]),
+		getCustomToolRegistryItem: async (toolId: string) =>
+			invokeOrDefault<CustomToolRegistryRecord | null>(
+				"ollama:get-custom-tool-registry-item",
+				[toolId],
+			),
+		getCustomToolRegistrySource: async (toolId: string) =>
+			invokeOrDefault<{ manifest: CustomToolManifest; code: string } | null>(
+				"ollama:get-custom-tool-registry-source",
+				[toolId],
+			),
+		listCustomToolRegistry: async () =>
+			invokeOrDefault<CustomToolRegistryRecord[]>(
+				"ollama:list-custom-tool-registry",
+				[],
+			),
+		listMyCustomToolRegistry: async () =>
+			invokeOrDefault<CustomToolRegistryRecord[]>(
+				"ollama:list-my-custom-tool-registry",
+				[],
+			),
+		deleteCustomTool: async (toolId: string) =>
+			invokeOrDefault<{ ok: boolean; error?: string }>(
+				"ollama:delete-custom-tool",
+				[toolId],
+			),
+		deleteRegistryCustomTool: async (toolId: string) =>
+			invokeOrDefault<{ ok: boolean; error?: string }>(
+				"ollama:delete-registry-custom-tool",
+				[toolId],
+			),
 	};
 
 	window.utils = {

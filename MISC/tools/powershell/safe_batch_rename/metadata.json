@@ -1,0 +1,31 @@
+{
+  "name": "Safe Batch Rename",
+  "functionality": "Renames files by prefix with preview mode for safety.",
+  "version": "1.0.0",
+  "language": "powershell",
+  "codeFile": "safe_batch_rename.ps1",
+  "openai": {
+    "functionName": "safe_batch_rename_ps",
+    "description": "Rename files in a folder by replacing a name prefix.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "directory": { "type": "string", "description": "Folder containing files to rename." },
+        "prefix": { "type": "string", "description": "Prefix to match." },
+        "replacement": { "type": "string", "description": "Replacement prefix." },
+        "preview": { "type": "boolean", "description": "If true, only show planned renames." }
+      },
+      "required": ["directory", "prefix", "replacement"],
+      "additionalProperties": false
+    }
+  },
+  "userInputs": [
+    {
+      "name": "allowed_root",
+      "label": "Allowed Root",
+      "description": "Optional path boundary for rename operations.",
+      "required": false,
+      "secret": false
+    }
+  ]
+}

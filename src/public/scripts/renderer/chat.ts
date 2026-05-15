@@ -64,6 +64,101 @@ interface AttachedImageFile {
 
 type AttachedFile = AttachedTextFile | AttachedImageFile;
 
+type CustomToolLanguage =
+	| "javascript"
+	| "typescript"
+	| "python"
+	| "cpp"
+	| "c"
+	| "rust"
+	| "java"
+	| "go"
+	| "ruby"
+	| "php"
+	| "swift"
+	| "powershell";
+
+type CustomToolManifest = {
+	id: string;
+	name: string;
+	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language: CustomToolLanguage;
+	codeFile: string;
+	codeHash?: string;
+	authorEmail: string;
+	authorUserId?: string | null;
+	openai: {
+		functionName: string;
+		description: string;
+		parameters: {
+			type: "object";
+			properties: Record<string, unknown>;
+			required?: string[];
+			additionalProperties?: boolean;
+		};
+	};
+	requirements: {
+		runtime: string[];
+		build: string[];
+	};
+	userInputs?: CustomToolUserInput[];
+	visibility: "private" | "public" | "unlisted";
+	published: boolean;
+	createdAt: string;
+	updatedAt: string;
+	registry?: {
+		source: "lightning";
+		uploadedAt?: string;
+		updatedAt?: string;
+	};
+};
+
+type CustomToolUserInput = {
+	name: string;
+	label?: string;
+	description?: string;
+	required?: boolean;
+	secret?: boolean;
+};
+
+type CustomToolRegistryRecord = {
+	id: string;
+	name: string;
+	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language: CustomToolLanguage;
+	authorEmail: string;
+	authorUserId?: string | null;
+	codeHash?: string;
+	visibility: "public" | "unlisted";
+	publishedAt: string;
+	updatedAt: string;
+	requirements: {
+		runtime: string[];
+		build: string[];
+	};
+	userInputs?: CustomToolUserInput[];
+	openai: {
+		functionName: string;
+		description: string;
+		parameters: {
+			type: "object";
+			properties: Record<string, unknown>;
+			required?: string[];
+			additionalProperties?: boolean;
+		};
+	};
+	files: {
+		manifestPath: string;
+		codePath: string;
+	};
+};
+
 const RASTER_IMAGE_EXTENSIONS = new Set([
 	"jpg",
 	"jpeg",
@@ -581,24 +676,11 @@ const fileBar = document.getElementById("file-preview-bar") as HTMLDivElement;
 const remoteHostAlias = document.getElementById(
 	"remote-host-alias",
 ) as HTMLInputElement | null;
-const searchBtn = document.getElementById("search-btn") as HTMLButtonElement | null;
-const imgBtn = document.getElementById("img-btn") as HTMLButtonElement | null;
-const videoBtn = document.getElementById("video-btn") as HTMLButtonElement | null;
-const audioBtn = document.getElementById("audio-btn") as HTMLButtonElement | null;
-const searchBtnMini = document.getElementById(
-	"search-btn-mini",
+const toolsBtn = document.getElementById("tools-btn") as HTMLButtonElement | null;
+const toolsBtnMini = document.getElementById(
+	"tools-btn-mini",
 ) as HTMLButtonElement | null;
-const imgBtnMini = document.getElementById("img-btn-mini") as HTMLButtonElement | null;
-const videoBtnMini = document.getElementById(
-	"video-btn-mini",
-) as HTMLButtonElement | null;
-const audioBtnMini = document.getElementById(
-	"audio-btn-mini",
-) as HTMLButtonElement | null;
-const searchLabel = document.getElementById("search-text") as HTMLSpanElement | null;
-const imageLabel = document.getElementById("img-text") as HTMLSpanElement | null;
-const videoLabel = document.getElementById("video-text") as HTMLSpanElement | null;
-const audioLabel = document.getElementById("audio-text") as HTMLSpanElement | null;
+const toolsLabel = document.getElementById("tools-text") as HTMLSpanElement | null;
 const textarea = document.getElementById("chat-input") as HTMLTextAreaElement;
 const typingBar = textarea.closest(".typing-bar") as HTMLDivElement;
 const TOOLS_UNSUPPORTED_HTML =
@@ -647,6 +729,7 @@ const previewTier = document.getElementById(
 let modal: declarations["iInstance"]["iModal"];
 let upgradeModal: declarations["iInstance"]["iModal"];
 let editModal: declarations["iInstance"]["iModal"];
+let customToolModal: declarations["iInstance"]["iModal"];
 let activeSidebarMode: "chats" | "media" = "chats";
 
 function isMediaLibraryAvailable(): boolean {
@@ -730,6 +813,10 @@ let searchEngine: Array<string> = currentToolSettings.searchEngines;
 let imgEnabled = currentToolSettings.imageGen;
 let videoEnabled = currentToolSettings.videoGen;
 let audioEnabled = currentToolSettings.audioGen;
+let enabledCustomToolIds: string[] = currentToolSettings.customToolIds || [];
+let cachedCustomTools: CustomToolManifest[] = [];
+let cachedCustomToolRegistryRecords: CustomToolRegistryRecord[] = [];
+let cachedMyUploadedRegistryRecords: CustomToolRegistryRecord[] = [];
 let sessions = {};
 let sessionSortOrder: string[] | null = null;
 let currentSessionId = null;
@@ -1243,6 +1330,12 @@ function openUpgradeRequiresAccountDialog(kind: keyof typeof LIMIT_COPY) {
 			},
 		],
 	});
+	const versionInput = document.getElementById("edit-tool-version") as HTMLInputElement | null;
+	versionInput?.addEventListener("input", () => {
+		allowSemverBypass = false;
+		const warning = document.getElementById("edit-tool-semver-warning");
+		if (warning) warning.textContent = "";
+	});
 }
 
 async function openUpgradeDialog(kind: keyof typeof LIMIT_COPY) {
@@ -1600,7 +1693,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		"global-modal",
 		undefined,
 		undefined,
-		false,
+		true,
 		false,
 	);
 	editModal = new window.ic.iModal(
@@ -1617,6 +1710,19 @@ document.addEventListener("DOMContentLoaded", () => {
 		false,
 		false,
 	);
+	customToolModal = new window.ic.iModal(
+		"custom-tool-modal",
+		700,
+		undefined,
+		true,
+		false,
+	);
+	const deepLinkedToolId = urlParams.get("tool") || "";
+	if (deepLinkedToolId) {
+		requestAnimationFrame(() => {
+			openImportCustomToolModal(deepLinkedToolId);
+		});
+	}
 	initWelcomeCards();
 	initLightningToggleEvents();
 	loadUsageStateForUser(null);
@@ -1703,6 +1809,7 @@ async function setToolSupport() {
 		imgEnabled = currentToolSettings.imageGen;
 		videoEnabled = currentToolSettings.videoGen;
 		audioEnabled = currentToolSettings.audioGen;
+		enabledCustomToolIds = currentToolSettings.customToolIds || [];
 		updateToolButtonActiveState();
 		return;
 	}
@@ -1716,6 +1823,7 @@ async function setToolSupport() {
 		imgEnabled = currentToolSettings.imageGen;
 		videoEnabled = currentToolSettings.videoGen;
 		audioEnabled = currentToolSettings.audioGen;
+		enabledCustomToolIds = currentToolSettings.customToolIds || [];
 		updateToolButtonActiveState();
 	} else {
 		toolsSupportedInUi = false;
@@ -1723,6 +1831,7 @@ async function setToolSupport() {
 		imgEnabled = false;
 		videoEnabled = false;
 		audioEnabled = false;
+		enabledCustomToolIds = [];
 		updateToolButtonActiveState();
 	}
 }
@@ -2172,8 +2281,9 @@ async function loadOptions() {
 
 		try {
 			if (!lightningEnabled) {
-				if (urlParams.model != null) {
-					modelSelect.value = urlParams.model;
+				const requestedModel = urlParams.get("model");
+				if (requestedModel != null) {
+					modelSelect.value = requestedModel;
 				} else {
 					const savedModel = sessions[currentSessionId]?.model;
 					if (savedModel && savedModel !== LIGHTNING_MODEL_VALUE) {
@@ -2639,57 +2749,1050 @@ function renderSessionList(): void {
 	return void 0;
 }
 
-function updateToolButtonVisibility(): void {
-	const setVisible = (el: HTMLElement | null, visible: boolean) => {
-		if (!el) return;
-		el.style.display = visible ? "" : "none";
-	};
-
-	const searchContainer = (searchBtn?.closest(".tool-btn-wrap") ??
-		searchBtn) as HTMLElement | null;
-	const imgContainer = (imgBtn?.closest(".tool-btn-wrap") ??
-		imgBtn) as HTMLElement | null;
-	const videoContainer = (videoBtn?.closest(".tool-btn-wrap") ??
-		videoBtn) as HTMLElement | null;
-	const audioContainer = (audioBtn?.closest(".tool-btn-wrap") ??
-		audioBtn) as HTMLElement | null;
-
-	setVisible(searchContainer, currentToolSettings.webSearch);
-	setVisible(imgContainer, currentToolSettings.imageGen);
-	setVisible(videoContainer, currentToolSettings.videoGen);
-	setVisible(audioContainer, currentToolSettings.audioGen);
-
-	setVisible(searchBtnMini, currentToolSettings.webSearch);
-	setVisible(imgBtnMini, currentToolSettings.imageGen);
-	setVisible(videoBtnMini, currentToolSettings.videoGen);
-	setVisible(audioBtnMini, currentToolSettings.audioGen);
+function getEnabledToolCount(): number {
+	const builtInCount = Number(searchEnabled) + Number(imgEnabled) + Number(videoEnabled) + Number(audioEnabled);
+	return builtInCount + enabledCustomToolIds.length;
 }
 
 function updateToolButtonActiveState(): void {
-	const syncActive = (
-		btn: HTMLButtonElement | null,
-		enabled: boolean,
-	) => {
+	const count = getEnabledToolCount();
+	const setState = (btn: HTMLButtonElement | null) => {
 		if (!btn) return;
-		btn.classList.toggle("active", enabled);
-		btn.setAttribute("aria-pressed", String(enabled));
+		btn.classList.toggle("active", count > 0);
+		btn.setAttribute("aria-pressed", String(count > 0));
+		btn.setAttribute("title", count > 0 ? `${count} tools enabled` : "No tools enabled");
 	};
+	setState(toolsBtn);
+	setState(toolsBtnMini);
+	if (toolsLabel) {
+		toolsLabel.textContent = count > 0 ? `Tools (${count})` : "Tools";
+	}
+}
 
-	if (searchLabel) searchLabel.style.color = searchEnabled ? "#4fc3f7" : "";
-	syncActive(searchBtn, searchEnabled);
-	syncActive(searchBtnMini, searchEnabled);
+async function refreshCustomTools(): Promise<void> {
+	try {
+		const list = await window.ollama.listCustomTools();
+		cachedCustomTools = Array.isArray(list) ? list : [];
+		const registry = await window.ollama.listCustomToolRegistry().catch(() => []);
+		const myRegistry = await window.ollama.listMyCustomToolRegistry().catch(() => []);
+		cachedMyUploadedRegistryRecords = Array.isArray(myRegistry) ? myRegistry : [];
+		const registryRecords = Array.isArray(registry) ? registry : [];
+		const installedRegistryIds = cachedCustomTools
+			.filter((tool) => tool.registry)
+			.map((tool) => tool.id);
+		const installedRecords = await Promise.all(
+			installedRegistryIds.map((id) =>
+				window.ollama.getCustomToolRegistryItem(id).catch(() => null),
+			),
+		);
+		const mergedRegistryRecords = new Map<string, CustomToolRegistryRecord>();
+		for (const record of registryRecords) {
+			mergedRegistryRecords.set(record.id, record);
+		}
+		for (const record of installedRecords) {
+			if (record) mergedRegistryRecords.set(record.id, record);
+		}
+		cachedCustomToolRegistryRecords = [...mergedRegistryRecords.values()];
+		const existingIds = new Set(cachedCustomTools.map((tool) => tool.id));
+		const nextEnabled = enabledCustomToolIds.filter((id) => existingIds.has(id));
+		if (nextEnabled.length !== enabledCustomToolIds.length) {
+			enabledCustomToolIds = nextEnabled;
+			toolSettings.setCustomToolIds(nextEnabled);
+		}
+	} catch {
+		cachedCustomTools = [];
+		cachedCustomToolRegistryRecords = [];
+		cachedMyUploadedRegistryRecords = [];
+	}
+}
 
-	if (imageLabel) imageLabel.style.color = imgEnabled ? "#4fc3f7" : "";
-	syncActive(imgBtn, imgEnabled);
-	syncActive(imgBtnMini, imgEnabled);
+function setToolEnableState(
+	tool: "webSearch" | "imageGen" | "videoGen" | "audioGen",
+	enable: boolean,
+): boolean {
+	if (!enable) {
+		toolSettings.setToolEnabled(tool, false);
+		return true;
+	}
+	if (!toolsSupportedInUi) {
+		showToolsUnsupportedModal();
+		return false;
+	}
+	if (tool === "imageGen" && !enforceLimit("imagesDaily")) return false;
+	if (tool === "videoGen" && !enforceLimit("videosDaily")) return false;
+	if (tool === "audioGen" && !enforceLimit("audioWeekly")) return false;
+	toolSettings.setToolEnabled(tool, true);
+	return true;
+}
 
-	if (videoLabel) videoLabel.style.color = videoEnabled ? "#4fc3f7" : "";
-	syncActive(videoBtn, videoEnabled);
-	syncActive(videoBtnMini, videoEnabled);
+function escapeHtmlUnsafe(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
 
-	if (audioLabel) audioLabel.style.color = audioEnabled ? "#4fc3f7" : "";
-	syncActive(audioBtn, audioEnabled);
-	syncActive(audioBtnMini, audioEnabled);
+const CUSTOM_TOOL_UUID_REGEX =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuidToolId(value: string): boolean {
+	return CUSTOM_TOOL_UUID_REGEX.test(value.trim());
+}
+
+function toolIconSvg(kind: string): string {
+	const icons: Record<string, string> = {
+		search: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg>',
+		image: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m8 13 2.2-2.2a1.4 1.4 0 0 1 2 0L17 16"/><circle cx="8.5" cy="9.5" r="1.2"/></svg>',
+		video: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg>',
+		audio: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13"/><circle cx="7" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+		custom: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="10" height="16" rx="2"/><path d="M7 8h2"/><path d="M7 12h2"/><path d="M7 16h2"/><circle cx="18" cy="8" r="3"/><path d="M18 3.8v1.4"/><path d="M18 10.8v1.4"/><path d="M22.2 8h-1.4"/><path d="M15.2 8h-1.4"/><path d="m20.9 5.1-1 1"/><path d="m16.1 9.9-1 1"/><path d="m20.9 10.9-1-1"/><path d="m16.1 6.1-1-1"/></svg>',
+		code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 9-4 3 4 3"/><path d="m16 9 4 3-4 3"/><path d="m14 4-4 16"/></svg>',
+		upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>',
+		download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>',
+		unpublish: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 16h1.5a3.5 3.5 0 0 0 0-7 5.5 5.5 0 0 0-10.6-1.6A4.5 4.5 0 0 0 6.5 16H8"/><path d="m8 20 8-8"/><path d="m8 12 8 8"/></svg>',
+		trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 14h10l1-14"/><path d="M9 7V4h6v3"/></svg>',
+		edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+	};
+	return icons[kind] || icons.custom;
+}
+
+function builtInToolToggleHtml(
+	key: "webSearch" | "imageGen" | "videoGen" | "audioGen",
+	label: string,
+	icon: string,
+	enabled: boolean,
+): string {
+	return `
+		<button
+			type=\"button\"
+			class=\"tool-toggle-btn icon-only ${enabled ? "active" : ""}\"
+			data-toggle-built-in=\"${key}\"
+			title=\"${escapeHtmlUnsafe(label)}\"
+			aria-label=\"${escapeHtmlUnsafe(label)}\"
+			aria-pressed=\"${String(enabled)}\">
+			${toolIconSvg(icon)}
+		</button>
+	`;
+}
+
+function getRegistryRecordForTool(toolId: string): CustomToolRegistryRecord | undefined {
+	return cachedCustomToolRegistryRecords.find((record) => record.id === toolId);
+}
+
+const CUSTOM_TOOL_LANGUAGES: Array<{ value: CustomToolLanguage; label: string }> = [
+	{ value: "javascript", label: "JavaScript (Node)" },
+	{ value: "typescript", label: "TypeScript" },
+	{ value: "python", label: "Python" },
+	{ value: "go", label: "Go" },
+	{ value: "ruby", label: "Ruby" },
+	{ value: "php", label: "PHP" },
+	{ value: "java", label: "Java" },
+	{ value: "c", label: "C" },
+	{ value: "cpp", label: "C++" },
+	{ value: "rust", label: "Rust" },
+	{ value: "swift", label: "Swift" },
+	{ value: "powershell", label: "PowerShell" },
+];
+
+function parseSemver(versionRaw?: string): { major: number; minor: number; patch: number; prerelease: string[] } | null {
+	const version = (versionRaw || "0.0.0").trim();
+	const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/);
+	if (!match) return null;
+	return {
+		major: Number(match[1]),
+		minor: Number(match[2]),
+		patch: Number(match[3]),
+		prerelease: match[4] ? match[4].split(".") : [],
+	};
+}
+
+function compareSemver(aRaw?: string, bRaw?: string): number {
+	const a = parseSemver(aRaw);
+	const b = parseSemver(bRaw);
+	if (!a || !b) return 0;
+	if (a.major !== b.major) return a.major > b.major ? 1 : -1;
+	if (a.minor !== b.minor) return a.minor > b.minor ? 1 : -1;
+	if (a.patch !== b.patch) return a.patch > b.patch ? 1 : -1;
+	const aPre = a.prerelease;
+	const bPre = b.prerelease;
+	if (!aPre.length && bPre.length) return 1;
+	if (aPre.length && !bPre.length) return -1;
+	if (!aPre.length && !bPre.length) return 0;
+	const len = Math.max(aPre.length, bPre.length);
+	for (let i = 0; i < len; i++) {
+		const av = aPre[i];
+		const bv = bPre[i];
+		if (typeof av === "undefined") return -1;
+		if (typeof bv === "undefined") return 1;
+		const an = /^\d+$/.test(av) ? Number(av) : NaN;
+		const bn = /^\d+$/.test(bv) ? Number(bv) : NaN;
+		if (!Number.isNaN(an) && !Number.isNaN(bn) && an !== bn) return an > bn ? 1 : -1;
+		if (Number.isNaN(an) && Number.isNaN(bn) && av !== bv) return av > bv ? 1 : -1;
+		if (Number.isNaN(an) && !Number.isNaN(bn)) return 1;
+		if (!Number.isNaN(an) && Number.isNaN(bn)) return -1;
+	}
+	return 0;
+}
+
+function shouldShowPushLocalUpdate(tool: CustomToolManifest): boolean {
+	const record = getRegistryRecordForTool(tool.id);
+	if (!tool.published || !record) return false;
+	return compareSemver(tool.version || "0.1.0", record.version || "0.1.0") > 0;
+}
+
+function buildCodeDiffSummary(oldCode: string, newCode: string, maxLines = 80): string {
+	const oldLines = oldCode.split(/\r?\n/);
+	const newLines = newCode.split(/\r?\n/);
+	const out: string[] = [];
+	const limit = Math.max(oldLines.length, newLines.length);
+	for (let i = 0; i < limit && out.length < maxLines; i++) {
+		const before = oldLines[i] ?? "";
+		const after = newLines[i] ?? "";
+		if (before === after) continue;
+		out.push(`- ${before}`);
+		out.push(`+ ${after}`);
+	}
+	if (!out.length) return "No source differences detected.";
+	if (limit > maxLines) out.push("...diff truncated...");
+	return out.join("\n");
+}
+
+function isRegistryRecordNewer(tool: CustomToolManifest): boolean {
+	const record = getRegistryRecordForTool(tool.id);
+	if (!record?.updatedAt) return false;
+	const localRegistryUpdatedAt = tool.registry?.updatedAt || tool.registry?.uploadedAt || tool.updatedAt;
+	return Date.parse(record.updatedAt) > Date.parse(localRegistryUpdatedAt || "");
+}
+
+function isToolOwnedByCurrentUser(tool: CustomToolManifest): boolean {
+	if (!tool.registry) return true;
+	const currentUserId = currentAuthSession?.user?.id || null;
+	return Boolean(tool.authorUserId && currentUserId && tool.authorUserId === currentUserId);
+}
+
+function toolActionButtonHtml(
+	action: string,
+	toolId: string,
+	label: string,
+	icon: string,
+	danger = false,
+): string {
+	const safeId = escapeHtmlUnsafe(toolId);
+	const safeLabel = escapeHtmlUnsafe(label);
+	return `
+		<button type=\"button\" class=\"tool-card-action ${danger ? "danger" : ""}\" data-${action}=\"${safeId}\" title=\"${safeLabel}\" aria-label=\"${safeLabel}\" style=\"max-width: fit-content;\">
+			${toolIconSvg(icon)}
+			<span class=\"tool-card-action-label\">${safeLabel}</span>
+		</button>
+	`;
+}
+
+function customToolUserInputsPlaceholder(): string {
+	return '[{"name":"api_key","label":"API key","description":"Private token used by this tool","secret":true,"required":true}]';
+}
+
+function parseCustomToolUserInputs(raw: string): CustomToolUserInput[] | undefined {
+	const trimmed = raw.trim();
+	if (!trimmed) return [];
+	const parsed = JSON.parse(trimmed);
+	if (!Array.isArray(parsed)) {
+		throw new Error("Private user inputs must be a JSON array.");
+	}
+	return parsed as CustomToolUserInput[];
+}
+
+function renderCustomToolCards(
+	tools: CustomToolManifest[],
+	emptyTitle: string,
+	emptyBody: string,
+): string {
+	if (!tools.length) {
+		return `
+			<div class=\"custom-tool-empty\">
+				<strong>${escapeHtmlUnsafe(emptyTitle)}</strong>
+				<span>${escapeHtmlUnsafe(emptyBody)}</span>
+			</div>
+		`;
+	}
+	return tools
+		.map((tool) => {
+			const enabled = enabledCustomToolIds.includes(tool.id);
+			const safeName = escapeHtmlUnsafe(tool.name);
+			const safeAuthor = escapeHtmlUnsafe(tool.authorEmail);
+			const safeId = escapeHtmlUnsafe(tool.id);
+			const safeFunction = escapeHtmlUnsafe(tool.openai?.functionName || "");
+			const safeVersion = escapeHtmlUnsafe(tool.version || "0.1.0");
+			const ownedByCurrentUser = isToolOwnedByCurrentUser(tool);
+			const updateAvailable = tool.registry ? isRegistryRecordNewer(tool) : false;
+			const safeStatus = updateAvailable
+				? "Update available"
+				: tool.published
+					? "Registry"
+					: "Local";
+			const publishLabel = tool.published ? "Push update" : "Publish";
+			const ownerActions = ownedByCurrentUser
+				? `
+					${toolActionButtonHtml("edit-custom-tool", tool.id, `Edit`, "edit")}
+					${!tool.published || shouldShowPushLocalUpdate(tool) ? toolActionButtonHtml("publish-custom-tool", tool.id, `${publishLabel}`, "upload") : ""}
+					${tool.published ? toolActionButtonHtml("unpublish-custom-tool", tool.id, `Take down`, "unpublish") : ""}
+				`
+				: "";
+			const consumerActions =
+				!ownedByCurrentUser && updateAvailable
+					? toolActionButtonHtml("refresh-custom-tool", tool.id, `Install latest ${tool.name}`, "download")
+					: "";
+			return `
+				<div class=\"custom-tool-item\" data-custom-tool-id=\"${safeId}\">
+					<div class=\"custom-tool-main\">
+						<button
+							type=\"button\"
+							class=\"tool-toggle-btn icon-only ${enabled ? "active" : ""}\"
+							data-toggle-custom-tool=\"${safeId}\"
+							title=\"${safeName}\"
+							aria-label=\"${safeName}\"
+							aria-pressed=\"${String(enabled)}\">
+							${toolIconSvg("custom")}
+						</button>
+						<div class=\"custom-tool-copy\">
+							<div class=\"custom-tool-title-row\">
+								<strong>${safeName}</strong>
+								<span class=\"custom-tool-badge\">${safeStatus}</span>
+							</div>
+							<div class=\"custom-tool-meta\">${tool.language.toUpperCase()} • ${safeFunction}</div>
+							<div class=\"custom-tool-meta\">Version ${safeVersion}${tool.websiteUrl ? ` • <a href=\"#\" data-open-tool-website=\"${escapeHtmlUnsafe(tool.websiteUrl)}\">Website</a>` : ""}</div>
+							<div class=\"custom-tool-meta\">${safeAuthor}</div>
+							${tool.codeHash ? `<div class=\"custom-tool-id\">sha256:${escapeHtmlUnsafe(tool.codeHash.slice(0, 16))}</div>` : ""}
+							<div class=\"custom-tool-id\">${safeId}</div>
+						</div>
+					</div>
+					<div class=\"custom-tool-actions\">
+						${ownerActions}
+						${consumerActions}
+						${toolActionButtonHtml("delete-custom-tool", tool.id, `Delete`, "trash", true)}
+					</div>
+				</div>
+			`;
+		})
+		.join("");
+}
+
+function renderUploadedRegistryCards(records: CustomToolRegistryRecord[]): string {
+	if (!records.length) {
+		return `
+			<div class=\"custom-tool-empty\">
+				<strong>No uploaded registry tools</strong>
+				<span>Tools you publish remain manageable here even after you delete the local copy.</span>
+			</div>
+		`;
+	}
+	const localIds = new Set(cachedCustomTools.map((tool) => tool.id));
+	return records
+		.map((record) => {
+			const safeId = escapeHtmlUnsafe(record.id);
+			const safeName = escapeHtmlUnsafe(record.name);
+			const safeFunction = escapeHtmlUnsafe(record.openai?.functionName || "");
+			const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
+			const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
+			const installed = localIds.has(record.id);
+			const installedTool = cachedCustomTools.find((tool) => tool.id === record.id);
+			const canPush = Boolean(installedTool && shouldShowPushLocalUpdate(installedTool));
+			return `
+				<div class=\"custom-tool-item\" data-registry-tool-id=\"${safeId}\">
+					<div class=\"custom-tool-main\">
+						<div class=\"custom-tool-flow-icon\">${toolIconSvg("upload")}</div>
+						<div class=\"custom-tool-copy\">
+							<div class=\"custom-tool-title-row\">
+								<strong>${safeName}</strong>
+								<span class=\"custom-tool-badge\">Uploaded</span>
+							</div>
+							<div class=\"custom-tool-meta\">${record.language.toUpperCase()} • ${safeFunction}</div>
+							<div class=\"custom-tool-meta\">Version ${safeVersion} • ${escapeHtmlUnsafe(record.visibility)}${record.websiteUrl ? ` • <a href=\"#\" data-open-tool-website=\"${escapeHtmlUnsafe(record.websiteUrl)}\">Website</a>` : ""}</div>
+							<div class=\"custom-tool-meta\">${safeAuthor}</div>
+							${record.releaseNotes ? `<div class=\"custom-tool-meta\">${escapeHtmlUnsafe(record.releaseNotes.slice(0, 160))}</div>` : ""}
+							<div class=\"custom-tool-id\">${safeId}</div>
+						</div>
+					</div>
+					<div class=\"custom-tool-actions\">
+						${installed ? (canPush ? toolActionButtonHtml("publish-custom-tool", record.id, "Push local update", "upload") : "") : toolActionButtonHtml("install-uploaded-custom-tool", record.id, "Install locally", "download")}
+						${toolActionButtonHtml("unpublish-custom-tool", record.id, "Take down", "unpublish")}
+					</div>
+				</div>
+			`;
+		})
+		.join("");
+}
+
+function openCreateCustomToolModal(): void {
+	customToolModal.open({
+		title: "Create Custom Tool",
+		html: `
+			<div class=\"custom-tool-flow\">
+				<div class=\"custom-tool-flow-head\">
+					<div class=\"custom-tool-flow-icon\">${toolIconSvg("code")}</div>
+					<div>
+						<h3>Build a custom tool</h3>
+						<p>Attach one source file, describe the function schema, and choose whether it stays local or goes to the registry.</p>
+					</div>
+				</div>
+
+				<div class=\"custom-tool-form-grid\">
+					<label>Tool Name
+						<input id=\"custom-tool-name\" placeholder=\"My Useful Tool\" />
+					</label>
+
+					<label>Language
+						<select id=\"custom-tool-language\">
+							${CUSTOM_TOOL_LANGUAGES.map((language) => `<option value=\"${language.value}\">${language.label}</option>`).join("")}
+						</select>
+					</label>
+
+					<label class=\"span-2\">Functionality
+						<textarea id=\"custom-tool-functionality\" rows=\"3\" placeholder=\"Explain what this tool does.\"></textarea>
+					</label>
+
+					<label>Function Name
+						<input id=\"custom-tool-function-name\" placeholder=\"weather_lookup\" />
+					</label>
+
+					<label>Version
+						<input id=\"custom-tool-version\" placeholder=\"0.1.0\" value=\"0.1.0\" />
+					</label>
+
+					<label>Description
+						<input id=\"custom-tool-description\" placeholder=\"Get weather data from a local script\" />
+					</label>
+
+					<label>Website
+						<input id=\"custom-tool-website\" placeholder=\"https://example.com/tool-docs\" />
+					</label>
+
+					<label class=\"span-2\">Input Parameters JSON Schema
+						<textarea id=\"custom-tool-params\" rows=\"6\" placeholder='{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}'></textarea>
+					</label>
+
+					<label class=\"span-2\">Private User Inputs JSON
+						<textarea id=\"custom-tool-user-inputs\" rows=\"4\" placeholder='${escapeHtmlUnsafe(customToolUserInputsPlaceholder())}'></textarea>
+					</label>
+
+					<label class=\"span-2\">Release Notes
+						<textarea id=\"custom-tool-release-notes\" rows=\"3\" placeholder=\"Initial release.\"></textarea>
+					</label>
+
+					<label>Code File
+						<input id=\"custom-tool-file\" type=\"file\" />
+					</label>
+
+					<label>Visibility
+						<select id=\"custom-tool-visibility\">
+							<option value=\"private\">Private (local only)</option>
+							<option value=\"unlisted\">Unlisted registry publish</option>
+							<option value=\"public\">Public registry publish</option>
+						</select>
+					</label>
+				</div>
+			</div>
+		`,
+		actions: [
+			{
+				id: "create-custom-tool-submit",
+				label: "Create Tool",
+				onClick: async () => {
+					const name = (document.getElementById("custom-tool-name") as HTMLInputElement | null)?.value?.trim() || "";
+					const functionality =
+						(document.getElementById("custom-tool-functionality") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const language = (document.getElementById("custom-tool-language") as HTMLSelectElement | null)?.value || "javascript";
+					const functionName =
+						(document.getElementById("custom-tool-function-name") as HTMLInputElement | null)?.value?.trim() || "";
+					const version =
+						(document.getElementById("custom-tool-version") as HTMLInputElement | null)?.value?.trim() || "0.1.0";
+					const openaiDescription =
+						(document.getElementById("custom-tool-description") as HTMLInputElement | null)?.value?.trim() || "";
+					const websiteUrl =
+						(document.getElementById("custom-tool-website") as HTMLInputElement | null)?.value?.trim() || "";
+					const releaseNotes =
+						(document.getElementById("custom-tool-release-notes") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const paramsRaw =
+						(document.getElementById("custom-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const userInputsRaw =
+						(document.getElementById("custom-tool-user-inputs") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const visibility =
+						(document.getElementById("custom-tool-visibility") as HTMLSelectElement | null)?.value || "private";
+					const publish = visibility === "public" || visibility === "unlisted";
+					const fileInput = document.getElementById("custom-tool-file") as HTMLInputElement | null;
+					const file = fileInput?.files?.[0];
+					if (!name || !functionality || !file) {
+						showNotification({ type: "warning", message: "Name, functionality, and code file are required." });
+						return;
+					}
+					let parameters: Record<string, unknown> | undefined = undefined;
+					if (paramsRaw) {
+						try {
+							parameters = JSON.parse(paramsRaw) as Record<string, unknown>;
+						} catch {
+							showNotification({ type: "error", message: "Input parameter schema JSON is invalid." });
+							return;
+						}
+					}
+					let userInputs: CustomToolUserInput[] | undefined;
+					try {
+						userInputs = parseCustomToolUserInputs(userInputsRaw);
+					} catch (err) {
+						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+						return;
+					}
+					const codeContent = await file.text();
+					const result = await window.ollama.createCustomTool({
+						name,
+						functionality,
+						version,
+						releaseNotes,
+						websiteUrl,
+						language,
+						codeFileName: file.name,
+						codeContent,
+						visibility,
+						publishToRegistry: publish,
+						openai: {
+							functionName: functionName || undefined,
+							description: openaiDescription || undefined,
+							parameters,
+						},
+						userInputs,
+					});
+					if (!result?.ok) {
+						showNotification({
+							type: "error",
+							message: result?.error || "Failed to create custom tool.",
+						});
+						return;
+					}
+					await refreshCustomTools();
+					if (!enabledCustomToolIds.includes(result.manifest.id)) {
+						enabledCustomToolIds = [...enabledCustomToolIds, result.manifest.id];
+						toolSettings.setCustomToolIds(enabledCustomToolIds);
+					}
+					updateToolButtonActiveState();
+					showNotification({ type: "success", message: "Custom tool created." });
+					customToolModal.close();
+					void openToolsManagerModal();
+				},
+			},
+		],
+	});
+}
+
+async function openEditCustomToolModal(toolId: string): Promise<void> {
+	if (!isUuidToolId(toolId)) {
+		showNotification({ type: "error", message: "Tool ID must be a UUID." });
+		return;
+	}
+	const source = await window.ollama.getCustomToolSource(toolId);
+	if (!source?.manifest) {
+		showNotification({ type: "error", message: "Tool source was not found." });
+		return;
+	}
+	const tool = source.manifest;
+	if (!isToolOwnedByCurrentUser(tool)) {
+		showNotification({ type: "warning", message: "Imported registry tools can be inspected or deleted, but only the author can edit them." });
+		return;
+	}
+	const params = JSON.stringify(tool.openai?.parameters || { type: "object", properties: {} }, null, 2);
+	const userInputs = JSON.stringify(tool.userInputs || [], null, 2);
+	const originalVersion = tool.version || "0.1.0";
+	let allowSemverBypass = false;
+	customToolModal.open({
+		title: "Edit Custom Tool",
+		html: `
+			<div class=\"custom-tool-flow\">
+				<div class=\"custom-tool-flow-head\">
+					<div class=\"custom-tool-flow-icon\">${toolIconSvg("edit")}</div>
+					<div>
+						<h3>${escapeHtmlUnsafe(tool.name)}</h3>
+						<p>${escapeHtmlUnsafe(tool.id)}</p>
+					</div>
+				</div>
+				<div class=\"custom-tool-form-grid\">
+					<label>Tool Name
+						<input id=\"edit-tool-name\" value=\"${escapeHtmlUnsafe(tool.name)}\" />
+					</label>
+					<label>Language
+						<select id=\"edit-tool-language\">
+							${CUSTOM_TOOL_LANGUAGES.map((language) => `<option value=\"${language.value}\" ${tool.language === language.value ? "selected" : ""}>${language.label}</option>`)
+								.join("")}
+						</select>
+					</label>
+					<label class=\"span-2\">Functionality
+						<textarea id=\"edit-tool-functionality\" rows=\"3\">${escapeHtmlUnsafe(tool.functionality)}</textarea>
+					</label>
+					<label>Function Name
+						<input id=\"edit-tool-function-name\" value=\"${escapeHtmlUnsafe(tool.openai?.functionName || "")}\" />
+					</label>
+					<label>Version
+						<input id=\"edit-tool-version\" value=\"${escapeHtmlUnsafe(tool.version || "0.1.0")}\" />
+					</label>
+					<label>Visibility
+						<select id=\"edit-tool-visibility\">
+							${["private", "unlisted", "public"]
+								.map((visibility) => `<option value=\"${visibility}\" ${tool.visibility === visibility ? "selected" : ""}>${visibility}</option>`)
+								.join("")}
+						</select>
+					</label>
+					<label class=\"span-2\">Description
+						<input id=\"edit-tool-description\" value=\"${escapeHtmlUnsafe(tool.openai?.description || "")}\" />
+					</label>
+					<label>Website
+						<input id=\"edit-tool-website\" value=\"${escapeHtmlUnsafe(tool.websiteUrl || "")}\" />
+					</label>
+					<label>Code File Name
+						<input id=\"edit-tool-code-file\" value=\"${escapeHtmlUnsafe(tool.codeFile)}\" readonly />
+					</label>
+					<label class=\"span-2\">Input Parameters JSON Schema
+						<textarea id=\"edit-tool-params\" rows=\"6\">${escapeHtmlUnsafe(params)}</textarea>
+					</label>
+					<label class=\"span-2\">Private User Inputs JSON
+						<textarea id=\"edit-tool-user-inputs\" rows=\"4\">${escapeHtmlUnsafe(userInputs)}</textarea>
+					</label>
+					<label class=\"span-2\">Release Notes
+						<textarea id=\"edit-tool-release-notes\" rows=\"3\">${escapeHtmlUnsafe(tool.releaseNotes || "")}</textarea>
+					</label>
+					<label class=\"span-2\">Source Code
+						<textarea id=\"edit-tool-code\" class=\"custom-tool-code-editor\" rows=\"12\">${escapeHtmlUnsafe(source.code || "")}</textarea>
+					</label>
+				</div>
+			</div>
+		`,
+		actions: [
+			{
+				id: "edit-custom-tool-save",
+				label: "Save",
+				onClick: async () => {
+					let parameters: Record<string, unknown> | undefined;
+					const paramsRaw = (document.getElementById("edit-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					if (paramsRaw) {
+						try {
+							parameters = JSON.parse(paramsRaw) as Record<string, unknown>;
+						} catch {
+							showNotification({ type: "error", message: "Input parameter schema JSON is invalid." });
+							return;
+						}
+					}
+					let userInputs: CustomToolUserInput[] | undefined;
+					try {
+						userInputs = parseCustomToolUserInputs((document.getElementById("edit-tool-user-inputs") as HTMLTextAreaElement | null)?.value || "");
+					} catch (err) {
+						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+						return;
+					}
+					const nextVersion = (document.getElementById("edit-tool-version") as HTMLInputElement | null)?.value?.trim() || "0.1.0";
+					if (!allowSemverBypass && compareSemver(nextVersion, originalVersion) <= 0) {
+						const actions = document.querySelector("#custom-tool-modal .modal-actions");
+						let warning = document.getElementById("edit-tool-semver-warning");
+						if (!warning && actions) {
+							warning = document.createElement("div");
+							warning.id = "edit-tool-semver-warning";
+							warning.className = "custom-tool-save-warning";
+							actions.appendChild(warning);
+						}
+						if (warning) {
+							warning.textContent = `Version has not increased (${originalVersion} -> ${nextVersion}). Click Save again to continue anyway.`;
+						}
+						allowSemverBypass = true;
+						return;
+					}
+					const result = await window.ollama.updateCustomTool({
+						id: toolId,
+						name: (document.getElementById("edit-tool-name") as HTMLInputElement | null)?.value?.trim(),
+						functionality: (document.getElementById("edit-tool-functionality") as HTMLTextAreaElement | null)?.value?.trim(),
+						version: (document.getElementById("edit-tool-version") as HTMLInputElement | null)?.value?.trim(),
+						releaseNotes: (document.getElementById("edit-tool-release-notes") as HTMLTextAreaElement | null)?.value?.trim(),
+						websiteUrl: (document.getElementById("edit-tool-website") as HTMLInputElement | null)?.value?.trim(),
+						language: (document.getElementById("edit-tool-language") as HTMLSelectElement | null)?.value,
+						codeContent: (document.getElementById("edit-tool-code") as HTMLTextAreaElement | null)?.value || "",
+						visibility: (document.getElementById("edit-tool-visibility") as HTMLSelectElement | null)?.value,
+						openai: {
+							functionName: (document.getElementById("edit-tool-function-name") as HTMLInputElement | null)?.value?.trim(),
+							description: (document.getElementById("edit-tool-description") as HTMLInputElement | null)?.value?.trim(),
+							parameters,
+						},
+						userInputs,
+					});
+					if (!result?.ok) {
+						showNotification({ type: "error", message: result?.error || "Failed to save tool." });
+						return;
+					}
+					await refreshCustomTools();
+					updateToolButtonActiveState();
+					showNotification({ type: "success", message: "Tool updated." });
+					customToolModal.close();
+					void openToolsManagerModal();
+				},
+			},
+		],
+	});
+}
+
+function openImportCustomToolModal(prefillId = ""): void {
+	const safePrefill = escapeHtmlUnsafe(prefillId);
+	let fetchToken = 0;
+	const runPreviewFetch = async () => {
+		const id = (document.getElementById("custom-tool-import-id") as HTMLInputElement | null)?.value?.trim() || "";
+		const preview = document.getElementById("custom-tool-import-preview") as HTMLDivElement | null;
+		if (!preview) return;
+		if (!id) {
+			preview.innerHTML = "";
+			return;
+		}
+		if (!isUuidToolId(id)) {
+			preview.textContent = "Tool ID must be a UUID.";
+			return;
+		}
+		const token = ++fetchToken;
+		preview.textContent = "Loading...";
+		const record = await window.ollama.getCustomToolRegistryItem(id);
+		if (token !== fetchToken) return;
+		if (!record) {
+			preview.textContent = "Tool not found.";
+			return;
+		}
+		const safeName = escapeHtmlUnsafe(record.name);
+		const safeId = escapeHtmlUnsafe(record.id);
+		const safeAuthor = escapeHtmlUnsafe(record.authorEmail);
+		const safeLang = escapeHtmlUnsafe(record.language);
+		const safeVersion = escapeHtmlUnsafe(record.version || "0.1.0");
+		const safeWebsite = escapeHtmlUnsafe(record.websiteUrl || "");
+		const safeRuntime = escapeHtmlUnsafe((record.requirements.runtime || []).join(", ") || "none");
+		const safeBuild = escapeHtmlUnsafe((record.requirements.build || []).join(", ") || "none");
+		preview.innerHTML = `
+			<div class=\"custom-tool-preview-row\"><strong>${safeName}</strong></div>
+			<div class=\"custom-tool-preview-row custom-tool-preview-id\">${safeId}</div>
+			<div class=\"custom-tool-preview-row\">Author: ${safeAuthor}</div>
+			<div class=\"custom-tool-preview-row\">Language: ${safeLang}</div>
+			<div class=\"custom-tool-preview-row\">Version: ${safeVersion}</div>
+			${safeWebsite ? `<div class=\"custom-tool-preview-row\">Website: <a href=\"javascript:window.utils.web_open('${safeWebsite}')\">${safeWebsite}</a></div>` : ""}
+			<div class=\"custom-tool-preview-row\">Runtime: ${safeRuntime}</div>
+			<div class=\"custom-tool-preview-row\">Build: ${safeBuild}</div>
+		`;
+	};
+	customToolModal.close();
+	customToolModal.open({
+		title: "Import Tool by ID",
+		html: `
+			<div class=\"custom-tool-form\">
+				<label>Tool ID</label>
+				<input id=\"custom-tool-import-id\" placeholder=\"00000000-0000-0000-0000-000000000000\" value=\"${safePrefill}\" />
+				<div id=\"custom-tool-import-preview\" class=\"custom-tool-preview\"></div>
+			</div>
+		`,
+		actions: [
+			{
+				id: "custom-tool-import-preview-btn",
+				label: "Fetch Info",
+				onClick: runPreviewFetch,
+			},
+			{
+				id: "custom-tool-import-btn",
+				label: "Import",
+				onClick: async () => {
+					const id = (document.getElementById("custom-tool-import-id") as HTMLInputElement | null)?.value?.trim() || "";
+					if (!id) {
+						showNotification({ type: "warning", message: "Tool ID is required." });
+						return;
+					}
+					if (!isUuidToolId(id)) {
+						showNotification({ type: "warning", message: "Tool ID must be a UUID." });
+						return;
+					}
+					const result = await window.ollama.importCustomTool(id);
+					if (!result?.ok) {
+						showNotification({ type: "error", message: result?.error || "Failed to import tool." });
+						return;
+					}
+					await refreshCustomTools();
+					if (!enabledCustomToolIds.includes(result.manifest.id)) {
+						enabledCustomToolIds = [...enabledCustomToolIds, result.manifest.id];
+						toolSettings.setCustomToolIds(enabledCustomToolIds);
+					}
+					updateToolButtonActiveState();
+					showNotification({ type: "success", message: "Tool imported." });
+					customToolModal.close();
+					void openToolsManagerModal();
+				},
+			},
+		],
+	});
+	const importInput = document.getElementById("custom-tool-import-id") as HTMLInputElement | null;
+	if (importInput) {
+		importInput.addEventListener("input", () => {
+			void runPreviewFetch();
+		});
+		if (importInput.value.trim()) {
+			void runPreviewFetch();
+		}
+	}
+}
+
+async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
+	await refreshCustomTools();
+	const localTools = cachedCustomTools.filter((tool) => !tool.registry);
+	const registryTools = cachedCustomTools.filter((tool) => tool.registry);
+	customToolModal.open({
+		title: "Tools",
+		html: `
+			<div class=\"tools-modal-grid\">
+				<div class=\"tools-modal-hero\">
+					<div>
+						<h3>Tools</h3>
+						<p>Enable capabilities for chat, create local tools, or manage tools you have installed and published.</p>
+					</div>
+					<div class=\"tools-modal-count\">${getEnabledToolCount()} enabled</div>
+				</div>
+				<div class=\"tools-flow-grid\">
+					<button id=\"tools-create-custom-btn\" class=\"tools-flow-card\" type=\"button\">
+						<span>${toolIconSvg("code")}</span>
+						<strong>Create</strong>
+						<small>Build a local tool from a source file.</small>
+					</button>
+					<button id=\"tools-import-custom-btn\" class=\"tools-flow-card\" type=\"button\">
+						<span>${toolIconSvg("upload")}</span>
+						<strong>Import</strong>
+						<small>Install a tool by UUID.</small>
+					</button>
+					<button id=\"tools-browse-web-btn\" class=\"tools-flow-card\" type=\"button\">
+						<span>${toolIconSvg("search")}</span>
+						<strong>Browse</strong>
+						<small>Open the website tool catalog.</small>
+					</button>
+				</div>
+				<div class=\"tools-modal-section\">
+					<h4>Built-in Tools</h4>
+					<div class=\"tools-modal-buttons icon-grid\">
+						${builtInToolToggleHtml("webSearch", "Web Search", "search", searchEnabled)}
+						${builtInToolToggleHtml("imageGen", "Image Generation", "image", imgEnabled)}
+						${builtInToolToggleHtml("videoGen", "Video Generation", "video", videoEnabled)}
+						${builtInToolToggleHtml("audioGen", "Music/SFX Generation", "audio", audioEnabled)}
+					</div>
+				</div>
+				<div class=\"tools-modal-section\">
+					<h4>Local Custom Tools</h4>
+					${renderCustomToolCards(localTools, "No local tools", "Create a tool from a source file on this device.")}
+				</div>
+				<div class=\"tools-modal-section\">
+					<h4>Registry Tools</h4>
+					${renderCustomToolCards(registryTools, "No registry tools installed", "Import tools by UUID or publish one of your local tools.")}
+				</div>
+				<div class=\"tools-modal-section\">
+					<h4>My Uploaded Tools</h4>
+					${renderUploadedRegistryCards(cachedMyUploadedRegistryRecords)}
+				</div>
+			</div>
+		`,
+		actions: [],
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-toggle-built-in]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const key = btn.getAttribute("data-toggle-built-in");
+			if (
+				key !== "webSearch" &&
+				key !== "imageGen" &&
+				key !== "videoGen" &&
+				key !== "audioGen"
+			) {
+				return;
+			}
+			const nextEnabled = !btn.classList.contains("active");
+			const applied = setToolEnableState(key, nextEnabled);
+			if (!applied) return;
+			btn.classList.toggle("active", nextEnabled);
+			btn.setAttribute("aria-pressed", String(nextEnabled));
+			updateToolButtonActiveState();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-toggle-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const toolId = btn.getAttribute("data-toggle-custom-tool");
+			if (!toolId) return;
+			const enabled = enabledCustomToolIds.includes(toolId);
+			if (!enabled && !toolsSupportedInUi) {
+				showToolsUnsupportedModal();
+				return;
+			}
+			if (enabled) {
+				enabledCustomToolIds = enabledCustomToolIds.filter((id) => id !== toolId);
+			} else {
+				enabledCustomToolIds = [...enabledCustomToolIds, toolId];
+			}
+			toolSettings.setCustomToolIds(enabledCustomToolIds);
+			btn.classList.toggle("active", !enabled);
+			btn.setAttribute("aria-pressed", String(!enabled));
+			updateToolButtonActiveState();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-edit-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", () => {
+			const toolId = btn.getAttribute("data-edit-custom-tool");
+			if (!toolId) return;
+			void openEditCustomToolModal(toolId);
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-publish-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-publish-custom-tool");
+			if (!toolId) return;
+			const tool = cachedCustomTools.find((item) => item.id === toolId);
+			if (tool && !isToolOwnedByCurrentUser(tool)) {
+				showNotification({ type: "warning", message: "Only the author can update a registry tool." });
+				return;
+			}
+			if (!tool) return;
+			const record = getRegistryRecordForTool(tool.id);
+			const localVersion = tool.version || "0.1.0";
+			const registryVersion = record?.version || "0.1.0";
+			if (tool.published && compareSemver(localVersion, registryVersion) <= 0) {
+				showNotification({
+					type: "warning",
+					message: `Local version (${localVersion}) must be higher than registry version (${registryVersion}) to push an update.`,
+				});
+				return;
+			}
+			const localSource = await window.ollama.getCustomToolSource(tool.id);
+			const registrySource = tool.published ? await window.ollama.getCustomToolRegistrySource(tool.id) : null;
+			const diffSummary = buildCodeDiffSummary(registrySource?.code || "", localSource?.code || "");
+			customToolModal.open({
+				title: tool.published ? "Push Local Update" : "Publish Tool",
+				html: `
+					<div class="custom-tool-run-review">
+						<p><strong>${escapeHtmlUnsafe(tool.name)}</strong></p>
+						<p>Version: ${escapeHtmlUnsafe(localVersion)}${tool.published ? ` (registry: ${escapeHtmlUnsafe(registryVersion)})` : ""}</p>
+						<details open>
+							<summary>Source diff overview</summary>
+							<pre>${escapeHtmlUnsafe(diffSummary)}</pre>
+						</details>
+					</div>
+				`,
+				actions: [
+					{
+						id: "confirm-publish-custom-tool",
+						label: tool.published ? "Push Update" : "Publish",
+						onClick: async () => {
+							const result = await window.ollama.publishCustomTool(toolId);
+							if (!result?.ok) {
+								showNotification({ type: "error", message: result?.error || "Failed to publish tool." });
+								return;
+							}
+							showNotification({ type: "success", message: tool.published ? "Local update pushed." : "Tool published." });
+							await refreshCustomTools();
+							customToolModal.close();
+							void openToolsManagerModal();
+						},
+					},
+				],
+			});
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-unpublish-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-unpublish-custom-tool");
+			if (!toolId) return;
+			const tool = cachedCustomTools.find((item) => item.id === toolId);
+			const uploadedRecord = cachedMyUploadedRegistryRecords.find((item) => item.id === toolId);
+			if (!tool && !uploadedRecord) return;
+			if (tool && !isToolOwnedByCurrentUser(tool)) {
+				showNotification({ type: "warning", message: "Only the author can take down a registry tool." });
+				return;
+			}
+			const toolName = tool?.name || uploadedRecord?.name || toolId;
+			if (!window.confirm(`Take down "${toolName}" from the public tool registry?`)) return;
+			const result = await window.ollama.deleteRegistryCustomTool(toolId);
+			if (!result?.ok) {
+				showNotification({ type: "error", message: result?.error || "Failed to take down tool." });
+				return;
+			}
+			showNotification({ type: "success", message: "Tool taken down from registry." });
+			await refreshCustomTools();
+			void openToolsManagerModal();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-install-uploaded-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-install-uploaded-custom-tool");
+			if (!toolId) return;
+			const result = await window.ollama.importCustomTool(toolId);
+			if (!result?.ok) {
+				showNotification({ type: "error", message: result?.error || "Failed to install registry tool." });
+				return;
+			}
+			showNotification({ type: "success", message: "Registry tool installed locally." });
+			await refreshCustomTools();
+			void openToolsManagerModal();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-refresh-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-refresh-custom-tool");
+			if (!toolId) return;
+			const tool = cachedCustomTools.find((item) => item.id === toolId);
+			if (!tool) return;
+			if (!window.confirm(`Install the latest registry copy of "${tool.name}" on this device?`)) return;
+			const result = await window.ollama.importCustomTool(toolId);
+			if (!result?.ok) {
+				showNotification({ type: "error", message: result?.error || "Failed to install latest tool." });
+				return;
+			}
+			showNotification({ type: "success", message: "Latest registry copy installed." });
+			await refreshCustomTools();
+			void openToolsManagerModal();
+		});
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-delete-custom-tool]").forEach((btn) => {
+		btn.addEventListener("click", async () => {
+			const toolId = btn.getAttribute("data-delete-custom-tool");
+			if (!toolId) return;
+			const tool = cachedCustomTools.find((item) => item.id === toolId);
+			if (!tool) return;
+			if (!window.confirm(`Delete "${tool.name}" from this device?`)) return;
+			const result = await window.ollama.deleteCustomTool(toolId);
+			if (!result?.ok) {
+				showNotification({ type: "error", message: result?.error || "Failed to delete tool." });
+				return;
+			}
+			enabledCustomToolIds = enabledCustomToolIds.filter((id) => id !== toolId);
+			toolSettings.setCustomToolIds(enabledCustomToolIds);
+			await refreshCustomTools();
+			updateToolButtonActiveState();
+			showNotification({ type: "success", message: "Tool deleted." });
+			void openToolsManagerModal();
+		});
+	});
+
+	document.getElementById("tools-create-custom-btn")?.addEventListener("click", () => {
+		openCreateCustomToolModal();
+	});
+
+	document.getElementById("tools-import-custom-btn")?.addEventListener("click", () => {
+		openImportCustomToolModal(prefillImportId);
+	});
+
+	document.getElementById("tools-browse-web-btn")?.addEventListener("click", () => {
+		void window.utils.web_open("https://inference.js.org/tools.html");
+	});
+
+	document.querySelectorAll<HTMLElement>("[data-open-tool-website]").forEach((link) => {
+		link.addEventListener("click", (event) => {
+			event.preventDefault();
+			const url = link.getAttribute("data-open-tool-website");
+			if (url) void window.utils.web_open(url);
+		});
+	});
 }
 
 const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
@@ -2698,8 +3801,8 @@ const unsubscribeToolSettings = toolSettings.onSettingsChange((settings) => {
 	videoEnabled = settings.videoGen;
 	audioEnabled = settings.audioGen;
 	searchEngine = settings.searchEngines;
+	enabledCustomToolIds = settings.customToolIds || [];
 	currentToolSettings = settings;
-	updateToolButtonVisibility();
 	updateToolButtonActiveState();
 });
 
@@ -2720,55 +3823,14 @@ chatBox.addEventListener("scroll", () => {
 	}
 });
 
-const toggleWebSearch = () => {
-	if (!toolsSupportedInUi && !searchEnabled) {
-		showToolsUnsupportedModal();
-		return;
-	}
-	searchEnabled = !searchEnabled;
-	updateToolButtonActiveState();
-};
+toolsBtn?.addEventListener("click", () => {
+	void openToolsManagerModal();
+});
+toolsBtnMini?.addEventListener("click", () => {
+	void openToolsManagerModal();
+});
 
-const toggleImageGen = () => {
-	if (!toolsSupportedInUi && !imgEnabled) {
-		showToolsUnsupportedModal();
-		return;
-	}
-	if (!imgEnabled && !enforceLimit("imagesDaily")) return;
-	imgEnabled = !imgEnabled;
-	updateToolButtonActiveState();
-};
-
-const toggleVideoGen = () => {
-	if (!toolsSupportedInUi && !videoEnabled) {
-		showToolsUnsupportedModal();
-		return;
-	}
-	if (!videoEnabled && !enforceLimit("videosDaily")) return;
-	videoEnabled = !videoEnabled;
-	updateToolButtonActiveState();
-};
-
-const toggleAudioGen = () => {
-	if (!toolsSupportedInUi && !audioEnabled) {
-		showToolsUnsupportedModal();
-		return;
-	}
-	if (!audioEnabled && !enforceLimit("audioWeekly")) return;
-	audioEnabled = !audioEnabled;
-	updateToolButtonActiveState();
-};
-
-searchBtn?.addEventListener("click", toggleWebSearch);
-searchBtnMini?.addEventListener("click", toggleWebSearch);
-imgBtn?.addEventListener("click", toggleImageGen);
-imgBtnMini?.addEventListener("click", toggleImageGen);
-videoBtn?.addEventListener("click", toggleVideoGen);
-videoBtnMini?.addEventListener("click", toggleVideoGen);
-audioBtn?.addEventListener("click", toggleAudioGen);
-audioBtnMini?.addEventListener("click", toggleAudioGen);
-
-updateToolButtonVisibility();
+void refreshCustomTools();
 updateToolButtonActiveState();
 
 // ─── Attached-file state ──────────────────────────────────────────────────────
@@ -3343,6 +4405,7 @@ form.addEventListener("submit", async (e) => {
 			imageGen: supportsToolsForRequest && imgEnabled,
 			videoGen: supportsToolsForRequest && videoEnabled,
 			audioGen: supportsToolsForRequest && audioEnabled,
+			customToolIds: supportsToolsForRequest ? enabledCustomToolIds : [],
 		},
 		clientUrl,
 		currentSessionId,
@@ -4465,7 +5528,10 @@ async function renderChat() {
 				) {
 					const preEl = el as HTMLPreElement;
 					const codeEl = preEl.querySelector("code");
-
+					if (!codeEl) {
+						botContainer.appendChild(node.cloneNode(true));
+						return;
+					}
 					let lang = "code";
 
 					if (codeEl.className) {
@@ -6285,6 +7351,159 @@ window.ollama.onToolCall((call) => {
 	if (call.state === "pending") {
 		upsertToolHistoryEntry(session, call, "⏳ Running…", targetSessionId);
 		void window.ollama.save(sessions);
+		return;
+	}
+
+	if (call.state === "awaiting_approval") {
+		const toolTitle =
+			typeof call?.customTool?.name === "string" && call.customTool.name.trim()
+				? call.customTool.name.trim()
+				: call.name;
+		const toolAuthor =
+			typeof call?.customTool?.authorEmail === "string"
+				? call.customTool.authorEmail
+				: "Unknown author";
+		const toolLanguage =
+			typeof call?.customTool?.language === "string"
+				? call.customTool.language
+				: "Unknown language";
+		const safeToolTitle = escapeHtmlUnsafe(toolTitle);
+		const safeToolAuthor = escapeHtmlUnsafe(toolAuthor);
+		const safeToolLanguage = escapeHtmlUnsafe(toolLanguage);
+		const safeToolId = escapeHtmlUnsafe(call?.customTool?.id || "unknown id");
+		upsertToolHistoryEntry(
+			session,
+			call,
+			`⚠️ Awaiting permission to run custom tool "${toolTitle}".`,
+			targetSessionId,
+		);
+		void window.ollama.save(sessions);
+
+		void (async () => {
+			const argsText =
+				typeof call.arguments === "string" && call.arguments.trim().length > 0
+					? call.arguments
+					: "{}";
+			const source =
+				typeof call?.customTool?.id === "string"
+					? await window.ollama.getCustomToolSource(call.customTool.id).catch(() => null)
+					: null;
+			const sourceCode = source?.code || "Source code could not be loaded.";
+			const sourceHash = source?.manifest?.codeHash || call?.customTool?.codeHash || "unknown";
+			const privateInputs: CustomToolUserInput[] =
+				source?.manifest?.userInputs ||
+				(Array.isArray(call?.customTool?.userInputs) ? call.customTool.userInputs : []);
+			const safeSourceHash = escapeHtmlUnsafe(sourceHash);
+			const safeCodeFile = escapeHtmlUnsafe(source?.manifest?.codeFile || "unknown file");
+			const privateInputHtml = privateInputs.length
+				? privateInputs
+						.map((input, index) => {
+							const safeLabel = escapeHtmlUnsafe(input.label || input.name);
+							const safeDescription = escapeHtmlUnsafe(input.description || "");
+							return `
+								<label class=\"custom-tool-private-input\">
+									<span>${safeLabel}${input.required === false ? "" : " *"}</span>
+									<input
+										id=\"custom-tool-private-input-${index}\"
+										type=\"${input.secret === false ? "text" : "password"}\"
+										autocomplete=\"off\"
+										data-private-input-name=\"${escapeHtmlUnsafe(input.name)}\"
+										data-private-input-required=\"${String(input.required !== false)}\" />
+									${safeDescription ? `<small>${safeDescription}</small>` : ""}
+								</label>
+							`;
+						})
+						.join("")
+				: "";
+			customToolModal.open({
+				title: "Run Custom Tool?",
+				html: `
+					<div class=\"custom-tool-run-review\">
+						<p><strong>${safeToolTitle}</strong> (${safeToolId}) wants to run.</p>
+						<p>Publisher: ${safeToolAuthor}</p>
+						<p>Language: ${safeToolLanguage}</p>
+						<p>Code: ${safeCodeFile}</p>
+						<p>sha256: <code>${safeSourceHash}</code></p>
+						<p class=\"custom-tool-run-warning\">
+							This is custom code. Only run tools you trust. Malicious tools can harm your computer or steal data.
+						</p>
+						<details open>
+							<summary>Source code</summary>
+							<pre>${escapeHtmlUnsafe(sourceCode)}</pre>
+						</details>
+						<details>
+							<summary>Arguments</summary>
+							<pre>${escapeHtmlUnsafe(argsText)}</pre>
+						</details>
+					</div>
+				`,
+				actions: [
+					{
+						id: "deny-custom-tool-call",
+						label: "Cancel",
+						onClick: async () => {
+							await window.ollama.resolveCustomToolCall(call.id, false);
+							customToolModal.close();
+						},
+					},
+					{
+						id: "continue-custom-tool-call",
+						label: "Continue",
+						onClick: () => {
+							customToolModal.close();
+							customToolModal.open({
+								title: "Confirm Tool Execution",
+								html: `
+									<div class=\"custom-tool-run-review\">
+										<p><strong>${safeToolTitle}</strong> will run local code on this computer.</p>
+										${privateInputHtml ? `<div class=\"custom-tool-private-inputs\"><strong>Private user inputs</strong>${privateInputHtml}</div>` : ""}
+										<p>Type <code>RUN</code> to confirm.</p>
+										<input id=\"custom-tool-run-confirm-input\" class=\"custom-tool-run-confirm-input\" autocomplete=\"off\" />
+									</div>
+								`,
+								actions: [
+									{
+										id: "deny-custom-tool-call-final",
+										label: "Cancel",
+										onClick: async () => {
+											await window.ollama.resolveCustomToolCall(call.id, false);
+											customToolmodal.close();
+										},
+									},
+									{
+										id: "approve-custom-tool-call",
+										label: "Run Code",
+										onClick: async () => {
+											const confirmation =
+												(document.getElementById("custom-tool-run-confirm-input") as HTMLInputElement | null)?.value?.trim() || "";
+											if (confirmation !== "RUN") {
+												showNotification({ type: "warning", message: "Type RUN to confirm tool execution." });
+												return;
+											}
+											const userInputs: Record<string, unknown> = {};
+											for (const input of Array.from(document.querySelectorAll<HTMLInputElement>("[data-private-input-name]"))) {
+												const name = input.getAttribute("data-private-input-name") || "";
+												const required = input.getAttribute("data-private-input-required") === "true";
+												if (required && !input.value.trim()) {
+													showNotification({ type: "warning", message: "Fill in required private inputs before running." });
+													return;
+												}
+												if (name && input.value) userInputs[name] = input.value;
+											}
+											await window.ollama.resolveCustomToolCall(call.id, {
+												approved: true,
+												userInputs,
+											});
+											customToolModal.close();
+										},
+									},
+								],
+							});
+						},
+					},
+				],
+			});
+		})();
 		return;
 	}
 

@@ -82,6 +82,15 @@ contextBridge.exposeInMainWorld("ollama", {
 			toolCallId,
 			payload,
 		),
+	resolveCustomToolCall: (
+		toolCallId: string,
+		approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+	): Promise<boolean> =>
+		ipcRenderer.invoke(
+			"ollama:resolve-custom-tool-call",
+			toolCallId,
+			approval,
+		),
 	startImageToolCall: (
 		payload?: Record<string, unknown>,
 	): Promise<string> =>
@@ -94,6 +103,104 @@ contextBridge.exposeInMainWorld("ollama", {
 		payload?: Record<string, unknown>,
 	): Promise<string> =>
 		ipcRenderer.invoke("ollama:start-audio-tool-call", payload),
+	listCustomTools: (): Promise<CustomToolManifest[]> =>
+		ipcRenderer.invoke("ollama:list-custom-tools"),
+	createCustomTool: (payload: {
+		name: string;
+		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
+		codeFileName: string;
+		codeContent: string;
+		visibility?: "private" | "public" | "unlisted";
+		publishToRegistry?: boolean;
+		openai?: {
+			functionName?: string;
+			description?: string;
+			parameters?: Record<string, unknown>;
+		};
+		userInputs?: CustomToolUserInput[];
+	}): Promise<{
+		ok: boolean;
+		error?: string;
+		manifest?: CustomToolManifest;
+	}> =>
+		ipcRenderer.invoke("ollama:create-custom-tool", payload),
+	getCustomToolSource: (toolId: string): Promise<{
+		manifest: CustomToolManifest;
+		code: string;
+	} | null> => ipcRenderer.invoke("ollama:get-custom-tool-source", toolId),
+	updateCustomTool: (payload: {
+		id: string;
+		name?: string;
+		functionality?: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
+		language?:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
+		codeFileName?: string;
+		codeContent?: string;
+		visibility?: "private" | "public" | "unlisted";
+		openai?: {
+			functionName?: string;
+			description?: string;
+			parameters?: Record<string, unknown>;
+		};
+		userInputs?: CustomToolUserInput[];
+	}): Promise<{
+		ok: boolean;
+		error?: string;
+		manifest?: CustomToolManifest;
+	}> => ipcRenderer.invoke("ollama:update-custom-tool", payload),
+	publishCustomTool: (toolId: string): Promise<{
+		ok: boolean;
+		error?: string;
+		manifest?: CustomToolManifest;
+		record?: CustomToolRegistryRecord;
+	}> => ipcRenderer.invoke("ollama:publish-custom-tool", toolId),
+	importCustomTool: (toolId: string): Promise<{
+		ok: boolean;
+		error?: string;
+		manifest?: CustomToolManifest;
+	}> => ipcRenderer.invoke("ollama:import-custom-tool", toolId),
+	getCustomToolRegistryItem: (toolId: string): Promise<CustomToolRegistryRecord | null> =>
+		ipcRenderer.invoke("ollama:get-custom-tool-registry-item", toolId),
+	getCustomToolRegistrySource: (toolId: string): Promise<{ manifest: CustomToolManifest; code: string } | null> =>
+		ipcRenderer.invoke("ollama:get-custom-tool-registry-source", toolId),
+	listCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>
+		ipcRenderer.invoke("ollama:list-custom-tool-registry"),
+	listMyCustomToolRegistry: (): Promise<CustomToolRegistryRecord[]> =>
+		ipcRenderer.invoke("ollama:list-my-custom-tool-registry"),
+	deleteCustomTool: (toolId: string): Promise<{ ok: boolean; error?: string }> =>
+		ipcRenderer.invoke("ollama:delete-custom-tool", toolId),
+	deleteRegistryCustomTool: (toolId: string): Promise<{ ok: boolean; error?: string }> =>
+		ipcRenderer.invoke("ollama:delete-registry-custom-tool", toolId),
 
 	onNewAsset: (cb: (msg: ChatAsset) => void): void => {
 		ipcRenderer.on(

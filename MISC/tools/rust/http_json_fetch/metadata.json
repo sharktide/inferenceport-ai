@@ -1,0 +1,28 @@
+{
+  "name": "HTTP JSON Fetch",
+  "functionality": "Fetches HTTP JSON-like payloads for APIs that do not require browser execution.",
+  "version": "1.0.0",
+  "language": "rust",
+  "codeFile": "http_json_fetch.rs",
+  "openai": {
+    "functionName": "http_json_fetch_rs",
+    "description": "Perform an HTTP GET request and return the raw response.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "HTTP URL to request (http:// in this sample)." }
+      },
+      "required": ["url"],
+      "additionalProperties": false
+    }
+  },
+  "userInputs": [
+    {
+      "name": "api_token",
+      "label": "Bearer Token",
+      "description": "Optional API token attached as Authorization header.",
+      "required": false,
+      "secret": true
+    }
+  ]
+}

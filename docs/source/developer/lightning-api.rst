@@ -29,10 +29,6 @@ Generating API keys in the app
 4. In ``Lightning API``, choose ``Generate API Key``.
 5. Copy the key immediately. Only the unhashed secret is shown once.
 
-The backing Supabase schema and RLS policies live in ``MISC/api.sql``.
-Keys are stored hashed in ``public.lightning_api_keys`` and are scoped to the
-owning user via ``auth.uid()`` RLS policies.
-
 Headers
 -------
 
@@ -256,13 +252,3 @@ Common status codes:
 * ``429`` for plan rate-limit exhaustion
 * ``500`` for upstream provider or server configuration failures
 
-Implementation notes
---------------------
-
-Relevant files:
-
-* ``lightning-api/app.py``
-* ``lightning-api/gen.py``
-* ``lightning-api/helper/ratelimit.py``
-* ``lightning-api/helper/subscriptions.py``
-* ``MISC/api.sql``

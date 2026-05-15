@@ -21,6 +21,12 @@ import {
     type ImageGenerateRequest,
     type VideoGenerateRequest,
 } from "./helper/tools.js";
+import {
+	executeCustomTool,
+	getCustomToolByFunctionName,
+	getLocalCustomToolById,
+	toToolDefinition,
+} from "./helper/customTools.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
 
 import {
@@ -151,6 +157,15 @@ const pendingAudioToolResolvers = new Map<
     string,
     PendingToolResolver<NormalizedAudioRequest>
 >();
+const pendingCustomToolResolvers = new Map<
+	string,
+	PendingToolResolver<CustomToolApproval>
+>();
+
+type CustomToolApproval = {
+	approved: boolean;
+	userInputs: Record<string, unknown>;
+};
 
 function normalizeImageMode(value: unknown): ImageMode {
     if (typeof value === "string") {
@@ -351,6 +366,20 @@ function waitForAudioRequestInput(
         abortSignal,
         timeoutMs,
     );
+}
+
+function waitForCustomToolApproval(
+	toolCallId: string,
+	abortSignal: AbortSignal,
+	timeoutMs = 90000,
+): Promise<CustomToolApproval | null> {
+	return waitForToolRequestInput(
+		pendingCustomToolResolvers,
+		toolCallId,
+		{ approved: false, userInputs: {} },
+		abortSignal,
+		timeoutMs,
+	);
 }
 
 async function persistGeneratedImage(dataUrl: string, sessionId?: string): Promise<string> {
@@ -815,6 +844,33 @@ export default function registerChatStream() {
             },
         );
         ipcMain.handle(
+            "ollama:resolve-custom-tool-call",
+            async (
+                _event: IpcMainInvokeEvent,
+                toolCallId: string,
+                approved: unknown,
+            ): Promise<boolean> => {
+                if (!toolCallId || typeof toolCallId !== "string") return false;
+                const pending = pendingCustomToolResolvers.get(toolCallId);
+                if (!pending) return false;
+				const userInputs =
+					approved &&
+					typeof approved === "object" &&
+					!Array.isArray(approved) &&
+					(approved as { userInputs?: unknown }).userInputs &&
+					typeof (approved as { userInputs?: unknown }).userInputs === "object" &&
+					!Array.isArray((approved as { userInputs?: unknown }).userInputs)
+						? ((approved as { userInputs: Record<string, unknown> }).userInputs)
+						: {};
+				const allowed =
+					typeof approved === "boolean"
+						? approved
+						: Boolean((approved as { approved?: unknown })?.approved);
+                pending.resolve({ approved: allowed, userInputs });
+                return true;
+            },
+        );
+        ipcMain.handle(
             "ollama:start-image-tool-call",
             async (
                 _event: IpcMainInvokeEvent,
@@ -877,8 +933,23 @@ export default function registerChatStream() {
 				}
 			};
 
-			const tools = [];
-			const toolsEnabled = toolList.search || toolList.imageGen || toolList.audioGen || toolList.videoGen;
+			const tools: ToolDefinition[] = [];
+			const customToolIds = Array.isArray(toolList.customToolIds)
+				? toolList.customToolIds
+						.filter((entry): entry is string => typeof entry === "string")
+						.map((entry) => entry.trim())
+						.filter((entry) => entry.length > 0)
+				: [];
+			const customToolDefinitions = customToolIds
+				.map((id) => getLocalCustomToolById(id))
+				.filter((tool): tool is NonNullable<typeof tool> => Boolean(tool))
+				.map((tool) => toToolDefinition(tool));
+			const toolsEnabled =
+				toolList.search ||
+				toolList.imageGen ||
+				toolList.audioGen ||
+				toolList.videoGen ||
+				customToolDefinitions.length > 0;
 			
 			if (toolsEnabled) {
 				if (toolList.search) {
@@ -902,6 +973,9 @@ export default function registerChatStream() {
 				}
 				if (toolList.videoGen) {
 					tools.push(availableTools.find(t => t.function.name === "generate_video") as ToolDefinition);
+				}
+				if (customToolDefinitions.length > 0) {
+					tools.push(...customToolDefinitions);
 				}
 				console.log(tools)
 			}
@@ -1203,13 +1277,73 @@ export default function registerChatStream() {
 							}
 						}
 
+						const customTool = getCustomToolByFunctionName(
+							toolCall.function.name,
+						);
+						if (customTool) {
+							broadcastIpcEvent("ollama:new_tool_call", {
+								id: toolCall.id,
+								name: toolCall.function.name,
+								arguments: toolCall.function.arguments,
+								state: "awaiting_approval",
+								customTool: {
+									id: customTool.id,
+									name: customTool.name,
+									authorEmail: customTool.authorEmail,
+									language: customTool.language,
+									codeHash: customTool.codeHash,
+									userInputs: customTool.userInputs || [],
+									version: customTool.version,
+								},
+							});
+
+							const approved = await waitForCustomToolApproval(
+								toolCall.id,
+								abortController.signal,
+							);
+
+							abortIfNeeded();
+
+							if (!approved?.approved) {
+								toolState = "canceled";
+								toolResult =
+									"Custom tool execution was canceled by the user.";
+							} else {
+								broadcastIpcEvent("ollama:new_tool_call", {
+									id: toolCall.id,
+									name: toolCall.function.name,
+									arguments: toolCall.function.arguments,
+									state: "pending",
+									customTool: {
+										id: customTool.id,
+										name: customTool.name,
+										authorEmail: customTool.authorEmail,
+										language: customTool.language,
+										codeHash: customTool.codeHash,
+										userInputs: customTool.userInputs || [],
+										version: customTool.version,
+									},
+								});
+								toolResult = await executeCustomTool(
+									customTool,
+									args,
+									approved.userInputs,
+								);
+							}
+						}
+
 						if (typeof toolResult === "undefined") {
 							toolResult = "Tool completed.";
 						}
 
+						const toolContent =
+							typeof toolResult === "string"
+								? toolResult
+								: JSON.stringify(toolResult);
+
 						chatHistory.push({
 							role: "tool",
-							content: JSON.stringify(toolResult),
+							content: toolContent,
 							tool_call_id: toolCall.id,
 						});
 
@@ -1272,10 +1406,12 @@ export default function registerChatStream() {
 					...pendingImageToolResolvers.values(),
 					...pendingVideoToolResolvers.values(),
 					...pendingAudioToolResolvers.values(),
+					...pendingCustomToolResolvers.values(),
 				];
 				pendingImageToolResolvers.clear();
 				pendingVideoToolResolvers.clear();
 				pendingAudioToolResolvers.clear();
+				pendingCustomToolResolvers.clear();
 
 				for (const pending of allPending) {
 					pending.reject(new DOMException("Chat ended", "AbortError"));

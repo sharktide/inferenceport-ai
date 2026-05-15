@@ -1,0 +1,1364 @@
+import { app } from "electron";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import { spawn } from "child_process";
+import { getSession } from "../auth.js";
+import type { ToolDefinition } from "../types/index.types.d.ts";
+import { getLightningClientId } from "./lightningClient.js";
+
+export type CustomToolLanguage =
+	| "javascript"
+	| "typescript"
+	| "python"
+	| "cpp"
+	| "c"
+	| "rust"
+	| "java"
+	| "go"
+	| "ruby"
+	| "php"
+	| "swift"
+	| "powershell";
+
+export type CustomToolVisibility = "private" | "public" | "unlisted";
+
+export type CustomToolParameterSchema = {
+	type: "object";
+	properties: Record<string, unknown>;
+	required?: string[];
+	additionalProperties?: boolean;
+};
+
+export type CustomToolUserInput = {
+	name: string;
+	label?: string;
+	description?: string;
+	required?: boolean;
+	secret?: boolean;
+};
+
+export type CustomToolManifest = {
+	id: string;
+	name: string;
+	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language: CustomToolLanguage;
+	codeFile: string;
+	codeHash?: string;
+	authorEmail: string;
+	authorUserId?: string | null;
+	openai: {
+		functionName: string;
+		description: string;
+		parameters: CustomToolParameterSchema;
+	};
+	requirements: {
+		runtime: string[];
+		build: string[];
+	};
+	userInputs?: CustomToolUserInput[];
+	visibility: CustomToolVisibility;
+	published: boolean;
+	createdAt: string;
+	updatedAt: string;
+	registry?: {
+		source: "lightning";
+		uploadedAt?: string;
+		updatedAt?: string;
+	};
+};
+
+export type CustomToolCreateInput = {
+	name: string;
+	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language: CustomToolLanguage;
+	codeFileName: string;
+	codeContent: string;
+	openai?: {
+		functionName?: string;
+		description?: string;
+		parameters?: unknown;
+	};
+	userInputs?: unknown;
+	visibility?: CustomToolVisibility;
+	publishToRegistry?: boolean;
+};
+
+export type CustomToolUpdateInput = {
+	id: string;
+	name?: string;
+	functionality?: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language?: CustomToolLanguage;
+	codeFileName?: string;
+	codeContent?: string;
+	openai?: {
+		functionName?: string;
+		description?: string;
+		parameters?: unknown;
+	};
+	userInputs?: unknown;
+	visibility?: CustomToolVisibility;
+};
+
+export type CustomToolRegistryRecord = {
+	id: string;
+	name: string;
+	functionality: string;
+	version?: string;
+	releaseNotes?: string;
+	websiteUrl?: string;
+	language: CustomToolLanguage;
+	authorEmail: string;
+	authorUserId?: string | null;
+	codeHash?: string;
+	visibility: "public" | "unlisted";
+	publishedAt: string;
+	updatedAt: string;
+	requirements: {
+		runtime: string[];
+		build: string[];
+	};
+	userInputs?: CustomToolUserInput[];
+	openai: {
+		functionName: string;
+		description: string;
+		parameters: CustomToolParameterSchema;
+	};
+	files: {
+		manifestPath: string;
+		codePath: string;
+	};
+};
+
+export type CustomToolWithSource = {
+	manifest: CustomToolManifest;
+	code: string;
+};
+
+const LIGHTNING_BASE_URL = "https://sharktide-lightning.hf.space";
+
+const LANGUAGE_TO_EXT: Record<CustomToolLanguage, string> = {
+	javascript: ".js",
+	typescript: ".ts",
+	python: ".py",
+	cpp: ".cpp",
+	c: ".c",
+	rust: ".rs",
+	java: ".java",
+	go: ".go",
+	ruby: ".rb",
+	php: ".php",
+	swift: ".swift",
+	powershell: ".ps1",
+};
+
+const LANGUAGE_REQUIREMENTS: Record<
+	CustomToolLanguage,
+	{ runtime: string[]; build: string[] }
+> = {
+	javascript: { runtime: ["node"], build: [] },
+	typescript: { runtime: ["bun", "deno", "tsx"], build: [] },
+	python: { runtime: ["python3"], build: [] },
+	cpp: { runtime: ["clang++", "g++"], build: ["clang++", "g++"] },
+	c: { runtime: ["gcc", "clang"], build: ["gcc", "clang"] },
+	rust: { runtime: ["rustc"], build: ["rustc"] },
+	java: { runtime: ["java"], build: [] },
+	go: { runtime: ["go"], build: [] },
+	ruby: { runtime: ["ruby"], build: [] },
+	php: { runtime: ["php"], build: [] },
+	swift: { runtime: ["swift"], build: [] },
+	powershell: { runtime: ["pwsh"], build: [] },
+};
+
+const RESERVED_FUNCTION_NAMES = new Set([
+	"duckduckgo_search",
+	"ollama_search",
+	"read_web_page",
+	"generate_image",
+	"generate_audio",
+	"generate_video",
+]);
+
+function getCustomToolsRoot(): string {
+	return path.join(app.getPath("userData"), "custom-tools");
+}
+
+function sanitizeFunctionName(value: string): string {
+	const cleaned = value.trim().replace(/[^a-zA-Z0-9_]/g, "_");
+	const collapsed = cleaned.replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+	const base = collapsed.length ? collapsed : "custom_tool";
+	return base.slice(0, 64);
+}
+
+function sanitizeFileName(value: string): string {
+	const base = path.basename(value || "tool");
+	return base.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+const UUID_REGEX =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(value: string): boolean {
+	return UUID_REGEX.test(value.trim());
+}
+
+function normalizeToolId(value: string): string | null {
+	if (!value || typeof value !== "string") return null;
+	const trimmed = value.trim();
+	return isUuid(trimmed) ? trimmed : null;
+}
+
+function generateToolId(_name?: string): string {
+	const maybeRandom = (crypto as unknown as { randomUUID?: () => string }).randomUUID;
+	if (typeof maybeRandom === "function") return maybeRandom();
+	// Fallback (older Node) — RFC 4122 v4 from random bytes.
+	const bytes = crypto.randomBytes(16);
+	bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+	bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+	const hex = bytes.toString("hex");
+	return (
+		`${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-` +
+		`${hex.slice(16, 20)}-${hex.slice(20)}`
+	);
+}
+
+function ensureDirSync(dirPath: string): void {
+	if (!fs.existsSync(dirPath)) {
+		fs.mkdirSync(dirPath, { recursive: true });
+	}
+}
+
+function normalizeParametersSchema(value: unknown): CustomToolParameterSchema {
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return {
+			type: "object",
+			properties: {},
+			required: [],
+			additionalProperties: true,
+		};
+	}
+	const asRecord = value as Record<string, unknown>;
+	const properties =
+		asRecord.properties && typeof asRecord.properties === "object" && !Array.isArray(asRecord.properties)
+			? (asRecord.properties as Record<string, unknown>)
+			: {};
+	const required = Array.isArray(asRecord.required)
+		? asRecord.required
+				.filter((entry): entry is string => typeof entry === "string")
+				.map((entry) => entry.trim())
+				.filter((entry) => entry.length > 0)
+		: [];
+	const additionalProperties =
+		typeof asRecord.additionalProperties === "boolean"
+			? asRecord.additionalProperties
+			: true;
+	return {
+		type: "object",
+		properties,
+		required,
+		additionalProperties,
+	};
+}
+
+function normalizeVersion(value: unknown, fallback = "0.1.0"): string {
+	const raw = typeof value === "string" ? value.trim() : "";
+	const version = raw || fallback;
+	return /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)
+		? version.slice(0, 64)
+		: fallback;
+}
+
+function normalizeOptionalText(value: unknown, maxLength: number): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const trimmed = value.trim();
+	return trimmed ? trimmed.slice(0, maxLength) : undefined;
+}
+
+function normalizeWebsiteUrl(value: unknown): string | undefined {
+	const raw = normalizeOptionalText(value, 512);
+	if (!raw) return undefined;
+	try {
+		const parsed = new URL(raw);
+		return parsed.protocol === "https:" ? parsed.toString() : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function normalizeUserInputs(value: unknown): CustomToolUserInput[] {
+	if (!Array.isArray(value)) return [];
+	const seen = new Set<string>();
+	const inputs: CustomToolUserInput[] = [];
+	for (const item of value) {
+		if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+		const record = item as Record<string, unknown>;
+		const name = sanitizeFunctionName(String(record.name || "")).slice(0, 64);
+		if (!name || seen.has(name)) continue;
+		seen.add(name);
+		const label = normalizeOptionalText(record.label, 80);
+		const description = normalizeOptionalText(record.description, 240);
+		inputs.push({
+			name,
+			...(label ? { label } : {}),
+			...(description ? { description } : {}),
+			required: record.required !== false,
+			secret: record.secret !== false,
+		});
+	}
+	return inputs.slice(0, 20);
+}
+
+function readJsonFile<T>(filePath: string): T {
+	const raw = fs.readFileSync(filePath, "utf-8");
+	return JSON.parse(raw) as T;
+}
+
+function writeJsonFile(filePath: string, value: unknown): void {
+	fs.writeFileSync(filePath, JSON.stringify(value, null, 2), "utf-8");
+}
+
+function hashCodeContent(codeContent: string): string {
+	return crypto.createHash("sha256").update(codeContent, "utf-8").digest("hex");
+}
+
+function manifestPathFor(toolId: string): string {
+	return path.join(getCustomToolsRoot(), toolId, "manifest.json");
+}
+
+function codePathFor(toolId: string, codeFile: string): string {
+	return path.join(getCustomToolsRoot(), toolId, path.basename(codeFile));
+}
+
+function getLanguageFromFileName(fileName: string): CustomToolLanguage | null {
+	const lower = fileName.toLowerCase();
+	if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) {
+		return "javascript";
+	}
+	if (lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".cts")) return "typescript";
+	if (lower.endsWith(".py")) return "python";
+	if (lower.endsWith(".cpp") || lower.endsWith(".cc") || lower.endsWith(".cxx")) return "cpp";
+	if (lower.endsWith(".c")) return "c";
+	if (lower.endsWith(".rs")) return "rust";
+	if (lower.endsWith(".java")) return "java";
+	if (lower.endsWith(".go")) return "go";
+	if (lower.endsWith(".rb")) return "ruby";
+	if (lower.endsWith(".php")) return "php";
+	if (lower.endsWith(".swift")) return "swift";
+	if (lower.endsWith(".ps1")) return "powershell";
+	return null;
+}
+
+function readVerifiedToolSource(manifest: CustomToolManifest): {
+	sourcePath: string;
+	code: string;
+	codeHash: string;
+} {
+	const sourcePath = codePathFor(manifest.id, manifest.codeFile);
+	if (!fileExists(sourcePath)) {
+		throw new Error(`Missing tool source file: ${manifest.codeFile}`);
+	}
+	const code = fs.readFileSync(sourcePath, "utf-8");
+	const codeHash = hashCodeContent(code);
+	if (manifest.codeHash && manifest.codeHash !== codeHash) {
+		throw new Error(
+			`Tool source changed after it was saved. Expected sha256 ${manifest.codeHash}, got ${codeHash}. Review and save the tool again before running it.`,
+		);
+	}
+	return { sourcePath, code, codeHash };
+}
+
+function ensureManifestCodeHash(manifest: CustomToolManifest): CustomToolManifest {
+	if (manifest.codeHash) return manifest;
+	try {
+		const { codeHash } = readVerifiedToolSource(manifest);
+		const nextManifest = { ...manifest, codeHash };
+		writeJsonFile(manifestPathFor(manifest.id), nextManifest);
+		return nextManifest;
+	} catch {
+		return manifest;
+	}
+}
+
+function listToolIds(): string[] {
+	const root = getCustomToolsRoot();
+	if (!fs.existsSync(root)) return [];
+	return fs
+		.readdirSync(root, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name)
+		.filter((name) => isUuid(name));
+}
+
+export function listLocalCustomTools(): CustomToolManifest[] {
+	const manifests: CustomToolManifest[] = [];
+	for (const toolId of listToolIds()) {
+		const manifestPath = manifestPathFor(toolId);
+		if (!fs.existsSync(manifestPath)) continue;
+		try {
+			manifests.push(
+				ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath)),
+			);
+		} catch {
+			continue;
+		}
+	}
+	manifests.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+	return manifests;
+}
+
+export function getLocalCustomToolById(toolId: string): CustomToolManifest | null {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) return null;
+	const manifestPath = manifestPathFor(normalizedToolId);
+	if (!fs.existsSync(manifestPath)) return null;
+	try {
+		return ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath));
+	} catch {
+		return null;
+	}
+}
+
+export function getLocalCustomToolSourceById(toolId: string): CustomToolWithSource | null {
+	const manifest = getLocalCustomToolById(toolId);
+	if (!manifest) return null;
+	const codePath = codePathFor(manifest.id, manifest.codeFile);
+	if (!fs.existsSync(codePath)) return null;
+	try {
+		const code = fs.readFileSync(codePath, "utf-8");
+		return { manifest, code };
+	} catch {
+		return null;
+	}
+}
+
+export function toToolDefinition(manifest: CustomToolManifest): ToolDefinition {
+	const userInputNames = (manifest.userInputs || [])
+		.map((input) => input.label || input.name)
+		.filter(Boolean);
+	const userInputNote = userInputNames.length
+		? ` The app will ask the user privately for: ${userInputNames.join(", ")}. Do not ask for or guess those values.`
+		: "";
+	return {
+		type: "function",
+		function: {
+			name: manifest.openai.functionName,
+			description: `${manifest.openai.description}${userInputNote}`,
+			parameters: manifest.openai.parameters,
+		},
+	};
+}
+
+export function getCustomToolByFunctionName(functionName: string): CustomToolManifest | null {
+	const normalized = functionName.trim();
+	if (!normalized) return null;
+	for (const manifest of listLocalCustomTools()) {
+		if (manifest.openai.functionName === normalized) return manifest;
+	}
+	return null;
+}
+
+async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		Accept: "application/json",
+	};
+	try {
+		headers["X-Client-ID"] = await getLightningClientId();
+	} catch {
+		void 0;
+	}
+	try {
+		const session = await getSession();
+		if (session?.access_token) {
+			headers.Authorization = `Bearer ${session.access_token}`;
+		}
+	} catch {
+		void 0;
+	}
+	return headers;
+}
+
+export async function publishCustomToolToRegistry(
+	manifest: CustomToolManifest,
+): Promise<{ ok: true; record: CustomToolRegistryRecord } | { ok: false; error: string }> {
+	try {
+		const { code, codeHash } = readVerifiedToolSource(manifest);
+		const headers = await getLightningAuthHeaders();
+		if (!headers.Authorization) {
+			return { ok: false, error: "You must sign in to publish tools." };
+		}
+
+		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/tools`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				manifest: { ...manifest, codeHash },
+				code,
+			}),
+		});
+
+		const payload = (await response.json().catch(() => ({}))) as {
+			error?: string;
+			tool?: CustomToolRegistryRecord;
+		};
+		if (!response.ok || !payload.tool) {
+			return {
+				ok: false,
+				error: payload.error || `Publish failed (${response.status})`,
+			};
+		}
+		return { ok: true, record: payload.tool };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+export async function fetchRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
+	try {
+		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/tools`);
+		if (!response.ok) return [];
+		const payload = (await response.json()) as {
+			tools?: CustomToolRegistryRecord[];
+		};
+		return Array.isArray(payload.tools) ? payload.tools : [];
+	} catch {
+		return [];
+	}
+}
+
+export async function fetchMyRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
+	try {
+		const headers = await getLightningAuthHeaders();
+		if (!headers.Authorization) return [];
+		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/my-tools`, {
+			headers,
+		});
+		if (!response.ok) return [];
+		const payload = (await response.json()) as {
+			tools?: CustomToolRegistryRecord[];
+		};
+		return Array.isArray(payload.tools) ? payload.tools : [];
+	} catch {
+		return [];
+	}
+}
+
+export async function fetchRegistryCustomToolById(
+	toolId: string,
+): Promise<CustomToolRegistryRecord | null> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) return null;
+	try {
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}`,
+		);
+		if (!response.ok) return null;
+		const payload = (await response.json()) as {
+			tool?: CustomToolRegistryRecord;
+		};
+		return payload.tool || null;
+	} catch {
+		return null;
+	}
+}
+
+export async function fetchRegistryCustomToolSourceById(
+	toolId: string,
+): Promise<{ manifest: CustomToolManifest; code: string } | null> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) return null;
+	try {
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}/source`,
+		);
+		if (!response.ok) return null;
+		const payload = (await response.json().catch(() => ({}))) as {
+			manifest?: CustomToolManifest;
+			code?: string;
+		};
+		if (!payload.manifest || typeof payload.code !== "string") return null;
+		return { manifest: payload.manifest, code: payload.code };
+	} catch {
+		return null;
+	}
+}
+
+export async function importCustomToolFromRegistry(
+	toolId: string,
+): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) {
+		return { ok: false, error: "Tool id must be a UUID." };
+	}
+	try {
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}/source`,
+		);
+		const payload = (await response.json().catch(() => ({}))) as {
+			error?: string;
+			manifest?: CustomToolManifest;
+			code?: string;
+		};
+		if (!response.ok || !payload.manifest || typeof payload.code !== "string") {
+			return {
+				ok: false,
+				error: payload.error || `Failed to import tool (${response.status})`,
+			};
+		}
+
+		const manifest = payload.manifest;
+		if (!isUuid(manifest.id) || manifest.id !== normalizedToolId) {
+			return { ok: false, error: "Registry tool id must be a UUID." };
+		}
+		manifest.codeFile = sanitizeFileName(path.basename(manifest.codeFile));
+		manifest.codeHash = hashCodeContent(payload.code);
+		const toolDir = path.join(getCustomToolsRoot(), manifest.id);
+		ensureDirSync(toolDir);
+		const codePath = path.join(toolDir, manifest.codeFile);
+		const manifestPath = path.join(toolDir, "manifest.json");
+		fs.writeFileSync(codePath, payload.code, "utf-8");
+		writeJsonFile(manifestPath, {
+			...manifest,
+			published: true,
+			updatedAt: new Date().toISOString(),
+			registry: {
+				source: "lightning",
+				uploadedAt: manifest.registry?.uploadedAt || new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			},
+		});
+		const saved = readJsonFile<CustomToolManifest>(manifestPath);
+		return { ok: true, manifest: saved };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+export async function createCustomTool(
+	input: CustomToolCreateInput,
+): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+	const name = input.name?.trim();
+	const functionality = input.functionality?.trim();
+	const version = normalizeVersion(input.version);
+	const releaseNotes = normalizeOptionalText(input.releaseNotes, 4000);
+	const websiteUrl = normalizeWebsiteUrl(input.websiteUrl);
+	const language = input.language;
+	const codeContent = typeof input.codeContent === "string" ? input.codeContent : "";
+
+	if (!name) return { ok: false, error: "Tool name is required." };
+	if (!functionality) return { ok: false, error: "Functionality is required." };
+	if (!codeContent.trim()) return { ok: false, error: "Tool source code is required." };
+	if (!(language in LANGUAGE_TO_EXT)) return { ok: false, error: "Unsupported language." };
+
+	const session = await getSession().catch(() => null);
+	const authorEmail = session?.user?.email || "local@inferenceport.ai";
+	const authorUserId = session?.user?.id || null;
+
+	const requestedVisibility = input.visibility || "private";
+	let visibility: CustomToolVisibility =
+		requestedVisibility === "public" || requestedVisibility === "unlisted"
+			? requestedVisibility
+			: "private";
+	if (input.publishToRegistry && visibility === "private") {
+		visibility = "unlisted";
+	}
+
+	const defaultExt = LANGUAGE_TO_EXT[language];
+	const providedName = sanitizeFileName(input.codeFileName || `tool${defaultExt}`);
+	const providedExt = path.extname(providedName).toLowerCase();
+	const expectedLanguage = getLanguageFromFileName(providedName);
+	if (expectedLanguage && expectedLanguage !== language) {
+		return {
+			ok: false,
+			error: `Uploaded file extension does not match ${language}.`,
+		};
+	}
+	const codeFile = providedExt ? providedName : `${providedName}${defaultExt}`;
+
+	const toolId = generateToolId(name);
+	const functionName = sanitizeFunctionName(
+		input.openai?.functionName?.trim() || `custom_${toolId.replace(/-/g, "_")}`,
+	);
+	if (RESERVED_FUNCTION_NAMES.has(functionName)) {
+		return {
+			ok: false,
+			error: `Function name '${functionName}' is reserved. Use another function name.`,
+		};
+	}
+	for (const existing of listLocalCustomTools()) {
+		if (existing.openai.functionName === functionName) {
+			return {
+				ok: false,
+				error: `Function name '${functionName}' is already used by another custom tool.`,
+			};
+		}
+	}
+	const now = new Date().toISOString();
+	const parameters = normalizeParametersSchema(input.openai?.parameters);
+
+	const manifest: CustomToolManifest = {
+		id: toolId,
+		name,
+		functionality,
+		version,
+		...(releaseNotes ? { releaseNotes } : {}),
+		...(websiteUrl ? { websiteUrl } : {}),
+		language,
+		codeFile,
+		codeHash: hashCodeContent(codeContent),
+		authorEmail,
+		authorUserId,
+		openai: {
+			functionName,
+			description: (input.openai?.description || functionality).trim(),
+			parameters,
+		},
+		requirements: {
+			runtime: [...LANGUAGE_REQUIREMENTS[language].runtime],
+			build: [...LANGUAGE_REQUIREMENTS[language].build],
+		},
+		userInputs: normalizeUserInputs(input.userInputs),
+		visibility,
+		published: false,
+		createdAt: now,
+		updatedAt: now,
+	};
+
+	if (input.publishToRegistry && !session?.access_token) {
+		return {
+			ok: false,
+			error: "Sign in is required to publish tools to the registry.",
+		};
+	}
+
+	const toolDir = path.join(getCustomToolsRoot(), toolId);
+	ensureDirSync(toolDir);
+	fs.writeFileSync(path.join(toolDir, codeFile), codeContent, "utf-8");
+	writeJsonFile(path.join(toolDir, "manifest.json"), manifest);
+
+	if (input.publishToRegistry) {
+		const published = await publishCustomToolToRegistry(manifest);
+		if (!published.ok) {
+			return published;
+		}
+		manifest.published = true;
+		manifest.registry = {
+			source: "lightning",
+			uploadedAt: now,
+			updatedAt: now,
+		};
+		manifest.updatedAt = new Date().toISOString();
+		writeJsonFile(path.join(toolDir, "manifest.json"), manifest);
+	}
+
+	return { ok: true, manifest };
+}
+
+export async function updateCustomTool(
+	input: CustomToolUpdateInput,
+): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+	const toolId = normalizeToolId(input.id);
+	if (!toolId) return { ok: false, error: "Tool id must be a UUID." };
+
+	const existing = getLocalCustomToolById(toolId);
+	if (!existing) return { ok: false, error: "Tool not found." };
+
+	const name = typeof input.name === "string" ? input.name.trim() : existing.name;
+	const functionality =
+		typeof input.functionality === "string"
+			? input.functionality.trim()
+			: existing.functionality;
+	const version =
+		typeof input.version === "string"
+			? normalizeVersion(input.version, existing.version || "0.1.0")
+			: existing.version || "0.1.0";
+	const releaseNotes =
+		typeof input.releaseNotes === "string"
+			? normalizeOptionalText(input.releaseNotes, 4000)
+			: existing.releaseNotes;
+	const websiteUrl =
+		typeof input.websiteUrl === "string"
+			? normalizeWebsiteUrl(input.websiteUrl)
+			: existing.websiteUrl;
+	const language = input.language || existing.language;
+	if (!name) return { ok: false, error: "Tool name is required." };
+	if (!functionality) return { ok: false, error: "Functionality is required." };
+	if (!(language in LANGUAGE_TO_EXT)) return { ok: false, error: "Unsupported language." };
+
+	const requestedFunctionName =
+		typeof input.openai?.functionName === "string" && input.openai.functionName.trim()
+			? input.openai.functionName.trim()
+			: existing.openai.functionName;
+	const functionName = sanitizeFunctionName(requestedFunctionName);
+	if (RESERVED_FUNCTION_NAMES.has(functionName)) {
+		return {
+			ok: false,
+			error: `Function name '${functionName}' is reserved. Use another function name.`,
+		};
+	}
+	for (const other of listLocalCustomTools()) {
+		if (other.id !== toolId && other.openai.functionName === functionName) {
+			return {
+				ok: false,
+				error: `Function name '${functionName}' is already used by another custom tool.`,
+			};
+		}
+	}
+
+	const visibility = input.visibility || existing.visibility;
+	const codeWasProvided = typeof input.codeContent === "string";
+	const currentCodeFile = existing.codeFile;
+	const desiredExt = LANGUAGE_TO_EXT[language];
+	const currentExt = path.extname(currentCodeFile).toLowerCase();
+	const codeFile =
+		currentExt === desiredExt
+			? currentCodeFile
+			: `${path.basename(currentCodeFile, currentExt)}${desiredExt}`;
+	const toolDir = path.join(getCustomToolsRoot(), toolId);
+	ensureDirSync(toolDir);
+
+	let codeHash = existing.codeHash;
+	if (codeWasProvided) {
+		if (!input.codeContent!.trim()) {
+			return { ok: false, error: "Tool source code is required." };
+		}
+		fs.writeFileSync(path.join(toolDir, codeFile), input.codeContent!, "utf-8");
+		codeHash = hashCodeContent(input.codeContent!);
+	} else if (!codeHash) {
+		try {
+			codeHash = readVerifiedToolSource(existing).codeHash;
+		} catch {
+			codeHash = undefined;
+		}
+	}
+	if (codeFile !== currentCodeFile) {
+		const oldPath = path.join(toolDir, currentCodeFile);
+		const newPath = path.join(toolDir, codeFile);
+		if (fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+			fs.renameSync(oldPath, newPath);
+		}
+	}
+
+	const parameters =
+		typeof input.openai?.parameters === "undefined"
+			? existing.openai.parameters
+			: normalizeParametersSchema(input.openai.parameters);
+	const now = new Date().toISOString();
+	const manifest: CustomToolManifest = {
+		...existing,
+		name,
+		functionality,
+		version,
+		...(releaseNotes ? { releaseNotes } : {}),
+		...(websiteUrl ? { websiteUrl } : {}),
+		language,
+		codeFile,
+		openai: {
+			functionName,
+			description:
+				(typeof input.openai?.description === "string" &&
+				input.openai.description.trim()
+					? input.openai.description.trim()
+					: functionality),
+			parameters,
+		},
+		requirements: {
+			runtime: [...LANGUAGE_REQUIREMENTS[language].runtime],
+			build: [...LANGUAGE_REQUIREMENTS[language].build],
+		},
+		userInputs:
+			typeof input.userInputs === "undefined"
+				? existing.userInputs || []
+				: normalizeUserInputs(input.userInputs),
+		visibility,
+		updatedAt: now,
+	};
+	if (codeHash) manifest.codeHash = codeHash;
+	writeJsonFile(path.join(toolDir, "manifest.json"), manifest);
+	return { ok: true, manifest };
+}
+
+export async function publishExistingCustomTool(
+	toolId: string,
+): Promise<{ ok: true; manifest: CustomToolManifest; record: CustomToolRegistryRecord } | { ok: false; error: string }> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) return { ok: false, error: "Tool id must be a UUID." };
+	const manifest = getLocalCustomToolById(normalizedToolId);
+	if (!manifest) return { ok: false, error: "Tool not found." };
+	if (manifest.visibility === "private") {
+		manifest.visibility = "unlisted";
+	}
+	const published = await publishCustomToolToRegistry(manifest);
+	if (!published.ok) return published;
+	const now = new Date().toISOString();
+	const nextManifest: CustomToolManifest = {
+		...manifest,
+		published: true,
+		updatedAt: now,
+		registry: {
+			source: "lightning",
+			uploadedAt: manifest.registry?.uploadedAt || now,
+			updatedAt: now,
+		},
+	};
+	writeJsonFile(manifestPathFor(normalizedToolId), nextManifest);
+	return { ok: true, manifest: nextManifest, record: published.record };
+}
+
+export function deleteLocalCustomTool(
+	toolId: string,
+): { ok: true } | { ok: false; error: string } {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) {
+		return { ok: false, error: "Tool id must be a UUID." };
+	}
+	const dir = path.join(getCustomToolsRoot(), normalizedToolId);
+	if (!fs.existsSync(dir)) return { ok: true };
+	try {
+		fs.rmSync(dir, { recursive: true, force: true });
+		return { ok: true };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+export async function deleteRegistryCustomTool(
+	toolId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) {
+		return { ok: false, error: "Tool id must be a UUID." };
+	}
+	try {
+		const headers = await getLightningAuthHeaders();
+		if (!headers.Authorization) {
+			return { ok: false, error: "You must sign in to delete registry tools." };
+		}
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}`,
+			{
+				method: "DELETE",
+				headers,
+			},
+		);
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => ({}))) as {
+				error?: string;
+			};
+			return {
+				ok: false,
+				error: payload.error || `Failed to delete (${response.status})`,
+			};
+		}
+		const local = getLocalCustomToolById(normalizedToolId);
+		if (local) {
+			writeJsonFile(manifestPathFor(normalizedToolId), {
+				...local,
+				published: false,
+				registry: undefined,
+				updatedAt: new Date().toISOString(),
+			});
+		}
+		return { ok: true };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
+function fileExists(filePath: string): boolean {
+	try {
+		return fs.existsSync(filePath);
+	} catch {
+		return false;
+	}
+}
+
+function appendCliArgs(args: Record<string, unknown>): string[] {
+	const argv: string[] = [];
+	for (const [key, value] of Object.entries(args)) {
+		const normalizedKey = key.trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+		if (!normalizedKey) continue;
+		argv.push(`--${normalizedKey}`);
+		if (Array.isArray(value) || (value && typeof value === "object")) {
+			argv.push(JSON.stringify(value));
+		} else if (typeof value === "undefined") {
+			argv.push("");
+		} else {
+			argv.push(String(value));
+		}
+	}
+	return argv;
+}
+
+function createExecutionTempDir(toolId: string): string {
+	const base = path.join(getCustomToolsRoot(), toolId, ".build");
+	ensureDirSync(base);
+	const dir = path.join(base, `run-${Date.now()}-${crypto.randomBytes(2).toString("hex")}`);
+	ensureDirSync(dir);
+	return dir;
+}
+
+function runCommand(
+	command: string,
+	args: string[],
+	cwd: string,
+): Promise<{ stdout: string; stderr: string; code: number | null }> {
+	return new Promise((resolve, reject) => {
+		const child = spawn(command, args, {
+			cwd,
+			shell: false,
+			windowsHide: true,
+			env: { ...process.env },
+		});
+		let stdout = "";
+		let stderr = "";
+		child.stdout.on("data", (chunk) => {
+			stdout += String(chunk);
+		});
+		child.stderr.on("data", (chunk) => {
+			stderr += String(chunk);
+		});
+		child.on("error", (err) => reject(err));
+		child.on("close", (code) => resolve({ stdout, stderr, code }));
+	});
+}
+
+export async function executeCustomTool(
+	manifest: CustomToolManifest,
+	args: Record<string, unknown>,
+	userInputs: Record<string, unknown> = {},
+): Promise<string> {
+	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
+	const { code, codeHash } = readVerifiedToolSource(manifest);
+	const executionArgs = { ...args };
+	for (const input of manifest.userInputs || []) {
+		const value = userInputs[input.name];
+		if (typeof value === "undefined" || value === "") {
+			if (input.required) {
+				throw new Error(`Missing required private input: ${input.label || input.name}`);
+			}
+			continue;
+		}
+		executionArgs[input.name] = value;
+	}
+	const cliArgs = appendCliArgs(executionArgs);
+	const tempDir = createExecutionTempDir(manifest.id);
+	const sourcePath = path.join(tempDir, path.basename(manifest.codeFile));
+	fs.writeFileSync(sourcePath, code, "utf-8");
+	const copiedHash = hashCodeContent(fs.readFileSync(sourcePath, "utf-8"));
+	if (copiedHash !== codeHash) {
+		throw new Error("Tool source copy failed integrity verification.");
+	}
+
+	// JavaScript
+	if (manifest.language === "javascript") {
+		const result = await runCommand("node", [sourcePath, ...cliArgs], toolDir);
+
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
+			);
+		}
+
+		return result.stdout;
+	}
+
+	// TypeScript
+	if (manifest.language === "typescript") {
+		const attempts: Array<{ command: string; args: string[] }> = [
+			{ command: "bun", args: [sourcePath, ...cliArgs] },
+			{ command: "deno", args: ["run", "--quiet", sourcePath, ...cliArgs] },
+			{ command: "tsx", args: [sourcePath, ...cliArgs] },
+		];
+		let lastErr: Error | null = null;
+		for (const attempt of attempts) {
+			try {
+				const result = await runCommand(attempt.command, attempt.args, toolDir);
+				if (result.code === 0) return result.stdout;
+				lastErr = new Error(
+					result.stderr.trim() || `Tool exited with code ${String(result.code)}`,
+				);
+			} catch (err) {
+				lastErr = err instanceof Error ? err : new Error(String(err));
+			}
+		}
+		throw lastErr || new Error("Failed to execute TypeScript tool.");
+	}
+
+	// Python
+	if (manifest.language === "python") {
+		const cmd = process.platform === "win32" ? "python" : "python3";
+
+		const result = await runCommand(cmd, [sourcePath, ...cliArgs], toolDir);
+
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
+			);
+		}
+
+		return result.stdout;
+	}
+
+	// Java (Java 11+ single-file source execution)
+	if (manifest.language === "java") {
+		const result = await runCommand(
+			"java",
+			[sourcePath, ...cliArgs],
+			toolDir,
+		);
+
+		if (result.code !== 0) {
+			throw new Error(
+				result.stderr.trim() ||
+					`Tool exited with code ${String(result.code)}`,
+			);
+		}
+
+		return result.stdout;
+	}
+
+	// Go
+	if (manifest.language === "go") {
+		const result = await runCommand("go", ["run", sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// Ruby
+	if (manifest.language === "ruby") {
+		const result = await runCommand("ruby", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// PHP
+	if (manifest.language === "php") {
+		const result = await runCommand("php", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// Swift
+	if (manifest.language === "swift") {
+		const result = await runCommand("swift", [sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// PowerShell
+	if (manifest.language === "powershell") {
+		const command = process.platform === "win32" ? "powershell" : "pwsh";
+		const result = await runCommand(command, ["-File", sourcePath, ...cliArgs], toolDir);
+		if (result.code !== 0) {
+			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
+		}
+		return result.stdout;
+	}
+
+	// Native compiled languages
+	if (
+		manifest.language === "c" ||
+		manifest.language === "cpp" ||
+		manifest.language === "rust"
+	) {
+		const ext = process.platform === "win32" ? ".exe" : "";
+
+		const binaryPath = path.join(tempDir, `tool-bin${ext}`);
+
+		type CompileAttempt = {
+			command: string;
+			args: string[];
+		};
+
+		const compileAttempts: CompileAttempt[] = [];
+
+		// C
+		if (manifest.language === "c") {
+			compileAttempts.push(
+				{
+					command: "clang",
+					args: [sourcePath, "-O2", "-o", binaryPath],
+				},
+				{
+					command: "gcc",
+					args: [sourcePath, "-O2", "-o", binaryPath],
+				},
+			);
+		}
+
+		// C++
+		if (manifest.language === "cpp") {
+			compileAttempts.push(
+				{
+					command: "clang++",
+					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
+				},
+				{
+					command: "g++",
+					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
+				},
+			);
+		}
+
+		// Rust
+		if (manifest.language === "rust") {
+			compileAttempts.push({
+				command: "rustc",
+				args: [sourcePath, "-O", "-o", binaryPath],
+			});
+		}
+
+		let compileResult:
+			| {
+					code: number | null;
+					stdout: string;
+					stderr: string;
+			}
+			| undefined;
+
+		let lastError: unknown;
+
+		for (const attempt of compileAttempts) {
+			try {
+				const result = await runCommand(
+					attempt.command,
+					attempt.args,
+					toolDir,
+				);
+
+				if (result.code === 0) {
+					compileResult = result;
+					break;
+				}
+
+				compileResult = result;
+			} catch (error) {
+				lastError = error;
+			}
+		}
+
+		if (!compileResult || compileResult.code !== 0) {
+			if (compileResult?.stderr?.trim()) {
+				throw new Error(compileResult.stderr.trim());
+			}
+
+			if (lastError instanceof Error) {
+				throw new Error(lastError.message);
+			}
+
+			throw new Error(
+				`Failed to compile ${manifest.language} tool`,
+			);
+		}
+
+		const binaryBeforeRun = fs.readFileSync(binaryPath);
+		const binaryHash = crypto
+			.createHash("sha256")
+			.update(binaryBeforeRun)
+			.digest("hex");
+		const binaryStillHash = crypto
+			.createHash("sha256")
+			.update(fs.readFileSync(binaryPath))
+			.digest("hex");
+		if (binaryStillHash !== binaryHash) {
+			throw new Error("Compiled tool changed before execution.");
+		}
+		const executeResult = await runCommand(
+			binaryPath,
+			cliArgs,
+			toolDir,
+		);
+
+		if (executeResult.code !== 0) {
+			throw new Error(
+				executeResult.stderr.trim() ||
+					`Tool exited with code ${String(executeResult.code)}`,
+			);
+		}
+
+		return executeResult.stdout;
+	}
+
+	throw new Error(`Unsupported language: ${manifest.language}`);
+}
+
+export function getCustomToolRawUrl(toolId: string, filePathFromRoot: string): string {
+	const cleanedToolId = toolId.trim().replace(/^\/+|\/+$/g, "");
+	const cleanedPath = filePathFromRoot.trim().replace(/^\/+/, "");
+	return `https://huggingface.co/buckets/sharktide/tools/resolve/${cleanedToolId}/${cleanedPath}`;
+}
+
+export async function createCustomToolFromRegistryRecord(
+	record: CustomToolRegistryRecord,
+	code: string,
+): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+	try {
+		const manifest: CustomToolManifest = {
+			id: record.id,
+			name: record.name,
+			functionality: record.functionality,
+			version: record.version || "0.1.0",
+			...(record.releaseNotes ? { releaseNotes: record.releaseNotes } : {}),
+			...(record.websiteUrl ? { websiteUrl: record.websiteUrl } : {}),
+			language: record.language,
+			codeFile: path.basename(record.files.codePath),
+			codeHash: hashCodeContent(code),
+			authorEmail: record.authorEmail,
+			...(record.authorUserId ? { authorUserId: record.authorUserId } : {}),
+			openai: record.openai,
+			requirements: record.requirements,
+			userInputs: record.userInputs || [],
+			visibility: record.visibility,
+			published: true,
+			createdAt: record.publishedAt,
+			updatedAt: new Date().toISOString(),
+			registry: {
+				source: "lightning",
+				uploadedAt: record.publishedAt,
+				updatedAt: record.updatedAt,
+			},
+		};
+		const toolDir = path.join(getCustomToolsRoot(), manifest.id);
+		ensureDirSync(toolDir);
+		writeJsonFile(path.join(toolDir, "manifest.json"), manifest);
+		fs.writeFileSync(path.join(toolDir, manifest.codeFile), code, "utf-8");
+		return { ok: true, manifest };
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : String(err),
+		};
+	}
+}

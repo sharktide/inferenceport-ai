@@ -128,6 +128,111 @@ declare global {
 		error?: string;
 	};
 
+	type CustomToolManifest = {
+		id: string;
+		name: string;
+		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
+		codeFile: string;
+		codeHash?: string;
+		authorEmail: string;
+		authorUserId?: string | null;
+		openai: {
+			functionName: string;
+			description: string;
+			parameters: {
+				type: "object";
+				properties: Record<string, unknown>;
+				required?: string[];
+				additionalProperties?: boolean;
+			};
+		};
+		requirements: {
+			runtime: string[];
+			build: string[];
+		};
+		userInputs?: CustomToolUserInput[];
+		visibility: "private" | "public" | "unlisted";
+		published: boolean;
+		createdAt: string;
+		updatedAt: string;
+		registry?: {
+			source: "lightning";
+			uploadedAt?: string;
+			updatedAt?: string;
+		};
+	};
+
+	type CustomToolUserInput = {
+		name: string;
+		label?: string;
+		description?: string;
+		required?: boolean;
+		secret?: boolean;
+	};
+
+	type CustomToolRegistryRecord = {
+		id: string;
+		name: string;
+		functionality: string;
+		version?: string;
+		releaseNotes?: string;
+		websiteUrl?: string;
+		language:
+			| "javascript"
+			| "typescript"
+			| "python"
+			| "cpp"
+			| "c"
+			| "rust"
+			| "java"
+			| "go"
+			| "ruby"
+			| "php"
+			| "swift"
+			| "powershell";
+		authorEmail: string;
+		authorUserId?: string | null;
+		codeHash?: string;
+		visibility: "public" | "unlisted";
+		publishedAt: string;
+		updatedAt: string;
+		requirements: {
+			runtime: string[];
+			build: string[];
+		};
+		userInputs?: CustomToolUserInput[];
+		openai: {
+			functionName: string;
+			description: string;
+			parameters: {
+				type: "object";
+				properties: Record<string, unknown>;
+				required?: string[];
+				additionalProperties?: boolean;
+			};
+		};
+		files: {
+			manifestPath: string;
+			codePath: string;
+		};
+	};
+
 	interface declarations {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
@@ -154,6 +259,7 @@ declare global {
 					imageGen: boolean;
 					videoGen: boolean;
 					audioGen: boolean;
+					customToolIds?: string[];
 				},
 				clientUrl?: string,
 				sessionId?: string,
@@ -186,9 +292,103 @@ declare global {
 			resolveVideoToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveImageToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
+			resolveCustomToolCall: (
+				toolCallId: string,
+				approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+			) => Promise<boolean>;
 			startImageToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startVideoToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startAudioToolCall: (payload?: Record<string, unknown>) => Promise<string>;
+			listCustomTools: () => Promise<CustomToolManifest[]>;
+			createCustomTool: (payload: {
+				name: string;
+				functionality: string;
+				version?: string;
+				releaseNotes?: string;
+				websiteUrl?: string;
+				language:
+					| "javascript"
+					| "typescript"
+					| "python"
+					| "cpp"
+					| "c"
+					| "rust"
+					| "java"
+					| "go"
+					| "ruby"
+					| "php"
+					| "swift"
+					| "powershell";
+				codeFileName: string;
+				codeContent: string;
+				visibility?: "private" | "public" | "unlisted";
+				publishToRegistry?: boolean;
+				openai?: {
+					functionName?: string;
+					description?: string;
+					parameters?: Record<string, unknown>;
+				};
+				userInputs?: CustomToolUserInput[];
+			}) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			getCustomToolSource: (toolId: string) => Promise<{
+				manifest: CustomToolManifest;
+				code: string;
+			} | null>;
+			updateCustomTool: (payload: {
+				id: string;
+				name?: string;
+				functionality?: string;
+				version?: string;
+				releaseNotes?: string;
+				websiteUrl?: string;
+				language?:
+					| "javascript"
+					| "typescript"
+					| "python"
+					| "cpp"
+					| "c"
+					| "rust"
+					| "java"
+					| "go"
+					| "ruby"
+					| "php"
+					| "swift"
+					| "powershell";
+				codeFileName?: string;
+				codeContent?: string;
+				visibility?: "private" | "public" | "unlisted";
+				openai?: {
+					functionName?: string;
+					description?: string;
+					parameters?: Record<string, unknown>;
+				};
+				userInputs?: CustomToolUserInput[];
+			}) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			publishCustomTool: (toolId: string) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+				record?: CustomToolRegistryRecord;
+			}>;
+			importCustomTool: (toolId: string) => Promise<{
+				ok: boolean;
+				error?: string;
+				manifest?: CustomToolManifest;
+			}>;
+			getCustomToolRegistryItem: (toolId: string) => Promise<CustomToolRegistryRecord | null>;
+			getCustomToolRegistrySource: (toolId: string) => Promise<{ manifest: CustomToolManifest; code: string } | null>;
+			listCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
+			listMyCustomToolRegistry: () => Promise<CustomToolRegistryRecord[]>;
+			deleteCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
+			deleteRegistryCustomTool: (toolId: string) => Promise<{ ok: boolean; error?: string }>;
 			onToolCall: (cb: (calls: any[]) => void) => void;
 		};
 
