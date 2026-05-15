@@ -7451,7 +7451,7 @@ window.ollama.onToolCall((call) => {
 						label: "Continue",
 						onClick: () => {
 							customToolModal.close();
-							modal.open({
+							customToolModal.open({
 								title: "Confirm Tool Execution",
 								html: `
 									<div class=\"custom-tool-run-review\">
@@ -7467,7 +7467,7 @@ window.ollama.onToolCall((call) => {
 										label: "Cancel",
 										onClick: async () => {
 											await window.ollama.resolveCustomToolCall(call.id, false);
-											modal.close();
+											customToolmodal.close();
 										},
 									},
 									{
@@ -7494,7 +7494,7 @@ window.ollama.onToolCall((call) => {
 												approved: true,
 												userInputs,
 											});
-											modal.close();
+											customToolModal.close();
 										},
 									},
 								],
