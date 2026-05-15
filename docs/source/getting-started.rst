@@ -49,4 +49,4 @@ Need source build instructions?
 -------------------------------
 
 If you want to build the app from source code instead of downloading from the
-website, see :doc:`developer/build-release`.
+website, see :doc:`contributing/build-release`.
