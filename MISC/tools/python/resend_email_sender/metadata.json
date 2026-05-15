@@ -33,7 +33,5 @@
       "required": true,
       "secret": false
     }
-  ],
-  "visibility": "private",
-  "publishToRegistry": false
+  ]
 }

@@ -24,7 +24,5 @@
       "required": false,
       "secret": true
     }
-  ],
-  "visibility": "private",
-  "publishToRegistry": false
+  ]
 }
