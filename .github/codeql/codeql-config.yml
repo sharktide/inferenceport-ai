@@ -1,0 +1,5 @@
+name: "CodeQL custom config"
+
+paths-ignore:
+  - 'MISC/**'
+  - 'node_modules'
