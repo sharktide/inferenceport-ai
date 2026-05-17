@@ -1281,7 +1281,11 @@ function appendCliArgs(args: Record<string, unknown>): string[] {
 }
 
 function createExecutionTempDir(toolId: string): string {
-	const base = path.join(getCustomToolsRoot(), toolId, ".build");
+	const normalizedToolId = normalizeToolId(toolId);
+	if (!normalizedToolId) {
+		throw new Error("Invalid tool id for execution directory.");
+	}
+	const base = path.join(getCustomToolsRoot(), normalizedToolId, ".build");
 	ensureDirSync(base);
 	const dir = path.join(
 		base,
