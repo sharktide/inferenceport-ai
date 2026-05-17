@@ -13,6 +13,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import fs from "fs";
 import path from "path";
 import { sanitizeForLog } from "./server.js";
+import type { IncomingMessage } from "http";
 
 type InvokeHandler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 type OnHandler = (event: IpcMainEvent, ...args: unknown[]) => unknown;
@@ -123,7 +124,7 @@ function loadOrCreateWsAuthToken(): string {
 
 			return existing || generated;
 		}
-	} catch (err) {
+	} catch (err: unknown) {
 		console.warn(
 			sanitizeForLog("Unable to load websocket auth token from userData"),
 			err,
@@ -423,7 +424,7 @@ export function broadcastIpcEvent(channel: string, ...args: unknown[]): void {
 	for (const win of BrowserWindow.getAllWindows()) {
 		try {
 			win.webContents.send(channel, ...args);
-		} catch (err) {
+		} catch (err: unknown) {
 			console.warn(
 				"Failed to broadcast IPC event",
 				sanitizeForLog(channel),
@@ -493,7 +494,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		perMessageDeflate: false,
 	});
 
-	wsServer.on("connection", (ws, req) => {
+	wsServer.on("connection", (ws: WebSocket, req: IncomingMessage) => {
 		const originHeader =
 			typeof req.headers.origin === "string"
 				? normalizeOrigin(req.headers.origin.trim().toLowerCase())
@@ -649,7 +650,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 						ok: true,
 						value: encodeValue(value),
 					});
-				} catch (err) {
+				} catch (err: unknown) {
 					sendWs(ws, {
 						type: "result",
 						id: message.id,
@@ -662,7 +663,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 
 			if (message.type === "send") {
 				if (!message.id) {
-					void dispatchSend(message, ws).catch((err) => {
+					void dispatchSend(message, ws).catch((err: unknown) => {
 						console.warn(
 							sanitizeForLog(
 								`IPC send dispatch failed for '${message.channel}'`,
@@ -681,7 +682,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 						ok: true,
 						value: encodeValue(value),
 					});
-				} catch (err) {
+				} catch (err: unknown) {
 					sendWs(ws, {
 						type: "result",
 						id: message.id,
@@ -706,7 +707,7 @@ export function initIpcWebSocketBridge(options: IpcBridgeOptions = {}): void {
 		);
 	});
 
-	wsServer.on("error", (err) => {
+	wsServer.on("error", (err: unknown) => {
 		console.error("IPC websocket bridge error", err);
 	});
 }
