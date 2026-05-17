@@ -1,6 +1,6 @@
 # InferencePort AI Custom Tool Pack
 
-This folder contains ready-to-upload custom tool examples with:
+This folder contains tool examples with:
 - Source code file
 - `metadata.json` with function schema + private user inputs
 - `README.md` with purpose and invocation examples
@@ -8,7 +8,6 @@ This folder contains ready-to-upload custom tool examples with:
 ## Included tools
 - `javascript/file_overview`
 - `python/resend_email_sender`
-- `go/csv_numeric_stats`
 - `rust/http_json_fetch`
 - `powershell/safe_batch_rename`
 
