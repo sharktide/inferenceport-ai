@@ -4093,15 +4093,35 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 				return;
 			}
 			const toolName = tool?.name || uploadedRecord?.name || toolId;
-			if (!window.confirm(`Take down "${toolName}" from the public tool registry?`)) return;
-			const result = await window.ollama.deleteRegistryCustomTool(toolId);
-			if (!result?.ok) {
-				showNotification({ type: "error", message: result?.error || "Failed to take down tool." });
-				return;
-			}
-			showNotification({ type: "success", message: "Tool taken down from registry." });
-			await refreshCustomTools();
-			void openToolsManagerModal();
+			modal.open({
+				title: "Take Down Tool",
+				text: `Are you sure you want to take down "${toolName}" from the public registry? This will not delete the local tool on your device, but it will no longer be available for other users to install.`,
+				actions: [
+					{
+						id: "cancel-unpublish-custom-tool",
+						label: "Cancel",
+						onClick: () => {
+							modal.close();
+							void openToolsManagerModal();
+						}
+					},
+					{
+						id: "confirm-unpublish-custom-tool",
+						label: "Take Down",
+						onClick: async () => {
+							const result = await window.ollama.deleteRegistryCustomTool(toolId);
+							if (!result?.ok) {
+								showNotification({ type: "error", message: result?.error || "Failed to take down tool." });
+								modal.close();
+								return;
+							}
+							showNotification({ type: "success", message: "Tool taken down from registry." });
+							await refreshCustomTools();
+							void openToolsManagerModal();
+						},
+					},
+				],
+			});
 		});
 	});
 
@@ -4126,15 +4146,35 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 			if (!toolId) return;
 			const tool = cachedCustomTools.find((item) => item.id === toolId);
 			if (!tool) return;
-			if (!window.confirm(`Install the latest registry copy of "${tool.name}" on this device?`)) return;
-			const result = await window.ollama.importCustomTool(toolId);
-			if (!result?.ok) {
-				showNotification({ type: "error", message: result?.error || "Failed to install latest tool." });
-				return;
-			}
-			showNotification({ type: "success", message: "Latest registry copy installed." });
-			await refreshCustomTools();
-			void openToolsManagerModal();
+			modal.open({
+				title: "Install Latest Registry Copy",
+				text: `This will overwrite the local copy of "${tool.name}" with the latest version from the registry. Are you sure you want to continue?`,
+				actions: [
+					{
+						id: "cancel-refresh-custom-tool",
+						label: "Cancel",
+						onClick: () => {
+							modal.close();
+							void openToolsManagerModal();
+						}
+					},
+					{
+						id: "confirm-refresh-custom-tool",
+						label: "Install",
+						onClick: async () => {
+							const result = await window.ollama.importCustomTool(toolId);
+							if (!result?.ok) {
+								showNotification({ type: "error", message: result?.error || "Failed to install latest tool." });
+								return;
+							}
+							showNotification({ type: "success", message: "Latest registry copy installed." });
+							await refreshCustomTools();
+							void openToolsManagerModal();
+						}
+					},
+				],
+			});
+
 		});
 	});
 
@@ -4144,18 +4184,40 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 			if (!toolId) return;
 			const tool = cachedCustomTools.find((item) => item.id === toolId);
 			if (!tool) return;
-			if (!window.confirm(`Delete "${tool.name}" from this device?`)) return;
-			const result = await window.ollama.deleteCustomTool(toolId);
-			if (!result?.ok) {
-				showNotification({ type: "error", message: result?.error || "Failed to delete tool." });
-				return;
-			}
-			enabledCustomToolIds = enabledCustomToolIds.filter((id) => id !== toolId);
-			toolSettings.setCustomToolIds(enabledCustomToolIds);
-			await refreshCustomTools();
-			updateToolButtonActiveState();
-			showNotification({ type: "success", message: "Tool deleted." });
-			void openToolsManagerModal();
+			customToolModal.close();
+			modal.open({
+				title: "Delete Custom Tool",
+				text: `Are you sure you want to delete "${tool.name}" from this device? This action cannot be undone.`,
+				actions: [
+					{
+						id: "cancel-delete-custom-tool",
+						label: "Cancel",
+						onClick: () => {
+							modal.close();
+							void openToolsManagerModal();
+						}
+					},
+					{
+						id: "confirm-delete-custom-tool",
+						label: "Delete",
+						onClick: async () => {
+							const result = await window.ollama.deleteCustomTool(toolId);
+							if (!result?.ok) {
+								void showNotification({ type: "error", message: result?.error || "Failed to delete tool." });
+								modal.close();
+								return;
+							}
+							enabledCustomToolIds = enabledCustomToolIds.filter((id) => id !== toolId);
+							toolSettings.setCustomToolIds(enabledCustomToolIds);
+							await refreshCustomTools();
+							updateToolButtonActiveState();
+							showNotification({ type: "success", message: "Tool deleted." });
+							modal.close();
+							void openToolsManagerModal();
+						}
+					},
+				],
+			});
 		});
 	});
 
