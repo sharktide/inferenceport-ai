@@ -1,7 +1,14 @@
+#!/usr/bin/env cargo
+---
+[dependencies]
+native-tls = "0.2"
+---
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
+use native_tls::TlsConnector;
 
 fn parse_args() -> HashMap<String, String> {
     let mut out = HashMap::new();
@@ -20,12 +27,15 @@ fn parse_args() -> HashMap<String, String> {
     out
 }
 
-fn http_get(host: &str, path: &str, token: Option<&str>) -> Result<String, String> {
-    let addr = format!("{}:80", host);
-    let mut stream = TcpStream::connect(addr).map_err(|e| format!("connect failed: {}", e))?;
+fn http_get(host: &str, path: &str, token: Option<&str>, is_https: bool) -> Result<String, String> {
+    let port = if is_https { 443 } else { 80 };
+    let addr = format!("{}:{}", host, port);
+    
+    let stream = TcpStream::connect(addr).map_err(|e| format!("connect failed: {}", e))?;
     stream
         .set_read_timeout(Some(Duration::from_secs(20)))
         .map_err(|e| e.to_string())?;
+
     let mut request = format!(
         "GET {} HTTP/1.1\r\nHost: {}\r\nUser-Agent: inferenceport-tool/1.0\r\nAccept: application/json,*/*\r\nConnection: close\r\n",
         path, host
@@ -36,14 +46,31 @@ fn http_get(host: &str, path: &str, token: Option<&str>) -> Result<String, Strin
         }
     }
     request.push_str("\r\n");
-    stream
-        .write_all(request.as_bytes())
-        .map_err(|e| format!("write failed: {}", e))?;
 
     let mut buf = String::new();
-    stream
-        .read_to_string(&mut buf)
-        .map_err(|e| format!("read failed: {}", e))?;
+
+    if is_https {
+        let connector = TlsConnector::new().map_err(|e| format!("TLS init failed: {}", e))?;
+        let mut tls_stream = connector
+            .connect(host, stream)
+            .map_err(|e| format!("TLS handshake failed: {}", e))?;
+            
+        tls_stream
+            .write_all(request.as_bytes())
+            .map_err(|e| format!("write failed: {}", e))?;
+        tls_stream
+            .read_to_string(&mut buf)
+            .map_err(|e| format!("read failed: {}", e))?;
+    } else {
+        let mut plain_stream = stream;
+        plain_stream
+            .write_all(request.as_bytes())
+            .map_err(|e| format!("write failed: {}", e))?;
+        plain_stream
+            .read_to_string(&mut buf)
+            .map_err(|e| format!("read failed: {}", e))?;
+    }
+
     Ok(buf)
 }
 
@@ -56,12 +83,22 @@ fn main() {
         eprintln!("url is required");
         std::process::exit(1);
     }
-    if !url.starts_with("http://") {
-        eprintln!("this sample expects http:// URLs only");
-        std::process::exit(1);
-    }
 
-    let without_scheme = url.trim_start_matches("http://");
+    let is_https = if url.starts_with("https://") {
+        true
+    } else if url.starts_with("http://") {
+        false
+    } else {
+        eprintln!("this sample expects http:// or https:// URLs only");
+        std::process::exit(1);
+    };
+
+    let without_scheme = if is_https {
+        url.trim_start_matches("https://")
+    } else {
+        url.trim_start_matches("http://")
+    };
+
     let mut split = without_scheme.splitn(2, '/');
     let host = split.next().unwrap_or("");
     let rest = split.next().unwrap_or("");
@@ -72,7 +109,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    match http_get(host, &path, token.as_deref()) {
+    match http_get(host, &path, token.as_deref(), is_https) {
         Ok(resp) => {
             println!("{{\"ok\":true,\"url\":{url:?},\"rawResponse\":{resp:?}}}");
         }
