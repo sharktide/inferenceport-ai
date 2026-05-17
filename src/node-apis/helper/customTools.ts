@@ -230,6 +230,8 @@ const ALLOWED_COMMAND_NAMES = new Set([
 	"clang++",
 	"g++",
 	"rustc",
+	"cargo",
+	'py',
 ]);
 
 function getCustomToolsRoot(): string {
