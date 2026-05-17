@@ -1,0 +1,37 @@
+{
+  "name": "Resend Email Sender",
+  "functionality": "Sends transactional email through the Resend API using private user credentials.",
+  "version": "1.0.0",
+  "language": "python",
+  "codeFile": "resend_email_sender.py",
+  "openai": {
+    "functionName": "send_email_resend_py",
+    "description": "Send an email through Resend.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "to": { "type": "string", "description": "Recipient email." },
+        "subject": { "type": "string", "description": "Email subject." },
+        "text": { "type": "string", "description": "Plain-text email body." }
+      },
+      "required": ["to", "subject", "text"],
+      "additionalProperties": false
+    }
+  },
+  "userInputs": [
+    {
+      "name": "resend_api_key",
+      "label": "Resend API Key",
+      "description": "Private API key used for authorization.",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "sender_email",
+      "label": "Verified Sender Email",
+      "description": "From address verified in Resend.",
+      "required": true,
+      "secret": false
+    }
+  ]
+}

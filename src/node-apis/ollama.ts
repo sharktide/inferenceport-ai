@@ -33,6 +33,20 @@ import {
 } from "./helper/server.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
 import { cache, fetchSupportedTools, fetchSupportedVisionModels } from "./helper/tools.js";
+import {
+	createCustomTool,
+	deleteLocalCustomTool,
+	deleteRegistryCustomTool,
+	fetchMyRegistryCustomTools,
+	fetchRegistryCustomToolById,
+	fetchRegistryCustomToolSourceById,
+	fetchRegistryCustomTools,
+	getLocalCustomToolSourceById,
+	importCustomToolFromRegistry,
+	listLocalCustomTools,
+	publishExistingCustomTool,
+	updateCustomTool,
+} from "./helper/customTools.js";
 const execFileAsync = promisify(execFile);
 
 const isDev = !app.isPackaged;
@@ -128,6 +142,62 @@ export default function register(): void {
 	ipcMain.handle("ollama:fetch-tool-models", async () => {
 		return await fetchSupportedTools();
 	});
+
+	ipcMain.handle("ollama:list-custom-tools", async () => {
+		return listLocalCustomTools();
+	});
+
+	ipcMain.handle("ollama:create-custom-tool", async (_event, payload: unknown) => {
+		return await createCustomTool((payload || {}) as Parameters<typeof createCustomTool>[0]);
+	});
+
+	ipcMain.handle("ollama:get-custom-tool-source", async (_event, toolId: string) => {
+		return getLocalCustomToolSourceById(toolId);
+	});
+
+	ipcMain.handle("ollama:update-custom-tool", async (_event, payload: unknown) => {
+		return await updateCustomTool((payload || {}) as Parameters<typeof updateCustomTool>[0]);
+	});
+
+	ipcMain.handle("ollama:publish-custom-tool", async (_event, toolId: string) => {
+		return await publishExistingCustomTool(toolId);
+	});
+
+	ipcMain.handle("ollama:import-custom-tool", async (_event, toolId: string) => {
+		return await importCustomToolFromRegistry(toolId);
+	});
+
+	ipcMain.handle(
+		"ollama:get-custom-tool-registry-item",
+		async (_event, toolId: string) => {
+			return await fetchRegistryCustomToolById(toolId);
+		},
+	);
+	ipcMain.handle(
+		"ollama:get-custom-tool-registry-source",
+		async (_event, toolId: string) => {
+			return await fetchRegistryCustomToolSourceById(toolId);
+		},
+	);
+
+	ipcMain.handle("ollama:list-custom-tool-registry", async () => {
+		return await fetchRegistryCustomTools();
+	});
+
+	ipcMain.handle("ollama:list-my-custom-tool-registry", async () => {
+		return await fetchMyRegistryCustomTools();
+	});
+
+	ipcMain.handle("ollama:delete-custom-tool", async (_event, toolId: string) => {
+		return deleteLocalCustomTool(toolId);
+	});
+
+	ipcMain.handle(
+		"ollama:delete-registry-custom-tool",
+		async (_event, toolId: string) => {
+			return await deleteRegistryCustomTool(toolId);
+		},
+	);
 
 	ipcMain.handle("ollama:get-tool-models", async () => {
 		if (cache.cachedSupportsTools) {

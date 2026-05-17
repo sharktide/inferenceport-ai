@@ -9,6 +9,7 @@ export interface ToolSettings {
 	videoGen: boolean;
 	audioGen: boolean;
 	searchEngines: string[]; // ["duckduckgo", "ollama"]
+	customToolIds: string[];
 }
 
 type SettingsChangeCallback = (settings: ToolSettings) => void;
@@ -19,6 +20,7 @@ const STORAGE_KEYS = {
 	VIDEO_GEN: "tools_video_gen",
 	AUDIO_GEN: "tools_audio_gen",
 	SEARCH_ENGINES: "tools_search_engines",
+	CUSTOM_TOOL_IDS: "tools_custom_tool_ids",
 	// Deprecated keys (for migration)
 	LEGACY_SEARCH_ENGINE: "search_engine",
 };
@@ -29,6 +31,7 @@ const DEFAULT_SETTINGS: ToolSettings = {
 	videoGen: true,
 	audioGen: true,
 	searchEngines: ["duckduckgo"],
+	customToolIds: [],
 };
 
 let currentSettings: ToolSettings = DEFAULT_SETTINGS;
@@ -63,6 +66,7 @@ export function initializeSettings(): ToolSettings {
 			DEFAULT_SETTINGS.audioGen,
 		),
 		searchEngines: parseSearchEngines(),
+		customToolIds: parseCustomToolIds(),
 	};
 
 	currentSettings = settings;
@@ -95,6 +99,21 @@ function parseSearchEngines(): string[] {
 	}
 
 	return DEFAULT_SETTINGS.searchEngines;
+}
+
+function parseCustomToolIds(): string[] {
+	const stored = localStorage.getItem(STORAGE_KEYS.CUSTOM_TOOL_IDS);
+	if (!stored) return [];
+	try {
+		const parsed = JSON.parse(stored);
+		if (!Array.isArray(parsed)) return [];
+		return parsed
+			.filter((entry): entry is string => typeof entry === "string")
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0);
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -148,6 +167,20 @@ export function setSearchEngines(engines: string[]): void {
 	notifyListeners();
 }
 
+export function setCustomToolIds(toolIds: string[]): void {
+	const unique = Array.from(
+		new Set(
+			toolIds
+				.filter((entry): entry is string => typeof entry === "string")
+				.map((entry) => entry.trim())
+				.filter((entry) => entry.length > 0),
+		),
+	);
+	currentSettings.customToolIds = unique;
+	localStorage.setItem(STORAGE_KEYS.CUSTOM_TOOL_IDS, JSON.stringify(unique));
+	notifyListeners();
+}
+
 /**
  * Update multiple settings at once
  */
@@ -197,6 +230,19 @@ export function updateSettings(partial: Partial<ToolSettings>): void {
 				JSON.stringify(validEngines),
 			);
 		}
+	}
+
+	if ("customToolIds" in partial && Array.isArray(partial.customToolIds)) {
+		const unique = Array.from(
+			new Set(
+				partial.customToolIds
+					.filter((entry): entry is string => typeof entry === "string")
+					.map((entry) => entry.trim())
+					.filter((entry) => entry.length > 0),
+			),
+		);
+		currentSettings.customToolIds = unique;
+		localStorage.setItem(STORAGE_KEYS.CUSTOM_TOOL_IDS, JSON.stringify(unique));
 	}
 
 	notifyListeners();

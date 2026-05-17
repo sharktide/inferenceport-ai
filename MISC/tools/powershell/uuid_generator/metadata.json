@@ -1,0 +1,19 @@
+{
+  "name": "UUID Generator",
+  "functionality": "Generate a random UUID (Universally Unique Identifier) string.",
+  "version": "1.0.0",
+  "language": "powershell",
+  "codeFile": "uuid_generator.ps1",
+  "openai": {
+    "functionName": "uuid_generator_ps",
+    "description": "Generate a random UUID (Universally Unique Identifier) string.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer", "description": "Number of UUIDs to generate." }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

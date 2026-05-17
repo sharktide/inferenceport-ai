@@ -28,6 +28,8 @@ export default class iModal {
             existing = document.createElement("div");
             existing.id = id;
             existing.className = "modal hidden";
+            existing.setAttribute("role", "dialog");
+            existing.setAttribute("aria-modal", "true");
             existing.innerHTML = `
             <div class="modal-content" ${width ? `style="width: ${width}px"` : ""}>
                 ${showCloseButton ? '<span class="close-btn">&times;</span>' : ''}
@@ -48,6 +50,10 @@ export default class iModal {
             this.modal.addEventListener("click", (e) => {
                 if (e.target === this.modal) this.close();
             });
+
+            this.modal.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") this.close();
+            });
         }
 
         if (options) {
@@ -63,6 +69,8 @@ export default class iModal {
             this.render(options);
         }
         requestAnimationFrame(() => this.modal.classList.remove("hidden"));
+        this.modal.setAttribute("tabindex", "-1");
+        requestAnimationFrame(() => this.modal.focus());
     }
 
     public close() {
@@ -75,6 +83,11 @@ export default class iModal {
 
         body.innerHTML = "";
         actionsContainer.innerHTML = "";
+        if (options.title) {
+            this.modal.setAttribute("aria-label", options.title);
+        } else {
+            this.modal.removeAttribute("aria-label");
+        }
 
         if (options.html) {
             body.innerHTML = options.html;
@@ -105,6 +118,8 @@ export default class iModal {
                 const btn = document.createElement("button");
                 btn.id = action.id;
                 btn.textContent = action.label;
+                btn.type = "button";
+                btn.setAttribute("data-modal-action", action.id);
                 btn.addEventListener("click", action.onClick);
                 actionsContainer.appendChild(btn);
             });

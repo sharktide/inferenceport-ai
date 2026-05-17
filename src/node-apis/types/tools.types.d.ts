@@ -29,4 +29,5 @@ export interface ToolList {
 	imageGen: boolean;
 	videoGen: boolean;
 	audioGen: boolean;
+	customToolIds?: string[];
 }
