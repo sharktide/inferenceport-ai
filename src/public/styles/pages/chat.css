@@ -3393,7 +3393,7 @@ a.media-choice-btn:focus-visible {
 	grid-column: 1 / -1;
 }
 
-.custom-tool-form-grid input,
+.custom-tool-form-grid input:not([type="checkbox"]),
 .custom-tool-form-grid textarea,
 .custom-tool-form-grid select,
 .custom-tool-form input,
@@ -3422,6 +3422,87 @@ a.media-choice-btn:focus-visible {
 	resize: vertical;
 }
 
+.custom-tool-editor-block {
+	display: grid;
+	gap: 8px;
+}
+
+.custom-tool-editor-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.custom-tool-mode-toggle {
+	border: 0;
+	background: none;
+	color: color-mix(in srgb, var(--text-dark) 62%, transparent);
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+
+.custom-tool-editor-wrap {
+	display: grid;
+	gap: 8px;
+}
+
+.custom-tool-structured-rows {
+	display: grid;
+	gap: 8px;
+}
+
+.custom-tool-structured-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1.2fr) 120px minmax(0, 1.6fr) auto auto;
+	gap: 8px;
+	padding: 8px;
+	border: 1px solid color-mix(in srgb, var(--text-dark) 12%, transparent);
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--bg-light) 94%, var(--gray) 6%);
+}
+
+.custom-tool-user-input-row {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) auto auto auto;
+}
+
+.custom-tool-add-row {
+	max-width: fit-content;
+	border: 1px dashed color-mix(in srgb, var(--text-dark) 18%, transparent);
+	background: color-mix(in srgb, var(--bg-light) 96%, var(--gray) 4%);
+	border-radius: 8px;
+	padding: 6px 10px;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.custom-tool-row-remove {
+	border: 0;
+	background: none;
+	color: #b42318;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.custom-tool-inline-check {
+	display: inline-flex !important;
+	align-items: center;
+	gap: 6px !important;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+}
+
+.custom-tool-inline-check input[type="checkbox"] {
+	width: auto !important;
+	margin: 0;
+}
+
 .custom-tool-checkbox {
 	display: flex;
 	align-items: center;
@@ -3430,6 +3511,11 @@ a.media-choice-btn:focus-visible {
 	border-radius: 12px;
 	background: color-mix(in srgb, var(--bg-light) 88%, var(--gray) 12%);
 	border: 1px solid color-mix(in srgb, var(--text-dark) 10%, transparent);
+}
+
+.custom-tool-checkbox input[type="checkbox"] {
+	width: auto !important;
+	margin: 0;
 }
 
 .custom-tool-preview {
@@ -3567,6 +3653,16 @@ a.media-choice-btn:focus-visible {
 
 	.tools-flow-grid,
 	.custom-tool-form-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.custom-tool-editor-head {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.custom-tool-structured-row,
+	.custom-tool-user-input-row {
 		grid-template-columns: 1fr;
 	}
 

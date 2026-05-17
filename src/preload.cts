@@ -84,7 +84,13 @@ contextBridge.exposeInMainWorld("ollama", {
 		),
 	resolveCustomToolCall: (
 		toolCallId: string,
-		approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+		approval:
+			| boolean
+			| {
+					approved: boolean;
+					userInputs?: Record<string, unknown>;
+					allowEnvironment?: boolean;
+			  },
 	): Promise<boolean> =>
 		ipcRenderer.invoke(
 			"ollama:resolve-custom-tool-call",

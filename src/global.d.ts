@@ -294,7 +294,13 @@ declare global {
 			resolveAudioToolCall: (toolCallId: string, payload: Record<string, unknown> | null) => Promise<boolean>;
 			resolveCustomToolCall: (
 				toolCallId: string,
-				approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+				approval:
+					| boolean
+					| {
+							approved: boolean;
+							userInputs?: Record<string, unknown>;
+							allowEnvironment?: boolean;
+					  },
 			) => Promise<boolean>;
 			startImageToolCall: (payload?: Record<string, unknown>) => Promise<string>;
 			startVideoToolCall: (payload?: Record<string, unknown>) => Promise<string>;

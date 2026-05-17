@@ -1142,7 +1142,13 @@ export function installWebSocketTransportFallback(): void {
 			]),
 		resolveCustomToolCall: async (
 			toolCallId: string,
-			approval: boolean | { approved: boolean; userInputs?: Record<string, unknown> },
+			approval:
+				| boolean
+				| {
+						approved: boolean;
+						userInputs?: Record<string, unknown>;
+						allowEnvironment?: boolean;
+				  },
 		) =>
 			invokeOrDefault<boolean>("ollama:resolve-custom-tool-call", [
 				toolCallId,

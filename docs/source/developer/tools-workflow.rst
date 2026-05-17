@@ -52,7 +52,14 @@ Create a custom tool
 4. Choose visibility:
    * ``Private`` for local-only use
    * ``Unlisted`` or ``Public`` for registry publishing
-5. Click ``Create Tool``.
+5. Set an initial version number and
+   provide a changelog description for the first version.
+6. Dependencies: By default, the tool inherits the current system state.
+   This means for most languages, if the package is present on the system,
+   it can be used in your tool without additional configuration. For Rust,
+   you can specify a list of cargo crates to be installed as you would with
+   rust-script or cargo embedded manifest format.
+7. Click ``Create Tool``.
 
 After creation, the tool is added locally and can be toggled on in the same
 modal.
@@ -83,6 +90,18 @@ Custom tools:
 * Review tool identity and source details.
 * To run it, confirm and type ``RUN`` when prompted.
 * Deny if you do not trust the tool or request.
+ 
+..warning:: Exercise caution when running custom tools, especially those from
+    untrusted sources. They can execute code on your machine. Always review tool details and source code before confirming execution.
+
+..warning:: For custom tools with web access, be mindful of potential data sharing with external services.
+    Review the tool's functionality and permissions to understand what data may be transmitted.
+
+..warning:: If you encounter unexpected behavior after enabling a tool, consider disabling it and reviewing its code or source for potential issues.
+
+..warning:: Malicious tools can seriously harm your computer or data.
+  Only run tools from sources you trust, and always review the code if possible.
+  InferencePort AI is not responsible nor is liable for any and all damage caused by custom tools.
 
 Edit and update a custom tool
 -----------------------------

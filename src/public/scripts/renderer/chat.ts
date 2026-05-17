@@ -2993,6 +2993,85 @@ function customToolUserInputsPlaceholder(): string {
 	return '[{"name":"api_key","label":"API key","description":"Private token used by this tool","secret":true,"required":true}]';
 }
 
+type CustomToolAssistantParamInput = {
+	name: string;
+	type: string;
+	description?: string;
+	required: boolean;
+};
+
+type StructuredEditorMode = "form" | "json";
+
+const CUSTOM_TOOL_PARAM_TYPES = [
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"array",
+	"object",
+] as const;
+
+function sanitizeCustomToolInputName(value: string): string {
+	return value.trim().replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 64);
+}
+
+function normalizeCustomToolParamType(value: unknown): string {
+	const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+	return CUSTOM_TOOL_PARAM_TYPES.includes(normalized as (typeof CUSTOM_TOOL_PARAM_TYPES)[number])
+		? normalized
+		: "string";
+}
+
+function schemaToAssistantParamInputs(schema: unknown): CustomToolAssistantParamInput[] {
+	const record = schema && typeof schema === "object" && !Array.isArray(schema)
+		? (schema as Record<string, unknown>)
+		: {};
+	const properties =
+		record.properties && typeof record.properties === "object" && !Array.isArray(record.properties)
+			? (record.properties as Record<string, unknown>)
+			: {};
+	const required = Array.isArray(record.required)
+		? new Set(
+				record.required
+					.filter((entry): entry is string => typeof entry === "string")
+					.map((entry) => entry.trim())
+					.filter((entry) => entry.length > 0),
+			)
+		: new Set<string>();
+	const rows = Object.entries(properties).map(([name, value]) => {
+		const prop = value && typeof value === "object" && !Array.isArray(value)
+			? (value as Record<string, unknown>)
+			: {};
+		return {
+			name: sanitizeCustomToolInputName(name),
+			type: normalizeCustomToolParamType(prop.type),
+			description: typeof prop.description === "string" ? prop.description : "",
+			required: required.has(name),
+		};
+	});
+	return rows.length ? rows : [{ name: "", type: "string", description: "", required: false }];
+}
+
+function assistantParamInputsToSchema(rows: CustomToolAssistantParamInput[]): Record<string, unknown> {
+	const properties: Record<string, unknown> = {};
+	const required: string[] = [];
+	for (const row of rows) {
+		const name = sanitizeCustomToolInputName(row.name || "");
+		if (!name) continue;
+		properties[name] = {
+			type: normalizeCustomToolParamType(row.type),
+			...(row.description?.trim() ? { description: row.description.trim().slice(0, 240) } : {}),
+		};
+		if (row.required) required.push(name);
+	}
+	return {
+		type: "object",
+		properties,
+		required,
+		additionalProperties: true,
+	};
+}
+
 function parseCustomToolUserInputs(raw: string): CustomToolUserInput[] | undefined {
 	const trimmed = raw.trim();
 	if (!trimmed) return [];
@@ -3000,7 +3079,237 @@ function parseCustomToolUserInputs(raw: string): CustomToolUserInput[] | undefin
 	if (!Array.isArray(parsed)) {
 		throw new Error("Private user inputs must be a JSON array.");
 	}
-	return parsed as CustomToolUserInput[];
+	return parsed
+		.filter((item) => item && typeof item === "object" && !Array.isArray(item))
+		.map((item) => {
+			const record = item as Record<string, unknown>;
+			const name = sanitizeCustomToolInputName(String(record.name || ""));
+			return {
+				name,
+				label: typeof record.label === "string" ? record.label.trim().slice(0, 80) : undefined,
+				description:
+					typeof record.description === "string"
+						? record.description.trim().slice(0, 240)
+						: undefined,
+				required: record.required !== false,
+				secret: record.secret !== false,
+			} satisfies CustomToolUserInput;
+		})
+		.filter((item) => item.name.length > 0);
+}
+
+function renderAssistantParamRow(row: CustomToolAssistantParamInput): string {
+	const options = CUSTOM_TOOL_PARAM_TYPES.map(
+		(type) =>
+			`<option value="${type}" ${normalizeCustomToolParamType(row.type) === type ? "selected" : ""}>${type}</option>`,
+	).join("");
+	return `
+		<div class="custom-tool-structured-row" data-param-row>
+			<input type="text" data-field="name" placeholder="city" value="${escapeHtmlUnsafe(row.name || "")}" />
+			<select data-field="type">${options}</select>
+			<input type="text" data-field="description" placeholder="What this parameter is for" value="${escapeHtmlUnsafe(row.description || "")}" />
+			<label class="custom-tool-inline-check">
+				<input type="checkbox" data-field="required" ${row.required ? "checked" : ""} />
+				Required
+			</label>
+			<button type="button" class="custom-tool-row-remove" data-remove-row>Remove</button>
+		</div>
+	`;
+}
+
+function renderUserInputRow(row?: CustomToolUserInput): string {
+	return `
+		<div class="custom-tool-structured-row custom-tool-user-input-row" data-user-input-row>
+			<input type="text" data-field="name" placeholder="api_key" value="${escapeHtmlUnsafe(row?.name || "")}" />
+			<input type="text" data-field="label" placeholder="Label shown to user" value="${escapeHtmlUnsafe(row?.label || "")}" />
+			<input type="text" data-field="description" placeholder="Private input description" value="${escapeHtmlUnsafe(row?.description || "")}" />
+			<label class="custom-tool-inline-check">
+				<input type="checkbox" data-field="required" ${row?.required === false ? "" : "checked"} />
+				Required
+			</label>
+			<label class="custom-tool-inline-check">
+				<input type="checkbox" data-field="secret" ${row?.secret === false ? "" : "checked"} />
+				Hidden
+			</label>
+			<button type="button" class="custom-tool-row-remove" data-remove-row>Remove</button>
+		</div>
+	`;
+}
+
+function collectAssistantParamRows(containerId: string): CustomToolAssistantParamInput[] {
+	const container = document.getElementById(containerId);
+	if (!container) return [];
+	return Array.from(container.querySelectorAll<HTMLElement>("[data-param-row]")).map((rowEl) => {
+		const get = (field: string) =>
+			(rowEl.querySelector(`[data-field="${field}"]`) as HTMLInputElement | HTMLSelectElement | null);
+		return {
+			name: (get("name") as HTMLInputElement | null)?.value || "",
+			type: (get("type") as HTMLSelectElement | null)?.value || "string",
+			description: (get("description") as HTMLInputElement | null)?.value || "",
+			required: Boolean((get("required") as HTMLInputElement | null)?.checked),
+		};
+	});
+}
+
+function collectUserInputRows(containerId: string): CustomToolUserInput[] {
+	const container = document.getElementById(containerId);
+	if (!container) return [];
+	const rows = Array.from(container.querySelectorAll<HTMLElement>("[data-user-input-row]")).map((rowEl) => {
+		const get = (field: string) =>
+			(rowEl.querySelector(`[data-field="${field}"]`) as HTMLInputElement | null);
+		return {
+			name: sanitizeCustomToolInputName(get("name")?.value || ""),
+			label: get("label")?.value?.trim() || undefined,
+			description: get("description")?.value?.trim() || undefined,
+			required: Boolean(get("required")?.checked),
+			secret: Boolean(get("secret")?.checked),
+		} satisfies CustomToolUserInput;
+	});
+	return rows.filter((entry) => entry.name.length > 0);
+}
+
+function setStructuredEditorMode(
+	prefix: string,
+	section: "params" | "user-inputs",
+	mode: StructuredEditorMode,
+): void {
+	const formWrap = document.getElementById(`${prefix}-${section}-form-wrap`);
+	const jsonWrap = document.getElementById(`${prefix}-${section}-json-wrap`);
+	const toggle = document.getElementById(`${prefix}-${section}-mode-toggle`) as HTMLButtonElement | null;
+	if (formWrap) formWrap.style.display = mode === "form" ? "" : "none";
+	if (jsonWrap) jsonWrap.style.display = mode === "json" ? "" : "none";
+	if (toggle) {
+		toggle.setAttribute("data-mode", mode);
+		toggle.textContent = mode === "form" ? "Switch to JSON editor" : "Switch to visual editor";
+	}
+}
+
+function setupCustomToolStructuredEditors(options: {
+	prefix: string;
+	initialParameters?: unknown;
+	initialUserInputs?: CustomToolUserInput[];
+}): void {
+	const { prefix, initialParameters, initialUserInputs } = options;
+	const paramsRowsId = `${prefix}-params-form-rows`;
+	const userRowsId = `${prefix}-user-inputs-form-rows`;
+	const paramsTextarea = document.getElementById(`${prefix}-params`) as HTMLTextAreaElement | null;
+	const userInputsTextarea = document.getElementById(`${prefix}-user-inputs`) as HTMLTextAreaElement | null;
+	const paramsRows = document.getElementById(paramsRowsId);
+	const userRows = document.getElementById(userRowsId);
+	if (!paramsRows || !userRows || !paramsTextarea || !userInputsTextarea) return;
+
+	const renderParams = (rows: CustomToolAssistantParamInput[]) => {
+		paramsRows.innerHTML = rows.map((row) => renderAssistantParamRow(row)).join("");
+		if (!rows.length) {
+			paramsRows.innerHTML = renderAssistantParamRow({
+				name: "",
+				type: "string",
+				description: "",
+				required: false,
+			});
+		}
+	};
+	const renderUserInputs = (rows: CustomToolUserInput[]) => {
+		userRows.innerHTML = rows.map((row) => renderUserInputRow(row)).join("");
+		if (!rows.length) userRows.innerHTML = renderUserInputRow();
+	};
+
+	renderParams(schemaToAssistantParamInputs(initialParameters));
+	renderUserInputs(Array.isArray(initialUserInputs) ? initialUserInputs : []);
+	paramsTextarea.value = JSON.stringify(
+		assistantParamInputsToSchema(collectAssistantParamRows(paramsRowsId)),
+		null,
+		2,
+	);
+	userInputsTextarea.value = JSON.stringify(
+		collectUserInputRows(userRowsId),
+		null,
+		2,
+	);
+	setStructuredEditorMode(prefix, "params", "form");
+	setStructuredEditorMode(prefix, "user-inputs", "form");
+
+	document.getElementById(`${prefix}-add-param-row`)?.addEventListener("click", () => {
+		paramsRows.insertAdjacentHTML(
+			"beforeend",
+			renderAssistantParamRow({
+				name: "",
+				type: "string",
+				description: "",
+				required: false,
+			}),
+		);
+	});
+
+	document.getElementById(`${prefix}-add-user-input-row`)?.addEventListener("click", () => {
+		userRows.insertAdjacentHTML("beforeend", renderUserInputRow());
+	});
+
+	paramsRows.addEventListener("click", (event) => {
+		const button = (event.target as HTMLElement | null)?.closest("[data-remove-row]");
+		if (!button) return;
+		button.closest("[data-param-row]")?.remove();
+		if (!paramsRows.querySelector("[data-param-row]")) {
+			paramsRows.insertAdjacentHTML(
+				"beforeend",
+				renderAssistantParamRow({
+					name: "",
+					type: "string",
+					description: "",
+					required: false,
+				}),
+			);
+		}
+	});
+
+	userRows.addEventListener("click", (event) => {
+		const button = (event.target as HTMLElement | null)?.closest("[data-remove-row]");
+		if (!button) return;
+		button.closest("[data-user-input-row]")?.remove();
+		if (!userRows.querySelector("[data-user-input-row]")) {
+			userRows.insertAdjacentHTML("beforeend", renderUserInputRow());
+		}
+	});
+
+	document.getElementById(`${prefix}-params-mode-toggle`)?.addEventListener("click", () => {
+		const toggle = document.getElementById(`${prefix}-params-mode-toggle`) as HTMLButtonElement | null;
+		const current = (toggle?.getAttribute("data-mode") as StructuredEditorMode) || "form";
+		if (current === "form") {
+			const schema = assistantParamInputsToSchema(collectAssistantParamRows(paramsRowsId));
+			paramsTextarea.value = JSON.stringify(schema, null, 2);
+			setStructuredEditorMode(prefix, "params", "json");
+			return;
+		}
+		try {
+			const parsed = paramsTextarea.value.trim()
+				? JSON.parse(paramsTextarea.value)
+				: { type: "object", properties: {}, required: [], additionalProperties: true };
+			renderParams(schemaToAssistantParamInputs(parsed));
+			setStructuredEditorMode(prefix, "params", "form");
+		} catch {
+			showNotification({ type: "error", message: "Input parameter schema JSON is invalid." });
+		}
+	});
+
+	document.getElementById(`${prefix}-user-inputs-mode-toggle`)?.addEventListener("click", () => {
+		const toggle = document.getElementById(`${prefix}-user-inputs-mode-toggle`) as HTMLButtonElement | null;
+		const current = (toggle?.getAttribute("data-mode") as StructuredEditorMode) || "form";
+		if (current === "form") {
+			userInputsTextarea.value = JSON.stringify(collectUserInputRows(userRowsId), null, 2);
+			setStructuredEditorMode(prefix, "user-inputs", "json");
+			return;
+		}
+		try {
+			const parsed = parseCustomToolUserInputs(userInputsTextarea.value || "") || [];
+			renderUserInputs(parsed);
+			setStructuredEditorMode(prefix, "user-inputs", "form");
+		} catch (err) {
+			showNotification({
+				type: "error",
+				message: err instanceof Error ? err.message : "Private user inputs JSON is invalid.",
+			});
+		}
+	});
 }
 
 function renderCustomToolCards(
@@ -3168,13 +3477,33 @@ function openCreateCustomToolModal(): void {
 						<input id=\"custom-tool-website\" placeholder=\"https://example.com/tool-docs\" />
 					</label>
 
-					<label class=\"span-2\">Input Parameters JSON Schema
-						<textarea id=\"custom-tool-params\" rows=\"6\" placeholder='{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}'></textarea>
-					</label>
+					<div class=\"span-2 custom-tool-editor-block\">
+						<div class=\"custom-tool-editor-head\">
+							<strong>Assistant Parameters</strong>
+							<button type=\"button\" id=\"custom-tool-params-mode-toggle\" class=\"custom-tool-mode-toggle\" data-mode=\"form\">Switch to JSON editor</button>
+						</div>
+						<div id=\"custom-tool-params-form-wrap\" class=\"custom-tool-editor-wrap\">
+							<div id=\"custom-tool-params-form-rows\" class=\"custom-tool-structured-rows\"></div>
+							<button type=\"button\" id=\"custom-tool-add-param-row\" class=\"custom-tool-add-row\">Add parameter</button>
+						</div>
+						<div id=\"custom-tool-params-json-wrap\" class=\"custom-tool-editor-wrap\" style=\"display:none;\">
+							<textarea id=\"custom-tool-params\" rows=\"6\" placeholder='{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}},\"required\":[\"city\"]}'></textarea>
+						</div>
+					</div>
 
-					<label class=\"span-2\">Private User Inputs JSON
-						<textarea id=\"custom-tool-user-inputs\" rows=\"4\" placeholder='${escapeHtmlUnsafe(customToolUserInputsPlaceholder())}'></textarea>
-					</label>
+					<div class=\"span-2 custom-tool-editor-block\">
+						<div class=\"custom-tool-editor-head\">
+							<strong>Private User Inputs</strong>
+							<button type=\"button\" id=\"custom-tool-user-inputs-mode-toggle\" class=\"custom-tool-mode-toggle\" data-mode=\"form\">Switch to JSON editor</button>
+						</div>
+						<div id=\"custom-tool-user-inputs-form-wrap\" class=\"custom-tool-editor-wrap\">
+							<div id=\"custom-tool-user-inputs-form-rows\" class=\"custom-tool-structured-rows\"></div>
+							<button type=\"button\" id=\"custom-tool-add-user-input-row\" class=\"custom-tool-add-row\">Add user input</button>
+						</div>
+						<div id=\"custom-tool-user-inputs-json-wrap\" class=\"custom-tool-editor-wrap\" style=\"display:none;\">
+							<textarea id=\"custom-tool-user-inputs\" rows=\"4\" placeholder='${escapeHtmlUnsafe(customToolUserInputsPlaceholder())}'></textarea>
+						</div>
+					</div>
 
 					<label class=\"span-2\">Release Notes
 						<textarea id=\"custom-tool-release-notes\" rows=\"3\" placeholder=\"Initial release.\"></textarea>
@@ -3213,10 +3542,14 @@ function openCreateCustomToolModal(): void {
 						(document.getElementById("custom-tool-website") as HTMLInputElement | null)?.value?.trim() || "";
 					const releaseNotes =
 						(document.getElementById("custom-tool-release-notes") as HTMLTextAreaElement | null)?.value?.trim() || "";
-					const paramsRaw =
-						(document.getElementById("custom-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
-					const userInputsRaw =
-						(document.getElementById("custom-tool-user-inputs") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const paramsRaw = (document.getElementById("custom-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const userInputsRaw = (document.getElementById("custom-tool-user-inputs") as HTMLTextAreaElement | null)?.value?.trim() || "";
+					const paramMode =
+						((document.getElementById("custom-tool-params-mode-toggle") as HTMLButtonElement | null)?.getAttribute("data-mode") as StructuredEditorMode) ||
+						"form";
+					const userInputsMode =
+						((document.getElementById("custom-tool-user-inputs-mode-toggle") as HTMLButtonElement | null)?.getAttribute("data-mode") as StructuredEditorMode) ||
+						"form";
 					const visibility =
 						(document.getElementById("custom-tool-visibility") as HTMLSelectElement | null)?.value || "private";
 					const publish = visibility === "public" || visibility === "unlisted";
@@ -3227,7 +3560,11 @@ function openCreateCustomToolModal(): void {
 						return;
 					}
 					let parameters: Record<string, unknown> | undefined = undefined;
-					if (paramsRaw) {
+					if (paramMode === "form") {
+						parameters = assistantParamInputsToSchema(
+							collectAssistantParamRows("custom-tool-params-form-rows"),
+						);
+					} else if (paramsRaw) {
 						try {
 							parameters = JSON.parse(paramsRaw) as Record<string, unknown>;
 						} catch {
@@ -3236,11 +3573,15 @@ function openCreateCustomToolModal(): void {
 						}
 					}
 					let userInputs: CustomToolUserInput[] | undefined;
-					try {
-						userInputs = parseCustomToolUserInputs(userInputsRaw);
-					} catch (err) {
-						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
-						return;
+					if (userInputsMode === "form") {
+						userInputs = collectUserInputRows("custom-tool-user-inputs-form-rows");
+					} else {
+						try {
+							userInputs = parseCustomToolUserInputs(userInputsRaw);
+						} catch (err) {
+							showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+							return;
+						}
 					}
 					const codeContent = await file.text();
 					const result = await window.ollama.createCustomTool({
@@ -3280,6 +3621,11 @@ function openCreateCustomToolModal(): void {
 				},
 			},
 		],
+	});
+	setupCustomToolStructuredEditors({
+		prefix: "custom-tool",
+		initialParameters: { type: "object", properties: {}, required: [], additionalProperties: true },
+		initialUserInputs: [],
 	});
 }
 
@@ -3348,12 +3694,32 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 					<label>Code File Name
 						<input id=\"edit-tool-code-file\" value=\"${escapeHtmlUnsafe(tool.codeFile)}\" readonly />
 					</label>
-					<label class=\"span-2\">Input Parameters JSON Schema
-						<textarea id=\"edit-tool-params\" rows=\"6\">${escapeHtmlUnsafe(params)}</textarea>
-					</label>
-					<label class=\"span-2\">Private User Inputs JSON
+					<div class=\"span-2 custom-tool-editor-block\">
+						<div class=\"custom-tool-editor-head\">
+							<strong>Assistant Parameters</strong>
+							<button type=\"button\" id=\"edit-tool-params-mode-toggle\" class=\"custom-tool-mode-toggle\" data-mode=\"form\">Switch to JSON editor</button>
+						</div>
+						<div id=\"edit-tool-params-form-wrap\" class=\"custom-tool-editor-wrap\">
+							<div id=\"edit-tool-params-form-rows\" class=\"custom-tool-structured-rows\"></div>
+							<button type=\"button\" id=\"edit-tool-add-param-row\" class=\"custom-tool-add-row\">Add parameter</button>
+						</div>
+						<div id=\"edit-tool-params-json-wrap\" class=\"custom-tool-editor-wrap\" style=\"display:none;\">
+							<textarea id=\"edit-tool-params\" rows=\"6\">${escapeHtmlUnsafe(params)}</textarea>
+						</div>
+					</div>
+					<div class=\"span-2 custom-tool-editor-block\">
+						<div class=\"custom-tool-editor-head\">
+							<strong>Private User Inputs</strong>
+							<button type=\"button\" id=\"edit-tool-user-inputs-mode-toggle\" class=\"custom-tool-mode-toggle\" data-mode=\"form\">Switch to JSON editor</button>
+						</div>
+						<div id=\"edit-tool-user-inputs-form-wrap\" class=\"custom-tool-editor-wrap\">
+							<div id=\"edit-tool-user-inputs-form-rows\" class=\"custom-tool-structured-rows\"></div>
+							<button type=\"button\" id=\"edit-tool-add-user-input-row\" class=\"custom-tool-add-row\">Add user input</button>
+						</div>
+					<div id=\"edit-tool-user-inputs-json-wrap\" class=\"custom-tool-editor-wrap\" style=\"display:none;\">
 						<textarea id=\"edit-tool-user-inputs\" rows=\"4\">${escapeHtmlUnsafe(userInputs)}</textarea>
-					</label>
+					</div>
+					</div>
 					<label class=\"span-2\">Release Notes
 						<textarea id=\"edit-tool-release-notes\" rows=\"3\">${escapeHtmlUnsafe(tool.releaseNotes || "")}</textarea>
 					</label>
@@ -3370,7 +3736,14 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 				onClick: async () => {
 					let parameters: Record<string, unknown> | undefined;
 					const paramsRaw = (document.getElementById("edit-tool-params") as HTMLTextAreaElement | null)?.value?.trim() || "";
-					if (paramsRaw) {
+					const paramMode =
+						((document.getElementById("edit-tool-params-mode-toggle") as HTMLButtonElement | null)?.getAttribute("data-mode") as StructuredEditorMode) ||
+						"form";
+					if (paramMode === "form") {
+						parameters = assistantParamInputsToSchema(
+							collectAssistantParamRows("edit-tool-params-form-rows"),
+						);
+					} else if (paramsRaw) {
 						try {
 							parameters = JSON.parse(paramsRaw) as Record<string, unknown>;
 						} catch {
@@ -3379,11 +3752,18 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 						}
 					}
 					let userInputs: CustomToolUserInput[] | undefined;
-					try {
-						userInputs = parseCustomToolUserInputs((document.getElementById("edit-tool-user-inputs") as HTMLTextAreaElement | null)?.value || "");
-					} catch (err) {
-						showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
-						return;
+					const userInputsMode =
+						((document.getElementById("edit-tool-user-inputs-mode-toggle") as HTMLButtonElement | null)?.getAttribute("data-mode") as StructuredEditorMode) ||
+						"form";
+					if (userInputsMode === "form") {
+						userInputs = collectUserInputRows("edit-tool-user-inputs-form-rows");
+					} else {
+						try {
+							userInputs = parseCustomToolUserInputs((document.getElementById("edit-tool-user-inputs") as HTMLTextAreaElement | null)?.value || "");
+						} catch (err) {
+							showNotification({ type: "error", message: err instanceof Error ? err.message : "Private user inputs JSON is invalid." });
+							return;
+						}
 					}
 					const nextVersion = (document.getElementById("edit-tool-version") as HTMLInputElement | null)?.value?.trim() || "0.1.0";
 					if (!allowSemverBypass && compareSemver(nextVersion, originalVersion) <= 0) {
@@ -3430,6 +3810,11 @@ async function openEditCustomToolModal(toolId: string): Promise<void> {
 				},
 			},
 		],
+	});
+	setupCustomToolStructuredEditors({
+		prefix: "edit-tool",
+		initialParameters: tool.openai?.parameters || { type: "object", properties: {}, required: [], additionalProperties: true },
+		initialUserInputs: tool.userInputs || [],
 	});
 }
 
@@ -7457,6 +7842,10 @@ window.ollama.onToolCall((call) => {
 									<div class=\"custom-tool-run-review\">
 										<p><strong>${safeToolTitle}</strong> will run local code on this computer.</p>
 										${privateInputHtml ? `<div class=\"custom-tool-private-inputs\"><strong>Private user inputs</strong>${privateInputHtml}</div>` : ""}
+										<label class=\"custom-tool-checkbox\">
+											<input id=\"custom-tool-run-allow-env\" type=\"checkbox\" />
+											<span>Allow this run to access environment variables</span>
+										</label>
 										<p>Type <code>RUN</code> to confirm.</p>
 										<input id=\"custom-tool-run-confirm-input\" class=\"custom-tool-run-confirm-input\" autocomplete=\"off\" />
 									</div>
@@ -7467,7 +7856,7 @@ window.ollama.onToolCall((call) => {
 										label: "Cancel",
 										onClick: async () => {
 											await window.ollama.resolveCustomToolCall(call.id, false);
-											customToolmodal.close();
+											customToolModal.close();
 										},
 									},
 									{
@@ -7493,6 +7882,9 @@ window.ollama.onToolCall((call) => {
 											await window.ollama.resolveCustomToolCall(call.id, {
 												approved: true,
 												userInputs,
+												allowEnvironment: Boolean(
+													(document.getElementById("custom-tool-run-allow-env") as HTMLInputElement | null)?.checked,
+												),
 											});
 											customToolModal.close();
 										},

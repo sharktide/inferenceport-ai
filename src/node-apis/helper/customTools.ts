@@ -170,7 +170,7 @@ const LANGUAGE_REQUIREMENTS: Record<
 	python: { runtime: ["python3"], build: [] },
 	cpp: { runtime: ["clang++", "g++"], build: ["clang++", "g++"] },
 	c: { runtime: ["gcc", "clang"], build: ["gcc", "clang"] },
-	rust: { runtime: ["rustc"], build: ["rustc"] },
+	rust: { runtime: ["cargo"], build: ["cargo"] },
 	java: { runtime: ["java"], build: [] },
 	go: { runtime: ["go"], build: [] },
 	ruby: { runtime: ["ruby"], build: [] },
@@ -186,6 +186,50 @@ const RESERVED_FUNCTION_NAMES = new Set([
 	"generate_image",
 	"generate_audio",
 	"generate_video",
+]);
+
+const DEFAULT_TOOL_TIMEOUT_MS = 120000;
+const DEFAULT_TOOL_MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
+
+const SAFE_ENV_KEYS = [
+	"PATH",
+	"Path",
+	"PATHEXT",
+	"SYSTEMROOT",
+	"SystemRoot",
+	"HOME",
+	"USERPROFILE",
+	"TMP",
+	"TEMP",
+	"TMPDIR",
+	"ComSpec",
+	"COMSPEC",
+] as const;
+
+const DISALLOWED_OBJECT_KEYS = new Set([
+	"__proto__",
+	"prototype",
+	"constructor",
+]);
+const ALLOWED_COMMAND_NAMES = new Set([
+	"node",
+	"bun",
+	"deno",
+	"tsx",
+	"python",
+	"python3",
+	"java",
+	"go",
+	"ruby",
+	"php",
+	"swift",
+	"powershell",
+	"pwsh",
+	"clang",
+	"gcc",
+	"clang++",
+	"g++",
+	"rustc",
 ]);
 
 function getCustomToolsRoot(): string {
@@ -218,7 +262,8 @@ function normalizeToolId(value: string): string | null {
 }
 
 function generateToolId(_name?: string): string {
-	const maybeRandom = (crypto as unknown as { randomUUID?: () => string }).randomUUID;
+	const maybeRandom = (crypto as unknown as { randomUUID?: () => string })
+		.randomUUID;
 	if (typeof maybeRandom === "function") return maybeRandom();
 	// Fallback (older Node) — RFC 4122 v4 from random bytes.
 	const bytes = crypto.randomBytes(16);
@@ -248,7 +293,9 @@ function normalizeParametersSchema(value: unknown): CustomToolParameterSchema {
 	}
 	const asRecord = value as Record<string, unknown>;
 	const properties =
-		asRecord.properties && typeof asRecord.properties === "object" && !Array.isArray(asRecord.properties)
+		asRecord.properties &&
+		typeof asRecord.properties === "object" &&
+		!Array.isArray(asRecord.properties)
 			? (asRecord.properties as Record<string, unknown>)
 			: {};
 	const required = Array.isArray(asRecord.required)
@@ -277,7 +324,10 @@ function normalizeVersion(value: unknown, fallback = "0.1.0"): string {
 		: fallback;
 }
 
-function normalizeOptionalText(value: unknown, maxLength: number): string | undefined {
+function normalizeOptionalText(
+	value: unknown,
+	maxLength: number,
+): string | undefined {
 	if (typeof value !== "string") return undefined;
 	const trimmed = value.trim();
 	return trimmed ? trimmed.slice(0, maxLength) : undefined;
@@ -301,7 +351,10 @@ function normalizeUserInputs(value: unknown): CustomToolUserInput[] {
 	for (const item of value) {
 		if (!item || typeof item !== "object" || Array.isArray(item)) continue;
 		const record = item as Record<string, unknown>;
-		const name = sanitizeFunctionName(String(record.name || "")).slice(0, 64);
+		const name = sanitizeFunctionName(String(record.name || "")).slice(
+			0,
+			64,
+		);
 		if (!name || seen.has(name)) continue;
 		seen.add(name);
 		const label = normalizeOptionalText(record.label, 80);
@@ -317,6 +370,37 @@ function normalizeUserInputs(value: unknown): CustomToolUserInput[] {
 	return inputs.slice(0, 20);
 }
 
+function sanitizeExecutionArgName(value: string): string {
+	return value
+		.trim()
+		.replace(/[^a-zA-Z0-9_-]/g, "_")
+		.slice(0, 64);
+}
+
+function buildExecutionArgs(
+	args: Record<string, unknown>,
+): Record<string, unknown> {
+	const output = Object.create(null) as Record<string, unknown>;
+	for (const [rawKey, value] of Object.entries(args || {})) {
+		const key = sanitizeExecutionArgName(rawKey);
+		if (!key || DISALLOWED_OBJECT_KEYS.has(key)) continue;
+		output[key] = value;
+	}
+	return output;
+}
+
+function buildCommandEnv(allowEnv: boolean): NodeJS.ProcessEnv {
+	const base: NodeJS.ProcessEnv = {};
+	for (const key of SAFE_ENV_KEYS) {
+		const value = process.env[key];
+		if (typeof value === "string" && value.length > 0) {
+			base[key] = value;
+		}
+	}
+	if (!allowEnv) return base;
+	return { ...base, ...process.env };
+}
+
 function readJsonFile<T>(filePath: string): T {
 	const raw = fs.readFileSync(filePath, "utf-8");
 	return JSON.parse(raw) as T;
@@ -327,7 +411,10 @@ function writeJsonFile(filePath: string, value: unknown): void {
 }
 
 function hashCodeContent(codeContent: string): string {
-	return crypto.createHash("sha256").update(codeContent, "utf-8").digest("hex");
+	return crypto
+		.createHash("sha256")
+		.update(codeContent, "utf-8")
+		.digest("hex");
 }
 
 function manifestPathFor(toolId: string): string {
@@ -338,14 +425,106 @@ function codePathFor(toolId: string, codeFile: string): string {
 	return path.join(getCustomToolsRoot(), toolId, path.basename(codeFile));
 }
 
+function extractEmbeddedCargoManifest(source: string): string | null {
+	// rust-script style:
+	//
+	// //! ```cargo
+	// //! [dependencies]
+	// //! reqwest = "0.12"
+	// //! ```
+	//
+	const rustScriptMatch = source.match(
+		/\/\/!\s*```cargo\s*([\s\S]*?)\/\/!\s*```/,
+	);
+
+	if (rustScriptMatch && rustScriptMatch[1]) {
+		const body = rustScriptMatch[1]
+			.split("\n")
+			.map((line) => line.replace(/^\s*\/\/!\s?/, ""))
+			.join("\n")
+			.trim();
+
+		if (body) return body;
+	}
+
+	// cargo single-file style:
+	//
+	// #!/usr/bin/env cargo
+	// ---
+	// [dependencies]
+	// native-tls = "0.2"
+	// ---
+	//
+	const cargoShebangMatch = source.match(
+		/^#!\/usr\/bin\/env\s+cargo\s*?\r?\n---\r?\n([\s\S]*?)\r?\n---/m,
+	);
+
+	if (cargoShebangMatch) {
+		const body = cargoShebangMatch[1]?.trim();
+		if (body) return body;
+	}
+
+	return null;
+}
+
+function stripEmbeddedCargoManifest(source: string): string {
+	// Remove rust-script style block
+	source = source.replace(/\/\/!\s*```cargo[\s\S]*?\/\/!\s*```/, "");
+
+	// Remove cargo shebang + manifest block
+	source = source.replace(
+		/^#!\/usr\/bin\/env\s+cargo\s*?\r?\n---\r?\n[\s\S]*?\r?\n---\s*/m,
+		"",
+	);
+
+	return source.trimStart();
+}
+
+function buildCargoToml(manifestText: string | null): string {
+	const defaultPackage = `[package]
+name = "custom_tool"
+version = "0.1.0"
+edition = "2021"
+
+`;
+
+	if (!manifestText || !manifestText.trim()) {
+		return `${defaultPackage}[dependencies]\n`;
+	}
+
+	const trimmed = manifestText.trim();
+
+	// User already supplied [package]
+	if (trimmed.includes("[package]")) {
+		return trimmed;
+	}
+
+	// Dependency-only manifest
+	return `${defaultPackage}${trimmed}\n`;
+}
+
 function getLanguageFromFileName(fileName: string): CustomToolLanguage | null {
 	const lower = fileName.toLowerCase();
-	if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) {
+	if (
+		lower.endsWith(".js") ||
+		lower.endsWith(".mjs") ||
+		lower.endsWith(".cjs")
+	) {
 		return "javascript";
 	}
-	if (lower.endsWith(".ts") || lower.endsWith(".mts") || lower.endsWith(".cts")) return "typescript";
+	if (
+		lower.endsWith(".ts") ||
+		lower.endsWith(".mts") ||
+		lower.endsWith(".cts")
+	)
+		return "typescript";
 	if (lower.endsWith(".py")) return "python";
-	if (lower.endsWith(".cpp") || lower.endsWith(".cc") || lower.endsWith(".cxx")) return "cpp";
+	if (
+		lower.endsWith(".cpp") ||
+		lower.endsWith(".cc") ||
+		lower.endsWith(".cxx")
+	)
+		return "cpp";
 	if (lower.endsWith(".c")) return "c";
 	if (lower.endsWith(".rs")) return "rust";
 	if (lower.endsWith(".java")) return "java";
@@ -376,7 +555,9 @@ function readVerifiedToolSource(manifest: CustomToolManifest): {
 	return { sourcePath, code, codeHash };
 }
 
-function ensureManifestCodeHash(manifest: CustomToolManifest): CustomToolManifest {
+function ensureManifestCodeHash(
+	manifest: CustomToolManifest,
+): CustomToolManifest {
 	if (manifest.codeHash) return manifest;
 	try {
 		const { codeHash } = readVerifiedToolSource(manifest);
@@ -405,7 +586,9 @@ export function listLocalCustomTools(): CustomToolManifest[] {
 		if (!fs.existsSync(manifestPath)) continue;
 		try {
 			manifests.push(
-				ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath)),
+				ensureManifestCodeHash(
+					readJsonFile<CustomToolManifest>(manifestPath),
+				),
 			);
 		} catch {
 			continue;
@@ -415,19 +598,25 @@ export function listLocalCustomTools(): CustomToolManifest[] {
 	return manifests;
 }
 
-export function getLocalCustomToolById(toolId: string): CustomToolManifest | null {
+export function getLocalCustomToolById(
+	toolId: string,
+): CustomToolManifest | null {
 	const normalizedToolId = normalizeToolId(toolId);
 	if (!normalizedToolId) return null;
 	const manifestPath = manifestPathFor(normalizedToolId);
 	if (!fs.existsSync(manifestPath)) return null;
 	try {
-		return ensureManifestCodeHash(readJsonFile<CustomToolManifest>(manifestPath));
+		return ensureManifestCodeHash(
+			readJsonFile<CustomToolManifest>(manifestPath),
+		);
 	} catch {
 		return null;
 	}
 }
 
-export function getLocalCustomToolSourceById(toolId: string): CustomToolWithSource | null {
+export function getLocalCustomToolSourceById(
+	toolId: string,
+): CustomToolWithSource | null {
 	const manifest = getLocalCustomToolById(toolId);
 	if (!manifest) return null;
 	const codePath = codePathFor(manifest.id, manifest.codeFile);
@@ -457,7 +646,9 @@ export function toToolDefinition(manifest: CustomToolManifest): ToolDefinition {
 	};
 }
 
-export function getCustomToolByFunctionName(functionName: string): CustomToolManifest | null {
+export function getCustomToolByFunctionName(
+	functionName: string,
+): CustomToolManifest | null {
 	const normalized = functionName.trim();
 	if (!normalized) return null;
 	for (const manifest of listLocalCustomTools()) {
@@ -489,22 +680,32 @@ async function getLightningAuthHeaders(): Promise<Record<string, string>> {
 
 export async function publishCustomToolToRegistry(
 	manifest: CustomToolManifest,
-): Promise<{ ok: true; record: CustomToolRegistryRecord } | { ok: false; error: string }> {
+): Promise<
+	| { ok: true; record: CustomToolRegistryRecord }
+	| { ok: false; error: string }
+> {
 	try {
 		const { code, codeHash } = readVerifiedToolSource(manifest);
+		const { execution: _ignoredExecution, ...manifestForRegistry } =
+			manifest as CustomToolManifest & {
+				execution?: unknown;
+			};
 		const headers = await getLightningAuthHeaders();
 		if (!headers.Authorization) {
 			return { ok: false, error: "You must sign in to publish tools." };
 		}
 
-		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/tools`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				manifest: { ...manifest, codeHash },
-				code,
-			}),
-		});
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools`,
+			{
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					manifest: { ...manifestForRegistry, codeHash },
+					code,
+				}),
+			},
+		);
 
 		const payload = (await response.json().catch(() => ({}))) as {
 			error?: string;
@@ -525,9 +726,13 @@ export async function publishCustomToolToRegistry(
 	}
 }
 
-export async function fetchRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
+export async function fetchRegistryCustomTools(): Promise<
+	CustomToolRegistryRecord[]
+> {
 	try {
-		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/tools`);
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/tools`,
+		);
 		if (!response.ok) return [];
 		const payload = (await response.json()) as {
 			tools?: CustomToolRegistryRecord[];
@@ -538,13 +743,18 @@ export async function fetchRegistryCustomTools(): Promise<CustomToolRegistryReco
 	}
 }
 
-export async function fetchMyRegistryCustomTools(): Promise<CustomToolRegistryRecord[]> {
+export async function fetchMyRegistryCustomTools(): Promise<
+	CustomToolRegistryRecord[]
+> {
 	try {
 		const headers = await getLightningAuthHeaders();
 		if (!headers.Authorization) return [];
-		const response = await fetch(`${LIGHTNING_BASE_URL}/tool-registry/my-tools`, {
-			headers,
-		});
+		const response = await fetch(
+			`${LIGHTNING_BASE_URL}/tool-registry/my-tools`,
+			{
+				headers,
+			},
+		);
 		if (!response.ok) return [];
 		const payload = (await response.json()) as {
 			tools?: CustomToolRegistryRecord[];
@@ -597,7 +807,9 @@ export async function fetchRegistryCustomToolSourceById(
 
 export async function importCustomToolFromRegistry(
 	toolId: string,
-): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+): Promise<
+	{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }
+> {
 	const normalizedToolId = normalizeToolId(toolId);
 	if (!normalizedToolId) {
 		return { ok: false, error: "Tool id must be a UUID." };
@@ -611,31 +823,54 @@ export async function importCustomToolFromRegistry(
 			manifest?: CustomToolManifest;
 			code?: string;
 		};
-		if (!response.ok || !payload.manifest || typeof payload.code !== "string") {
+		if (
+			!response.ok ||
+			!payload.manifest ||
+			typeof payload.code !== "string"
+		) {
 			return {
 				ok: false,
-				error: payload.error || `Failed to import tool (${response.status})`,
+				error:
+					payload.error ||
+					`Failed to import tool (${response.status})`,
 			};
 		}
 
-		const manifest = payload.manifest;
+		const manifest = payload.manifest as CustomToolManifest & {
+			execution?: unknown;
+		};
 		if (!isUuid(manifest.id) || manifest.id !== normalizedToolId) {
 			return { ok: false, error: "Registry tool id must be a UUID." };
 		}
 		manifest.codeFile = sanitizeFileName(path.basename(manifest.codeFile));
+		manifest.openai = {
+			functionName: sanitizeFunctionName(
+				manifest.openai?.functionName ||
+					`custom_${manifest.id.replace(/-/g, "_")}`,
+			),
+			description:
+				normalizeOptionalText(manifest.openai?.description, 500) ||
+				manifest.functionality ||
+				"Custom tool",
+			parameters: normalizeParametersSchema(manifest.openai?.parameters),
+		};
+		manifest.userInputs = normalizeUserInputs(manifest.userInputs);
 		manifest.codeHash = hashCodeContent(payload.code);
+		const { execution: _ignoredExecution, ...manifestWithoutExecution } =
+			manifest;
 		const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 		ensureDirSync(toolDir);
 		const codePath = path.join(toolDir, manifest.codeFile);
 		const manifestPath = path.join(toolDir, "manifest.json");
 		fs.writeFileSync(codePath, payload.code, "utf-8");
 		writeJsonFile(manifestPath, {
-			...manifest,
+			...manifestWithoutExecution,
 			published: true,
 			updatedAt: new Date().toISOString(),
 			registry: {
 				source: "lightning",
-				uploadedAt: manifest.registry?.uploadedAt || new Date().toISOString(),
+				uploadedAt:
+					manifest.registry?.uploadedAt || new Date().toISOString(),
 				updatedAt: new Date().toISOString(),
 			},
 		});
@@ -651,19 +886,25 @@ export async function importCustomToolFromRegistry(
 
 export async function createCustomTool(
 	input: CustomToolCreateInput,
-): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+): Promise<
+	{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }
+> {
 	const name = input.name?.trim();
 	const functionality = input.functionality?.trim();
 	const version = normalizeVersion(input.version);
 	const releaseNotes = normalizeOptionalText(input.releaseNotes, 4000);
 	const websiteUrl = normalizeWebsiteUrl(input.websiteUrl);
 	const language = input.language;
-	const codeContent = typeof input.codeContent === "string" ? input.codeContent : "";
+	const codeContent =
+		typeof input.codeContent === "string" ? input.codeContent : "";
 
 	if (!name) return { ok: false, error: "Tool name is required." };
-	if (!functionality) return { ok: false, error: "Functionality is required." };
-	if (!codeContent.trim()) return { ok: false, error: "Tool source code is required." };
-	if (!(language in LANGUAGE_TO_EXT)) return { ok: false, error: "Unsupported language." };
+	if (!functionality)
+		return { ok: false, error: "Functionality is required." };
+	if (!codeContent.trim())
+		return { ok: false, error: "Tool source code is required." };
+	if (!(language in LANGUAGE_TO_EXT))
+		return { ok: false, error: "Unsupported language." };
 
 	const session = await getSession().catch(() => null);
 	const authorEmail = session?.user?.email || "local@inferenceport.ai";
@@ -679,7 +920,9 @@ export async function createCustomTool(
 	}
 
 	const defaultExt = LANGUAGE_TO_EXT[language];
-	const providedName = sanitizeFileName(input.codeFileName || `tool${defaultExt}`);
+	const providedName = sanitizeFileName(
+		input.codeFileName || `tool${defaultExt}`,
+	);
 	const providedExt = path.extname(providedName).toLowerCase();
 	const expectedLanguage = getLanguageFromFileName(providedName);
 	if (expectedLanguage && expectedLanguage !== language) {
@@ -688,11 +931,14 @@ export async function createCustomTool(
 			error: `Uploaded file extension does not match ${language}.`,
 		};
 	}
-	const codeFile = providedExt ? providedName : `${providedName}${defaultExt}`;
+	const codeFile = providedExt
+		? providedName
+		: `${providedName}${defaultExt}`;
 
 	const toolId = generateToolId(name);
 	const functionName = sanitizeFunctionName(
-		input.openai?.functionName?.trim() || `custom_${toolId.replace(/-/g, "_")}`,
+		input.openai?.functionName?.trim() ||
+			`custom_${toolId.replace(/-/g, "_")}`,
 	);
 	if (RESERVED_FUNCTION_NAMES.has(functionName)) {
 		return {
@@ -771,14 +1017,17 @@ export async function createCustomTool(
 
 export async function updateCustomTool(
 	input: CustomToolUpdateInput,
-): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+): Promise<
+	{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }
+> {
 	const toolId = normalizeToolId(input.id);
 	if (!toolId) return { ok: false, error: "Tool id must be a UUID." };
 
 	const existing = getLocalCustomToolById(toolId);
 	if (!existing) return { ok: false, error: "Tool not found." };
 
-	const name = typeof input.name === "string" ? input.name.trim() : existing.name;
+	const name =
+		typeof input.name === "string" ? input.name.trim() : existing.name;
 	const functionality =
 		typeof input.functionality === "string"
 			? input.functionality.trim()
@@ -797,11 +1046,14 @@ export async function updateCustomTool(
 			: existing.websiteUrl;
 	const language = input.language || existing.language;
 	if (!name) return { ok: false, error: "Tool name is required." };
-	if (!functionality) return { ok: false, error: "Functionality is required." };
-	if (!(language in LANGUAGE_TO_EXT)) return { ok: false, error: "Unsupported language." };
+	if (!functionality)
+		return { ok: false, error: "Functionality is required." };
+	if (!(language in LANGUAGE_TO_EXT))
+		return { ok: false, error: "Unsupported language." };
 
 	const requestedFunctionName =
-		typeof input.openai?.functionName === "string" && input.openai.functionName.trim()
+		typeof input.openai?.functionName === "string" &&
+		input.openai.functionName.trim()
 			? input.openai.functionName.trim()
 			: existing.openai.functionName;
 	const functionName = sanitizeFunctionName(requestedFunctionName);
@@ -837,7 +1089,11 @@ export async function updateCustomTool(
 		if (!input.codeContent!.trim()) {
 			return { ok: false, error: "Tool source code is required." };
 		}
-		fs.writeFileSync(path.join(toolDir, codeFile), input.codeContent!, "utf-8");
+		fs.writeFileSync(
+			path.join(toolDir, codeFile),
+			input.codeContent!,
+			"utf-8",
+		);
 		codeHash = hashCodeContent(input.codeContent!);
 	} else if (!codeHash) {
 		try {
@@ -871,10 +1127,10 @@ export async function updateCustomTool(
 		openai: {
 			functionName,
 			description:
-				(typeof input.openai?.description === "string" &&
+				typeof input.openai?.description === "string" &&
 				input.openai.description.trim()
 					? input.openai.description.trim()
-					: functionality),
+					: functionality,
 			parameters,
 		},
 		requirements: {
@@ -895,9 +1151,17 @@ export async function updateCustomTool(
 
 export async function publishExistingCustomTool(
 	toolId: string,
-): Promise<{ ok: true; manifest: CustomToolManifest; record: CustomToolRegistryRecord } | { ok: false; error: string }> {
+): Promise<
+	| {
+			ok: true;
+			manifest: CustomToolManifest;
+			record: CustomToolRegistryRecord;
+	  }
+	| { ok: false; error: string }
+> {
 	const normalizedToolId = normalizeToolId(toolId);
-	if (!normalizedToolId) return { ok: false, error: "Tool id must be a UUID." };
+	if (!normalizedToolId)
+		return { ok: false, error: "Tool id must be a UUID." };
 	const manifest = getLocalCustomToolById(normalizedToolId);
 	if (!manifest) return { ok: false, error: "Tool not found." };
 	if (manifest.visibility === "private") {
@@ -950,7 +1214,10 @@ export async function deleteRegistryCustomTool(
 	try {
 		const headers = await getLightningAuthHeaders();
 		if (!headers.Authorization) {
-			return { ok: false, error: "You must sign in to delete registry tools." };
+			return {
+				ok: false,
+				error: "You must sign in to delete registry tools.",
+			};
 		}
 		const response = await fetch(
 			`${LIGHTNING_BASE_URL}/tool-registry/tools/${encodeURIComponent(normalizedToolId)}`,
@@ -1014,7 +1281,10 @@ function appendCliArgs(args: Record<string, unknown>): string[] {
 function createExecutionTempDir(toolId: string): string {
 	const base = path.join(getCustomToolsRoot(), toolId, ".build");
 	ensureDirSync(base);
-	const dir = path.join(base, `run-${Date.now()}-${crypto.randomBytes(2).toString("hex")}`);
+	const dir = path.join(
+		base,
+		`run-${Date.now()}-${crypto.randomBytes(2).toString("hex")}`,
+	);
 	ensureDirSync(dir);
 	return dir;
 }
@@ -1023,24 +1293,144 @@ function runCommand(
 	command: string,
 	args: string[],
 	cwd: string,
+	options: {
+		allowEnv?: boolean;
+		timeoutMs?: number;
+		maxOutputBytes?: number;
+		allowAbsoluteCommandPath?: boolean;
+		allowedAbsoluteCommandRoots?: string[];
+	} = {},
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(command, args, {
-			cwd,
+		if (command.includes("\0") || cwd.includes("\0")) {
+			reject(new Error("Unsafe command or working directory path."));
+			return;
+		}
+		const resolvedCwd = path.resolve(cwd);
+		if (
+			!fileExists(resolvedCwd) ||
+			!fs.statSync(resolvedCwd).isDirectory()
+		) {
+			reject(new Error("Execution working directory does not exist."));
+			return;
+		}
+		let commandToRun = command;
+		if (path.isAbsolute(command)) {
+			if (!options.allowAbsoluteCommandPath) {
+				reject(
+					new Error("Absolute command paths are not allowed here."),
+				);
+				return;
+			}
+			const resolvedCommand = path.resolve(command);
+			const allowedRoots = (
+				options.allowedAbsoluteCommandRoots || []
+			).map((entry) => path.resolve(entry));
+			if (allowedRoots.length > 0) {
+				const insideAllowedRoot = allowedRoots.some((root) => {
+					const relative = path.relative(root, resolvedCommand);
+					return (
+						relative.length === 0 ||
+						(!relative.startsWith("..") &&
+							!path.isAbsolute(relative))
+					);
+				});
+				if (!insideAllowedRoot) {
+					reject(
+						new Error(
+							"Command path is outside the allowed execution roots.",
+						),
+					);
+					return;
+				}
+			}
+			commandToRun = resolvedCommand;
+		} else {
+			if (
+				!/^[a-zA-Z0-9._+-]+$/.test(command) ||
+				!ALLOWED_COMMAND_NAMES.has(command)
+			) {
+				reject(new Error(`Unsupported command: ${command}`));
+				return;
+			}
+		}
+		const timeoutMs = Math.max(
+			1000,
+			options.timeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS,
+		);
+		const maxOutputBytes = Math.max(
+			4096,
+			options.maxOutputBytes ?? DEFAULT_TOOL_MAX_OUTPUT_BYTES,
+		);
+		const child = spawn(commandToRun, args, {
+			cwd: resolvedCwd,
 			shell: false,
 			windowsHide: true,
-			env: { ...process.env },
+			env: buildCommandEnv(options.allowEnv === true),
 		});
 		let stdout = "";
 		let stderr = "";
+		let stdoutBytes = 0;
+		let stderrBytes = 0;
+		let settled = false;
+		const timeoutHandle = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			try {
+				child.kill("SIGKILL");
+			} catch {}
+			reject(new Error(`Command timed out after ${timeoutMs} ms.`));
+		}, timeoutMs);
+		const finalizeReject = (err: Error) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeoutHandle);
+			reject(err);
+		};
+		const finalizeResolve = (code: number | null) => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timeoutHandle);
+			resolve({ stdout, stderr, code });
+		};
 		child.stdout.on("data", (chunk) => {
-			stdout += String(chunk);
+			const bufferChunk = Buffer.isBuffer(chunk)
+				? chunk
+				: Buffer.from(String(chunk));
+			stdoutBytes += bufferChunk.byteLength;
+			if (stdoutBytes > maxOutputBytes) {
+				try {
+					child.kill("SIGKILL");
+				} catch {}
+				finalizeReject(
+					new Error(
+						`Command stdout exceeded ${maxOutputBytes} bytes.`,
+					),
+				);
+				return;
+			}
+			stdout += bufferChunk.toString("utf-8");
 		});
 		child.stderr.on("data", (chunk) => {
-			stderr += String(chunk);
+			const bufferChunk = Buffer.isBuffer(chunk)
+				? chunk
+				: Buffer.from(String(chunk));
+			stderrBytes += bufferChunk.byteLength;
+			if (stderrBytes > maxOutputBytes) {
+				try {
+					child.kill("SIGKILL");
+				} catch {}
+				finalizeReject(
+					new Error(
+						`Command stderr exceeded ${maxOutputBytes} bytes.`,
+					),
+				);
+				return;
+			}
+			stderr += bufferChunk.toString("utf-8");
 		});
-		child.on("error", (err) => reject(err));
-		child.on("close", (code) => resolve({ stdout, stderr, code }));
+		child.on("error", (err) => finalizeReject(err));
+		child.on("close", (code) => finalizeResolve(code));
 	});
 }
 
@@ -1048,273 +1438,509 @@ export async function executeCustomTool(
 	manifest: CustomToolManifest,
 	args: Record<string, unknown>,
 	userInputs: Record<string, unknown> = {},
+	options: { allowEnvironment?: boolean } = {},
 ): Promise<string> {
 	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 	const { code, codeHash } = readVerifiedToolSource(manifest);
-	const executionArgs = { ...args };
+	const allowEnvironment = options.allowEnvironment === true;
+	const executionArgs = buildExecutionArgs(
+		args && typeof args === "object" ? args : {},
+	);
 	for (const input of manifest.userInputs || []) {
 		const value = userInputs[input.name];
 		if (typeof value === "undefined" || value === "") {
 			if (input.required) {
-				throw new Error(`Missing required private input: ${input.label || input.name}`);
+				throw new Error(
+					`Missing required private input: ${input.label || input.name}`,
+				);
 			}
 			continue;
 		}
-		executionArgs[input.name] = value;
+		const safeName = sanitizeExecutionArgName(input.name);
+		if (!safeName || DISALLOWED_OBJECT_KEYS.has(safeName)) {
+			throw new Error(`Invalid user input name: ${input.name}`);
+		}
+		executionArgs[safeName] = value;
 	}
 	const cliArgs = appendCliArgs(executionArgs);
 	const tempDir = createExecutionTempDir(manifest.id);
-	const sourcePath = path.join(tempDir, path.basename(manifest.codeFile));
-	fs.writeFileSync(sourcePath, code, "utf-8");
-	const copiedHash = hashCodeContent(fs.readFileSync(sourcePath, "utf-8"));
-	if (copiedHash !== codeHash) {
-		throw new Error("Tool source copy failed integrity verification.");
-	}
-
-	// JavaScript
-	if (manifest.language === "javascript") {
-		const result = await runCommand("node", [sourcePath, ...cliArgs], toolDir);
-
-		if (result.code !== 0) {
-			throw new Error(
-				result.stderr.trim() ||
-					`Tool exited with code ${String(result.code)}`,
-			);
-		}
-
-		return result.stdout;
-	}
-
-	// TypeScript
-	if (manifest.language === "typescript") {
-		const attempts: Array<{ command: string; args: string[] }> = [
-			{ command: "bun", args: [sourcePath, ...cliArgs] },
-			{ command: "deno", args: ["run", "--quiet", sourcePath, ...cliArgs] },
-			{ command: "tsx", args: [sourcePath, ...cliArgs] },
-		];
-		let lastErr: Error | null = null;
-		for (const attempt of attempts) {
-			try {
-				const result = await runCommand(attempt.command, attempt.args, toolDir);
-				if (result.code === 0) return result.stdout;
-				lastErr = new Error(
-					result.stderr.trim() || `Tool exited with code ${String(result.code)}`,
-				);
-			} catch (err) {
-				lastErr = err instanceof Error ? err : new Error(String(err));
-			}
-		}
-		throw lastErr || new Error("Failed to execute TypeScript tool.");
-	}
-
-	// Python
-	if (manifest.language === "python") {
-		const cmd = process.platform === "win32" ? "python" : "python3";
-
-		const result = await runCommand(cmd, [sourcePath, ...cliArgs], toolDir);
-
-		if (result.code !== 0) {
-			throw new Error(
-				result.stderr.trim() ||
-					`Tool exited with code ${String(result.code)}`,
-			);
-		}
-
-		return result.stdout;
-	}
-
-	// Java (Java 11+ single-file source execution)
-	if (manifest.language === "java") {
-		const result = await runCommand(
-			"java",
-			[sourcePath, ...cliArgs],
-			toolDir,
+	try {
+		const sourcePath = path.join(tempDir, path.basename(manifest.codeFile));
+		fs.writeFileSync(sourcePath, code, "utf-8");
+		const copiedHash = hashCodeContent(
+			fs.readFileSync(sourcePath, "utf-8"),
 		);
-
-		if (result.code !== 0) {
-			throw new Error(
-				result.stderr.trim() ||
-					`Tool exited with code ${String(result.code)}`,
-			);
+		if (copiedHash !== codeHash) {
+			throw new Error("Tool source copy failed integrity verification.");
 		}
 
-		return result.stdout;
-	}
-
-	// Go
-	if (manifest.language === "go") {
-		const result = await runCommand("go", ["run", sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	// Ruby
-	if (manifest.language === "ruby") {
-		const result = await runCommand("ruby", [sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	// PHP
-	if (manifest.language === "php") {
-		const result = await runCommand("php", [sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	// Swift
-	if (manifest.language === "swift") {
-		const result = await runCommand("swift", [sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	// PowerShell
-	if (manifest.language === "powershell") {
-		const command = process.platform === "win32" ? "powershell" : "pwsh";
-		const result = await runCommand(command, ["-File", sourcePath, ...cliArgs], toolDir);
-		if (result.code !== 0) {
-			throw new Error(result.stderr.trim() || `Tool exited with code ${String(result.code)}`);
-		}
-		return result.stdout;
-	}
-
-	// Native compiled languages
-	if (
-		manifest.language === "c" ||
-		manifest.language === "cpp" ||
-		manifest.language === "rust"
-	) {
-		const ext = process.platform === "win32" ? ".exe" : "";
-
-		const binaryPath = path.join(tempDir, `tool-bin${ext}`);
-
-		type CompileAttempt = {
-			command: string;
-			args: string[];
-		};
-
-		const compileAttempts: CompileAttempt[] = [];
-
-		// C
-		if (manifest.language === "c") {
-			compileAttempts.push(
+		// JavaScript
+		if (manifest.language === "javascript") {
+			const result = await runCommand(
+				"node",
+				[sourcePath, ...cliArgs],
+				toolDir,
 				{
-					command: "clang",
-					args: [sourcePath, "-O2", "-o", binaryPath],
-				},
-				{
-					command: "gcc",
-					args: [sourcePath, "-O2", "-o", binaryPath],
+					allowEnv: allowEnvironment,
 				},
 			);
-		}
 
-		// C++
-		if (manifest.language === "cpp") {
-			compileAttempts.push(
-				{
-					command: "clang++",
-					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
-				},
-				{
-					command: "g++",
-					args: [sourcePath, "-O2", "-std=c++17", "-o", binaryPath],
-				},
-			);
-		}
-
-		// Rust
-		if (manifest.language === "rust") {
-			compileAttempts.push({
-				command: "rustc",
-				args: [sourcePath, "-O", "-o", binaryPath],
-			});
-		}
-
-		let compileResult:
-			| {
-					code: number | null;
-					stdout: string;
-					stderr: string;
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
 			}
-			| undefined;
 
-		let lastError: unknown;
+			return result.stdout;
+		}
 
-		for (const attempt of compileAttempts) {
-			try {
-				const result = await runCommand(
-					attempt.command,
-					attempt.args,
-					toolDir,
+		// TypeScript
+		if (manifest.language === "typescript") {
+			const attempts: Array<{ command: string; args: string[] }> = [
+				{ command: "bun", args: [sourcePath, ...cliArgs] },
+				{
+					command: "deno",
+					args: ["run", "--quiet", sourcePath, ...cliArgs],
+				},
+				{ command: "tsx", args: [sourcePath, ...cliArgs] },
+			];
+			let lastErr: Error | null = null;
+			for (const attempt of attempts) {
+				try {
+					const result = await runCommand(
+						attempt.command,
+						attempt.args,
+						toolDir,
+						{
+							allowEnv: allowEnvironment,
+						},
+					);
+					if (result.code === 0) return result.stdout;
+					lastErr = new Error(
+						result.stderr.trim() ||
+							`Tool exited with code ${String(result.code)}`,
+					);
+				} catch (err) {
+					lastErr =
+						err instanceof Error ? err : new Error(String(err));
+				}
+			}
+			throw lastErr || new Error("Failed to execute TypeScript tool.");
+		}
+
+		// Python
+		if (manifest.language === "python") {
+			const cmd = process.platform === "win32" ? "python" : "python3";
+
+			const result = await runCommand(
+				cmd,
+				[sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+
+			return result.stdout;
+		}
+
+		// Java (Java 11+ single-file source execution)
+		if (manifest.language === "java") {
+			const result = await runCommand(
+				"java",
+				[sourcePath, ...cliArgs],
+				toolDir,
+				{ allowEnv: allowEnvironment },
+			);
+
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+
+			return result.stdout;
+		}
+
+		// Go
+		if (manifest.language === "go") {
+			const result = await runCommand(
+				"go",
+				["run", sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+			return result.stdout;
+		}
+
+		// Ruby
+		if (manifest.language === "ruby") {
+			const result = await runCommand(
+				"ruby",
+				[sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+			return result.stdout;
+		}
+
+		// PHP
+		if (manifest.language === "php") {
+			const result = await runCommand(
+				"php",
+				[sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+			return result.stdout;
+		}
+
+		// Swift
+		if (manifest.language === "swift") {
+			const result = await runCommand(
+				"swift",
+				[sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+			return result.stdout;
+		}
+
+		// PowerShell
+		if (manifest.language === "powershell") {
+			const command =
+				process.platform === "win32" ? "powershell" : "pwsh";
+			const result = await runCommand(
+				command,
+				["-File", sourcePath, ...cliArgs],
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+				},
+			);
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+			return result.stdout;
+		}
+		// Rust via ephemeral Cargo project
+		if (manifest.language === "rust") {
+			const cargoDir = path.join(tempDir, "cargo-project");
+			const srcDir = path.join(cargoDir, "src");
+
+			ensureDirSync(cargoDir);
+			ensureDirSync(srcDir);
+
+			const embeddedManifest = extractEmbeddedCargoManifest(code);
+
+			const cargoToml = buildCargoToml(embeddedManifest);
+
+			const strippedSource = stripEmbeddedCargoManifest(code);
+
+			fs.writeFileSync(
+				path.join(cargoDir, "Cargo.toml"),
+				cargoToml,
+				"utf-8",
+			);
+
+			fs.writeFileSync(
+				path.join(srcDir, "main.rs"),
+				strippedSource,
+				"utf-8",
+			);
+
+			const cargoHome = path.join(getCustomToolsRoot(), ".cargo");
+
+			ensureDirSync(cargoHome);
+
+			const cargoEnv = {
+				...buildCommandEnv(allowEnvironment),
+				CARGO_HOME: cargoHome,
+				CARGO_TERM_COLOR: "never",
+			};
+
+			const timeoutMs = 300000;
+
+			const result = await new Promise<{
+				stdout: string;
+				stderr: string;
+				code: number | null;
+			}>((resolve, reject) => {
+				const child = spawn(
+					"cargo",
+					["run", "--quiet", "--release", "--", ...cliArgs],
+					{
+						cwd: cargoDir,
+						shell: false,
+						windowsHide: true,
+						env: cargoEnv,
+					},
 				);
 
-				if (result.code === 0) {
+				let stdout = "";
+				let stderr = "";
+
+				let stdoutBytes = 0;
+				let stderrBytes = 0;
+
+				const timeout = setTimeout(() => {
+					try {
+						child.kill("SIGKILL");
+					} catch {}
+
+					reject(
+						new Error(`Rust tool timed out after ${timeoutMs} ms.`),
+					);
+				}, timeoutMs);
+
+				child.stdout.on("data", (chunk) => {
+					const buf = Buffer.isBuffer(chunk)
+						? chunk
+						: Buffer.from(String(chunk));
+
+					stdoutBytes += buf.byteLength;
+
+					if (stdoutBytes > DEFAULT_TOOL_MAX_OUTPUT_BYTES) {
+						try {
+							child.kill("SIGKILL");
+						} catch {}
+
+						clearTimeout(timeout);
+
+						reject(
+							new Error(
+								`Rust tool stdout exceeded ${DEFAULT_TOOL_MAX_OUTPUT_BYTES} bytes.`,
+							),
+						);
+
+						return;
+					}
+
+					stdout += buf.toString("utf-8");
+				});
+
+				child.stderr.on("data", (chunk) => {
+					const buf = Buffer.isBuffer(chunk)
+						? chunk
+						: Buffer.from(String(chunk));
+
+					stderrBytes += buf.byteLength;
+
+					if (stderrBytes > DEFAULT_TOOL_MAX_OUTPUT_BYTES) {
+						try {
+							child.kill("SIGKILL");
+						} catch {}
+
+						clearTimeout(timeout);
+
+						reject(
+							new Error(
+								`Rust tool stderr exceeded ${DEFAULT_TOOL_MAX_OUTPUT_BYTES} bytes.`,
+							),
+						);
+
+						return;
+					}
+
+					stderr += buf.toString("utf-8");
+				});
+
+				child.on("error", (err) => {
+					clearTimeout(timeout);
+					reject(err);
+				});
+
+				child.on("close", (code) => {
+					clearTimeout(timeout);
+
+					resolve({
+						stdout,
+						stderr,
+						code,
+					});
+				});
+			});
+
+			if (result.code !== 0) {
+				throw new Error(
+					result.stderr.trim() ||
+						`Tool exited with code ${String(result.code)}`,
+				);
+			}
+
+			return result.stdout;
+		}
+		// Native compiled languages
+		if (manifest.language === "c" || manifest.language === "cpp") {
+			const ext = process.platform === "win32" ? ".exe" : "";
+
+			const binaryPath = path.join(tempDir, `tool-bin${ext}`);
+
+			type CompileAttempt = {
+				command: string;
+				args: string[];
+			};
+
+			const compileAttempts: CompileAttempt[] = [];
+
+			// C
+			if (manifest.language === "c") {
+				compileAttempts.push(
+					{
+						command: "clang",
+						args: [sourcePath, "-O2", "-o", binaryPath],
+					},
+					{
+						command: "gcc",
+						args: [sourcePath, "-O2", "-o", binaryPath],
+					},
+				);
+			}
+
+			// C++
+			if (manifest.language === "cpp") {
+				compileAttempts.push(
+					{
+						command: "clang++",
+						args: [
+							sourcePath,
+							"-O2",
+							"-std=c++17",
+							"-o",
+							binaryPath,
+						],
+					},
+					{
+						command: "g++",
+						args: [
+							sourcePath,
+							"-O2",
+							"-std=c++17",
+							"-o",
+							binaryPath,
+						],
+					},
+				);
+			}
+
+			let compileResult:
+				| {
+						code: number | null;
+						stdout: string;
+						stderr: string;
+				  }
+				| undefined;
+
+			let lastError: unknown;
+
+			for (const attempt of compileAttempts) {
+				try {
+					const result = await runCommand(
+						attempt.command,
+						attempt.args,
+						toolDir,
+						{ allowEnv: allowEnvironment },
+					);
+
+					if (result.code === 0) {
+						compileResult = result;
+						break;
+					}
+
 					compileResult = result;
-					break;
+				} catch (error) {
+					lastError = error;
+				}
+			}
+
+			if (!compileResult || compileResult.code !== 0) {
+				if (compileResult?.stderr?.trim()) {
+					throw new Error(compileResult.stderr.trim());
 				}
 
-				compileResult = result;
-			} catch (error) {
-				lastError = error;
-			}
-		}
+				if (lastError instanceof Error) {
+					throw new Error(lastError.message);
+				}
 
-		if (!compileResult || compileResult.code !== 0) {
-			if (compileResult?.stderr?.trim()) {
-				throw new Error(compileResult.stderr.trim());
+				throw new Error(`Failed to compile ${manifest.language} tool`);
 			}
-
-			if (lastError instanceof Error) {
-				throw new Error(lastError.message);
-			}
-
-			throw new Error(
-				`Failed to compile ${manifest.language} tool`,
+			const executeResult = await runCommand(
+				binaryPath,
+				cliArgs,
+				toolDir,
+				{
+					allowEnv: allowEnvironment,
+					allowAbsoluteCommandPath: true,
+					allowedAbsoluteCommandRoots: [tempDir],
+				},
 			);
+
+			if (executeResult.code !== 0) {
+				throw new Error(
+					executeResult.stderr.trim() ||
+						`Tool exited with code ${String(executeResult.code)}`,
+				);
+			}
+
+			return executeResult.stdout;
 		}
 
-		const binaryBeforeRun = fs.readFileSync(binaryPath);
-		const binaryHash = crypto
-			.createHash("sha256")
-			.update(binaryBeforeRun)
-			.digest("hex");
-		const binaryStillHash = crypto
-			.createHash("sha256")
-			.update(fs.readFileSync(binaryPath))
-			.digest("hex");
-		if (binaryStillHash !== binaryHash) {
-			throw new Error("Compiled tool changed before execution.");
-		}
-		const executeResult = await runCommand(
-			binaryPath,
-			cliArgs,
-			toolDir,
-		);
-
-		if (executeResult.code !== 0) {
-			throw new Error(
-				executeResult.stderr.trim() ||
-					`Tool exited with code ${String(executeResult.code)}`,
-			);
-		}
-
-		return executeResult.stdout;
+		throw new Error(`Unsupported language: ${manifest.language}`);
+	} finally {
+		try {
+			fs.rmSync(tempDir, { recursive: true, force: true });
+		} catch {}
 	}
-
-	throw new Error(`Unsupported language: ${manifest.language}`);
 }
 
-export function getCustomToolRawUrl(toolId: string, filePathFromRoot: string): string {
+export function getCustomToolRawUrl(
+	toolId: string,
+	filePathFromRoot: string,
+): string {
 	const cleanedToolId = toolId.trim().replace(/^\/+|\/+$/g, "");
 	const cleanedPath = filePathFromRoot.trim().replace(/^\/+/, "");
 	return `https://huggingface.co/buckets/sharktide/tools/resolve/${cleanedToolId}/${cleanedPath}`;
@@ -1323,23 +1949,41 @@ export function getCustomToolRawUrl(toolId: string, filePathFromRoot: string): s
 export async function createCustomToolFromRegistryRecord(
 	record: CustomToolRegistryRecord,
 	code: string,
-): Promise<{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }> {
+): Promise<
+	{ ok: true; manifest: CustomToolManifest } | { ok: false; error: string }
+> {
 	try {
 		const manifest: CustomToolManifest = {
 			id: record.id,
 			name: record.name,
 			functionality: record.functionality,
 			version: record.version || "0.1.0",
-			...(record.releaseNotes ? { releaseNotes: record.releaseNotes } : {}),
+			...(record.releaseNotes
+				? { releaseNotes: record.releaseNotes }
+				: {}),
 			...(record.websiteUrl ? { websiteUrl: record.websiteUrl } : {}),
 			language: record.language,
 			codeFile: path.basename(record.files.codePath),
 			codeHash: hashCodeContent(code),
 			authorEmail: record.authorEmail,
-			...(record.authorUserId ? { authorUserId: record.authorUserId } : {}),
-			openai: record.openai,
+			...(record.authorUserId
+				? { authorUserId: record.authorUserId }
+				: {}),
+			openai: {
+				functionName: sanitizeFunctionName(
+					record.openai?.functionName ||
+						`custom_${record.id.replace(/-/g, "_")}`,
+				),
+				description:
+					normalizeOptionalText(record.openai?.description, 500) ||
+					record.functionality ||
+					"Custom tool",
+				parameters: normalizeParametersSchema(
+					record.openai?.parameters,
+				),
+			},
 			requirements: record.requirements,
-			userInputs: record.userInputs || [],
+			userInputs: normalizeUserInputs(record.userInputs),
 			visibility: record.visibility,
 			published: true,
 			createdAt: record.publishedAt,

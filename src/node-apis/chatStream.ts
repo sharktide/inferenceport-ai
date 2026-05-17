@@ -165,6 +165,7 @@ const pendingCustomToolResolvers = new Map<
 type CustomToolApproval = {
 	approved: boolean;
 	userInputs: Record<string, unknown>;
+	allowEnvironment: boolean;
 };
 
 function normalizeImageMode(value: unknown): ImageMode {
@@ -376,7 +377,7 @@ function waitForCustomToolApproval(
 	return waitForToolRequestInput(
 		pendingCustomToolResolvers,
 		toolCallId,
-		{ approved: false, userInputs: {} },
+		{ approved: false, userInputs: {}, allowEnvironment: false },
 		abortSignal,
 		timeoutMs,
 	);
@@ -866,7 +867,17 @@ export default function registerChatStream() {
 					typeof approved === "boolean"
 						? approved
 						: Boolean((approved as { approved?: unknown })?.approved);
-                pending.resolve({ approved: allowed, userInputs });
+				const allowEnvironment =
+					approved &&
+					typeof approved === "object" &&
+					!Array.isArray(approved) &&
+					typeof (approved as { allowEnvironment?: unknown }).allowEnvironment ===
+						"boolean"
+						? Boolean(
+								(approved as { allowEnvironment?: boolean }).allowEnvironment,
+							)
+						: false;
+                pending.resolve({ approved: allowed, userInputs, allowEnvironment });
                 return true;
             },
         );
@@ -1328,6 +1339,7 @@ export default function registerChatStream() {
 									customTool,
 									args,
 									approved.userInputs,
+									{ allowEnvironment: approved.allowEnvironment },
 								);
 							}
 						}
