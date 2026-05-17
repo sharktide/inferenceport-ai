@@ -1304,11 +1304,21 @@ function runCommand(
 	} = {},
 ): Promise<{ stdout: string; stderr: string; code: number | null }> {
 	return new Promise((resolve, reject) => {
-		if (command.includes("\0") || cwd.includes("\0")) {
-			reject(new Error("Unsafe command or working directory path."));
+		if (
+			command.includes("\0") ||
+			cwd.includes("\0") ||
+			args.some((arg) => arg.includes("\0"))
+		) {
+			reject(
+				new Error(
+					"Unsafe command, argument, or working directory path.",
+				),
+			);
 			return;
 		}
+
 		const resolvedCwd = path.resolve(cwd);
+
 		if (
 			!fileExists(resolvedCwd) ||
 			!fs.statSync(resolvedCwd).isDirectory()
@@ -1316,7 +1326,9 @@ function runCommand(
 			reject(new Error("Execution working directory does not exist."));
 			return;
 		}
+
 		let commandToRun = command;
+
 		if (path.isAbsolute(command)) {
 			if (!options.allowAbsoluteCommandPath) {
 				reject(
@@ -1324,19 +1336,58 @@ function runCommand(
 				);
 				return;
 			}
+
 			const resolvedCommand = path.resolve(command);
+
+			if (!fileExists(resolvedCommand)) {
+				reject(new Error("Command path does not exist."));
+				return;
+			}
+
+			const originalLstat = fs.lstatSync(resolvedCommand);
+
+			if (originalLstat.isSymbolicLink()) {
+				reject(
+					new Error(
+						"Symbolic links are not allowed for executable paths.",
+					),
+				);
+				return;
+			}
+
+			const commandRealPath = fs.realpathSync(resolvedCommand);
+
+			const commandStat = fs.statSync(commandRealPath);
+
+			if (!commandStat.isFile()) {
+				reject(
+					new Error(
+						"Command path must reference a regular file.",
+					),
+				);
+				return;
+			}
+
 			const allowedRoots = (
 				options.allowedAbsoluteCommandRoots || []
-			).map((entry) => path.resolve(entry));
+			).map((entry) =>
+				fs.realpathSync(path.resolve(entry)),
+			);
+
 			if (allowedRoots.length > 0) {
 				const insideAllowedRoot = allowedRoots.some((root) => {
-					const relative = path.relative(root, resolvedCommand);
+					const relative = path.relative(
+						root,
+						commandRealPath,
+					);
+
 					return (
 						relative.length === 0 ||
 						(!relative.startsWith("..") &&
 							!path.isAbsolute(relative))
 					);
 				});
+
 				if (!insideAllowedRoot) {
 					reject(
 						new Error(
@@ -1346,7 +1397,8 @@ function runCommand(
 					return;
 				}
 			}
-			commandToRun = resolvedCommand;
+
+			commandToRun = commandRealPath;
 		} else {
 			if (
 				!/^[a-zA-Z0-9._+-]+$/.test(command) ||
@@ -1356,82 +1408,118 @@ function runCommand(
 				return;
 			}
 		}
+
 		const timeoutMs = Math.max(
 			1000,
 			options.timeoutMs ?? DEFAULT_TOOL_TIMEOUT_MS,
 		);
+
 		const maxOutputBytes = Math.max(
 			4096,
 			options.maxOutputBytes ?? DEFAULT_TOOL_MAX_OUTPUT_BYTES,
 		);
+
 		const child = spawn(commandToRun, args, {
 			cwd: resolvedCwd,
 			shell: false,
 			windowsHide: true,
 			env: buildCommandEnv(options.allowEnv === true),
 		});
+
 		let stdout = "";
 		let stderr = "";
+
 		let stdoutBytes = 0;
 		let stderrBytes = 0;
+
 		let settled = false;
+
 		const timeoutHandle = setTimeout(() => {
 			if (settled) return;
+
 			settled = true;
+
 			try {
 				child.kill("SIGKILL");
 			} catch {}
-			reject(new Error(`Command timed out after ${timeoutMs} ms.`));
+
+			reject(
+				new Error(
+					`Command timed out after ${timeoutMs} ms.`,
+				),
+			);
 		}, timeoutMs);
+
 		const finalizeReject = (err: Error) => {
 			if (settled) return;
+
 			settled = true;
+
 			clearTimeout(timeoutHandle);
+
 			reject(err);
 		};
+
 		const finalizeResolve = (code: number | null) => {
 			if (settled) return;
+
 			settled = true;
+
 			clearTimeout(timeoutHandle);
+
 			resolve({ stdout, stderr, code });
 		};
+
 		child.stdout.on("data", (chunk) => {
 			const bufferChunk = Buffer.isBuffer(chunk)
 				? chunk
 				: Buffer.from(String(chunk));
+
 			stdoutBytes += bufferChunk.byteLength;
+
 			if (stdoutBytes > maxOutputBytes) {
 				try {
 					child.kill("SIGKILL");
 				} catch {}
+
 				finalizeReject(
 					new Error(
 						`Command stdout exceeded ${maxOutputBytes} bytes.`,
 					),
 				);
+
 				return;
 			}
+
 			stdout += bufferChunk.toString("utf-8");
 		});
+
 		child.stderr.on("data", (chunk) => {
 			const bufferChunk = Buffer.isBuffer(chunk)
 				? chunk
 				: Buffer.from(String(chunk));
+
 			stderrBytes += bufferChunk.byteLength;
+
 			if (stderrBytes > maxOutputBytes) {
 				try {
 					child.kill("SIGKILL");
 				} catch {}
+
 				finalizeReject(
 					new Error(
 						`Command stderr exceeded ${maxOutputBytes} bytes.`,
 					),
 				);
+
 				return;
 			}
+
 			stderr += bufferChunk.toString("utf-8");
 		});
+
 		child.on("error", (err) => finalizeReject(err));
+
 		child.on("close", (code) => finalizeResolve(code));
 	});
 }
