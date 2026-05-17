@@ -4118,6 +4118,7 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 							}
 							showNotification({ type: "success", message: "Tool taken down from registry." });
 							await refreshCustomTools();
+							modal.close();
 							void openToolsManagerModal();
 						},
 					},
@@ -4167,10 +4168,12 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 							const result = await window.ollama.importCustomTool(toolId);
 							if (!result?.ok) {
 								showNotification({ type: "error", message: result?.error || "Failed to install latest tool." });
+								modal.close();
 								return;
 							}
 							showNotification({ type: "success", message: "Latest registry copy installed." });
 							await refreshCustomTools();
+							modal.close();
 							void openToolsManagerModal();
 						}
 					},
