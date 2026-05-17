@@ -4093,6 +4093,7 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 				return;
 			}
 			const toolName = tool?.name || uploadedRecord?.name || toolId;
+			customToolModal.close();
 			modal.open({
 				title: "Take Down Tool",
 				text: `Are you sure you want to take down "${toolName}" from the public registry? This will not delete the local tool on your device, but it will no longer be available for other users to install.`,
@@ -4146,6 +4147,7 @@ async function openToolsManagerModal(prefillImportId = ""): Promise<void> {
 			if (!toolId) return;
 			const tool = cachedCustomTools.find((item) => item.id === toolId);
 			if (!tool) return;
+			customToolModal.close();
 			modal.open({
 				title: "Install Latest Registry Copy",
 				text: `This will overwrite the local copy of "${tool.name}" with the latest version from the registry. Are you sure you want to continue?`,
