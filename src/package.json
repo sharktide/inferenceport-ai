@@ -10,7 +10,9 @@
     "start": "npm run clean && npm run compile && npx electron . && npm run clean",
     "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish never && npm run clean",
     "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish always && npm run clean",
-    "prepack": "node scripts/bundle-ollama.js"
+    "prepack": "node scripts/bundle-ollama.js",
+    "napi:build": "napi build --platform --release --cargo-cwd lib --cargo-name ipai_native_addons lib/out/ipai_native_addons.node",
+    "napi:debug": "napi build --cargo-cwd lib --cargo-name ipai_native_addons lib/out/ipai_native_addons.node"
   },
   "keywords": [],
   "type": "module",
@@ -44,6 +46,16 @@
     "electron": "^42.1.0",
     "electron-builder": "^26.8.1",
     "glob": "^13.0.6",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "@napi-rs/cli": "^2.18.0"
+  },
+  "napi": {
+    "binaryName": "ipai-native-addons",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu"
+    ]
   }
 }
