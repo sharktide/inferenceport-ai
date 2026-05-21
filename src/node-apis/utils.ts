@@ -16,21 +16,19 @@ limitations under the License.
 
 import sanitizeHtml from "sanitize-html";
 import type { IpcMainInvokeEvent } from "electron";
+import { createRequire } from 'node:module';
 
 import fs from "fs";
 import { constants } from "fs";
 import path from "path";
 import { shell, app, ipcMain, screen, desktopCapturer } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
-import MDIT from "markdown-it";
-import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
 import { getStartupSettings } from "./startup.js";
+const require = createRequire(import.meta.url);
 
-// @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
-import mdFootnote from "markdown-it-footnote";
-
+const nativeAddons: NativeAddons = require("../lib/out/index.node");
 const CSS_SANITIZE_RE =
 	/@import[^;]+;|expression\s*\([^)]*\)|url\s*\(\s*['"]?\s*javascript:[^)]*\)|url\s*\(\s*['"]?\s*(?!data:)[^'")]+['"]?\s*\)/gi;
 
@@ -315,133 +313,6 @@ export async function listAssets(): Promise<Array<string>> {
 		throw err;
 	}
 }
-
-function detailsBlock(md: any): void {
-	md.block.ruler.before(
-		"paragraph",
-		"details_block",
-		(
-			state: any,
-			startLine: number,
-			endLine: number,
-			silent: boolean,
-		): boolean => {
-			const start = state.bMarks[startLine!] + state.tShift[startLine!];
-			const max = state.eMarks[startLine!];
-
-			const line = state.src.slice(start, max);
-			if (!line.startsWith("<details")) return false;
-
-			let nextLine = startLine + 1;
-
-			while (nextLine < endLine) {
-				const pos = state.bMarks[nextLine!] + state.tShift[nextLine!];
-				const text = state.src
-					.slice(pos, state.eMarks[nextLine])
-					.trim();
-				if (text === "</details>") break;
-				nextLine++;
-			}
-
-			if (nextLine >= endLine) return false;
-
-			if (silent) return true;
-
-			state.line = nextLine + 1;
-
-			const content = state.getLines(startLine, nextLine + 1, 0, true);
-
-			const token = state.push("html_block", "", 0);
-			token.content = content;
-
-			return true;
-		},
-	);
-}
-
-const mdit = MDIT({
-	html: true,
-	linkify: true,
-	breaks: true,
-	typographer: true,
-});
-
-// Add markdown-it plugins
-mdit.use(mdTable as any);
-mdit.use(mdFootnote as any);
-
-function preserveMathDelimiters(md: any) {
-	const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
-
-	md.inline.ruler.before("escape", "preserve_math", function (state: any) {
-		state.src = state.src.replace(escapeRE, (match: string) => {
-			return match.replace(/\\/g, "\uFFF0");
-		});
-		return false;
-	});
-	md.core.ruler.after("inline", "restore_math", function (state: any) {
-		state.tokens.forEach((blockToken: any) => {
-			if (blockToken.type !== "inline" || !blockToken.children) return;
-
-			blockToken.children.forEach((token: any) => {
-				if (
-					token.type === "text" &&
-					typeof token.content === "string"
-				) {
-					token.content = token.content.replace(/\uFFF0/g, "\\");
-				}
-			});
-		});
-	});
-}
-
-mdit.use(detailsBlock);
-mdit.use(preserveMathDelimiters);
-
-// Escape HTML inside fenced and indented code blocks so that tags like
-// <div> render as literal text instead of being interpreted as HTML.
-function escapeHtmlInCode(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}
-
-mdit.renderer.rules.fence = (tokens, idx, options, _env, self) => {
-	const token = tokens[idx]!;
-	const info = token.info ? token.info.trim() : "";
-	const lang = info ? info.split(/\s+/)[0] : "";
-	const escaped = escapeHtmlInCode(token.content);
-	const langAttr = lang ? ` class="language-${escapeHtmlInCode(lang)}"` : "";
-	return `<pre><code${langAttr}>${escaped}</code></pre>\n`;
-};
-
-mdit.renderer.rules.code_block = (tokens, idx) => {
-	const escaped = escapeHtmlInCode(tokens[idx]!.content);
-	return `<pre><code>${escaped}</code></pre>\n`;
-};
-const defaultLinkOpenRenderer =
-	mdit.renderer.rules.link_open ||
-	function (tokens, idx, options, env, self) {
-		return self.renderToken(tokens, idx, options);
-	};
-
-mdit.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-	const originalHref = tokens[idx]!.attrGet("href");
-
-	if (!originalHref) {
-		return defaultLinkOpenRenderer(tokens, idx, options, env, self);
-	}
-
-	const encoded = encodeURIComponent(originalHref);
-	const jsUrl = `javascript:window.utils.web_open('${encoded}')`;
-
-	tokens[idx]!.attrSet("href", jsUrl);
-
-	return defaultLinkOpenRenderer(tokens, idx, options, env, self);
-};
 
 const FIRST_RUN_FILE = "first-run-2.0.0.json";
 
@@ -830,7 +701,7 @@ export default function register() {
 		"utils:markdown_parse_and_purify",
 		(event: IpcMainInvokeEvent, markdown: string) => {
 			try {
-				const dirty = mdit.render(markdown);
+				const dirty = nativeAddons.MarkdownRenderer.renderMdTex(markdown);
 				const SAFE_PREFIX = "javascript:window.utils.web_open('";
 
 				const clean = sanitizeHtml(dirty, {
