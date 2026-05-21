@@ -14,6 +14,9 @@ Push-Location "src"
 Write-Progress -Activity $activity -Status "Compiling TypeScript..." -PercentComplete 34
 npx tsgo
 
+Write-Progress -Activity $activity -Status "Compiling Native Addons..." -PercentComplete 66
+npm run napi:debug
+
 Write-Progress -Activity $activity -Status "Done" -PercentComplete 100
 Write-Host "Starting Electron app..."
 
