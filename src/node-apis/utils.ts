@@ -27,7 +27,7 @@ import { getSession } from "./auth.js";
 import { getStartupSettings } from "./startup.js";
 const require = createRequire(import.meta.url);
 
-const nativeAddons: NativeAddons = require(app.isPackaged ? "../lib/out/ipai-native-addons.node": path.join(
+const nativeAddons: NativeAddons = require(!app.isPackaged ? "../lib/out/ipai-native-addons.node": path.join(
 			process.resourcesPath,
 			"lib",
 			"ipai-native-addons.node",
