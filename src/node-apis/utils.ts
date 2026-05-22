@@ -27,13 +27,11 @@ import { getSession } from "./auth.js";
 import { getStartupSettings } from "./startup.js";
 const require = createRequire(import.meta.url);
 
-const nativeAddons: NativeAddons = require("../lib/out/ipai-native-addons.node");
-const CSS_SANITIZE_RE =
-	/@import[^;]+;|expression\s*\([^)]*\)|url\s*\(\s*['"]?\s*javascript:[^)]*\)|url\s*\(\s*['"]?\s*(?!data:)[^'")]+['"]?\s*\)/gi;
-
-function sanitizeCSS(css: string): string {
-	return css.replace(CSS_SANITIZE_RE, "").trim();
-}
+const nativeAddons: NativeAddons = require(app.isPackaged ? "../lib/out/ipai-native-addons.node": path.join(
+			process.resourcesPath,
+			"lib",
+			"ipai-native-addons.node",
+		));
 
 const dataDir: string = app.getPath("userData");
 const chatStorageApiBase = "https://sharktide-chat.hf.space/api";

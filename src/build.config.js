@@ -36,6 +36,11 @@ export default {
 			to: "vendor/electron-ollama",
 			filter: ["!**/._*"],
 		},
+		{
+			from: "lib/out",
+			to: "lib",
+			filter: ["!**/._*"],
+		},
 	],
 
 	publish: {
