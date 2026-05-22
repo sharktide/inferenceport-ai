@@ -11,8 +11,8 @@
     "build": "npm run napi:build && npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish never && npm run clean",
     "publish": "npm run napi:build && npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish always && npm run clean",
     "prepack": "npx tsgo && node scripts/bundle-ollama.js",
-    "napi:build": "napi build --release --cargo-cwd lib --cargo-name ipai_native_addons lib/out",
-    "napi:debug": "napi build --cargo-cwd lib --cargo-name ipai_native_addons lib/out"
+    "napi:build": "npx napi build --release --manifest-path lib/Cargo.toml --output-dir lib/out",
+    "napi:debug": "npx napi build --manifest-path lib/Cargo.toml --output-dir lib/out"
   },
   "keywords": [],
   "type": "module",
@@ -31,7 +31,7 @@
     "ws": "^8.20.1"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.0",
+    "@napi-rs/cli": "^3.6.2",
     "@types/dompurify": "^3.2.0",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^25.7.0",
