@@ -279,7 +279,7 @@ impl HtmlRenderer {
                 let end = start + PREFIX1.len() + end_rel + SUFFIX1.len();
 
                 let original = &protected[start..end];
-                let placeholder = format!("SAFE_JS_CALL_{}__", placeholders.len());
+                let placeholder = format!("_{}_c8ec5caeaccb9964532a_{SAFECALL}_", placeholders.len());
 
                 placeholders.push(original.to_string());
 
@@ -294,7 +294,7 @@ impl HtmlRenderer {
                 let end = start + PREFIX2.len() + end_rel + SUFFIX2.len();
 
                 let original = &protected[start..end];
-                let placeholder = format!("SAFE_JS_CALL_{}__", placeholders.len());
+                let placeholder = format!("_{}_c8ec5caeaccb9964532a_{SAFECALL}_", placeholders.len());
 
                 placeholders.push(original.to_string());
 
@@ -315,7 +315,7 @@ impl HtmlRenderer {
 
         for (i, original) in placeholders.iter().enumerate() {
             restored = restored.replace(
-                &format!("SAFE_JS_CALL_{}__", i),
+                &format!("_{}_c8ec5caeaccb9964532a_{SAFECALL}_", i),
                 original,
             );
         }
