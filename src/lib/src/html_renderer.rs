@@ -305,8 +305,9 @@ impl HtmlRenderer {
         }
 
         let sanitized = Builder::new()
-            .add_generic_attributes(["data-color"])
+            .add_generic_attributes(["data-color", "style", "align"])
             .add_tag_attributes("a", &["href"])
+            .add_tag_attributes("details", &["open"])
             .clean(&protected)
             .to_string();
 
