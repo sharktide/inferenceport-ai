@@ -3,6 +3,8 @@ use napi_derive::napi;
 use pulldown_cmark::{html, Event, Options, Parser, Tag, TagEnd};
 use urlencoding::encode;
 use std::borrow::Cow;
+use svg_hush::{Filter, data_url_filter};
+use napi::{Error, Result, Status};
 
 #[napi]
 pub struct MarkdownRenderer;
@@ -243,6 +245,22 @@ impl MarkdownRenderer {
         let parser = Parser::new_ext(normalized.as_ref(), Self::build_options());
         let mapped = Self::apply_math_mapping(parser);
         Self::render_with_custom_html(mapped)
+    }
+
+    #[napi]
+    pub fn sanitize_svg(input: String) -> Result<String> {
+        let mut input_bytes = input.as_bytes();
+        
+        let mut filter = Filter::new();
+        filter.set_data_url_filter(data_url_filter::allow_standard_images);
+        
+        let mut output_bytes = Vec::new();
+        
+        filter.filter(&mut input_bytes, &mut output_bytes)
+            .map_err(|e| Error::new(Status::GenericFailure, format!("SVG sanitization failed: {}", e)))?;
+        
+        String::from_utf8(output_bytes)
+            .map_err(|e| Error::new(Status::GenericFailure, format!("Invalid UTF-8 output: {}", e)))
     }
 }
 
