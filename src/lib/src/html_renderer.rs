@@ -5,12 +5,13 @@ use urlencoding::encode;
 use std::borrow::Cow;
 use svg_hush::{Filter, data_url_filter};
 use napi::{Error, Result, Status};
+use ammonia::Builder;
 
 #[napi]
-pub struct MarkdownRenderer;
+pub struct HtmlRenderer;
 
 #[napi]
-impl MarkdownRenderer {
+impl HtmlRenderer {
     fn build_options() -> Options {
         let mut options = Options::empty();
         options.insert(Options::ENABLE_TABLES);
@@ -262,44 +263,102 @@ impl MarkdownRenderer {
         String::from_utf8(output_bytes)
             .map_err(|e| Error::new(Status::GenericFailure, format!("Invalid UTF-8 output: {}", e)))
     }
+
+    #[napi]
+    pub fn sanitize_html(input: String) -> String {
+        const PREFIX1: &str = r#"javascript:window.utils.web_open('"#;
+        const PREFIX2: &str = r#"javascript:window.utils.web_open(""#;
+        const SUFFIX1: &str = "')";
+        const SUFFIX2: &str = "\")";
+
+        let mut placeholders = Vec::new();
+        let mut protected = input.clone();
+
+        while let Some(start) = protected.find(PREFIX1) {
+            if let Some(end_rel) = protected[start + PREFIX1.len()..].find(SUFFIX1) {
+                let end = start + PREFIX1.len() + end_rel + SUFFIX1.len();
+
+                let original = &protected[start..end];
+                let placeholder = format!("SAFE_JS_CALL_{}__", placeholders.len());
+
+                placeholders.push(original.to_string());
+
+                protected.replace_range(start..end, &placeholder);
+            } else {
+                break;
+            }
+        }
+
+        while let Some(start) = protected.find(PREFIX2) {
+            if let Some(end_rel) = protected[start + PREFIX2.len()..].find(SUFFIX2) {
+                let end = start + PREFIX2.len() + end_rel + SUFFIX2.len();
+
+                let original = &protected[start..end];
+                let placeholder = format!("SAFE_JS_CALL_{}__", placeholders.len());
+
+                placeholders.push(original.to_string());
+
+                protected.replace_range(start..end, &placeholder);
+            } else {
+                break;
+            }
+        }
+
+        let sanitized = Builder::new()
+            .add_generic_attributes(["data-color"])
+            .add_tag_attributes("a", &["href"])
+            .clean(&protected)
+            .to_string();
+
+        let mut restored = sanitized;
+
+        for (i, original) in placeholders.iter().enumerate() {
+            restored = restored.replace(
+                &format!("SAFE_JS_CALL_{}__", i),
+                original,
+            );
+        }
+
+        restored
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::MarkdownRenderer;
+    use super::HtmlRenderer;
 
     #[test]
     fn normalizes_single_backslash_math_delimiters() {
         let input = "Inline \\(a+b\\)\n\\[x^2\\]";
-        let normalized = MarkdownRenderer::normalize_tex_delimiters(input);
+        let normalized = HtmlRenderer::normalize_tex_delimiters(input);
         assert_eq!(normalized.as_ref(), "Inline $a+b$\n$$x^2$$");
     }
 
     #[test]
     fn keeps_plain_brackets_and_parentheses() {
         let input = "Use (a+b) and [x] normally.";
-        let normalized = MarkdownRenderer::normalize_tex_delimiters(input);
+        let normalized = HtmlRenderer::normalize_tex_delimiters(input);
         assert_eq!(normalized.as_ref(), input);
     }
 
     #[test]
     fn keeps_escaped_literal_delimiters() {
         let input = "Literal \\\\(not math\\\\) and \\\\[not math\\\\]";
-        let normalized = MarkdownRenderer::normalize_tex_delimiters(input);
+        let normalized = HtmlRenderer::normalize_tex_delimiters(input);
         assert_eq!(normalized.as_ref(), input);
     }
 
     #[test]
     fn keeps_code_spans_literal() {
         let input = "`\\(x\\)` and `\\[y\\]`";
-        let normalized = MarkdownRenderer::normalize_tex_delimiters(input);
+        let normalized = HtmlRenderer::normalize_tex_delimiters(input);
         assert_eq!(normalized.as_ref(), input);
     }
 
     #[test]
     fn keeps_unclosed_delimiters_literal() {
         let input = "Start \\(x+1 without close";
-        let normalized = MarkdownRenderer::normalize_tex_delimiters(input);
+        let normalized = HtmlRenderer::normalize_tex_delimiters(input);
         assert_eq!(normalized.as_ref(), input);
     }
 }

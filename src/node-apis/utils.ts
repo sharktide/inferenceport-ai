@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import sanitizeHtml from "sanitize-html";
 import type { IpcMainInvokeEvent } from "electron";
 import { createRequire } from 'node:module';
 
@@ -454,7 +453,7 @@ export default function register() {
 		"utils:sanitizeSVG",
 		async (_event: IpcMainInvokeEvent, svg: string) => {
 			try {
-				return nativeAddons.MarkdownRenderer.sanitizeSvg(svg);
+				return nativeAddons.HtmlRenderer.sanitizeSvg(svg);
 				} catch (err) {
 					throw new Error(
 						`Error sanitizing SVG: ${
@@ -534,77 +533,8 @@ export default function register() {
 		"utils:markdown_parse_and_purify",
 		(event: IpcMainInvokeEvent, markdown: string) => {
 			try {
-				const dirty = nativeAddons.MarkdownRenderer.renderMdTex(markdown);
-				const SAFE_PREFIX = "javascript:window.utils.web_open('";
-
-				const clean = sanitizeHtml(dirty, {
-					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-						"details",
-						"summary",
-						"table",
-						"thead",
-						"tbody",
-						"tfoot",
-						"tr",
-						"th",
-						"td",
-						"blockquote",
-						"hr",
-						"br",
-						"sub",
-						"sup",
-						"del",
-						"s",
-					]),
-
-					allowedAttributes: {
-						...sanitizeHtml.defaults.allowedAttributes,
-						"*": [
-							...(sanitizeHtml.defaults.allowedAttributes["*"] ||
-								[]),
-							"class",
-							"id",
-							"style",
-							"data-color",
-						],
-						a: ["href"],
-						details: ["open"],
-						table: ["align"],
-						tr: ["align"],
-						th: ["align", "style", "data-color"],
-						td: [
-							"align",
-							"style",
-							"colspan",
-							"rowspan",
-							"data-color",
-						],
-						span: ["style", "data-color"],
-						div: ["style", "data-color"],
-						p: ["style", "data-color"],
-					},
-
-					allowedSchemesByTag: {
-						a: ["http", "https", "mailto", "data", "javascript"],
-					},
-
-					transformTags: {
-						a: (tagName, attribs) => {
-							const href = attribs.href || "";
-
-							if (
-								href.startsWith(SAFE_PREFIX) &&
-								href.endsWith("')")
-							) {
-								return { tagName, attribs };
-							}
-
-							const { href: _removed, ...rest } = attribs;
-							return { tagName, attribs: rest };
-						},
-					},
-				});
-
+				const dirty = nativeAddons.HtmlRenderer.renderMdTex(markdown);
+				const clean = nativeAddons.HtmlRenderer.sanitizeHtml(dirty);
 				return clean;
 			} catch (err) {
 				throw new Error(
@@ -618,47 +548,7 @@ export default function register() {
 		"utils:DOMPurify",
 		async (_event: IpcMainInvokeEvent, html: string) => {
 			try {
-				const cleanHTML = sanitizeHtml(html, {
-					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-						"details",
-						"summary",
-						"table",
-						"thead",
-						"tbody",
-						"tfoot",
-						"tr",
-						"th",
-						"td",
-						"blockquote",
-						"hr",
-						"br",
-						"sub",
-						"sup",
-						"del",
-						"s",
-					]),
-					allowedAttributes: Object.assign(
-						{},
-						sanitizeHtml.defaults.allowedAttributes,
-						{
-							"*": (
-								sanitizeHtml.defaults.allowedAttributes["*"] ||
-								[]
-							).concat(["class", "id", "style"]),
-							details: ["open"],
-							table: ["align"],
-							tr: ["align"],
-							th: ["align", "style"],
-							td: ["align", "style", "colspan", "rowspan"],
-							span: ["style"],
-							div: ["style"],
-							p: ["style"],
-						},
-					),
-					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(
-						["data"],
-					),
-				});
+				const cleanHTML = nativeAddons.HtmlRenderer.sanitizeHtml(html);
 				return cleanHTML;
 			} catch (err) {
 				throw new Error(
