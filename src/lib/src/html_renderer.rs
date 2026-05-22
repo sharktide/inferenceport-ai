@@ -169,51 +169,52 @@ impl HtmlRenderer {
             Cow::Borrowed(input)
         }
     }
+
     fn render_with_custom_html<I>(events: I) -> String
     where
         I: IntoIterator<Item = Event<'static>>,
     {
-        let mut out = String::new();
-
-        for event in events {
-            match event {
-                Event::Start(Tag::Link { dest_url, title, .. }) => {
-                    out.push_str("<a href=\"");
-                    out.push_str(&Self::rewrite_link(&dest_url));
-                    out.push('"');
-
-                    if !title.is_empty() {
-                        out.push_str(" title=\"");
-                        out.push_str(&html_escape::encode_double_quoted_attribute(&title));
-                        out.push('"');
-                    }
-
-                    out.push('>');
+        let transformed: Vec<Event<'static>> = events
+            .into_iter()
+            .map(|event| match event {
+                Event::Start(Tag::Link { dest_url, title, id, link_type }) => {
+                    Event::Html(
+                        format!(
+                            "<a href=\"{}\"{}>",
+                            Self::rewrite_link(&dest_url),
+                            if title.is_empty() {
+                                String::new()
+                            } else {
+                                format!(
+                                    " title=\"{}\"",
+                                    html_escape::encode_double_quoted_attribute(&title)
+                                )
+                            }
+                        )
+                        .into(),
+                    )
                 }
 
-                Event::End(TagEnd::Link { .. }) => {
-                    out.push_str("</a>");
+                Event::End(TagEnd::Link) => {
+                    Event::Html("</a>".into())
                 }
 
                 Event::Code(code) => {
-                    out.push_str("<code>");
-                    out.push_str(&html_escape::encode_text(&code));
-                    out.push_str("</code>");
+                    Event::Html(
+                        format!(
+                            "<code>{}</code>",
+                            html_escape::encode_text(&code)
+                        )
+                        .into(),
+                    )
                 }
 
-                Event::Html(html_raw) => {
-                    out.push_str(&html_raw);
-                }
+                other => other,
+            })
+            .collect();
 
-                Event::Text(text) => {
-                    out.push_str(&html_escape::encode_text(&text));
-                }
-                other => {
-                    html::push_html(&mut out, std::iter::once(other));
-                }
-            }
-        }
-
+        let mut out = String::new();
+        html::push_html(&mut out, transformed.into_iter());
         out
     }
 
