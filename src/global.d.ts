@@ -18,6 +18,7 @@ export {};
 import type { iConstructor, iInstance, iFunctions } from "./public/scripts/staticload/index.ts";
 
 declare global {
+	type NativeAddons = typeof import("./lib/out/index.d.ts");
 	type AuthUserView = {
 		id: string;
 		provider: string | null;

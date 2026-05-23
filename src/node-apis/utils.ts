@@ -14,29 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import sanitizeHtml from "sanitize-html";
 import type { IpcMainInvokeEvent } from "electron";
+import { createRequire } from 'node:module';
 
 import fs from "fs";
 import { constants } from "fs";
 import path from "path";
 import { shell, app, ipcMain, screen, desktopCapturer } from "electron";
 import { initHardwareInfo, getHardwareRating } from "./helper/sysinfo.js";
-import MDIT from "markdown-it";
-import mdTable from "markdown-it-multimd-table";
 import type { UUID } from "crypto";
 import { getSession } from "./auth.js";
 import { getStartupSettings } from "./startup.js";
+const require = createRequire(import.meta.url);
 
-// @ts-expect-error - markdown-it-footnote doesn't have proper TS definitions
-import mdFootnote from "markdown-it-footnote";
-
-const CSS_SANITIZE_RE =
-	/@import[^;]+;|expression\s*\([^)]*\)|url\s*\(\s*['"]?\s*javascript:[^)]*\)|url\s*\(\s*['"]?\s*(?!data:)[^'")]+['"]?\s*\)/gi;
-
-function sanitizeCSS(css: string): string {
-	return css.replace(CSS_SANITIZE_RE, "").trim();
-}
+const nativeAddons: NativeAddons = require(!app.isPackaged ? "../lib/out/ipai-native-addons.node": path.join(
+			process.resourcesPath,
+			"lib",
+			"ipai-native-addons.node",
+		));
 
 const dataDir: string = app.getPath("userData");
 const chatStorageApiBase = "https://sharktide-chat.hf.space/api";
@@ -316,133 +311,6 @@ export async function listAssets(): Promise<Array<string>> {
 	}
 }
 
-function detailsBlock(md: any): void {
-	md.block.ruler.before(
-		"paragraph",
-		"details_block",
-		(
-			state: any,
-			startLine: number,
-			endLine: number,
-			silent: boolean,
-		): boolean => {
-			const start = state.bMarks[startLine!] + state.tShift[startLine!];
-			const max = state.eMarks[startLine!];
-
-			const line = state.src.slice(start, max);
-			if (!line.startsWith("<details")) return false;
-
-			let nextLine = startLine + 1;
-
-			while (nextLine < endLine) {
-				const pos = state.bMarks[nextLine!] + state.tShift[nextLine!];
-				const text = state.src
-					.slice(pos, state.eMarks[nextLine])
-					.trim();
-				if (text === "</details>") break;
-				nextLine++;
-			}
-
-			if (nextLine >= endLine) return false;
-
-			if (silent) return true;
-
-			state.line = nextLine + 1;
-
-			const content = state.getLines(startLine, nextLine + 1, 0, true);
-
-			const token = state.push("html_block", "", 0);
-			token.content = content;
-
-			return true;
-		},
-	);
-}
-
-const mdit = MDIT({
-	html: true,
-	linkify: true,
-	breaks: true,
-	typographer: true,
-});
-
-// Add markdown-it plugins
-mdit.use(mdTable as any);
-mdit.use(mdFootnote as any);
-
-function preserveMathDelimiters(md: any) {
-	const escapeRE = /\\\(|\\\)|\\\[|\\\]|\\[a-zA-Z]+/g;
-
-	md.inline.ruler.before("escape", "preserve_math", function (state: any) {
-		state.src = state.src.replace(escapeRE, (match: string) => {
-			return match.replace(/\\/g, "\uFFF0");
-		});
-		return false;
-	});
-	md.core.ruler.after("inline", "restore_math", function (state: any) {
-		state.tokens.forEach((blockToken: any) => {
-			if (blockToken.type !== "inline" || !blockToken.children) return;
-
-			blockToken.children.forEach((token: any) => {
-				if (
-					token.type === "text" &&
-					typeof token.content === "string"
-				) {
-					token.content = token.content.replace(/\uFFF0/g, "\\");
-				}
-			});
-		});
-	});
-}
-
-mdit.use(detailsBlock);
-mdit.use(preserveMathDelimiters);
-
-// Escape HTML inside fenced and indented code blocks so that tags like
-// <div> render as literal text instead of being interpreted as HTML.
-function escapeHtmlInCode(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}
-
-mdit.renderer.rules.fence = (tokens, idx, options, _env, self) => {
-	const token = tokens[idx]!;
-	const info = token.info ? token.info.trim() : "";
-	const lang = info ? info.split(/\s+/)[0] : "";
-	const escaped = escapeHtmlInCode(token.content);
-	const langAttr = lang ? ` class="language-${escapeHtmlInCode(lang)}"` : "";
-	return `<pre><code${langAttr}>${escaped}</code></pre>\n`;
-};
-
-mdit.renderer.rules.code_block = (tokens, idx) => {
-	const escaped = escapeHtmlInCode(tokens[idx]!.content);
-	return `<pre><code>${escaped}</code></pre>\n`;
-};
-const defaultLinkOpenRenderer =
-	mdit.renderer.rules.link_open ||
-	function (tokens, idx, options, env, self) {
-		return self.renderToken(tokens, idx, options);
-	};
-
-mdit.renderer.rules.link_open = function (tokens, idx, options, env, self) {
-	const originalHref = tokens[idx]!.attrGet("href");
-
-	if (!originalHref) {
-		return defaultLinkOpenRenderer(tokens, idx, options, env, self);
-	}
-
-	const encoded = encodeURIComponent(originalHref);
-	const jsUrl = `javascript:window.utils.web_open('${encoded}')`;
-
-	tokens[idx]!.attrSet("href", jsUrl);
-
-	return defaultLinkOpenRenderer(tokens, idx, options, env, self);
-};
-
 const FIRST_RUN_FILE = "first-run-2.0.0.json";
 
 function getFirstRunPath() {
@@ -583,174 +451,7 @@ export default function register() {
 		"utils:sanitizeSVG",
 		async (_event: IpcMainInvokeEvent, svg: string) => {
 			try {
-				const cleanSVG = sanitizeHtml(svg, {
-					allowedTags: [
-						"svg",
-						"g",
-						"defs",
-						"desc",
-						"title",
-						"symbol",
-						"use",
-
-						"path",
-						"rect",
-						"circle",
-						"ellipse",
-						"line",
-						"polyline",
-						"polygon",
-
-						"text",
-						"tspan",
-						"textPath",
-
-						"image",
-
-						"linearGradient",
-						"radialGradient",
-						"stop",
-						"pattern",
-						"mask",
-						"clipPath",
-
-						"filter",
-						"feBlend",
-						"feColorMatrix",
-						"feComponentTransfer",
-						"feComposite",
-						"feConvolveMatrix",
-						"feDiffuseLighting",
-						"feDisplacementMap",
-						"feFlood",
-						"feGaussianBlur",
-						"feImage",
-						"feMerge",
-						"feMergeNode",
-						"feMorphology",
-						"feOffset",
-						"feSpecularLighting",
-						"feTile",
-						"feTurbulence",
-
-						"style",
-					],
-
-					allowedAttributes: {
-						"*": [
-							"id",
-							"class",
-							"style",
-							"x",
-							"y",
-							"x1",
-							"y1",
-							"x2",
-							"y2",
-							"cx",
-							"cy",
-							"r",
-							"rx",
-							"ry",
-							"width",
-							"height",
-							"viewBox",
-							"d",
-							"points",
-							"transform",
-
-							"fill",
-							"stroke",
-							"stroke-width",
-							"stroke-linecap",
-							"stroke-linejoin",
-							"stroke-dasharray",
-							"stroke-dashoffset",
-							"opacity",
-							"fill-opacity",
-							"stroke-opacity",
-
-							"offset",
-							"stop-color",
-							"stop-opacity",
-							"gradientUnits",
-							"gradientTransform",
-							"fill-rule",
-							"clip-rule",
-							"stroke-miterlimit",
-							"font-size",
-							"font-family",
-							"text-anchor",
-
-							"href",
-							"xlink:href",
-
-							"preserveAspectRatio",
-							"clip-path",
-							"mask",
-							"filter",
-						],
-
-						svg: ["xmlns", "viewbox", "width", "height"],
-						use: ["href", "xlink:href"],
-						image: ["href", "xlink:href", "width", "height"],
-					},
-
-					allowedSchemes: ["http", "https", "data"],
-
-					transformTags: {
-						"*": (tagName, attribs) => {
-							const cleanAttribs: Record<string, string> = {};
-
-							for (const [key, value] of Object.entries(
-								attribs,
-							)) {
-								const lower = key.toLowerCase();
-
-								if (lower.startsWith("on")) continue;
-
-								if (
-									typeof value === "string" &&
-									["javascript:", "data:", "vbscript:"].some((scheme) =>
-										value.trim().toLowerCase().startsWith(scheme),
-									)
-								)
-									continue;
-
-								cleanAttribs[key] = value;
-							}
-
-							return { tagName, attribs: cleanAttribs };
-						},
-					},
-
-					textFilter: (text, tagName) => {
-						if (tagName === "style") {
-							return sanitizeCSS(text);
-						}
-						return text;
-					},
-
-					disallowedTagsMode: "discard",
-
-					exclusiveFilter: (frame) => {
-						const tag = frame.tag.toLowerCase();
-						return (
-							tag === "script" ||
-							tag === "foreignobject" ||
-							tag === "iframe"
-						);
-					},
-				});
-				console.log("ORIGINAL:", svg);
-				console.log("CLEAN:", cleanSVG);
-				const normalizeSVG = (svg: string) =>
-				svg
-					.replace(/viewbox=/g, "viewBox=")
-					.replace(/preserveaspectratio=/g, "preserveAspectRatio=")
-					.replace(/clip-path=/g, "clipPath=");
-
-				return normalizeSVG(cleanSVG);
+				return nativeAddons.HtmlRenderer.sanitizeSvg(svg);
 				} catch (err) {
 					throw new Error(
 						`Error sanitizing SVG: ${
@@ -830,77 +531,8 @@ export default function register() {
 		"utils:markdown_parse_and_purify",
 		(event: IpcMainInvokeEvent, markdown: string) => {
 			try {
-				const dirty = mdit.render(markdown);
-				const SAFE_PREFIX = "javascript:window.utils.web_open('";
-
-				const clean = sanitizeHtml(dirty, {
-					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-						"details",
-						"summary",
-						"table",
-						"thead",
-						"tbody",
-						"tfoot",
-						"tr",
-						"th",
-						"td",
-						"blockquote",
-						"hr",
-						"br",
-						"sub",
-						"sup",
-						"del",
-						"s",
-					]),
-
-					allowedAttributes: {
-						...sanitizeHtml.defaults.allowedAttributes,
-						"*": [
-							...(sanitizeHtml.defaults.allowedAttributes["*"] ||
-								[]),
-							"class",
-							"id",
-							"style",
-							"data-color",
-						],
-						a: ["href"],
-						details: ["open"],
-						table: ["align"],
-						tr: ["align"],
-						th: ["align", "style", "data-color"],
-						td: [
-							"align",
-							"style",
-							"colspan",
-							"rowspan",
-							"data-color",
-						],
-						span: ["style", "data-color"],
-						div: ["style", "data-color"],
-						p: ["style", "data-color"],
-					},
-
-					allowedSchemesByTag: {
-						a: ["http", "https", "mailto", "data", "javascript"],
-					},
-
-					transformTags: {
-						a: (tagName, attribs) => {
-							const href = attribs.href || "";
-
-							if (
-								href.startsWith(SAFE_PREFIX) &&
-								href.endsWith("')")
-							) {
-								return { tagName, attribs };
-							}
-
-							const { href: _removed, ...rest } = attribs;
-							return { tagName, attribs: rest };
-						},
-					},
-				});
-
+				const dirty = nativeAddons.HtmlRenderer.renderMdTex(markdown);
+				const clean = nativeAddons.HtmlRenderer.sanitizeHtml(dirty);
 				return clean;
 			} catch (err) {
 				throw new Error(
@@ -914,47 +546,7 @@ export default function register() {
 		"utils:DOMPurify",
 		async (_event: IpcMainInvokeEvent, html: string) => {
 			try {
-				const cleanHTML = sanitizeHtml(html, {
-					allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-						"details",
-						"summary",
-						"table",
-						"thead",
-						"tbody",
-						"tfoot",
-						"tr",
-						"th",
-						"td",
-						"blockquote",
-						"hr",
-						"br",
-						"sub",
-						"sup",
-						"del",
-						"s",
-					]),
-					allowedAttributes: Object.assign(
-						{},
-						sanitizeHtml.defaults.allowedAttributes,
-						{
-							"*": (
-								sanitizeHtml.defaults.allowedAttributes["*"] ||
-								[]
-							).concat(["class", "id", "style"]),
-							details: ["open"],
-							table: ["align"],
-							tr: ["align"],
-							th: ["align", "style"],
-							td: ["align", "style", "colspan", "rowspan"],
-							span: ["style"],
-							div: ["style"],
-							p: ["style"],
-						},
-					),
-					allowedSchemes: sanitizeHtml.defaults.allowedSchemes.concat(
-						["data"],
-					),
-				});
+				const cleanHTML = nativeAddons.HtmlRenderer.sanitizeHtml(html);
 				return cleanHTML;
 			} catch (err) {
 				throw new Error(

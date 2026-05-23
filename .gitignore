@@ -867,6 +867,14 @@ ipch/
 jspm_packages/
 lerna-debug.log*
 lib-cov
+lib\out\index.d.d.ts
+lib\out\index.d.d.ts.map
+lib\out\index.d.js
+lib\out\index.d.js.map
+lib\out\ipai_native_addons.node\index.d.d.ts
+lib\out\ipai_native_addons.node\index.d.d.ts.map
+lib\out\ipai_native_addons.node\index.d.js
+lib\out\ipai_native_addons.node\index.d.js.map
 logs
 main.d.d.ts
 main.d.d.ts.map
@@ -2021,6 +2029,7 @@ scripts\bundler\unzip.d.ts.map
 scripts\bundler\unzip.js
 scripts\bundler\unzip.js.map
 server
+src/lib/target/
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.d.ts.map
 unpacked-asar\node_modules\@supabase\auth-js\src\AuthAdminApi.js

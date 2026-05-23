@@ -1,0 +1,18 @@
+[package]
+name = "ipai_native_addons"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3.9", features = ["async"] }
+napi-derive = "3.5"
+pulldown-cmark = "0.13.4"
+html-escape = "0.2"
+urlencoding = "2.1.3"
+svg-hush = "0.9.6"
+ammonia = "4.1.2"
+[build-dependencies]
+napi-build = "2.3"

@@ -3,14 +3,16 @@
   "version": "2.11.0",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cd lib && cargo test",
     "clean": "node scripts/clean.js",
-    "watch": "tsc --watch",
+    "watch": "npx tsgo --watch",
     "compile": "npx tsgo",
-    "start": "npm run clean && npm run compile && npx electron . && npm run clean",
-    "build": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish never && npm run clean",
-    "publish": "npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish always && npm run clean",
-    "prepack": "node scripts/bundle-ollama.js"
+    "start": "npm run napi:debug && npm run clean && npm run compile && npx electron . && npm run clean",
+    "build": "npm run napi:build && npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish never && npm run clean",
+    "publish": "npm run napi:build && npm run clean && npm run compile && npm run prepack && npx electron-builder --config build.config.js --publish always && npm run clean",
+    "prepack": "npx tsgo && node scripts/bundle-ollama.js",
+    "napi:build": "npx napi build --release --manifest-path lib/Cargo.toml --output-dir lib/out",
+    "napi:debug": "npx napi build --manifest-path lib/Cargo.toml --output-dir lib/out"
   },
   "keywords": [],
   "type": "module",
@@ -23,19 +25,14 @@
     "@supabase/supabase-js": "^2.105.4",
     "fix-path": "^5.0.0",
     "html-to-text": "^10.0.0",
-    "markdown-it": "^14.1.1",
-    "markdown-it-footnote": "^4.0.0",
-    "markdown-it-multimd-table": "^4.2.3",
-    "markdown-it-table": "^4.1.1",
     "openai": "^6.36.0",
-    "sanitize-html": "^2.17.4",
     "systeminformation": "^5.31.6",
     "ws": "^8.20.1"
   },
   "devDependencies": {
+    "@napi-rs/cli": "^3.6.2",
     "@types/dompurify": "^3.2.0",
     "@types/html-to-text": "^9.0.4",
-    "@types/markdown-it": "^14.1.2",
     "@types/node": "^25.7.0",
     "@types/sanitize-html": "^2.16.1",
     "@types/tar": "^7.0.87",
@@ -45,5 +42,14 @@
     "electron-builder": "^26.8.1",
     "glob": "^13.0.6",
     "typescript": "^6.0.3"
+  },
+  "napi": {
+    "binaryName": "ipai-native-addons",
+    "targets": [
+      "x86_64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu"
+    ]
   }
 }
