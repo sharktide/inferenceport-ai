@@ -5,7 +5,15 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "src" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "src"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "[INTERNAL]"
+  - package-ecosystem: "cargo"
+    directory: "src/lib"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "[INTERNAL]"
