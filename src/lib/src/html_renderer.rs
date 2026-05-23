@@ -177,7 +177,7 @@ impl HtmlRenderer {
         let transformed: Vec<Event<'static>> = events
             .into_iter()
             .map(|event| match event {
-                Event::Start(Tag::Link { dest_url, title, id, link_type }) => {
+                Event::Start(Tag::Link { dest_url, title, id: _, link_type: _ }) => {
                     Event::Html(
                         format!(
                             "<a href=\"{}\"{}>",
