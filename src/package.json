@@ -22,7 +22,7 @@
   "description": "AI, anywhere",
   "dependencies": {
     "@gradio/client": "^2.2.0",
-    "@supabase/supabase-js": "^2.105.4",
+    "@supabase/supabase-js": "^2.106.0",
     "fix-path": "^5.0.0",
     "html-to-text": "^10.0.0",
     "openai": "^6.36.0",
