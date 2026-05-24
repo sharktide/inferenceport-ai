@@ -1,6 +1,6 @@
 [package]
 name = "ipai_native_addons"
-version = "0.1.0"
+version = "2.12.0"
 edition = "2024"
 
 [lib]
