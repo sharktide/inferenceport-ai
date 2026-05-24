@@ -1,6 +1,6 @@
 {
   "name": "InferencePortAI",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "main": "main.js",
   "scripts": {
     "test": "cd lib && cargo test",
