@@ -224,10 +224,15 @@ class WsIpcClient {
 		this.pending.clear();
 	}
 
-	private onServerMessage(raw: unknown): void {
-		const rawLog = String(raw)
+	private sanitizeForLog(value: unknown, maxLen: number): string {
+		return String(value)
+			.replace(/[\r\n\u2028\u2029]/g, " ")
 			.replace(/[\x00-\x1F\x7F]/g, " ")
-			.slice(0, 500);
+			.slice(0, maxLen);
+	}
+
+	private onServerMessage(raw: unknown): void {
+		const rawLog = this.sanitizeForLog(raw, 500);
 		console.log("Received IPC message", rawLog);
 		if (typeof raw !== "string") return;
 
@@ -285,9 +290,7 @@ class WsIpcClient {
 				try {
 					handler(...args);
 				} catch (err) {
-					const channelLog = String(message.channel)
-						.replace(/[\x00-\x1F\x7F]/g, " ")
-						.slice(0, 200);
+					const channelLog = this.sanitizeForLog(message.channel, 200);
 					console.warn(
 						"IPC event listener failed for",
 						channelLog,
