@@ -38,7 +38,7 @@
     "@types/tar": "^7.0.87",
     "@types/ws": "^8.18.1",
     "@typescript/native-preview": "^7.0.0-dev.20260525.1",
-    "electron": "^42.3.0",
+    "electron": "^42.3.2",
     "electron-builder": "^26.8.1",
     "glob": "^13.0.6",
     "typescript": "^6.0.3"
