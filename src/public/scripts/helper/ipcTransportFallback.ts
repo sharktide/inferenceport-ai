@@ -226,7 +226,7 @@ class WsIpcClient {
 
 	private onServerMessage(raw: unknown): void {
 		const rawType = typeof raw;
-		const rawSize = rawType === "string" ? raw.length : null;
+		const rawSize = typeof raw === "string" ? raw.length : null;
 		console.log("Received IPC message", { type: rawType, size: rawSize });
 		if (typeof raw !== "string") return;
 
