@@ -197,20 +197,32 @@ jobs:
         working-directory: src
         shell: bash
         run: |
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            EXE="vendor/electron-ollama/ollama.exe"
-          else
-            EXE="vendor/electron-ollama/ollama"
-          fi
+          case "$RUNNER_OS" in
+            "Windows")
+              EXE="vendor/electron-ollama/ollama.exe"
+              ;;
+            "macOS")
+              EXE="vendor/electron-ollama/ollama"
+              ;;
+            "Linux")
+              EXE="vendor/electron-ollama/bin/ollama"
+              ;;
+            *)
+              echo "❌ Unsupported OS: $RUNNER_OS"
+              exit 1
+              ;;
+          esac
+
           if [ ! -f "$EXE" ]; then
             echo "❌ Bundle failed: $EXE not found"
             echo "── vendor tree ──"
             find vendor/electron-ollama -maxdepth 4 | sort || true
             exit 1
           fi
+
           echo "✅ Ollama bundled: $EXE ($(du -sh "$EXE" | cut -f1))"
 
-      # ── Electron-builder ──────────────────────────────────────────────────
+
       - name: Build Electron app
         working-directory: src
         run: npx electron-builder --config build.config.js --publish never
