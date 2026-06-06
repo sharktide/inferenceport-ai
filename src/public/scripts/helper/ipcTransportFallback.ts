@@ -225,10 +225,9 @@ class WsIpcClient {
 	}
 
 	private onServerMessage(raw: unknown): void {
-		const rawLog = String(raw)
-			.replace(/[\x00-\x1F\x7F]/g, " ")
-			.slice(0, 500);
-		console.log("Received IPC message", rawLog);
+		const rawType = typeof raw;
+		const rawSize = typeof raw === "string" ? raw.length : null;
+		console.log("Received IPC message", { type: rawType, size: rawSize });
 		if (typeof raw !== "string") return;
 
 		void this.handleIncomingMessage(raw);
