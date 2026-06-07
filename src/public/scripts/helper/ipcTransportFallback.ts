@@ -285,8 +285,9 @@ class WsIpcClient {
 					handler(...args);
 				} catch (err) {
 					const channelLog = String(message.channel)
-						.replace(/[\x00-\x1F\x7F]/g, " ")
-						.slice(0, 200);
+						.slice(0, 200)
+						.replace(/[\x00-\x1F\x7F\u2028\u2029\u0085]/g, " ")
+						.trim();
 					console.warn(
 						"IPC event listener failed for",
 						channelLog,
