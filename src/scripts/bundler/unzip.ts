@@ -28,7 +28,7 @@ async function unzipWithTar(
 
     let stderr = '';
 
-    child.stderr.on('data', data => {
+    child.stderr?.on('data', data => {
       stderr += data.toString();
     });
 
