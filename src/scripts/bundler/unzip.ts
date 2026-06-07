@@ -1,6 +1,7 @@
 import yauzl from 'yauzl';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn } from 'child_process';
 
 function mkdirp(dir: string, cb: (err?: Error) => void) {
   if (dir === ".") return cb();
@@ -9,78 +10,119 @@ function mkdirp(dir: string, cb: (err?: Error) => void) {
   });
 }
 
-export async function unzipFile(filePath: string, outputDir: string, deleteZip: boolean = true): Promise<void> {
+async function unzipWithTar(
+  filePath: string,
+  outputDir: string,
+  deleteZip: boolean
+): Promise<void> {
+  await fs.promises.mkdir(outputDir, { recursive: true });
+
   return new Promise((resolve, reject) => {
-    yauzl.open(filePath, {lazyEntries: true}, function(err, zipfile) {
+    const child = spawn(
+      'tar',
+      ['-xf', filePath, '-C', outputDir],
+      {
+        windowsHide: true
+      }
+    );
+
+    let stderr = '';
+
+    child.stderr.on('data', data => {
+      stderr += data.toString();
+    });
+
+    child.on('error', reject);
+
+    child.on('close', async code => {
+      if (code !== 0) {
+        return reject(
+          new Error(`tar extraction failed with code ${code}\n${stderr}`)
+        );
+      }
+
+      if (deleteZip) {
+        await fs.promises.unlink(filePath).catch(() => {});
+      }
+
+      resolve();
+    });
+  });
+}
+
+export async function unzipFile(
+  filePath: string,
+  outputDir: string,
+  deleteZip: boolean = true
+): Promise<void> {
+  // Use native Windows tar.exe when available
+  if (process.platform === 'win32') {
+    return unzipWithTar(filePath, outputDir, deleteZip);
+  }
+
+  return new Promise((resolve, reject) => {
+    yauzl.open(filePath, { lazyEntries: true }, function(err, zipfile) {
       if (err) return reject(err);
 
-            // track when we've closed all our file handles
       let handleCount = 0;
+
       function incrementHandleCount() {
         handleCount++;
       }
+
       function decrementHandleCount() {
         handleCount--;
         if (handleCount === 0) {
-          // all input and output handles closed
-          resolve()
+          resolve();
         }
       }
 
       incrementHandleCount();
-      zipfile.on("close", async function() {
+
+      zipfile.on('close', async function() {
         if (deleteZip) {
-          await fs.promises.unlink(filePath).catch(() => {}); // delete zip file after extraction, no harm if it fails
+          await fs.promises.unlink(filePath).catch(() => {});
         }
         decrementHandleCount();
       });
 
       zipfile.readEntry();
 
-      zipfile.on("entry", function(entry) {
+      zipfile.on('entry', function(entry) {
         if (entry.fileName.endsWith('/')) {
-          // Directory file names end with '/'.
-          // Note that entries for directories themselves are optional.
-          // An entry's fileName implicitly requires its parent directories to exist.
           mkdirp(path.join(outputDir, entry.fileName), function(err) {
             if (err) return reject(err);
             zipfile.readEntry();
           });
         } else {
-          //console.log('Extracting', entry.fileName);
+          const outputPath = path.join(outputDir, entry.fileName);
 
-          const filePath = path.join(outputDir, entry.fileName);
-
-          mkdirp(path.dirname(filePath), function(err) {
+          mkdirp(path.dirname(outputPath), function(err) {
             if (err) return reject(err);
 
             zipfile.openReadStream(entry, function(err, readStream) {
               if (err) return reject(err);
 
-              readStream.on("error", function(err) {
-                return reject(err);
+              readStream.on('error', reject);
+
+              readStream.on('end', function() {
+                zipfile.readEntry();
               });
 
-              readStream.on("end", function() {
-                  zipfile.readEntry();
-              });
+              const writeStream = fs.createWriteStream(outputPath);
 
-              // pump file contents
-              const writeStream = fs.createWriteStream(filePath);
               incrementHandleCount();
-              writeStream.on("close", decrementHandleCount);
-              writeStream.on("error", function(err) {
-                return reject(err);
-              });
+
+              writeStream.on('close', decrementHandleCount);
+              writeStream.on('error', reject);
+
               readStream.pipe(writeStream);
             });
           });
         }
       });
 
-      zipfile.on("error", function(err) {
-        return reject(err);
-      });
+      zipfile.on('error', reject);
     });
   });
 }
