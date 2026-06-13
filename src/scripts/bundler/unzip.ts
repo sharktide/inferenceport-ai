@@ -159,14 +159,27 @@ export async function unzipFile(
       zipfile.readEntry();
 
       zipfile.on('entry', function(entry: yauzl.Entry) {
+        const outputRoot = path.resolve(outputDir);
+        const resolvedPath = path.resolve(outputRoot, entry.fileName);
+
+        if (path.isAbsolute(entry.fileName)) {
+          return reject(new Error('Archive contains absolute path: ' + entry.fileName));
+        }
+
+        if (
+          resolvedPath !== outputRoot &&
+          !resolvedPath.startsWith(outputRoot + path.sep)
+        ) {
+          return reject(new Error('Archive contains path traversal entry: ' + entry.fileName));
+        }
+
         if (entry.fileName.endsWith('/')) {
-          mkdirp(path.join(outputDir, entry.fileName), function(err: Error | undefined) {
+          mkdirp(resolvedPath, function(err: Error | undefined) {
             if (err) return reject(err);
             zipfile.readEntry();
           });
         } else {
-          const outputPath = path.join(outputDir, entry.fileName);
-
+          const outputPath = resolvedPath;
           mkdirp(path.dirname(outputPath), function(err: Error | undefined) {
             if (err) return reject(err);
 
