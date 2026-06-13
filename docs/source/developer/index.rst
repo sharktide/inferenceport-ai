@@ -11,6 +11,7 @@ If you are contributing to the app itself, use :doc:`../contributing/index`.
    :caption: Developer Guide Contents
 
    lightning-api
+   shield
    tools-workflow
    gguf-import
    huggingface-import
