@@ -418,7 +418,7 @@ P2G pricing is credit-based. The default server rates are:
 * **Audio**: 0.01 credits per second.
 
 The hosted configuration can override these defaults. The console at
-``https://inference.js.org/console`` always shows the live dashboard values.
+``https://console.inferenceport.ai`` always shows the live dashboard values.
 
 A minimum balance of 10 credits is required before text generation is allowed.
 
