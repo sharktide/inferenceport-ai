@@ -131,7 +131,7 @@ export async function unzipFile(
   }
 
   return new Promise((resolve, reject) => {
-    yauzl.open(filePath, { lazyEntries: true }, function(err: Error | null, zipfile: yauzl.ZipFile) {
+    yauzl.open(filePath, { lazyEntries: true }, function(err, zipfile) {
       if (err) return reject(err);
 
       let handleCount = 0;
