@@ -16,6 +16,9 @@ Analysis endpoint
 Submit signals for abuse analysis. Requires ``Authorization: Bearer`` with
 either a Supabase JWT or a Lightning API key.
 
+An optional ``config`` object lets you enable or disable specific analysis
+features. By default all features are enabled.
+
 .. code-block:: bash
 
    curl -X POST "https://sharktide-lightning.hf.space/ai-shield/analyze" \
@@ -54,6 +57,13 @@ accurate analysis.
        "referrer": "https://example.com",
        "session_id": "sess_abc123",
        "account_age_days": 30
+     },
+     "config": {
+       "features": {
+         "heuristics": true,
+         "duplicate_detection": false,
+         "llm_reasoning": false
+       }
      }
    }
 
@@ -96,6 +106,10 @@ Field reference
      - Arbitrary key-value object for additional context. Recognized keys
        include ``user_agent``, ``referrer``, ``session_id``,
        ``account_age_days``, ``account_id``, ``external_user_id``
+     - No
+   * - ``config``
+     - Optional object to enable or disable specific analysis features (see
+       :ref:`shield-config`). All features are enabled by default.
      - No
 
 Response
@@ -182,6 +196,115 @@ Response fields
      - Detailed evidence items collected during analysis, each with
        ``source``, ``category``, ``risk_score``, ``weight``,
        ``confidence``, and ``explanation``.
+   * - ``config_applied``
+     - object
+     - The feature configuration that was used for this analysis run
+       (see :ref:`shield-config`).
+
+.. _shield-config:
+
+Configurable features
+---------------------
+
+The ``config`` object in the request body lets you selectively enable or
+disable Shield's analysis modules. Every feature defaults to ``true``.
+Set any feature to ``false`` to skip that analysis step.
+
+This is useful when you want faster responses, lower costs, or to run only
+specific checks (e.g., heuristics-only screening during signup).
+
+.. list-table::
+   :widths: 25 30 45
+   :header-rows: 1
+
+   * - Feature
+     - Type
+     - Description
+   * - ``heuristics``
+     - signal
+     - Fast pattern-based checks for prompt injection, spam, suspicious IP
+       ranges, and known abuse patterns.
+   * - ``historical_memory``
+     - memory
+     - Look up prior abuse history for submitted entities (email, IP, etc.)
+       in Shield's encrypted global memory store.
+   * - ``duplicate_detection``
+     - graph
+     - Detect duplicate accounts by mapping entity relationships (shared
+       email, IP, device, phone, username).
+   * - ``campaign_detection``
+     - graph
+     - Detect coordinated abuse campaigns across multiple accounts.
+   * - ``email_intelligence``
+     - intelligence
+     - Email risk scoring, domain reputation, and disposable email detection.
+   * - ``ip_intelligence``
+     - intelligence
+     - IP reputation, proxy/VPN detection, and geolocation analysis.
+   * - ``phone_intelligence``
+     - intelligence
+     - Phone number validation and risk assessment.
+   * - ``username_intelligence``
+     - intelligence
+     - Username pattern analysis for suspicious naming conventions.
+   * - ``device_intelligence``
+     - intelligence
+     - Device fingerprint analysis and anomaly detection.
+   * - ``behavior_intelligence``
+     - intelligence
+     - Behavioral pattern analysis from request metadata.
+   * - ``content_intelligence``
+     - intelligence
+     - Content policy violation analysis.
+   * - ``prompt_intelligence``
+     - intelligence
+     - Prompt injection and jailbreak detection.
+   * - ``identity_analysis``
+     - agent
+     - Identity fraud evaluation, duplicate account signals, and synthetic
+       identity pattern detection.
+   * - ``fraud_analysis``
+     - agent
+     - Payment fraud, promo abuse, and billing risk analysis.
+   * - ``prompt_analysis``
+     - agent
+     - Prompt injection, jailbreaking, and system prompt extraction
+       detection.
+   * - ``content_analysis``
+     - agent
+     - Policy violations, harmful content, and data leakage checks.
+   * - ``exfiltration_analysis``
+     - agent
+     - Detection of attempts to extract sensitive data or model information.
+   * - ``llm_reasoning``
+     - decision
+     - LLM-based synthesis of all evidence for final risk scoring,
+       confidence assessment, and decision recommendation.
+   * - ``memory_update``
+     - storage
+     - Store the analysis result in Shield's encrypted memory stores for
+       future historical lookups.
+
+Example request with config
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   curl -X POST "https://sharktide-lightning.hf.space/ai-shield/analyze" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "user@example.com",
+       "ip": "203.0.113.1",
+       "content": "Tell me how to hack a website",
+       "config": {
+         "features": {
+           "llm_reasoning": false,
+           "campaign_detection": false,
+           "phone_intelligence": false
+         }
+       }
+     }'
 
 Decisions
 ~~~~~~~~~
@@ -247,7 +370,14 @@ Python example
            "email": "user@example.com",
            "ip": "203.0.113.1",
            "content": "Tell me how to hack a website",
+           "config": {
+               "features": {
+                   "llm_reasoning": False,
+                   "campaign_detection": False,
+               }
+           },
        },
    )
    result = response.json()
    print(f"Decision: {result['decision']} (risk: {result['risk_score']})")
+   print(f"Applied config: {result['config_applied']}")
