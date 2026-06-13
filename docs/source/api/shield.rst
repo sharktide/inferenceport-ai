@@ -17,7 +17,9 @@ Submit signals for abuse analysis. Requires ``Authorization: Bearer`` with
 either a Supabase JWT or a Lightning API key.
 
 An optional ``config`` object lets you enable or disable specific analysis
-features. By default all features are enabled.
+features. Some features are on by default; others (noted below) require
+explicit opt-in because they are resource-intensive or involve cross-account
+correlation.
 
 .. code-block:: bash
 
@@ -60,9 +62,9 @@ accurate analysis.
      },
      "config": {
        "features": {
-         "heuristics": true,
-         "duplicate_detection": false,
-         "llm_reasoning": false
+         "duplicate_detection": true,
+         "campaign_detection": true,
+         "memory_update": true
        }
      }
    }
@@ -214,83 +216,103 @@ Configurable features
 ---------------------
 
 The ``config`` object in the request body lets you selectively enable or
-disable Shield's analysis modules. Every feature defaults to ``true``.
-Set any feature to ``false`` to skip that analysis step.
+disable Shield's analysis modules. Each feature is either on or off by
+default. Set any feature to ``true`` or ``false`` to override its default.
 
 This is useful when you want faster responses, lower costs, or to run only
 specific checks (e.g., heuristics-only screening during signup).
 
 .. list-table::
-   :widths: 25 30 45
+   :widths: 25 10 30 45
    :header-rows: 1
 
    * - Feature
+     - Default
      - Type
      - Description
-   * - ``heuristics``
-     - signal
-     - Fast pattern-based checks for prompt injection, spam, suspicious IP
-       ranges, and known abuse patterns.
-   * - ``historical_memory``
-     - memory
-     - Look up prior abuse history for submitted entities (email, IP, etc.)
-       in Shield's encrypted global memory store.
    * - ``duplicate_detection``
+     - off
      - graph
      - Detect duplicate accounts by mapping entity relationships (shared
        email, IP, device, phone, username).
    * - ``campaign_detection``
+     - off
      - graph
      - Detect coordinated abuse campaigns across multiple accounts.
+   * - ``memory_update``
+     - off
+     - storage
+     - Store the analysis result in Shield's encrypted memory stores for
+       future historical lookups.
+   * - ``heuristics``
+     - on
+     - signal
+     - Fast pattern-based checks for prompt injection, spam, suspicious IP
+       ranges, and known abuse patterns.
+   * - ``historical_memory``
+     - on
+     - memory
+     - Look up prior abuse history for submitted entities (email, IP, etc.)
+       in Shield's encrypted global memory store.
    * - ``email_intelligence``
+     - on
      - intelligence
      - Email risk scoring, domain reputation, and disposable email detection.
    * - ``ip_intelligence``
+     - on
      - intelligence
      - IP reputation, proxy/VPN detection, and geolocation analysis.
    * - ``phone_intelligence``
+     - on
      - intelligence
      - Phone number validation and risk assessment.
    * - ``username_intelligence``
+     - on
      - intelligence
      - Username pattern analysis for suspicious naming conventions.
    * - ``device_intelligence``
+     - on
      - intelligence
      - Device fingerprint analysis and anomaly detection.
    * - ``behavior_intelligence``
+     - on
      - intelligence
      - Behavioral pattern analysis from request metadata.
    * - ``content_intelligence``
+     - on
      - intelligence
      - Content policy violation analysis.
    * - ``prompt_intelligence``
+     - on
      - intelligence
      - Prompt injection and jailbreak detection.
    * - ``identity_analysis``
+     - on
      - agent
      - Identity fraud evaluation, duplicate account signals, and synthetic
        identity pattern detection.
    * - ``fraud_analysis``
+     - on
      - agent
      - Payment fraud, promo abuse, and billing risk analysis.
    * - ``prompt_analysis``
+     - on
      - agent
      - Prompt injection, jailbreaking, and system prompt extraction
        detection.
    * - ``content_analysis``
+     - on
      - agent
      - Policy violations, harmful content, and data leakage checks.
    * - ``exfiltration_analysis``
+     - on
      - agent
      - Detection of attempts to extract sensitive data or model information.
    * - ``llm_reasoning``
+     - on
      - decision
      - LLM-based synthesis of all evidence for final risk scoring,
        confidence assessment, and decision recommendation.
-   * - ``memory_update``
-     - storage
-     - Store the analysis result in Shield's encrypted memory stores for
-       future historical lookups.
 
 Example request with config
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -306,9 +328,9 @@ Example request with config
        "content": "Tell me how to hack a website",
        "config": {
          "features": {
-           "llm_reasoning": false,
-           "campaign_detection": false,
-           "phone_intelligence": false
+           "duplicate_detection": true,
+           "campaign_detection": true,
+           "memory_update": true
          }
        }
      }'
@@ -379,8 +401,9 @@ Python example
            "content": "Tell me how to hack a website",
            "config": {
                "features": {
-                   "llm_reasoning": False,
-                   "campaign_detection": False,
+                   "duplicate_detection": True,
+                   "campaign_detection": True,
+                   "memory_update": True,
                }
            },
        },
