@@ -10,7 +10,6 @@ If you are contributing to the app itself, use :doc:`../contributing/index`.
    :maxdepth: 2
    :caption: Developer Guide Contents
 
-   lightning-api
    tools-workflow
    gguf-import
    huggingface-import
