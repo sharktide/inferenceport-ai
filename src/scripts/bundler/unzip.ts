@@ -2,6 +2,7 @@ import yauzl from 'yauzl';
 import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
+import type { Readable } from 'stream';
 
 function mkdirp(dir: string, cb: (err?: Error) => void) {
   if (dir === ".") return cb();
@@ -130,7 +131,7 @@ export async function unzipFile(
   }
 
   return new Promise((resolve, reject) => {
-    yauzl.open(filePath, { lazyEntries: true }, function(err, zipfile) {
+    yauzl.open(filePath, { lazyEntries: true }, function(err: Error | null, zipfile: yauzl.ZipFile) {
       if (err) return reject(err);
 
       let handleCount = 0;
@@ -157,19 +158,19 @@ export async function unzipFile(
 
       zipfile.readEntry();
 
-      zipfile.on('entry', function(entry) {
+      zipfile.on('entry', function(entry: yauzl.Entry) {
         if (entry.fileName.endsWith('/')) {
-          mkdirp(path.join(outputDir, entry.fileName), function(err) {
+          mkdirp(path.join(outputDir, entry.fileName), function(err: Error | undefined) {
             if (err) return reject(err);
             zipfile.readEntry();
           });
         } else {
           const outputPath = path.join(outputDir, entry.fileName);
 
-          mkdirp(path.dirname(outputPath), function(err) {
+          mkdirp(path.dirname(outputPath), function(err: Error | undefined) {
             if (err) return reject(err);
 
-            zipfile.openReadStream(entry, function(err, readStream) {
+            zipfile.openReadStream(entry, function(err: Error | null, readStream: Readable) {
               if (err) return reject(err);
 
               readStream.on('error', reject);
