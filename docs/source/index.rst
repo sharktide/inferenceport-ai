@@ -60,6 +60,12 @@ Complete Documentation
 
 .. toctree::
    :maxdepth: 2
+   :caption: API Docs
+
+   api/index
+
+.. toctree::
+   :maxdepth: 2
    :caption: Developer Docs
 
    developer/index
