@@ -855,6 +855,10 @@ dist\win-unpacked\resources\app\public\scripts\staticload\theme.d.ts
 dist\win-unpacked\resources\app\public\scripts\staticload\theme.d.ts.map
 dist\win-unpacked\resources\app\public\scripts\staticload\theme.js
 dist\win-unpacked\resources\app\public\scripts\staticload\theme.js.map
+dist\win-unpacked\resources\lib\index.d.d.ts
+dist\win-unpacked\resources\lib\index.d.d.ts.map
+dist\win-unpacked\resources\lib\index.d.js
+dist\win-unpacked\resources\lib\index.d.js.map
 dlldata.c
 docs/build/
 ecf/
