@@ -146,7 +146,14 @@ Response
          "confidence": 0.7,
          "explanation": "No heuristic flags triggered"
        }
-     ]
+     ],
+     "config_applied": {
+       "features": {
+         "heuristics": true,
+         "duplicate_detection": false,
+         "llm_reasoning": false
+       }
+     }
    }
 
 Response fields
