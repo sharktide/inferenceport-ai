@@ -1,168 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<title>Dashboard - InferencePortAI</title>
-		<script type="module" src="Components.js"></script>
-		<link rel="stylesheet" href="styles/styles.css" />
-		<script type="module" src="scripts/staticload/index.js"></script>
-		<style>
-			#card-scroll-wrapper {
-			overflow: hidden;
-			width: 100%;
-			}
+<head>
+    <meta charset="UTF-8" />
+    <title>Sign In - InferencePortAI</title>
+    <script type="module" src="Components.js"></script>
+    <link rel="stylesheet" href="styles/styles.css" />
+    <script type="module" src="scripts/staticload/index.js"></script>
+    <script src="scripts/authrender.js" type="module"></script>
+</head>
+<body>
+	<root-navbar></root-navbar>
+    <div id="signin-success-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Sign-in Successful</h2>
+            <p>You are now logged in.</p>
+            <button id="return-home-btn">Return Home</button>
+        </div>
+    </div>
 
-			.card-grid {
-			display: flex;
-			gap: 20px;
-			animation: scroll-loop 30s linear infinite;
-			}
+    <main class="auth-page">
+        <!-- Sign In Card -->
+        <div class="auth-card" id="signin-card">
+            <div class="auth-card-header">
+                <h1 class="auth-brand">InferencePortAI</h1>
+                <p class="auth-subtitle">Sign in to your account</p>
+            </div>
 
-			.marketplace-card {
-			max-width: 500px;
-			flex-shrink: 0;
-			}
-
-			@keyframes scroll-loop {
-				0% {
-					transform: translateX(0);
-				}
-				100% {
-					transform: translateX(-50%);
-				}
-			}
-			.gsi-material-button-content-wrapper {
-				display: flex;
-				align-items: center;
-				gap: 10px;
-			}
-
-			.gsi-material-button-icon {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-			}
-
-			.gsi-material-button {
-				display: inline-flex;
-				align-items: center;
-				justify-content: center;
-				gap: 10px;
-			}
-
-		</style>
-		<script src="scripts/authrender.js" type="module"></script>
-	</head>
-	<body>
-		<root-navbar></root-navbar>
-		<div id="signin-success-modal" class="modal hidden">
-			<div class="modal-content">
-				<h2>Sign-in Successful</h2>
-				<p>You are now logged in.</p>
-				<button id="return-home-btn">Return Home</button>
-			</div>
-		</div>
-		<main style="padding: 40px">
-			<h1>Sign In or Sign Up</h1>
-
-			<form id="auth-form" style="padding-right: 20px">
-				<h2 id="rst" style="display: none;">Reset Password</h2>
-				<input type="email" id="email" placeholder="Email" required>
-				<input type="password" id="password" placeholder="Password" required>
-                <div class="social-buttons" id="social-buttons">
-				</div>
-                <div class="auth-action-buttons">
-                    <button id="login" type="button">Log In</button>
-                    <button id="signup" type="button">Sign Up</button>
-                </div>
-
-				<div class="social-buttons" id="social-buttons">
- 					<button class="gsi-material-button" type="button" id="github-login">
-                    <div class="gsi-material-button-state"></div>
+            <div class="social-buttons">
+                <button class="gsi-material-button" type="button" id="github-login">
                     <div class="gsi-material-button-content-wrapper">
                         <div class="gsi-material-button-icon">
-                        <svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" clip-rule="evenodd"
-                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
-                                    0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
-                                    -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
-                                    .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
-                                    0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.7
-                                    7.7 0 012.01-.27c.68 0 1.36.09 2.01.27 1.53-1.04 2.2-.82
-                                    2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
-                                    2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54
-                                    1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
-                                    8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
-                        </svg>
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.7 7.7 0 012.01-.27c.68 0 1.36.09 2.01.27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
+                            </svg>
                         </div>
-                        <span class="gsi-material-button-contents">Continue with GitHub</span>
-                        <span style="display: none;">Continue with GitHub</span>
+                        <span>GitHub</span>
                     </div>
-                    </button>
+                </button>
+                <button class="gsi-material-button" type="button" id="google-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.02 1.53 7.4 2.8l5.4-5.4C33.52 3.7 29.1 1.5 24 1.5 14.64 1.5 6.58 6.88 2.66 14.7l6.64 5.15C11.2 13.6 17.08 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.74H24v9h12.7c-.55 2.95-2.21 5.45-4.7 7.12l7.23 5.6C43.38 36.9 46.5 31.1 46.5 24z"/>
+                                <path fill="#FBBC05" d="M9.3 28.85A14.4 14.4 0 0 1 8.5 24c0-1.68.3-3.3.8-4.85l-6.64-5.15A23.96 23.96 0 0 0 1.5 24c0 3.9.94 7.58 2.66 10.7l6.64-5.15z"/>
+                                <path fill="#34A853" d="M24 46.5c6.48 0 11.92-2.14 15.9-5.82l-7.23-5.6c-2.01 1.35-4.58 2.15-8.67 2.15-6.92 0-12.8-4.1-14.7-10.05l-6.64 5.15C6.58 41.12 14.64 46.5 24 46.5z"/>
+                            </svg>
+                        </div>
+                        <span>Google</span>
+                    </div>
+                </button>
+                <button class="gsi-material-button" type="button" id="microsoft-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" width="20" height="20">
+                                <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+                                <rect x="12" y="1" width="10" height="10" fill="#7FBA00"/>
+                                <rect x="1" y="12" width="10" height="10" fill="#00A4EF"/>
+                                <rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
+                            </svg>
+                        </div>
+                        <span>Microsoft</span>
+                    </div>
+                </button>
+                <button class="gsi-material-button" type="button" id="huggingface-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon" style="font-size:20px;line-height:1;">🤗</div>
+                        <span>Hugging Face</span>
+                    </div>
+                </button>
+            </div>
 
-					<button class="gsi-material-button" type="button" id="google-login">
-						<div class="gsi-material-button-state"></div>
-						<div class="gsi-material-button-content-wrapper">
-							<div class="gsi-material-button-icon">
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
-									<path fill="#EA4335" d="M24 9.5c3.54 0 6.02 1.53 7.4 2.8l5.4-5.4C33.52 3.7 29.1 1.5 24 1.5 14.64 1.5 6.58 6.88 2.66 14.7l6.64 5.15C11.2 13.6 17.08 9.5 24 9.5z"/>
-									<path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.74H24v9h12.7c-.55 2.95-2.21 5.45-4.7 7.12l7.23 5.6C43.38 36.9 46.5 31.1 46.5 24z"/>
-									<path fill="#FBBC05" d="M9.3 28.85A14.4 14.4 0 0 1 8.5 24c0-1.68.3-3.3.8-4.85l-6.64-5.15A23.96 23.96 0 0 0 1.5 24c0 3.9.94 7.58 2.66 10.7l6.64-5.15z"/>
-									<path fill="#34A853" d="M24 46.5c6.48 0 11.92-2.14 15.9-5.82l-7.23-5.6c-2.01 1.35-4.58 2.15-8.67 2.15-6.92 0-12.8-4.1-14.7-10.05l-6.64 5.15C6.58 41.12 14.64 46.5 24 46.5z"/>
-								</svg>
-							</div>
-							<span class="gsi-material-button-contents">Continue with Google</span>
-							<span style="display: none;">Continue with Google</span>
-						</div>
-					</button>
-					<button class="gsi-material-button" type="button" id="microsoft-login">
-						<div class="gsi-material-button-state"></div>
-						<div class="gsi-material-button-content-wrapper">
-							<div class="gsi-material-button-icon">
-								<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" width="20" height="20">
-									<rect x="1" y="1" width="10" height="10" fill="#F25022"/>
-									<rect x="12" y="1" width="10" height="10" fill="#7FBA00"/>
-									<rect x="1" y="12" width="10" height="10" fill="#00A4EF"/>
-									<rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
-								</svg>
-							</div>
-							<span class="gsi-material-button-contents">Continue with Microsoft</span>
-							<span style="display: none;">Continue with Microsoft</span>
-						</div>
-					</button>
-					<button class="gsi-material-button" type="button" id="huggingface-login">
-						<div class="gsi-material-button-state"></div>
-						<div class="gsi-material-button-content-wrapper">
-							<div class="gsi-material-button-icon" style="font-size:20px;line-height:1;">
-								🤗
-							</div>
-							<span class="gsi-material-button-contents">Continue with Hugging Face</span>
-							<span style="display: none;">Continue with Hugging Face</span>
-						</div>
-					</button>				
-				</div>
+            <div class="auth-divider"><span>OR</span></div>
+
+            <form class="auth-form" id="signin-form">
+                <h2 id="rst" style="display: none;">Reset Password</h2>
+                <div class="input-group">
+                    <label for="si-email">Email</label>
+                    <input type="email" id="si-email" placeholder="Enter your email" required>
+                </div>
+                <div class="input-group" id="si-password-group">
+                    <label for="si-password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="si-password" placeholder="Enter your password" required>
+                        <button type="button" class="password-toggle" tabindex="-1" aria-label="Toggle password visibility">
+                            <svg class="eye-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg class="eye-off-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" id="signin-btn" class="btn-signin">Sign In</button>
+                <p id="si-status" class="auth-status"></p>
                 <a id="forgot-password" class="forgot-link">Forgot Password?</a>
-                <p id="status"></p> 
+                <a id="back-to-signin" class="forgot-link" style="display:none">Back to Sign In</a>
             </form>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
-			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
 
-		</main>
-	</body>
+            <div class="auth-footer">
+                <p>Don't have an account? <a id="show-signup" href="#">Sign Up</a></p>
+            </div>
+        </div>
+
+        <!-- Sign Up Card (hidden by default) -->
+        <div class="auth-card" id="signup-card" style="display:none">
+            <div class="auth-card-header">
+                <h1 class="auth-brand">InferencePortAI</h1>
+                <p class="auth-subtitle">Create your account</p>
+            </div>
+
+            <div class="social-buttons">
+                <button class="gsi-material-button" type="button" id="su-github-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.7 7.7 0 012.01-.27c.68 0 1.36.09 2.01.27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
+                            </svg>
+                        </div>
+                        <span>GitHub</span>
+                    </div>
+                </button>
+                <button class="gsi-material-button" type="button" id="su-google-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="20" height="20">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.02 1.53 7.4 2.8l5.4-5.4C33.52 3.7 29.1 1.5 24 1.5 14.64 1.5 6.58 6.88 2.66 14.7l6.64 5.15C11.2 13.6 17.08 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.74H24v9h12.7c-.55 2.95-2.21 5.45-4.7 7.12l7.23 5.6C43.38 36.9 46.5 31.1 46.5 24z"/>
+                                <path fill="#FBBC05" d="M9.3 28.85A14.4 14.4 0 0 1 8.5 24c0-1.68.3-3.3.8-4.85l-6.64-5.15A23.96 23.96 0 0 0 1.5 24c0 3.9.94 7.58 2.66 10.7l6.64-5.15z"/>
+                                <path fill="#34A853" d="M24 46.5c6.48 0 11.92-2.14 15.9-5.82l-7.23-5.6c-2.01 1.35-4.58 2.15-8.67 2.15-6.92 0-12.8-4.1-14.7-10.05l-6.64 5.15C6.58 41.12 14.64 46.5 24 46.5z"/>
+                            </svg>
+                        </div>
+                        <span>Google</span>
+                    </div>
+                </button>
+                <button class="gsi-material-button" type="button" id="su-microsoft-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" width="20" height="20">
+                                <rect x="1" y="1" width="10" height="10" fill="#F25022"/>
+                                <rect x="12" y="1" width="10" height="10" fill="#7FBA00"/>
+                                <rect x="1" y="12" width="10" height="10" fill="#00A4EF"/>
+                                <rect x="12" y="12" width="10" height="10" fill="#FFB900"/>
+                            </svg>
+                        </div>
+                        <span>Microsoft</span>
+                    </div>
+                </button>
+                <button class="gsi-material-button" type="button" id="su-huggingface-login">
+                    <div class="gsi-material-button-content-wrapper">
+                        <div class="gsi-material-button-icon" style="font-size:20px;line-height:1;">🤗</div>
+                        <span>Hugging Face</span>
+                    </div>
+                </button>
+            </div>
+
+            <div class="auth-divider"><span>OR</span></div>
+
+            <form class="auth-form" id="signup-form">
+                <div class="input-group">
+                    <label for="su-email">Email</label>
+                    <input type="email" id="su-email" placeholder="Enter your email" required>
+                </div>
+                <div class="input-group">
+                    <label for="su-password">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="su-password" placeholder="Create a password" required>
+                        <button type="button" class="password-toggle" tabindex="-1" aria-label="Toggle password visibility">
+                            <svg class="eye-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                            </svg>
+                            <svg class="eye-off-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                                <line x1="1" y1="1" x2="23" y2="23"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" id="signup-btn" class="btn-signin">Sign Up</button>
+                <p id="su-status" class="auth-status"></p>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a id="show-signin" href="#">Sign In</a></p>
+            </div>
+        </div>
+    </main>
+</body>
 </html>
-
-<!--
-Copyright 2025 Rihaan Meher
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Welcome - InferencePortAI</title>
+    <script type="module" src="Components.js"></script>
+    <link rel="stylesheet" href="styles/styles.css" />
+    <script type="module" src="scripts/staticload/index.js"></script>
+    <script src="scripts/welcomerender.js" type="module"></script>
+</head>
+<body>
+    <main class="auth-page">
+        <div class="auth-card">
+            <div class="auth-card-header">
+                <h1 class="auth-brand">InferencePortAI</h1>
+                <p class="auth-subtitle">Welcome! Pick a username to get started.</p>
+            </div>
+
+            <form class="auth-form" id="welcome-form">
+                <div class="input-group">
+                    <label for="welcome-username">Username</label>
+                    <input type="text" id="welcome-username" placeholder="Choose a username" required>
+                </div>
+                <button type="button" id="welcome-continue" class="btn-signin">Continue</button>
+                <p id="welcome-status" class="auth-status"></p>
+            </form>
+        </div>
+    </main>
+</body>
+</html>
