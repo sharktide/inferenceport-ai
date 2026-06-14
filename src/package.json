@@ -39,7 +39,7 @@
     "@types/ws": "^8.18.1",
     "@types/yauzl": "^3.4.0",
     "@typescript/native-preview": "^7.0.0-dev.20260608.1",
-    "electron": "^42.3.2",
+    "electron": "^42.4.0",
     "electron-builder": "^26.15.2",
     "glob": "^13.0.6",
     "typescript": "^6.0.3",
