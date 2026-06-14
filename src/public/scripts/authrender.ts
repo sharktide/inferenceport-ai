@@ -210,7 +210,12 @@ const githubButton = document.getElementById(
 const googleButton = document.getElementById(
 	"google-login"
 ) as HTMLButtonElement;
-
+const microsoftButton = document.getElementById(
+	"microsoft-login"
+) as HTMLButtonElement;
+const huggingFaceButton = document.getElementById(
+    "huggingface-login"
+) as HTMLButtonElement;
 githubButton?.addEventListener("click", async () => {
 	updateStatus("Opening GitHub sign-in…");
 	await window.auth.signInWithGitHub();
@@ -221,6 +226,14 @@ googleButton?.addEventListener("click", async () => {
     await window.auth.signInWithGoogle();
 });
 
+microsoftButton?.addEventListener("click", async () => {
+    updateStatus("Opening Microsoft sign-in…");
+    await window.auth.signInWithMicrosoft();
+});
+huggingFaceButton?.addEventListener("click", async () => {
+    updateStatus("Opening Hugging Face sign-in…");
+    await window.auth.signInWithHuggingFace();
+});
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
     const returnBtn = document.getElementById("return-home-btn")!;

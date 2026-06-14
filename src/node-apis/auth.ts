@@ -1192,6 +1192,24 @@ export default function register() {
 		await shell.openExternal(authUrl);
 		return { success: true };
 	});
+	ipcMain.handle("auth:signInWithMicrosoft", async () => {
+		const authUrl =
+			`${supabaseUrl}/auth/v1/authorize` +
+			`?provider=azure` +
+			`&scope=openid profile email` +
+			`&redirect_to=https://inference.js.org/authcallback.html`;
+		await shell.openExternal(authUrl);
+		return { success: true };
+	});
+	ipcMain.handle("auth:signInWithHuggingFace", async () => {
+		const authUrl =
+			`${supabaseUrl}/auth/v1/authorize` +
+			`?provider=custom:huggingface` +
+			`&redirect_to=https://inference.js.org/authcallback.html`;
+		await shell.openExternal(authUrl);
+		return { success: true };
+	});
+
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {
 		const { data, error } = await supabase.auth.signInWithPassword({
 			email,
