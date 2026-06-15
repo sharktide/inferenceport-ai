@@ -11,7 +11,7 @@ async function waitForSession(retries = 20, interval = 200): Promise<AuthSession
     for (let i = 0; i < retries; i++) {
         try {
             const result = await window.auth.getSession();
-            if (result.session?.isAuthenticated) {
+            if (result?.session?.isAuthenticated) {
                 return result.session;
             }
         } catch (_e) {

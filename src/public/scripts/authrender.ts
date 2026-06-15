@@ -170,8 +170,8 @@ syncUpgradeIntentFromQuery();
 async function postAuthCheck() {
     try {
         //@ts-ignore
-        const { profile }: AuthSessionResult = await window.auth.getSession();
-        if (!profile?.username) {
+        const sessionResult = await window.auth.getSession();
+        if (!sessionResult?.profile?.username) {
             window.location.href = "welcome.html";
             return;
         }
@@ -292,23 +292,23 @@ signupBtn.addEventListener('click', async () => {
     promptUpgradePreferenceAfterSignup();
 });
 
-function setupSocialLogin(btnId: string, providerFn: () => Promise<any>, statusEl: HTMLParagraphElement) {
+function setupSocialLogin(btnId: string, providerName: string, providerFn: () => Promise<any>, statusEl: HTMLParagraphElement) {
     const btn = document.getElementById(btnId) as HTMLButtonElement;
     btn?.addEventListener("click", async () => {
-        updateStatus(`Opening ${providerFn.name.replace('signInWith', '')} sign-in...`, statusEl);
+        updateStatus("Opening " + providerName + " sign-in...", statusEl);
         await providerFn();
     });
 }
 
-setupSocialLogin("github-login", () => window.auth.signInWithGitHub(), siStatus);
-setupSocialLogin("google-login", () => window.auth.signInWithGoogle(), siStatus);
-setupSocialLogin("microsoft-login", () => window.auth.signInWithMicrosoft(), siStatus);
-setupSocialLogin("huggingface-login", () => window.auth.signInWithHuggingFace(), siStatus);
+setupSocialLogin("github-login", "GitHub", () => window.auth.signInWithGitHub(), siStatus);
+setupSocialLogin("google-login", "Google", () => window.auth.signInWithGoogle(), siStatus);
+setupSocialLogin("microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), siStatus);
+setupSocialLogin("huggingface-login", "Hugging Face", () => window.auth.signInWithHuggingFace(), siStatus);
 
-setupSocialLogin("su-github-login", () => window.auth.signInWithGitHub(), suStatus);
-setupSocialLogin("su-google-login", () => window.auth.signInWithGoogle(), suStatus);
-setupSocialLogin("su-microsoft-login", () => window.auth.signInWithMicrosoft(), suStatus);
-setupSocialLogin("su-huggingface-login", () => window.auth.signInWithHuggingFace(), suStatus);
+setupSocialLogin("su-github-login", "GitHub", () => window.auth.signInWithGitHub(), suStatus);
+setupSocialLogin("su-google-login", "Google", () => window.auth.signInWithGoogle(), suStatus);
+setupSocialLogin("su-microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), suStatus);
+setupSocialLogin("su-huggingface-login", "Hugging Face", () => window.auth.signInWithHuggingFace(), suStatus);
 
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
