@@ -1,9 +1,24 @@
-const emailInput = document.getElementById('email') as HTMLInputElement;
-const passwordInput = document.getElementById('password') as HTMLInputElement;
-const loginButton = document.getElementById('login') as HTMLButtonElement;
-const signupButton = document.getElementById('signup') as HTMLButtonElement;
-const statusText = document.getElementById('status') as HTMLParagraphElement;
-(window as any).mode = 0;
+const signinCard = document.getElementById('signin-card') as HTMLDivElement;
+const signupCard = document.getElementById('signup-card') as HTMLDivElement;
+
+const siEmail = document.getElementById('si-email') as HTMLInputElement;
+const siPassword = document.getElementById('si-password') as HTMLInputElement;
+const siPasswordGroup = document.getElementById('si-password-group') as HTMLDivElement;
+const signinBtn = document.getElementById('signin-btn') as HTMLButtonElement;
+const siStatus = document.getElementById('si-status') as HTMLParagraphElement;
+const rstHeading = document.getElementById('rst') as HTMLHeadingElement;
+const forgotLink = document.getElementById('forgot-password') as HTMLElement;
+const backToSignin = document.getElementById('back-to-signin') as HTMLElement;
+const showSignupLink = document.getElementById('show-signup') as HTMLAnchorElement;
+
+const suEmail = document.getElementById('su-email') as HTMLInputElement;
+const suPassword = document.getElementById('su-password') as HTMLInputElement;
+const signupBtn = document.getElementById('signup-btn') as HTMLButtonElement;
+const suStatus = document.getElementById('su-status') as HTMLParagraphElement;
+const showSigninLink = document.getElementById('show-signin') as HTMLAnchorElement;
+
+let isResetMode = false;
+
 const UPGRADE_INTENT_STORAGE_KEY = "inferenceport:upgrade-intent-target";
 const DEFAULT_UPGRADE_TARGET = "settings.html#upgrade";
 const initialQueryParams = new URLSearchParams(window.location.search);
@@ -98,12 +113,13 @@ function promptUpgradeAfterAuth(defaultTarget: string) {
     });
 }
 
-function promptUpgradePreferenceAfterSignup() {
+function promptUpgradePreferenceAfterSignup(statusEl: HTMLParagraphElement) {
     if (!getUpgradeIntentTarget()) return;
     const modal = getUpgradeModal();
     if (!modal) {
         updateStatus(
             "After you verify your email and sign in, you can upgrade from Settings > Upgrade Plan.",
+            statusEl,
         );
         return;
     }
@@ -123,6 +139,7 @@ function promptUpgradePreferenceAfterSignup() {
                     modal.close();
                     updateStatus(
                         "Great. Verify your email, sign in, and we will ask if you want to upgrade.",
+                        statusEl,
                     );
                 },
             },
@@ -134,6 +151,7 @@ function promptUpgradePreferenceAfterSignup() {
                     modal.close();
                     updateStatus(
                         "Account created. You can upgrade anytime from Settings.",
+                        statusEl,
                     );
                 },
             },
@@ -145,14 +163,23 @@ function syncUpgradeIntentFromQuery() {
     if (initialQueryParams.get("upgrade") !== "1") return;
     const nextTarget = initialQueryParams.get("next") || DEFAULT_UPGRADE_TARGET;
     setUpgradeIntentTarget(nextTarget);
-    if (initialQueryParams.get("mode") === "signup") {
-        updateStatus("Create an account to continue with upgrading.");
-    } else {
-        updateStatus("Sign in to continue with upgrading.");
-    }
 }
 
 syncUpgradeIntentFromQuery();
+
+async function postAuthCheck(): Promise<void> {
+    try {
+        //@ts-ignore
+        const sessionResult = await window.auth.getSession();
+        if (!sessionResult?.profile?.username) {
+            window.location.href = "welcome.html";
+            return;
+        }
+    } catch (_e) {
+        // profile fetch failed, fall through to default redirect
+    }
+    promptUpgradeAfterAuth("index.html");
+}
 
 async function completeOAuthRedirectIfPresent() {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -165,61 +192,123 @@ async function completeOAuthRedirectIfPresent() {
 
     if (!accessToken || !refreshToken) return;
 
-    updateStatus("Completing sign-in...");
+    updateStatus("Completing sign-in...", siStatus);
     const result = await window.auth.setSessionFromTokens(accessToken, refreshToken);
     if ((result as any)?.error) {
-        updateStatus(`OAuth sign-in failed: ${(result as any).error}`);
+        updateStatus(`OAuth sign-in failed: ${(result as any).error}`, siStatus);
         return;
     }
 
     const cleanUrl = `${window.location.pathname}`;
     window.history.replaceState({}, document.title, cleanUrl);
-    showSignInSuccessModal();
+    postAuthCheck();
 }
 
 void completeOAuthRedirectIfPresent();
 
-loginButton.addEventListener('click', async () => {
-    if ((window as any).mode === 0) {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-        if (!email || !password) return updateStatus('Missing credentials');
-
-        const result = await window.auth.signInWithEmail(email, password);
-        if (result.error) return updateStatus(`Login failed: ${result.error}`);
-
-        const session = result.session;
-        const userId = session?.user?.id;
-        if (!userId) return updateStatus('No user ID found.');
-        //@ts-ignore
-        const { profile }: AuthSessionResult = await window.auth.getSession();
-        if (!profile?.username) {
-            window.location.href = "welcome.html";
-        } else {
-            promptUpgradeAfterAuth("index.html");
-        }
+function showCard(card: 'signin' | 'signup') {
+    signinCard.style.display = card === 'signin' ? '' : 'none';
+    signupCard.style.display = card === 'signup' ? '' : 'none';
+    if (card === 'signin') {
+        isResetMode = false;
+        enterSignInMode();
     }
-    else if ((window as any).mode === 1) {
-        window.location.reload()
+}
+
+function enterSignInMode() {
+    rstHeading.style.display = 'none';
+    siPasswordGroup.style.display = 'block';
+    forgotLink.style.display = 'block';
+    backToSignin.style.display = 'none';
+    signinBtn.textContent = 'Sign In';
+    updateStatus('', siStatus);
+}
+
+function enterResetMode() {
+    rstHeading.style.display = 'block';
+    siPasswordGroup.style.display = 'none';
+    forgotLink.style.display = 'none';
+    backToSignin.style.display = 'block';
+    signinBtn.textContent = 'Send Reset Link';
+    updateStatus('', siStatus);
+}
+
+forgotLink.addEventListener('click', () => {
+    isResetMode = true;
+    enterResetMode();
+});
+
+backToSignin.addEventListener('click', (e) => {
+    e.preventDefault();
+    isResetMode = false;
+    enterSignInMode();
+});
+
+showSignupLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showCard('signup');
+});
+
+showSigninLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showCard('signin');
+});
+
+signinBtn.addEventListener('click', async () => {
+    if (isResetMode) {
+        const email = siEmail.value.trim();
+        if (!email) return updateStatus("Please enter your email to reset password.", siStatus);
+
+        const result = await window.auth.resetPassword(email);
+        if (result.error) return updateStatus(`Reset failed: ${result.error}`, siStatus);
+
+        updateStatus(`Password reset email sent to ${email}. Check your inbox.`, siStatus);
+        return;
     }
+
+    const email = siEmail.value.trim();
+    const password = siPassword.value.trim();
+    if (!email || !password) return updateStatus('Missing credentials', siStatus);
+
+    const result = await window.auth.signInWithEmail(email, password);
+    if (result.error) return updateStatus(`Login failed: ${result.error}`, siStatus);
+
+    const session = result.session;
+    const userId = session?.user?.id;
+    if (!userId) return updateStatus('No user ID found.', siStatus);
+    postAuthCheck();
 });
 
-const githubButton = document.getElementById(
-	"github-login"
-) as HTMLButtonElement;
-const googleButton = document.getElementById(
-	"google-login"
-) as HTMLButtonElement;
+signupBtn.addEventListener('click', async () => {
+    const email = suEmail.value.trim();
+    const password = suPassword.value.trim();
+    if (!email || !password)
+        return updateStatus('Missing credentials (email + password required)', suStatus);
 
-githubButton?.addEventListener("click", async () => {
-	updateStatus("Opening GitHub sign-in…");
-	await window.auth.signInWithGitHub();
+    const result = await window.auth.signUpWithEmail(email, password);
+    if (result.error) return updateStatus(`Signup failed: ${result.error}`, suStatus);
+
+    updateStatus(`Account created for ${email}. Please check your email to confirm before logging in.`, suStatus);
+    promptUpgradePreferenceAfterSignup(suStatus);
 });
 
-googleButton?.addEventListener("click", async () => {
-    updateStatus("Opening Google sign-in…");
-    await window.auth.signInWithGoogle();
-});
+function setupSocialLogin(btnId: string, providerName: string, providerFn: () => Promise<any>, statusEl: HTMLParagraphElement) {
+    const btn = document.getElementById(btnId) as HTMLButtonElement;
+    btn?.addEventListener("click", async () => {
+        updateStatus("Opening " + providerName + " sign-in...", statusEl);
+        await providerFn();
+    });
+}
+
+setupSocialLogin("github-login", "GitHub", () => window.auth.signInWithGitHub(), siStatus);
+setupSocialLogin("google-login", "Google", () => window.auth.signInWithGoogle(), siStatus);
+setupSocialLogin("microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), siStatus);
+setupSocialLogin("huggingface-login", "Hugging Face", () => window.auth.signInWithHuggingFace(), siStatus);
+
+setupSocialLogin("su-github-login", "GitHub", () => window.auth.signInWithGitHub(), suStatus);
+setupSocialLogin("su-google-login", "Google", () => window.auth.signInWithGoogle(), suStatus);
+setupSocialLogin("su-microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), suStatus);
+setupSocialLogin("su-huggingface-login", "Hugging Face", () => window.auth.signInWithHuggingFace(), suStatus);
 
 function showSignInSuccessModal() {
     const modal = document.getElementById("signin-success-modal")!;
@@ -239,55 +328,36 @@ function showSignInSuccessModal() {
 }
 
 window.auth.onAuthStateChange((session) => {
-    if (session?.isAuthenticated) {
-        if (window.location.pathname.includes("auth")) {
-            showSignInSuccessModal();
+    const modal = document.getElementById("signin-success-modal");
+    if (!session?.isAuthenticated) {
+        if (modal && !modal.classList.contains("hidden")) {
+            modal.classList.add("hidden");
         }
+        return;
+    }
+    if (window.location.pathname.includes("auth")) {
+        postAuthCheck();
     }
 });
 
-signupButton.addEventListener('click', async () => {
-    if ((window as any).mode === 0) {
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-        if (!email || !password)
-            return updateStatus('Missing credentials (email + password required)');
+function updateStatus(message: string, el: HTMLParagraphElement) {
+    el.textContent = message;
+}
 
-        const result = await window.auth.signUpWithEmail(email, password);
-        if (result.error) return updateStatus(`Signup failed: ${result.error}`);
-
-        updateStatus(`Account created for ${email}. Please check your email to confirm before logging in.`);
-        promptUpgradePreferenceAfterSignup();
-    }
-    else if ((window as any).mode === 1) {
-        const email = emailInput.value.trim();
-        if (!email) return updateStatus("Please enter your email to reset password.");
-
-        const result = await window.auth.resetPassword(email);
-        if (result.error) return updateStatus(`Reset failed: ${result.error}`);
-
-        updateStatus(`Password reset email sent to ${email}. Check your inbox.`);
-    }
+document.querySelectorAll('.password-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        const wrapper = (btn as HTMLButtonElement).closest('.password-wrapper')!;
+        const input = wrapper.querySelector('input') as HTMLInputElement;
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        const eyeIcon = wrapper.querySelector('.eye-icon') as HTMLElement;
+        const eyeOffIcon = wrapper.querySelector('.eye-off-icon') as HTMLElement;
+        if (eyeIcon) eyeIcon.style.display = isPassword ? 'none' : '';
+        if (eyeOffIcon) eyeOffIcon.style.display = isPassword ? '' : 'none';
+    });
 });
-
-
-function updateStatus(message: string) {
-    statusText.textContent = message;
-}
-
-document.getElementById("forgot-password")?.addEventListener("click", forgotPassword)
-function forgotPassword() {
-    passwordInput.value = "";
-    passwordInput.style.display = "none";
-    emailInput.value = "";
-    (document.getElementById('social-buttons') as HTMLDivElement).style.display = "none";
-    (document.getElementById('rst') as HTMLTitleElement).style.display = "block";
-
-    loginButton.innerText = "Cancel";
-    signupButton.innerText = "Contine";
-    (window as any).mode = 1
-}
 
 if (initialQueryParams.get("mode") === "signup") {
-    updateStatus("Create an account, then verify your email and sign in.");
+    showCard('signup');
+    updateStatus("Create an account, then verify your email and sign in.", suStatus);
 }

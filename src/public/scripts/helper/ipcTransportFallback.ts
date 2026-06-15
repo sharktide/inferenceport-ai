@@ -882,12 +882,13 @@ function writeBrowserAuthSession(session: AuthSessionView | null): void {
 	}
 }
 
-function buildProviderAuthUrl(provider: "github" | "google"): string {
+function buildProviderAuthUrl(provider: "github" | "google" | "microsoft" | "huggingface"): string {
 	const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
 	const redirectTo = `https://inference.js.org/authcallback.html?rd=${window.location.origin}/auth.html`;
 	const params = new URLSearchParams({
-		provider,
+		provider: provider === "microsoft" ? "azure" : (provider === "huggingface" ? "custom:huggingface" : provider),
 		redirect_to: redirectTo,
+		scope: "openid profile email",
 	});
 	return `${supabaseUrl}/auth/v1/authorize?${params.toString()}`;
 }
@@ -1353,6 +1354,12 @@ export function installWebSocketTransportFallback(): void {
 		},
 		signInWithGoogle: async () => {
 			window.location.assign(buildProviderAuthUrl("google"));
+		},
+		signInWithMicrosoft: async () => {
+			window.location.assign(buildProviderAuthUrl("microsoft"));
+		},
+		signInWithHuggingFace: async () => {
+			window.location.assign(buildProviderAuthUrl("huggingface"));
 		},
 		signUpWithEmail: async (email: string, password: string) =>
 			invokeOrDefault("auth:signUpWithEmail", [email, password]),

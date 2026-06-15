@@ -1917,6 +1917,14 @@ public\scripts\staticload\theme.d.ts
 public\scripts\staticload\theme.d.ts.map
 public\scripts\staticload\theme.js
 public\scripts\staticload\theme.js.map
+public\scripts\welcomerender.d.d.ts
+public\scripts\welcomerender.d.d.ts.map
+public\scripts\welcomerender.d.js
+public\scripts\welcomerender.d.js.map
+public\scripts\welcomerender.d.ts
+public\scripts\welcomerender.d.ts.map
+public\scripts\welcomerender.js
+public\scripts\welcomerender.js.map
 publish/
 rcf/
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

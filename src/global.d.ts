@@ -439,6 +439,8 @@ declare global {
 			) => Promise<AuthSessionResponse>;
 			signInWithGitHub: () => Promise<void>;
 			signInWithGoogle: () => Promise<void>;
+			signInWithMicrosoft: () => Promise<void>;
+			signInWithHuggingFace: () => Promise<void>;
 			signUpWithEmail: (
 				email: string,
 				password: string
