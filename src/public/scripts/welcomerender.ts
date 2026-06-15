@@ -22,7 +22,7 @@ async function waitForSession(retries = 20, interval = 200): Promise<AuthSession
     return null;
 }
 
-async function init() {
+async function init(): Promise<void> {
     const session = await waitForSession();
     if (!session) {
         window.location.href = 'auth.html';
@@ -32,7 +32,7 @@ async function init() {
 
 void init();
 
-continueBtn.addEventListener('click', async () => {
+continueBtn.addEventListener('click', async (): Promise<void> => {
     const session = await waitForSession(3, 100);
     if (!session?.user?.id) {
         updateStatus('Session expired. Please sign in again.');

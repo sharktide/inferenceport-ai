@@ -113,13 +113,13 @@ function promptUpgradeAfterAuth(defaultTarget: string) {
     });
 }
 
-function promptUpgradePreferenceAfterSignup() {
+function promptUpgradePreferenceAfterSignup(statusEl: HTMLParagraphElement) {
     if (!getUpgradeIntentTarget()) return;
     const modal = getUpgradeModal();
     if (!modal) {
         updateStatus(
             "After you verify your email and sign in, you can upgrade from Settings > Upgrade Plan.",
-            siStatus,
+            statusEl,
         );
         return;
     }
@@ -139,7 +139,7 @@ function promptUpgradePreferenceAfterSignup() {
                     modal.close();
                     updateStatus(
                         "Great. Verify your email, sign in, and we will ask if you want to upgrade.",
-                        siStatus,
+                        statusEl,
                     );
                 },
             },
@@ -151,7 +151,7 @@ function promptUpgradePreferenceAfterSignup() {
                     modal.close();
                     updateStatus(
                         "Account created. You can upgrade anytime from Settings.",
-                        siStatus,
+                        statusEl,
                     );
                 },
             },
@@ -167,7 +167,7 @@ function syncUpgradeIntentFromQuery() {
 
 syncUpgradeIntentFromQuery();
 
-async function postAuthCheck() {
+async function postAuthCheck(): Promise<void> {
     try {
         //@ts-ignore
         const { profile }: AuthSessionResult = await window.auth.getSession();
@@ -178,7 +178,7 @@ async function postAuthCheck() {
     } catch (_e) {
         // profile fetch failed, fall through to default redirect
     }
-    window.location.href = "index.html";
+    promptUpgradeAfterAuth("index.html");
 }
 
 async function completeOAuthRedirectIfPresent() {
@@ -289,7 +289,7 @@ signupBtn.addEventListener('click', async () => {
     if (result.error) return updateStatus(`Signup failed: ${result.error}`, suStatus);
 
     updateStatus(`Account created for ${email}. Please check your email to confirm before logging in.`, suStatus);
-    promptUpgradePreferenceAfterSignup();
+    promptUpgradePreferenceAfterSignup(suStatus);
 });
 
 function setupSocialLogin(btnId: string, providerFn: () => Promise<any>, statusEl: HTMLParagraphElement) {
