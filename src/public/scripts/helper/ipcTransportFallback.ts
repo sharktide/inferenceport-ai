@@ -886,7 +886,7 @@ function buildProviderAuthUrl(provider: "github" | "google" | "microsoft" | "hug
 	const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
 	const redirectTo = `https://inference.js.org/authcallback.html?rd=${window.location.origin}/auth.html`;
 	const params = new URLSearchParams({
-		provider: provider == "microsoft" ? "azure" : (provider == "huggingface" ? "custom:huggingface" : provider),
+		provider: provider === "microsoft" ? "azure" : (provider === "huggingface" ? "custom:huggingface" : provider),
 		redirect_to: redirectTo,
 		scope: "openid profile email",
 	});
