@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "ipai_native_addons"
-version = "2.12.0"
+version = "2.12.2"
 dependencies = [
  "ammonia",
  "html-escape",
