@@ -5,7 +5,7 @@ AI Shield is an intelligent abuse prevention and fraud detection system for
 the Lightning backend. It analyzes requests in real time to detect and prevent
 abuse, fraud, and malicious usage of AI applications.
 
-Mounted at ``/ai-shield``, it exposes a single analysis endpoint.
+Mounted at ``/ai-shield``, it exposes two analysis endpoints.
 
 Analysis endpoint
 -----------------
@@ -411,3 +411,131 @@ Python example
    result = response.json()
    print(f"Decision: {result['decision']} (risk: {result['risk_score']})")
    print(f"Applied config: {result['config_applied']}")
+
+Phishing detection endpoint
+---------------------------
+
+``POST /ai-shield/detect-phishing``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A lightweight phishing analysis endpoint. Submits the provided content
+directly to the Cerebras LLM for phishing classification without running any
+of the full Shield analysis pipeline (no heuristics, no intelligence
+collectors, no feature flags, no config). Uses the same ``aiShieldDaily``
+rate-limit budget as ``/analyze``.
+
+.. code-block:: bash
+
+   curl -X POST "https://sharktide-lightning.hf.space/ai-shield/detect-phishing" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "content": "Dear user, your account has been compromised. Click here to reset your password: http://evil.example.com"
+     }'
+
+Request body
+~~~~~~~~~~~~
+
+At least one of ``content``, ``url``, ``sender``, or ``subject`` must be
+provided.
+
+.. list-table::
+   :widths: 20 60 20
+   :header-rows: 1
+
+   * - Field
+     - Description
+     - Required
+   * - ``content``
+     - Full text of the email, message, or page to analyze
+     - No
+   * - ``url``
+     - Suspicious or embedded URL to inspect
+     - No
+   * - ``sender``
+     - Sender email address or display name
+     - No
+   * - ``subject``
+     - Email subject line
+     - No
+
+Response
+~~~~~~~~
+
+.. code-block:: json
+
+   {
+     "is_phishing": true,
+     "confidence": 0.92,
+     "risk_score": 85,
+     "indicators": [
+       "Suspicious URL domain mismatch",
+       "Sense of urgency in body text",
+       "Generic greeting instead of personal address"
+     ],
+     "threat_level": "high",
+     "explanation": "The email uses a generic greeting, creates urgency, and links to a domain that does not match the claimed sender."
+   }
+
+Response fields
+^^^^^^^^^^^^^^^
+
+.. list-table::
+   :widths: 20 20 60
+   :header-rows: 1
+
+   * - Field
+     - Type
+     - Description
+   * - ``is_phishing``
+     - boolean
+     - Whether the content is classified as phishing
+   * - ``confidence``
+     - float (0–1)
+     - Confidence in the phishing classification
+   * - ``risk_score``
+     - integer (0–100)
+     - Overall phishing risk score
+   * - ``indicators``
+     - array of strings
+     - Observed phishing indicators
+   * - ``threat_level``
+     - string
+     - Severity: ``low``, ``medium``, ``high``, or ``critical``
+   * - ``explanation``
+     - string
+     - Brief explanation of the verdict
+
+Python example
+~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   import httpx
+
+   response = httpx.post(
+       "https://sharktide-lightning.hf.space/ai-shield/detect-phishing",
+       headers={"Authorization": "Bearer YOUR_TOKEN"},
+       json={
+           "content": "Your account has been compromised. Reset password here: http://evil.example.com",
+           "sender": "security@phish-bank.ru",
+           "subject": "Urgent: Account suspended",
+       },
+   )
+   result = response.json()
+   print(f"Phishing: {result['is_phishing']} (confidence: {result['confidence']})")
+   print(f"Indicators: {result['indicators']}")
+
+Errors
+~~~~~~
+
+.. list-table::
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Code
+     - Meaning
+   * - ``400``
+     - No ``content``, ``url``, ``sender``, or ``subject`` provided
+   * - ``502``
+     - Upstream model error or unparseable response
