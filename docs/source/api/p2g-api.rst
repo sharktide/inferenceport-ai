@@ -403,7 +403,7 @@ Response is raw ``audio/mpeg`` bytes with credit charge headers:
 ``POST /v1/3d/generations``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Credit-metered 3D Gaussian Splat / GLB generation (image-to-3d) if using Nvidia Asset Harvester, or an GLB if using tripoSR. Charges per model
+Credit-metered 3D Gaussian Splat / GLB generation (image-to-3d) if using Nvidia Asset Harvester, or a GLB if using TripoSR. Charges per model
 from your wallet. The pipeline segments the input image and generates a 3D
 Gaussian Splat or GLB, depending on the model, returning an orbit video depening on the model and a PLY/GLB model file.
 
