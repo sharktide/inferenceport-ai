@@ -405,7 +405,7 @@ Response is raw ``audio/mpeg`` bytes with credit charge headers:
 
 Credit-metered 3D Gaussian Splat / GLB generation (image-to-3d) if using Nvidia Asset Harvester, or a GLB if using TripoSR. Charges per model
 from your wallet. The pipeline segments the input image and generates a 3D
-Gaussian Splat or GLB, depending on the model, returning an orbit video depening on the model and a PLY/GLB model file.
+Gaussian Splat or GLB, depending on the model, returning an orbit video depending on the model and a PLY/GLB model file.
 
 .. code-block:: bash
 
@@ -448,9 +448,9 @@ Response fields:
 * ``created`` — Unix timestamp of generation.
 * ``data`` — array of 3D model objects.
 * ``data[].orbit_video_b64_bytes`` — Base64-encoded MP4 video BYTES showing a 360° orbit of
-  the generated 3D model. (If ussing Asset Harvester. TripoSR does not generate orbit videos, so this field will be absent in the response if using TripoSR.)
-* ``data[].model_ply_b64_bytes`` — Base64-encoded PLY BYTES point cloud file (Gaussian Splat). (If using Asset Harvester. TripoSR generates GLB files, not PLY, so this field will be absent in the response if using TripoSR.)
-* ``data[].model_glb_b64_bytes`` — Base64-encoded GLB BYTES 3D model file. (If using TripoSR. Asset Harvester generates PLY files, not GLB, so this field will be absent in the response if using Asset Harvester.)
+  the generated 3D model. (If using Asset Harvester. TripoSR does not generate orbit videos, so this field will be absent in the response if using TripoSR.)
+* ``data[].model_ply_b64_bytes`` — Base64-encoded PLY BYTES point cloud file (Gaussian Splat). (Only present if using Asset Harvester. TripoSR generates GLB files, not PLY, so this field will be absent in the response if using TripoSR.)
+* ``data[].model_glb_b64_bytes`` — Base64-encoded GLB BYTES 3D model file. (Only present if using TripoSR. Asset Harvester generates PLY files, not GLB, so this field will be absent in the response if using Asset Harvester.)
 * ``usage`` — credit charge details for this request.
 * ``usage.payg_credits_charged`` — total credits deducted.
 * ``usage.model_count`` — number of models generated.
