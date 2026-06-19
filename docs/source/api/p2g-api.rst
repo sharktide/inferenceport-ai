@@ -397,6 +397,74 @@ Response is raw ``audio/mpeg`` bytes with credit charge headers:
    * - ``X-Payg-Unit-Label``
      - Always ``seconds``
 
+3D generation
+----------------
+
+``POST /v1/3d/generations``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Credit-metered 3D Gaussian Splat / GLB generation (image-to-3d) if using Nvidia Asset Harvester, or a GLB if using TripoSR. Charges per model
+from your wallet. The pipeline segments the input image and generates a 3D
+Gaussian Splat or GLB, depending on the model, returning an orbit video depending on the model and a PLY/GLB model file.
+
+.. code-block:: bash
+
+   curl -X POST https://sharktide-lightning.hf.space/v1/3d/generations \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "model": "asset-harvester",
+       "image_urls": ["https://fastly.picsum.photos/id/1049/256/256.jpg?hmac=dPACV4e7GUBij3NhWyGDX_rAi-mR4rPUOXPRgKyWpsI"]
+     }'
+
+Request fields:
+
+* ``model`` — required string. The 3D generation model to use (e.g., "asset-harvester" or "tripoSR").
+* ``image_urls`` — required array. At least one URL or base64 data URI for
+  image-to-3d conditioning. The first element is used as the input image.
+
+Response:
+
+.. code-block:: json
+
+  {
+    "created": 1718300000,
+    "data": [
+      {
+        "orbit_video_b64_bytes": "<BASE64_ENCODED_MP4>", // Note that, if using TripoSR, this field will not be present, as TripoSR does not create orbit videos
+        "model_ply_b64_bytes": "<BASE64_ENCODED_PLY>", // Note that, if using TripoSR, this field will not be present, as TripoSR generates GLB files, not PLY
+        "model_glb_b64_bytes": "<BASE64_ENCODED_GLB>" // Note that, if using Asset Harvester, this field will not be present, as Asset Harvester generates PLY files, not GLB
+      }
+    ],
+    "usage": {
+      "payg_credits_charged": 0.07,
+      "model_count": 1
+    }
+  }
+
+
+Response fields:
+
+* ``created`` — Unix timestamp of generation.
+* ``data`` — array of 3D model objects.
+* ``data[].orbit_video_b64_bytes`` — Base64-encoded MP4 video BYTES showing a 360° orbit of
+  the generated 3D model. (If using Asset Harvester. TripoSR does not generate orbit videos, so this field will be absent in the response if using TripoSR.)
+* ``data[].model_ply_b64_bytes`` — Base64-encoded PLY BYTES point cloud file (Gaussian Splat). (Only present if using Asset Harvester. TripoSR generates GLB files, not PLY, so this field will be absent in the response if using TripoSR.)
+* ``data[].model_glb_b64_bytes`` — Base64-encoded GLB BYTES 3D model file. (Only present if using TripoSR. Asset Harvester generates PLY files, not GLB, so this field will be absent in the response if using Asset Harvester.)
+* ``usage`` — credit charge details for this request.
+* ``usage.payg_credits_charged`` — total credits deducted.
+* ``usage.model_count`` — number of models generated.
+
+.. note::
+
+   Because of the ``_b64_bytes`` suffix, these fields contain BASE64-ENCODED BYTES, not JSON. Decode the base64 string to get the raw file bytes.
+
+.. note::
+
+   The 3D generation endpoint is currently in early access and may be subject to
+   change. Contact support if you're interested in using or providing feedback on
+   this feature.
+
 Stripe
 ------
 
@@ -416,6 +484,7 @@ P2G pricing is credit-based. The default server rates are:
 * **Image**: 0.02 credits per image.
 * **Video**: 0.01 credits per second.
 * **Audio**: 0.01 credits per second.
+* **3D**: 0.07 credits per model.
 
 The hosted configuration can override these defaults. The console at
 ``https://console.inferenceport.ai`` always shows the live dashboard values.
