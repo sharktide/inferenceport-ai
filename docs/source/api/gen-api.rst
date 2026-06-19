@@ -370,6 +370,19 @@ Sound-effect and music generation. Returns raw ``audio/mpeg`` bytes. Accepts
 Text-to-speech generation. Returns raw ``audio/mpeg`` bytes. Accepts
 ``prompt`` as JSON body (POST) or URL path param (GET).
 
+3D generation
+-------------
+
+.. warning::
+
+   3D generation is **not available** on the Generation (subscription) API.
+   It is only accessible through the **P2G API** (``/v1/3d/generations``).
+   Direct calls to ``/gen/3d/generations`` without a valid internal P2G token
+   will return HTTP 403.
+
+See the `P2G API docs <p2g-api.html>`_ for the full 3D generation reference,
+including cURL examples, request/response schemas, and credit pricing.
+
 Prompt analysis
 ---------------
 
