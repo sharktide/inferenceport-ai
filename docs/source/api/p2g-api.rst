@@ -564,7 +564,7 @@ Response on failure (HTTP 200):
 
 .. code-block:: python
 
-   import time, httpx
+   import base64, time, httpx
 
    TOKEN = "YOUR_TOKEN"
    BASE  = "https://sharktide-lightning.hf.space/v1"
