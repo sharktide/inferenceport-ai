@@ -398,72 +398,218 @@ Response is raw ``audio/mpeg`` bytes with credit charge headers:
      - Always ``seconds``
 
 3D generation
-----------------
+-------------
+
+3D generation uses an **asynchronous job model** by default. Submitting a
+request returns a ``job_id`` immediately (HTTP 202); you then poll
+``GET /v1/3d/jobs/{job_id}`` until the job reaches ``completed`` or
+``failed`` status.
+
+Credits are charged at submission time and refunded automatically if the job
+fails.
+
+.. note::
+
+   A **legacy synchronous mode** is available via ``?sync=true`` for existing
+   integrations. It blocks until completion and returns the same response shape
+   as before. It is not recommended for production use because 3D generation can
+   take several minutes and may cause HTTP timeouts on slow connections.
 
 ``POST /v1/3d/generations``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Credit-metered 3D Gaussian Splat / GLB generation (image-to-3d) if using Nvidia Asset Harvester, or a GLB if using TripoSR. Charges per model
-from your wallet. The pipeline segments the input image and generates a 3D
-Gaussian Splat or GLB, depending on the model, returning an orbit video depending on the model and a PLY/GLB model file.
+Submit a 3D generation job. Returns ``202 Accepted`` in async mode (default)
+or ``200 OK`` in sync mode.
 
 .. code-block:: bash
 
+   # Async (recommended)
    curl -X POST https://sharktide-lightning.hf.space/v1/3d/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
-       "model": "asset-harvester",
-       "image_urls": ["https://fastly.picsum.photos/id/1049/256/256.jpg?hmac=dPACV4e7GUBij3NhWyGDX_rAi-mR4rPUOXPRgKyWpsI"]
+       "model": "tripoSR",
+       "image_urls": ["https://example.com/object.jpg"]
      }'
 
-Request fields:
+   # Legacy sync
+   curl -X POST "https://sharktide-lightning.hf.space/v1/3d/generations?sync=true" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "model": "asset-harvester",
+       "prompt": "A wooden chair",
+       "image_urls": ["https://example.com/chair.jpg"]
+     }'
 
-* ``model`` — required string. The 3D generation model to use (e.g., "asset-harvester" or "tripoSR").
-* ``image_urls`` — required array. At least one URL or base64 data URI for
-  image-to-3d conditioning. The first element is used as the input image.
+Query parameters:
 
-Response:
+* ``sync`` — optional boolean (default ``false``). Set ``true`` to use legacy
+  blocking behaviour.
+
+Request body fields:
+
+* ``model`` — required string. ``"asset-harvester"`` or ``"tripoSR"``.
+* ``image_urls`` — required array. At least one URL or base64 data URI.
+  The first element is used as the input image.
+* ``prompt`` — required string **when** ``model`` is ``"asset-harvester"``.
+  Not used by TripoSR.
+* ``n`` — optional integer (1–4, default 1). Number of models to generate.
+  Ignored when ``model`` is ``"tripoSR"`` (always 1).
+
+Async response (HTTP 202):
 
 .. code-block:: json
 
-  {
-    "created": 1718300000,
-    "data": [
-      {
-        "orbit_video_b64_bytes": "<BASE64_ENCODED_MP4>", // Note that, if using TripoSR, this field will not be present, as TripoSR does not create orbit videos
-        "model_ply_b64_bytes": "<BASE64_ENCODED_PLY>", // Note that, if using TripoSR, this field will not be present, as TripoSR generates GLB files, not PLY
-        "model_glb_b64_bytes": "<BASE64_ENCODED_GLB>" // Note that, if using Asset Harvester, this field will not be present, as Asset Harvester generates PLY files, not GLB
-      }
-    ],
-    "usage": {
-      "payg_credits_charged": 0.07,
-      "model_count": 1
-    }
-  }
+   {
+     "job_id": "a3f1c2e4b5d6...",
+     "status": "pending",
+     "created_at": 1718300000.0,
+     "poll_url": "/v1/3d/jobs/a3f1c2e4b5d6...",
+     "usage": {
+       "payg_credits_charged": 0.07,
+       "model_count": 1
+     }
+   }
 
+Sync response (HTTP 200, ``?sync=true`` only):
 
-Response fields:
+.. code-block:: json
 
-* ``created`` — Unix timestamp of generation.
-* ``data`` — array of 3D model objects.
-* ``data[].orbit_video_b64_bytes`` — Base64-encoded MP4 video BYTES showing a 360° orbit of
-  the generated 3D model. (If using Asset Harvester. TripoSR does not generate orbit videos, so this field will be absent in the response if using TripoSR.)
-* ``data[].model_ply_b64_bytes`` — Base64-encoded PLY BYTES point cloud file (Gaussian Splat). (Only present if using Asset Harvester. TripoSR generates GLB files, not PLY, so this field will be absent in the response if using TripoSR.)
-* ``data[].model_glb_b64_bytes`` — Base64-encoded GLB BYTES 3D model file. (Only present if using TripoSR. Asset Harvester generates PLY files, not GLB, so this field will be absent in the response if using Asset Harvester.)
-* ``usage`` — credit charge details for this request.
-* ``usage.payg_credits_charged`` — total credits deducted.
-* ``usage.model_count`` — number of models generated.
+   {
+     "created": 1718300000,
+     "data": [ { "model_glb_b64_bytes": "<BASE64>" } ],
+     "usage": {
+       "payg_credits_charged": 0.07,
+       "model_count": 1
+     }
+   }
+
+``GET /v1/3d/jobs/{job_id}``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Poll the status of an async 3D job. Returns HTTP 202 while the job is still
+running and HTTP 200 once it has completed or failed.
+
+.. code-block:: bash
+
+   curl https://sharktide-lightning.hf.space/v1/3d/jobs/a3f1c2e4b5d6... \
+     -H "Authorization: Bearer YOUR_TOKEN"
+
+Possible ``status`` values:
+
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
+
+   * - Status
+     - Meaning
+   * - ``pending``
+     - Job queued, not yet started.
+   * - ``processing``
+     - Generation is underway.
+   * - ``completed``
+     - Generation finished. ``data`` field contains the model output.
+   * - ``failed``
+     - Generation failed. ``error`` field contains a human-readable reason.
+       Credits have been refunded automatically.
+
+Response while pending or processing (HTTP 202):
+
+.. code-block:: json
+
+   {
+     "job_id": "a3f1c2e4b5d6...",
+     "status": "processing",
+     "model": "tripoSR",
+     "created_at": 1718300000.0,
+     "completed_at": null,
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }
+   }
+
+Response on completion (HTTP 200):
+
+.. code-block:: json
+
+   {
+     "job_id": "a3f1c2e4b5d6...",
+     "status": "completed",
+     "model": "tripoSR",
+     "created_at": 1718300000.0,
+     "completed_at": 1718300312.5,
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 },
+     "data": [
+       { "model_glb_b64_bytes": "<BASE64_ENCODED_GLB>" }
+     ]
+   }
+
+Response on failure (HTTP 200):
+
+.. code-block:: json
+
+   {
+     "job_id": "a3f1c2e4b5d6...",
+     "status": "failed",
+     "model": "tripoSR",
+     "created_at": 1718300000.0,
+     "completed_at": 1718300045.1,
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 },
+     "error": "TripoSR job abc123 failed: out of memory"
+   }
+
+**Recommended polling interval**: 4–10 seconds. Most jobs complete within
+1–5 minutes depending on model and server load.
+
+**Full async workflow example** (Python):
+
+.. code-block:: python
+
+   import base64, time, httpx
+
+   TOKEN = "YOUR_TOKEN"
+   BASE  = "https://sharktide-lightning.hf.space/v1"
+   HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+   # 1. Submit
+   r = httpx.post(f"{BASE}/3d/generations", headers=HEADERS, json={
+       "model": "tripoSR",
+       "image_urls": ["https://example.com/object.jpg"],
+   })
+   r.raise_for_status()
+   job_id = r.json()["job_id"]
+
+   # 2. Poll
+   while True:
+       r = httpx.get(f"{BASE}/3d/jobs/{job_id}", headers=HEADERS)
+       r.raise_for_status()
+       body = r.json()
+       if body["status"] == "completed":
+           glb_bytes = base64.b64decode(body["data"][0]["model_glb_b64_bytes"])
+           break
+       if body["status"] == "failed":
+           raise RuntimeError(body["error"])
+       time.sleep(5)
+
+Output fields in ``data[]``:
+
+* ``model_glb_b64_bytes`` — Base64-encoded GLB bytes. Present when
+  ``model`` is ``"tripoSR"``.
+* ``model_ply_b64_bytes`` — Base64-encoded PLY (Gaussian Splat) bytes.
+  Present when ``model`` is ``"asset-harvester"``.
+* ``orbit_video_b64_bytes`` — Base64-encoded MP4 showing a 360° orbit.
+  Present when ``model`` is ``"asset-harvester"``.
 
 .. note::
 
-   Because of the ``_b64_bytes`` suffix, these fields contain BASE64-ENCODED BYTES, not JSON. Decode the base64 string to get the raw file bytes.
+   All ``_b64_bytes`` fields contain Base64-encoded raw bytes. Decode them
+   with ``base64.b64decode()`` (Python) or ``Buffer.from(str, 'base64')``
+   (Node.js) to obtain the file content.
 
 .. note::
 
-   The 3D generation endpoint is currently in early access and may be subject to
-   change. Contact support if you're interested in using or providing feedback on
-   this feature.
+   The 3D generation endpoint is currently in early access and may be subject
+   to change. Contact support if you're interested in using or providing
+   feedback on this feature.
 
 Stripe
 ------
@@ -502,8 +648,12 @@ Error codes
 
 In addition to the common status codes, the P2G API returns:
 
+* ``202`` — Job accepted (async 3D generation). Poll ``/v1/3d/jobs/{job_id}``
+  for results.
 * ``402`` — Insufficient credits. The wallet balance is below the minimum
   required for the operation. Check ``/v1/me`` for your current balance and
   purchase more credits from the console.
 * ``402`` (text) — At least the minimum balance (typically 10 credits) is
   required for text generation.
+* ``404`` — Job not found (``GET /v1/3d/jobs/{job_id}``).
+* ``504`` — Sync 3D request timed out. Use async mode instead.
