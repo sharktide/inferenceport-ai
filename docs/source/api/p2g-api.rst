@@ -437,7 +437,7 @@ or ``200 OK`` in sync mode.
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
-       "model": "asset-harvester",
+       "model": "tripoSR",
        "prompt": "A wooden chair",
        "image_urls": ["https://example.com/chair.jpg"]
      }'
@@ -449,13 +449,12 @@ Query parameters:
 
 Request body fields:
 
-* ``model`` — required string. ``"asset-harvester"`` or ``"tripoSR"``.
+* ``model`` — required string. ``"asset-harvester"``, ``"tripoSR"``, ``sv3d`` or ``trellis2``.
 * ``image_urls`` — required array. At least one URL or base64 data URI.
   The first element is used as the input image.
 * ``prompt`` — required string **when** ``model`` is ``"asset-harvester"``.
   Not used by TripoSR.
-* ``n`` — optional integer (1–4, default 1). Number of models to generate.
-  Ignored when ``model`` is ``"tripoSR"`` (always 1).
+* ``resolution`` - Resolution for generation with Trellis 2 - "low", "medium", or "high". Default is "low". (Optional, only applicable for Trellis 2 model.)
 
 Async response (HTTP 202):
 
@@ -467,7 +466,7 @@ Async response (HTTP 202):
      "created_at": 1718300000.0,
      "poll_url": "/v1/3d/jobs/a3f1c2e4b5d6...",
      "usage": {
-       "payg_credits_charged": 0.07,
+       "payg_credits_charged": 0.07, // Varies by model and resolution
        "model_count": 1
      }
    }
@@ -480,10 +479,49 @@ Sync response (HTTP 200, ``?sync=true`` only):
      "created": 1718300000,
      "data": [ { "model_glb_b64_bytes": "<BASE64>" } ],
      "usage": {
-       "payg_credits_charged": 0.07,
+       "payg_credits_charged": 0.07, // Varies by model and resolution
        "model_count": 1
      }
    }
+
+Pricing
+^^^^^^^
+
+.. list-table::
+   :widths: 25 35 20 20
+   :header-rows: 1
+
+   * - Provider
+     - Model
+     - Price (per Gen)
+     - ID
+   * - Nvidia
+     - Asset Harvester
+     - $0.07
+     - ``asset-harvester``
+   * - Stability AI
+     - TripoSR
+     - $0.02
+     - ``tripoSR``
+   * - Stability AI
+     - SF3D
+     - $0.02
+     - ``sf3d``
+   * - Microsoft
+     - Trellis 2 Low Res
+     - $0.24
+     - ``trellis2``
+   * - Microsoft
+     - Trellis 2 Medium Res
+     - $0.29
+     - ``trellis2``
+   * - Microsoft
+     - Trellis 2 High Res
+     - $0.35
+     - ``trellis2``
+
+.. note::
+    When using Trellis 2, to set the resolution, pass the ``resolution`` parameter in the request body with one of the following values: "low", "medium", or "high". If not specified, the default resolution is "low".
 
 ``GET /v1/3d/jobs/{job_id}``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -524,7 +562,7 @@ Response while pending or processing (HTTP 202):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": null,
-     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 } // Price varies by model and resolution
    }
 
 Response on completion (HTTP 200):
@@ -537,7 +575,7 @@ Response on completion (HTTP 200):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": 1718300312.5,
-     "usage": { "payg_credits_charged": 0.07, "model_count": 1 },
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }, // Price varies by model and resolution
      "data": [
        { "model_glb_b64_bytes": "<BASE64_ENCODED_GLB>" }
      ]
@@ -553,7 +591,7 @@ Response on failure (HTTP 200):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": 1718300045.1,
-     "usage": { "payg_credits_charged": 0.07, "model_count": 1 },
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }, // Price varies by model and resolution
      "error": "TripoSR job abc123 failed: out of memory"
    }
 
