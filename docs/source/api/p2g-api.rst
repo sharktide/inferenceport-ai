@@ -313,11 +313,16 @@ Response:
      }
    }
 
-Video generation
+Synchronous Video generation
 ----------------
 
 ``POST /v1/videos/generations``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+  The synchronous video generation endpoint is **deprecated**. Use the async endpoint
+  for better preformance and relaibility, as synchrnous requests will automatically cutoff
+  generations running longer than 100 seconds. See the :doc:`video-async-api` section for more details.
 
 Credit-metered video generation. Charges per second of video from your wallet.
 
