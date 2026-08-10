@@ -27,7 +27,7 @@
     "html-to-text": "^10.0.0",
     "openai": "^7.3.0",
     "systeminformation": "^5.33.1",
-    "ws": "^8.21.1"
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.7.2",
