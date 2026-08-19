@@ -19,6 +19,11 @@ The InferencePort AI Lightning backend exposes three hosted API services on
     fraud detection system. Submit request signals for real-time analysis and
     get back a risk score, decision, and detailed evidence.
 
+:doc:`rewards-system`
+    The **Rewards System** (``/v1/rewards``) lets users earn badges and
+    unlock discounts by using the platform. Rewards are earned automatically
+    based on spending, usage diversity, request volume, and streak milestones.
+
 Which API should I use?
 -----------------------
 
@@ -108,3 +113,4 @@ Common status codes
    gen-api
    p2g-api
    shield
+   rewards-system
