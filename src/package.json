@@ -21,13 +21,13 @@
   "license": "Apache 2.0",
   "description": "AI, anywhere",
   "dependencies": {
-    "@gradio/client": "^2.3.0",
-    "@supabase/supabase-js": "^2.108.2",
+    "@gradio/client": "^2.4.0",
+    "@supabase/supabase-js": "^2.110.0",
     "fix-path": "^5.0.0",
     "html-to-text": "^10.0.0",
-    "openai": "^6.42.0",
-    "systeminformation": "^5.31.7",
-    "ws": "^8.21.0"
+    "openai": "^7.3.0",
+    "systeminformation": "^5.33.1",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.7.2",
@@ -38,11 +38,11 @@
     "@types/tar": "^7.0.87",
     "@types/ws": "^8.18.1",
     "@types/yauzl": "^3.4.0",
-    "@typescript/native-preview": "^7.0.0-dev.20260624.1",
-    "electron": "^42.4.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260706.1",
+    "electron": "^43.2.0",
     "electron-builder": "^26.15.3",
     "glob": "^13.0.6",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "yauzl": "^3.4.0"
   },
   "napi": {

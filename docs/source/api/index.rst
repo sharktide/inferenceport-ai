@@ -111,6 +111,7 @@ Common status codes
    :caption: API Docs Contents
 
    gen-api
+   video-async-api
    p2g-api
    shield
    rewards-system
