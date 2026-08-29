@@ -10,7 +10,7 @@ Base URL
 
 .. code-block:: text
 
-   https://sharktide-lightning.hf.space
+   https://api.inferenceport.ai
 
 Plan and usage endpoints
 ------------------------
@@ -224,7 +224,7 @@ OpenAI-compatible image generation. Returns a ``created`` timestamp and
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/gen/images/generations \
+   curl https://api.inferenceport.ai/gen/images/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -280,7 +280,7 @@ array with base64 or URL payloads.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/gen/videos/generations \
+   curl https://api.inferenceport.ai/gen/videos/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -345,7 +345,7 @@ OpenAI-compatible text-to-speech and audio generation. Returns raw
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/gen/audio/speech \
+   curl https://api.inferenceport.ai/gen/audio/speech \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -394,7 +394,7 @@ generate any content — only returns the model that *would* be selected.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/gen/prompt_analyze \
+   curl https://api.inferenceport.ai/gen/prompt_analyze \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
