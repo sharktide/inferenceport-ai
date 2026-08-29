@@ -2,7 +2,7 @@ API Reference
 =============
 
 The InferencePort AI Lightning backend exposes three hosted API services on
-``https://sharktide-lightning.hf.space``.
+``https://api.inferenceport.ai``.
 
 :doc:`gen-api`
     The **Generation API** (``/gen``) is the subscription-backed API used for
@@ -46,7 +46,7 @@ Every request requires a ``Bearer`` token in the ``Authorization`` header:
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/gen/chat/completions \
+   curl https://api.inferenceport.ai/gen/chat/completions \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 Tokens can be either:

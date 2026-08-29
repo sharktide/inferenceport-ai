@@ -23,7 +23,7 @@ correlation.
 
 .. code-block:: bash
 
-   curl -X POST "https://sharktide-lightning.hf.space/ai-shield/analyze" \
+   curl -X POST "https://api.inferenceport.ai/ai-shield/analyze" \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -319,7 +319,7 @@ Example request with config
 
 .. code-block:: bash
 
-   curl -X POST "https://sharktide-lightning.hf.space/ai-shield/analyze" \
+   curl -X POST "https://api.inferenceport.ai/ai-shield/analyze" \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -393,7 +393,7 @@ Python example
    import httpx
 
    response = httpx.post(
-       "https://sharktide-lightning.hf.space/ai-shield/analyze",
+       "https://api.inferenceport.ai/ai-shield/analyze",
        headers={"Authorization": "Bearer YOUR_TOKEN"},
        json={
            "email": "user@example.com",
@@ -426,7 +426,7 @@ rate-limit budget as ``/analyze``.
 
 .. code-block:: bash
 
-   curl -X POST "https://sharktide-lightning.hf.space/ai-shield/detect-phishing" \
+   curl -X POST "https://api.inferenceport.ai/ai-shield/detect-phishing" \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -514,7 +514,7 @@ Python example
    import httpx
 
    response = httpx.post(
-       "https://sharktide-lightning.hf.space/ai-shield/detect-phishing",
+       "https://api.inferenceport.ai/ai-shield/detect-phishing",
        headers={"Authorization": "Bearer YOUR_TOKEN"},
        json={
            "content": "Your account has been compromised. Reset password here: http://evil.example.com",

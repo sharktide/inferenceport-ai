@@ -10,7 +10,7 @@ Base URL
 
 .. code-block:: text
 
-   https://sharktide-lightning.hf.space/v1
+   https://api.inferenceport.ai/v1
 
 Authentication
 --------------
@@ -20,7 +20,7 @@ All requests require an ``Authorization: Bearer`` header.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/v1/me \
+   curl https://api.inferenceport.ai/v1/me \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 Account and config
@@ -37,7 +37,7 @@ Returns the public dashboard configuration used by the web console.
      "dashboard": {
        "appName": "InferencePort AI",
        "homeUrl": "https://inference.js.org",
-       "apiBaseUrl": "https://sharktide-lightning.hf.space",
+       "apiBaseUrl": "https://api.inferenceport.ai",
        "supportEmail": "inferenceportai@gmail.com"
      },
      "supabase": {
@@ -99,7 +99,7 @@ Returns the latest credit ledger entries.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/v1/credits/ledger?limit=50 \
+   curl https://api.inferenceport.ai/v1/credits/ledger?limit=50 \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 Query parameters:
@@ -175,7 +175,7 @@ Creates a new API key.
 
 .. code-block:: bash
 
-   curl -X POST https://sharktide-lightning.hf.space/v1/lightning-api-keys \
+   curl -X POST https://api.inferenceport.ai/v1/lightning-api-keys \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -205,7 +205,7 @@ Revokes an API key immediately.
 
 .. code-block:: bash
 
-   curl -X DELETE https://sharktide-lightning.hf.space/v1/lightning-api-keys/uuid-here \
+   curl -X DELETE https://api.inferenceport.ai/v1/lightning-api-keys/uuid-here \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 Chat completions
@@ -219,7 +219,7 @@ generating and charges credits based on actual token usage.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/v1/chat/completions \
+   curl https://api.inferenceport.ai/v1/chat/completions \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -277,7 +277,7 @@ Credit-metered image generation. Charges per image from your wallet.
 
 .. code-block:: bash
 
-   curl -X POST https://sharktide-lightning.hf.space/v1/images/generations \
+   curl -X POST https://api.inferenceport.ai/v1/images/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -328,7 +328,7 @@ Credit-metered video generation. Charges per second of video from your wallet.
 
 .. code-block:: bash
 
-   curl -X POST https://sharktide-lightning.hf.space/v1/videos/generations \
+   curl -X POST https://api.inferenceport.ai/v1/videos/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -373,7 +373,7 @@ your wallet.
 
 .. code-block:: bash
 
-   curl -X POST https://sharktide-lightning.hf.space/v1/audio/generations \
+   curl -X POST https://api.inferenceport.ai/v1/audio/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -429,7 +429,7 @@ or ``200 OK`` in sync mode.
 .. code-block:: bash
 
    # Async (recommended)
-   curl -X POST https://sharktide-lightning.hf.space/v1/3d/generations \
+   curl -X POST https://api.inferenceport.ai/v1/3d/generations \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -438,7 +438,7 @@ or ``200 OK`` in sync mode.
      }'
 
    # Legacy sync
-   curl -X POST "https://sharktide-lightning.hf.space/v1/3d/generations?sync=true" \
+   curl -X POST "https://api.inferenceport.ai/v1/3d/generations?sync=true" \
      -H "Authorization: Bearer YOUR_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -536,7 +536,7 @@ running and HTTP 200 once it has completed or failed.
 
 .. code-block:: bash
 
-   curl https://sharktide-lightning.hf.space/v1/3d/jobs/a3f1c2e4b5d6... \
+   curl https://api.inferenceport.ai/v1/3d/jobs/a3f1c2e4b5d6... \
      -H "Authorization: Bearer YOUR_TOKEN"
 
 Possible ``status`` values:
@@ -610,7 +610,7 @@ Response on failure (HTTP 200):
    import base64, time, httpx
 
    TOKEN = "YOUR_TOKEN"
-   BASE  = "https://sharktide-lightning.hf.space/v1"
+   BASE  = "https://api.inferenceport.ai/v1"
    HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
    # 1. Submit
