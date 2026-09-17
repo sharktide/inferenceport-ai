@@ -48,8 +48,13 @@ function setupNavbar(nav: HTMLElement) {
     // ~8px tall and can be hard to reach (especially on macOS under the title
     // bar), so also expand whenever the cursor enters the top few rows of pixels.
     const HOVER_ZONE_HEIGHT = 48;
+    let wasInHoverZone = false;
     window.addEventListener('mousemove', (e) => {
-        if (e.clientY <= HOVER_ZONE_HEIGHT) expand();
+        const isInHoverZone = e.clientY <= HOVER_ZONE_HEIGHT;
+        if (isInHoverZone && (!wasInHoverZone || nav.classList.contains('collapsed'))) {
+            expand();
+        }
+        wasInHoverZone = isInHoverZone;
     });
 }
 
