@@ -1,21 +1,51 @@
 /*
 Copyright 2025 Rihaan Meher
 */
+/* The nav stays in the page flow (sticky) so expanding it pushes the content
+   below it down. The only layout property we animate is `height` (0 -> auto
+   via interpolate-size), which is the cheapest possible in-flow height
+   animation: it never animates padding/border/max-height, does not over-shoot
+   like max-height, and the interior (.nav-inner) is laid out once and clipped
+   by overflow:hidden instead of being re-flowed on every frame. */
+:root,
 nav {
+  interpolate-size: allow-keywords;
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  background: var(--bg-light);
+  border-bottom: 1px solid var(--secondary-color);
+  overflow: hidden;
+  /* Collapsed visually by default: zero content height, min 8px strip. */
+  height: 0;
+  min-height: 8px;
+  transition: height 300ms cubic-bezier(0.33, 1, 0.68, 1),
+    border-color 220ms ease;
+}
+
+/* Expanded state (default when not collapsed) */
+nav:not(.collapsed) {
+  height: auto;
+  border-bottom-color: var(--secondary-color);
+}
+
+/* Collapsed state applied by JS */
+nav.collapsed {
+  border-bottom-color: transparent;
+}
+
+/* All the nav content + its padding lives here; it never changes size, so
+   it only ever has to be laid out once. */
+.nav-inner {
   display: flex;
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
-  padding: 15px 40px;
-  background: var(--bg-light);
-  border-bottom: 1px solid var(--secondary-color);
-  position: sticky;
-  top: 0;
-  z-index: 999;
+  padding: 12px 40px;
   align-items: center;
-  overflow: hidden;
-  max-height: 8px; /* start collapsed visually */
-  transition: max-height 280ms ease, padding 280ms ease, border-color 280ms ease;
 }
 
 .logo {
@@ -24,40 +54,30 @@ nav {
   color: var(--blue);
 }
 
-/* Collapsed state applied by JS */
-nav.collapsed {
-  max-height: 8px;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  border-bottom-color: transparent;
-}
-
-/* Expanded state (default when not collapsed) */
-nav:not(.collapsed) {
-  max-height: 140px;
-  padding: 12px 40px;
-  border-bottom-color: var(--secondary-color);
-}
-
-/* Smoothly hide/show inner elements */
-.logo,
-.nav-links {
-  transition: opacity 220ms ease, transform 220ms ease;
-  will-change: opacity, transform;
-}
-
+/* Keep interior elements from being interacted with while collapsed */
 nav.collapsed .logo,
 nav.collapsed .nav-links {
-  opacity: 0;
-  transform: translateY(-6px);
   pointer-events: none;
 }
 
-nav:not(.collapsed) .logo,
-nav:not(.collapsed) .nav-links {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
+@media (prefers-reduced-motion: reduce) {
+  nav {
+    transition: none;
+  }
+}
+
+/* Fallback for engines without interpolate-size support: animate max-height
+   instead (less optimal, but still smooth). */
+@supports not (interpolate-size: allow-keywords) {
+  nav {
+    height: auto;
+    max-height: 8px;
+    transition: max-height 300ms cubic-bezier(0.33, 1, 0.68, 1),
+      border-color 220ms ease;
+  }
+  nav:not(.collapsed) {
+    max-height: 140px;
+  }
 }
 
 .nav-links {
@@ -221,21 +241,36 @@ nav:not(.collapsed) .nav-links {
 }
 
 @media (max-width: 768px) {
-  nav {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  /* mobile: don't use collapsed small-line behavior */
-  nav {
+  /* mobile: fully expanded sticky nav, no collapse behavior */
+  nav,
+  nav.collapsed,
+  nav:not(.collapsed) {
+    height: auto;
+    min-height: 0;
     max-height: none;
-    padding: 15px 20px;
+    transition: none;
   }
   nav.collapsed {
-    padding-top: 15px;
-    padding-bottom: 15px;
     border-bottom-color: var(--secondary-color);
   }
+
+  .nav-inner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 15px 20px;
+  }
+
+  /* mobile: keep inner content fully visible even with the class applied */
+  nav.collapsed .logo,
+  nav.collapsed .nav-links {
+    pointer-events: auto;
+  }
+
+  nav.collapsed #user-indicator {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
   .nav-links {
     display: none;
     flex-direction: column;

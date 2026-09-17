@@ -100,6 +100,7 @@ export class RootNavbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
+                <div class="nav-inner">
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="renderer/chat.html">Chat</a></li>
@@ -110,6 +111,7 @@ export class RootNavbar extends NavbarBase {
                     <li><a href="settings.html">Settings</a></li>
                 </ul>
                 ${userIndicatorMarkup}
+                </div>
             </nav>
         `;
 
@@ -124,6 +126,7 @@ export class Type1Navbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
+                <div class="nav-inner">
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="chat.html">Chat</a></li>
@@ -134,6 +137,7 @@ export class Type1Navbar extends NavbarBase {
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
                 ${userIndicatorMarkup}
+                </div>
             </nav>
         `;
 
@@ -148,6 +152,7 @@ export class MarketplaceNavbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
+                <div class="nav-inner">
                 <div class="logo">⚡InferencePort AI</div>
                 <ul class="nav-links">
                     <li><a href="../renderer/chat.html">Chat</a></li>
@@ -158,6 +163,7 @@ export class MarketplaceNavbar extends NavbarBase {
                     <li><a href="../settings.html">Settings</a></li>
                 </ul>
                 ${userIndicatorMarkup}
+                </div>
             </nav>
         `;
 
