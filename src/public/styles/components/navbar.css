@@ -72,6 +72,8 @@ nav.collapsed .nav-links {
   nav {
     height: auto;
     max-height: 8px;
+    transition: max-height 300ms cubic-bezier(0.33, 1, 0.68, 1),
+      border-color 220ms ease;
   }
   nav:not(.collapsed) {
     max-height: 140px;
@@ -262,6 +264,11 @@ nav.collapsed .nav-links {
   nav.collapsed .logo,
   nav.collapsed .nav-links {
     pointer-events: auto;
+  }
+
+  nav.collapsed #user-indicator {
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   .nav-links {
