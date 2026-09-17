@@ -27,17 +27,29 @@ function setupNavbar(nav: HTMLElement) {
 	    observer.observe(document.body, { childList: true, subtree: true });
 	}
 
-    nav.addEventListener('mouseenter', () => {
+    const expand = () => {
         clearTimeout(hideTimer);
         nav.classList.remove('collapsed');
         setAuthVisibility();
-    });
+    };
 
-    nav.addEventListener('mouseleave', () => {
+    const collapse = (delay = 1200) => {
+        clearTimeout(hideTimer);
         hideTimer = window.setTimeout(() => {
             nav.classList.add('collapsed');
             setAuthVisibility();
-        }, 1200);
+        }, delay);
+    };
+
+    nav.addEventListener('mouseenter', expand);
+    nav.addEventListener('mouseleave', () => collapse());
+
+    // Generous hot zone at the top of the viewport: the collapsed strip is only
+    // ~8px tall and can be hard to reach (especially on macOS under the title
+    // bar), so also expand whenever the cursor enters the top few rows of pixels.
+    const HOVER_ZONE_HEIGHT = 48;
+    window.addEventListener('mousemove', (e) => {
+        if (e.clientY <= HOVER_ZONE_HEIGHT) expand();
     });
 }
 
