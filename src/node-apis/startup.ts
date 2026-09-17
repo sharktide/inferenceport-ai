@@ -128,7 +128,6 @@ function setOpenAtLogin(enabled: boolean): void {
 		if (app.isPackaged) {
 			app.setLoginItemSettings({
 				openAtLogin: enabled,
-				openAsHidden: true,
 				args: ["--background-server"],
 			});
 		} else {
@@ -215,7 +214,6 @@ app.whenReady().then(() => {
 	if (login.openAtLogin) {
 		app.setLoginItemSettings({
 			openAtLogin: true,
-			openAsHidden: true,
 			args: ["--background-server"],
 		});
 	}
