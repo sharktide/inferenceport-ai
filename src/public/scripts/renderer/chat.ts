@@ -17,6 +17,7 @@ limitations under the License.
 //@ts-nocheck
 
 import { showNotification } from "../helper/notification.js";
+import { openSignInRequiredModal } from "../helper/signInRequired.js";
 import {
 	BILLING_PORTAL_URL,
 	buildUpgradePlanCards,
@@ -4710,6 +4711,17 @@ form.addEventListener("submit", async (e) => {
 		localStorage.getItem("host_select") ||
 		"local";
 	let model = modelSelect.value;
+	if (
+		!currentAuthSession?.isAuthenticated &&
+		(lightningEnabled || hostChoice.startsWith("remote:"))
+	) {
+		input.value = prompt;
+		typingBar.classList.remove("empty");
+		updateTextareaState();
+		textarea.focus();
+		openSignInRequiredModal();
+		return;
+	}
 	if (lightningEnabled) {
 		hostChoice = LIGHTNING_CLIENT_URL;
 		clientUrl = LIGHTNING_CLIENT_URL;

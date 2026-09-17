@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 import { MediaDB } from './db.js';
+import { openSignInRequiredModal } from '../helper/signInRequired.js';
 
 const mediaDB = new MediaDB();
 
@@ -674,6 +675,18 @@ previewClearBtn?.addEventListener("click", () => {
 	resetPreview();
 	setStatus("Preview cleared.");
 });
+
+async function enforceSignInRequired(): Promise<void> {
+	try {
+		const { session } = await window.auth.getSession();
+		if (session?.isAuthenticated) return;
+		openSignInRequiredModal();
+	} catch {
+		openSignInRequiredModal();
+	}
+}
+
+void enforceSignInRequired();
 
 window.ollama.onToolCall((call) => {
 	if (!call || call.id !== activeToolCallId) return;
