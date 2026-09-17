@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 import { MediaDB } from './db.js';
+import { openSignInRequiredModal } from '../helper/signInRequired.js';
 
 const mediaDB = new MediaDB();
 
@@ -512,6 +513,16 @@ async function runImageGeneration(options: { prompt: string; mode: ImageMode; im
 		return;
 	}
 
+	if (!(await requireSignedIn())) {
+		setStatus("Sign in required to generate media.", true);
+		return;
+	}
+
+	if (isGenerating) {
+		setStatus("Generation already in progress.", true);
+		return;
+	}
+
 	setGeneratingState(true);
 	setStatus("Starting image generation...");
 	setPreviewTitle("Generating image...");
@@ -555,6 +566,16 @@ async function runVideoGeneration(options: {
 		return;
 	}
 
+	if (!(await requireSignedIn())) {
+		setStatus("Sign in required to generate media.", true);
+		return;
+	}
+
+	if (isGenerating) {
+		setStatus("Generation already in progress.", true);
+		return;
+	}
+
 	setGeneratingState(true);
 	setStatus("Starting video generation...");
 	setPreviewTitle("Generating video...");
@@ -586,6 +607,16 @@ async function runVideoGeneration(options: {
 async function runAudioGeneration(prompt: string): Promise<void> {
 	if (!prompt.trim()) {
 		setStatus("Prompt is required.", true);
+		return;
+	}
+
+	if (isGenerating) {
+		setStatus("Generation already in progress.", true);
+		return;
+	}
+
+	if (!(await requireSignedIn())) {
+		setStatus("Sign in required to generate media.", true);
 		return;
 	}
 
@@ -674,6 +705,29 @@ previewClearBtn?.addEventListener("click", () => {
 	resetPreview();
 	setStatus("Preview cleared.");
 });
+
+async function enforceSignInRequired(): Promise<void> {
+	try {
+		const { session } = await window.auth.getSession();
+		if (session?.isAuthenticated) return;
+		openSignInRequiredModal();
+	} catch {
+		openSignInRequiredModal();
+	}
+}
+
+async function requireSignedIn(): Promise<boolean> {
+	try {
+		const { session } = await window.auth.getSession();
+		if (session?.isAuthenticated) return true;
+	} catch {
+		// fall through to the sign-in prompt
+	}
+	openSignInRequiredModal();
+	return false;
+}
+
+void enforceSignInRequired();
 
 window.ollama.onToolCall((call) => {
 	if (!call || call.id !== activeToolCallId) return;
