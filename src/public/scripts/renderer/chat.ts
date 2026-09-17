@@ -910,6 +910,7 @@ let currentPlanKey: PlanKey = "free";
 let currentPlanName = PLAN_DISPLAY_NAMES.free;
 let currentPlanPaid = false;
 let currentAuthSession: AuthSessionView | null = null;
+let authSessionResolved = false;
 let lastTierLookupError: string | null = null;
 let subscriptionTiers: AuthSubscriptionTier[] = [];
 let currentTierConfig: AuthTierConfig | null = null;
@@ -1240,6 +1241,22 @@ function isCloudRequest(model: string, clientUrl?: string): boolean {
 		model === LIGHTNING_MODEL_VALUE ||
 		clientUrl === LIGHTNING_CLIENT_URL
 	);
+}
+
+async function shouldBlockCloudSubmission(): Promise<boolean> {
+	if (currentAuthSession?.isAuthenticated) return false;
+	if (authSessionResolved) return true;
+	try {
+		const auth = await window.auth.getSession();
+		currentAuthSession = auth?.session ?? null;
+		authSessionResolved = true;
+		return !currentAuthSession?.isAuthenticated;
+	} catch {
+		// Could not resolve the session (e.g., offline/airgapped). Only a
+		// confirmed unauthenticated session should block cloud use, so do not
+		// lock the user out here.
+		return false;
+	}
 }
 
 function getTierPrice(name: string): string | null {
@@ -2067,6 +2084,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	window.auth.onAuthStateChange((session) => {
 		currentAuthSession = session;
+		authSessionResolved = true;
 		updateMediaLibraryVisibility();
 		loadUsageStateForUser(session?.user?.id);
 		void refreshSubscriptionData(true);
@@ -2212,6 +2230,7 @@ async function loadOptions() {
 		// ── Auth + subscription (depends on nothing above) ─────────────────
 		const auth = await window.auth.getSession();
 		currentAuthSession = auth?.session ?? null;
+		authSessionResolved = true;
 		updateMediaLibraryVisibility();
 		loadUsageStateForUser(currentAuthSession?.user?.id);
 		// Kick off subscription refresh without blocking the progress bar
@@ -4711,16 +4730,15 @@ form.addEventListener("submit", async (e) => {
 		localStorage.getItem("host_select") ||
 		"local";
 	let model = modelSelect.value;
-	if (
-		!currentAuthSession?.isAuthenticated &&
-		(lightningEnabled || hostChoice.startsWith("remote:"))
-	) {
-		input.value = prompt;
-		typingBar.classList.remove("empty");
-		updateTextareaState();
-		textarea.focus();
-		openSignInRequiredModal();
-		return;
+	if (lightningEnabled || hostChoice.startsWith("remote:")) {
+		if (await shouldBlockCloudSubmission()) {
+			input.value = prompt;
+			typingBar.classList.remove("empty");
+			updateTextareaState();
+			textarea.focus();
+			openSignInRequiredModal();
+			return;
+		}
 	}
 	if (lightningEnabled) {
 		hostChoice = LIGHTNING_CLIENT_URL;
