@@ -30,7 +30,7 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.7.2",
+    "@napi-rs/cli": "^3.8.6",
     "@types/dompurify": "^3.2.0",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^26.1.2",
