@@ -1,5 +1,6 @@
-function setupNavbar(nav: HTMLElement) {
+function setupNavbar(nav: HTMLElement): () => void {
     let hideTimer: number | undefined;
+    let wasInHoverZone = false;
 
     nav.classList.add('collapsed');
 
@@ -27,18 +28,46 @@ function setupNavbar(nav: HTMLElement) {
 	    observer.observe(document.body, { childList: true, subtree: true });
 	}
 
-    nav.addEventListener('mouseenter', () => {
+    const expand = () => {
         clearTimeout(hideTimer);
         nav.classList.remove('collapsed');
         setAuthVisibility();
-    });
+    };
 
-    nav.addEventListener('mouseleave', () => {
+    const collapse = (delay = 1200) => {
+        clearTimeout(hideTimer);
         hideTimer = window.setTimeout(() => {
             nav.classList.add('collapsed');
             setAuthVisibility();
-        }, 1200);
-    });
+        }, delay);
+    };
+
+    const onMouseEnter = () => expand();
+    const onMouseLeave = () => collapse();
+
+    nav.addEventListener('mouseenter', onMouseEnter);
+    nav.addEventListener('mouseleave', onMouseLeave);
+
+    // Generous hot zone at the top of the viewport: the collapsed strip is only
+    // ~8px tall and can be hard to reach (especially on macOS under the title
+    // bar), so also expand whenever the cursor enters the top few rows of pixels.
+    const HOVER_ZONE_HEIGHT = 48;
+    const onMouseMove = (e: MouseEvent) => {
+        const isInHoverZone = e.clientY <= HOVER_ZONE_HEIGHT;
+        if (isInHoverZone && (!wasInHoverZone || nav.classList.contains('collapsed'))) {
+            expand();
+        }
+        wasInHoverZone = isInHoverZone;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+
+    return () => {
+        clearTimeout(hideTimer);
+        observer.disconnect();
+        nav.removeEventListener('mouseenter', onMouseEnter);
+        nav.removeEventListener('mouseleave', onMouseLeave);
+        window.removeEventListener('mousemove', onMouseMove);
+    };
 }
 
 const userIndicatorMarkup = `
@@ -54,7 +83,20 @@ const userIndicatorMarkup = `
     </div>
 `;
 
-export class RootNavbar extends HTMLElement {
+class NavbarBase extends HTMLElement {
+    private disposeNav: (() => void) | undefined;
+
+    disconnectNav() {
+        this.disposeNav?.();
+        this.disposeNav = undefined;
+    }
+
+    setupNav() {
+        const nav = this.querySelector('nav');
+        this.disposeNav = nav ? setupNavbar(nav) : undefined;
+    }
+}
+export class RootNavbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
@@ -71,11 +113,14 @@ export class RootNavbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
+        this.setupNav();
+    }
+
+    disconnectedCallback() {
+        this.disconnectNav();
     }
 }
-export class Type1Navbar extends HTMLElement {
+export class Type1Navbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
@@ -92,11 +137,14 @@ export class Type1Navbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
+        this.setupNav();
+    }
+
+    disconnectedCallback() {
+        this.disconnectNav();
     }
 }
-export class MarketplaceNavbar extends HTMLElement {
+export class MarketplaceNavbar extends NavbarBase {
     connectedCallback() {
         this.innerHTML = `
             <nav>
@@ -113,8 +161,11 @@ export class MarketplaceNavbar extends HTMLElement {
             </nav>
         `;
 
-        const nav = this.querySelector('nav');
-        if (nav) setupNavbar(nav);
+        this.setupNav();
+    }
+
+    disconnectedCallback() {
+        this.disconnectNav();
     }
 }
 customElements.define("root-navbar", RootNavbar);
