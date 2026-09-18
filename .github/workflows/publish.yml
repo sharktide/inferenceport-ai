@@ -34,9 +34,9 @@ jobs:
 
       # 1. Import using your UNCHANGED original secret
       # 1. Decode, upgrade, and import using your UNCHANGED original secret
+      # 1. Decode, upgrade using the legacy provider, and import
       - name: Import Apple Certificates
         run: |
-          # Create paths
           mkdir -p "$RUNNER_TEMP/certs"
           OLD_P12="$RUNNER_TEMP/certs/old_cert.p12"
           NEW_P12="$RUNNER_TEMP/certs/modern_cert.p12"
@@ -45,12 +45,13 @@ jobs:
           # Decode your long-standing base64 secret into a temporary file
           echo "${{ secrets.CSC_LINK }}" | base64 --decode > "$OLD_P12"
           
-          # Convert the old p12 format into a modern crypto format that macOS 27 accepts
-          # We use the existing password to unpack it, and keep the exact same password for the new one
-          openssl pkcs12 -in "$OLD_P12" -out "$RUNNER_TEMP/certs/temp.pem" -nodes -password pass:"${{ secrets.CSC_KEY_PASSWORD }}"
+          # ADDED -legacy FLAG: Tells OpenSSL 3 to load the legacy engine to decrypt RC2-40-CBC
+          openssl pkcs12 -in "$OLD_P12" -out "$RUNNER_TEMP/certs/temp.pem" -nodes -password pass:"${{ secrets.CSC_KEY_PASSWORD }}" -legacy
+          
+          # Export to a modern P12 container format that macOS 27 natively accepts
           openssl pkcs12 -export -in "$RUNNER_TEMP/certs/temp.pem" -out "$NEW_P12" -password pass:"${{ secrets.CSC_KEY_PASSWORD }}"
           
-          # Create the keychain manually since we are bypassing the apple-action plugin
+          # Create and unlock the keychain manually
           security create-keychain -p "temporary-actions-password" "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "temporary-actions-password" "$KEYCHAIN_PATH"
@@ -58,9 +59,8 @@ jobs:
           # Import the newly upgraded modern p12 file
           security import "$NEW_P12" -k "$KEYCHAIN_PATH" -P "${{ secrets.CSC_KEY_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/productbuild
           
-          # Clean up temporary raw pem/p12 files for security
+          # Clean up temporary raw files
           rm -rf "$RUNNER_TEMP/certs"
-
 
       # 2. Configure partitions natively on macOS using the action's master password
       - name: Configure macOS Keychain Permissions
