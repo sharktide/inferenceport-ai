@@ -31,25 +31,23 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 24
-
       - name: Import Apple Certificates
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.CSC_LINK }}
           p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
           create-keychain: true
-          keychain-name: "electron_build_keychain"
+          keychain: "electron_build"
           keychain-password: "temporary-actions-password"
 
       - name: Configure macOS Keychain Permissions
         run: |
-          # The action dumps the local file into the root of your runner directory
-          KEYCHAIN_PATH="${{ github.workspace }}/electron_build_keychain.keychain-db"
+          KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build-db"
           
           # Prevent it from auto-locking mid-build
           security set-keychain-settings -u "$KEYCHAIN_PATH"
           
-          # Force macOS 15 to actively search inside this custom workspace database
+          # Force macOS 15+ to actively search inside this custom workspace database
           CURRENT_KEYCHAINS=$(security list-keychains -d user | sed 's/"//g')
           security list-keychains -d user -s "$KEYCHAIN_PATH" $CURRENT_KEYCHAINS
           
@@ -63,7 +61,7 @@ jobs:
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
         env:
-          CSC_KEYCHAIN: "${{ github.workspace }}/electron_build_keychain.keychain-db"
+          CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build-db"
           CSC_KEY_PASSWORD: "temporary-actions-password"
         run: npm run publish
   
