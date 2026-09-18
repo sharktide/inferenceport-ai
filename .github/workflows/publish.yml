@@ -13,17 +13,16 @@ permissions:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-26
     env:
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
-      # Keep these for electron-builder to know WHAT identities to look for
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
-      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.TEAM_ID }}
+      CSC_INSTALLER_LINK: ${{ secrets.CSC_INSTALLER_LINK }}
+      CSC_INSTALLER_KEY_PASSWORD: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -33,40 +32,13 @@ jobs:
         with:
           node-version: 24
 
-      # STEP 1: Import BOTH certificates into our manual, stable keychain
-      - name: Import Apple Certificates (App & Installer)
-        uses: apple-actions/import-codesign-certs@v3
-        with:
-          p12-file-base64: ${{ secrets.CSC_LINK }}
-          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
-          p12-installer-file-base64: ${{ secrets.CSC_INSTALLER_LINK }}
-          p12-installer-password: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
-          create-keychain: true
-          keychain: "electron_build"
-          keychain-password: ${{ secrets.CSC_KEY_PASSWORD }}
-
-      # STEP 2: Configure native macOS permissions using the set password
-      - name: Configure macOS Keychain Permissions
-        run: |
-          KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build.keychain-db"
-          
-          # Prevent auto-locking
-          security set-keychain-settings -u "$KEYCHAIN_PATH"
-          
-          # Manually apply partition rules before electron-builder fires
-          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.CSC_KEY_PASSWORD }}" "$KEYCHAIN_PATH"
-
       - name: Install dependencies
         working-directory: src
         run: npm ci && npm install -g typescript
-
-      # STEP 3: Route BOTH env profiles to reuse our custom keychain file
+      - name: dbg
+        run: python3 sk.py
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
-        env:
-          # This forces electron-builder to bypass its broken temporary loops for BOTH certificate types
-          CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build.keychain-db"
-          CSC_INSTALLER_KEYCHAIN: "$HOME/Library/Keychains/electron_build.keychain-db"
         run: npm run publish
 
       - name: Verify macOS identity
