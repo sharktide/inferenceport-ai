@@ -32,12 +32,34 @@ jobs:
         with:
           node-version: 24
 
+      - name: Import Apple Certificates
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.CSC_LINK }}
+          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+          create-keychain: true
+          keychain: "electron_build"
+          keychain-password: "temporary-actions-password"
+
+      - name: Configure macOS Keychain Permissions
+        run: |
+          KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build.keychain-db"
+          
+          # Prevent auto-locking
+          security set-keychain-settings -u "$KEYCHAIN_PATH"
+          
+          # Manually apply partition rules before electron-builder fires
+          security set-key-partition-list -S apple-tool:,apple: -s -k "temporary-actions-password" "$KEYCHAIN_PATH"
+
       - name: Install dependencies
         working-directory: src
         run: npm ci && npm install -g typescript
 
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
+        env:
+          CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build.keychain-db"
+          CSC_KEY_PASSWORD: "temporary-actions-password"
         run: npm run publish
 
       - name: Verify macOS identity
