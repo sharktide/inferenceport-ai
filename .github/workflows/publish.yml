@@ -32,9 +32,6 @@ jobs:
         with:
           node-version: 24
 
-      # 1. Import using your UNCHANGED original secret
-      # 1. Decode, upgrade, and import using your UNCHANGED original secret
-      # 1. Decode, upgrade using the legacy provider, and import
       - name: Import Apple Certificates
         run: |
           mkdir -p "$RUNNER_TEMP/certs"
@@ -42,21 +39,23 @@ jobs:
           NEW_P12="$RUNNER_TEMP/certs/modern_cert.p12"
           KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build.keychain-db"
           
-          # Decode your long-standing base64 secret into a temporary file
+          # Decode your long-standing base64 secret
           echo "${{ secrets.CSC_LINK }}" | base64 --decode > "$OLD_P12"
           
-          # ADDED -legacy FLAG: Tells OpenSSL 3 to load the legacy engine to decrypt RC2-40-CBC
+          # 1. Decrypt using the legacy provider (clears RC2-40-CBC barrier)
           openssl pkcs12 -in "$OLD_P12" -out "$RUNNER_TEMP/certs/temp.pem" -nodes -password pass:"${{ secrets.CSC_KEY_PASSWORD }}" -legacy
           
-          # Export to a modern P12 container format that macOS 27 natively accepts
-          openssl pkcs12 -export -in "$RUNNER_TEMP/certs/temp.pem" -out "$NEW_P12" -password pass:"${{ secrets.CSC_KEY_PASSWORD }}"
+          # 2. Export using TripleDES/SHA1 ciphers (the exact format macOS /usr/bin/security requires)
+          openssl pkcs12 -export -in "$RUNNER_TEMP/certs/temp.pem" -out "$NEW_P12" \
+            -password pass:"${{ secrets.CSC_KEY_PASSWORD }}" \
+            -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
           
           # Create and unlock the keychain manually
           security create-keychain -p "temporary-actions-password" "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "temporary-actions-password" "$KEYCHAIN_PATH"
           
-          # Import the newly upgraded modern p12 file
+          # Import the newly targeted p12 file
           security import "$NEW_P12" -k "$KEYCHAIN_PATH" -P "${{ secrets.CSC_KEY_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/productbuild
           
           # Clean up temporary raw files
