@@ -2,6 +2,7 @@ import si from "systeminformation";
 import { app } from "electron";
 import fs from "fs";
 import path from "path";
+import { execFile } from "child_process";
 import { getSession } from "../auth.js";
 import { defaultSecure52458Fetch } from "./proxy52458Client.js";
 
@@ -13,15 +14,21 @@ export let globalmem: Systeminformation.MemData | undefined;
 export let globalgpu: Systeminformation.GraphicsData | undefined;
 
 let hardwareInfoPromise: Promise<void> | null = null;
+let gpuDetectionFailed = false;
 
 export async function initHardwareInfo(): Promise<void> {
 	if (!hardwareInfoPromise) {
 		hardwareInfoPromise = (async () => {
+			const gpuResult = await si.graphics().catch((err) => {
+				console.warn("GPU detection failed:", err?.message ?? err);
+				gpuDetectionFailed = true;
+				return undefined;
+			});
 			[globalcpu, globalmem, globalflags, globalgpu] = await Promise.all([
 				si.cpu(),
 				si.mem(),
 				si.cpuFlags(),
-				si.graphics().catch(() => undefined),
+				Promise.resolve(gpuResult),
 			]);
 		})();
 	}
@@ -108,6 +115,65 @@ function describeSpeed(paramsB: number, score: number): string {
 	return "run, but expect slow generations on this CPU.";
 }
 
+type PerformanceTier = "excellent" | "good" | "fair" | "poor" | "critical";
+
+interface PerformanceTierInfo {
+	tier: PerformanceTier;
+	stars: number;
+	label: string;
+}
+
+function getPerformanceTier(
+	paramsB: number,
+	score: number,
+	gpuTflops: number | null,
+	dedicatedVramGB: number,
+	estGB: number,
+): PerformanceTierInfo {
+	// GPU-heavy scoring: if model fits in VRAM, GPU TFLOPS dominate speed
+	if (dedicatedVramGB > 0 && estGB <= dedicatedVramGB * 0.95) {
+		if (gpuTflops !== null) {
+			if (gpuTflops >= 40) return { tier: "excellent", stars: 5, label: "Excellent" };
+			if (gpuTflops >= 25) return { tier: "good", stars: 4, label: "Good" };
+			if (gpuTflops >= 12) return { tier: "fair", stars: 3, label: "Fair" };
+			return { tier: "poor", stars: 2, label: "Slow" };
+		}
+		// GPU present but unknown TFLOPS - assume decent
+		return { tier: "good", stars: 4, label: "Good" };
+	}
+
+	// CPU-bound scoring (no GPU or model too large for VRAM)
+	let baseScore = score;
+
+	// Apply GPU penalty: older/slower GPUs get penalized when partially offloaded
+	if (dedicatedVramGB > 0 && gpuTflops !== null) {
+		if (gpuTflops < 5) baseScore -= 2;
+		else if (gpuTflops < 10) baseScore -= 1;
+	}
+
+	if (paramsB <= 1) return { tier: "excellent", stars: 5, label: "Excellent" };
+	if (paramsB <= 3) {
+		if (baseScore >= 5) return { tier: "excellent", stars: 5, label: "Excellent" };
+		if (baseScore >= 3) return { tier: "good", stars: 4, label: "Good" };
+		return { tier: "fair", stars: 3, label: "Fair" };
+	}
+	if (paramsB <= 8) {
+		if (baseScore >= 7) return { tier: "good", stars: 4, label: "Good" };
+		if (baseScore >= 5) return { tier: "fair", stars: 3, label: "Fair" };
+		return { tier: "poor", stars: 2, label: "Slow" };
+	}
+	if (paramsB <= 14) {
+		if (baseScore >= 8) return { tier: "fair", stars: 3, label: "Fair" };
+		if (baseScore >= 6) return { tier: "poor", stars: 2, label: "Slow" };
+		return { tier: "critical", stars: 1, label: "Very Slow" };
+	}
+	if (paramsB <= 34) {
+		if (baseScore >= 10) return { tier: "poor", stars: 2, label: "Slow" };
+		return { tier: "critical", stars: 1, label: "Very Slow" };
+	}
+	return { tier: "critical", stars: 1, label: "Very Slow" };
+}
+
 // ---------------------------------------------------------------------------
 // GPU / acceleration detection
 // ---------------------------------------------------------------------------
@@ -128,8 +194,37 @@ interface GpuSummary {
 	label: string;
 	model: string;
 	vramGB: number | null;
+	vramFreeGB: number | null;
 	dedicated: boolean;
 }
+
+// Approximate FP32 TFLOPS for known consumer GPU models.
+// Used to estimate inference speed when VRAM capacity alone is insufficient.
+const GPU_TFLOPS_DB: Record<string, number> = {
+	// NVIDIA RTX 50-series
+	"rtx 5090": 105, "rtx 5080": 56, "rtx 5070 ti": 44, "rtx 5070": 36,
+	// NVIDIA RTX 40-series
+	"rtx 4090": 82.6, "rtx 4080 super": 55.3, "rtx 4080": 52.1,
+	"rtx 4070 ti super": 44.1, "rtx 4070 ti": 40.1, "rtx 4070 super": 35.5,
+	"rtx 4070": 29.1, "rtx 4060 ti": 22.1, "rtx 4060": 15.1,
+	// NVIDIA RTX 30-series
+	"rtx 3090 ti": 40, "rtx 3090": 35.6, "rtx 3080 ti": 34.1, "rtx 3080": 29.8,
+	"rtx 3070 ti": 21.8, "rtx 3070": 20.3, "rtx 3060 ti": 16.2, "rtx 3060": 12.7,
+	// NVIDIA RTX 20-series
+	"rtx 2080 ti": 13.4, "rtx 2080 super": 11.2, "rtx 2080": 10.1,
+	"rtx 2070 super": 9.1, "rtx 2070": 7.5, "rtx 2060 super": 7.2, "rtx 2060": 6.5,
+	// NVIDIA GTX 16-series
+	"gtx 1660 ti": 5.5, "gtx 1660 super": 5.2, "gtx 1660": 5.0,
+	// NVIDIA older
+	"gtx 1080 ti": 11.3, "gtx 1080": 8.9, "gtx 1070 ti": 8.1, "gtx 1070": 6.5,
+	"gtx 1060": 4.4,
+	// AMD Radeon RX 7000-series
+	"rx 7900 xtx": 61.4, "rx 7900 xt": 51.5, "rx 7900 gre": 38.5,
+	"rx 7800 xt": 37.2, "rx 7700 xt": 34.6, "rx 7600": 22.1,
+	// AMD Radeon RX 6000-series
+	"rx 6950 xt": 23.4, "rx 6900 xt": 23.0, "rx 6800 xt": 20.7, "rx 6800": 16.8,
+	"rx 6750 xt": 15.5, "rx 6700 xt": 13.3, "rx 6600 xt": 10.4, "rx 6600": 8.9,
+};
 
 const IGNORED_GPU =
 	/(microsoft basic|virtual|citrix|vmware|parallels|parsec|remote|oray|meta)/i;
@@ -174,6 +269,41 @@ function classifyGpuVendor(vendor: string, model: string): GpuVendor {
 	return "other";
 }
 
+function lookupGpuTflops(model: string): number | null {
+	const lower = model.toLowerCase().replace(/\s+/g, " ").trim();
+	for (const [key, tflops] of Object.entries(GPU_TFLOPS_DB)) {
+		if (lower.includes(key)) return tflops;
+	}
+	return null;
+}
+
+/**
+ * Try to query nvidia-smi for real-time free VRAM.
+ * Returns free VRAM in MB, or null if unavailable.
+ */
+function queryNvidiaSmiFreeVram(): Promise<number | null> {
+	return new Promise((resolve) => {
+		if (process.platform !== "win32" && process.platform !== "linux") {
+			resolve(null);
+			return;
+		}
+		const cmd = process.platform === "win32" ? "nvidia-smi" : "/usr/bin/nvidia-smi";
+		execFile(
+			cmd,
+			["--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+			{ timeout: 3000 },
+			(err, stdout) => {
+				if (err || !stdout) {
+					resolve(null);
+					return;
+				}
+				const val = parseInt(stdout.trim().split("\n")[0] ?? "", 10);
+				resolve(isFinite(val) && val > 0 ? val : null);
+			},
+		);
+	});
+}
+
 function summarizeGpus(): GpuSummary[] {
 	const controllers = globalgpu?.controllers ?? [];
 	const gpus: GpuSummary[] = [];
@@ -191,11 +321,21 @@ function summarizeGpus(): GpuSummary[] {
 		const dedicated =
 			vendor === "nvidia" || (vramGB !== null && vramGB >= 3);
 
+		// Use memoryFree if available for a more accurate usable-VRAM picture.
+		// memoryTotal is always the full capacity; memoryFree reflects what
+		// is actually available right now (excludes other apps' usage).
+		const freeHint = controller.memoryFree ?? null;
+		const vramFreeGB =
+			freeHint && freeHint > 0
+				? freeHint / 1024
+				: vramGB;
+
 		gpus.push({
 			vendor,
 			label: vendorRaw || model,
 			model,
 			vramGB,
+			vramFreeGB,
 			dedicated,
 		});
 	}
@@ -296,8 +436,8 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 	if (!globalgpu) {
 		try {
 			globalgpu = await si.graphics();
-		} catch {
-			// GPU detection is best-effort
+		} catch (err) {
+			gpuDetectionFailed = true;
 		}
 	}
 
@@ -319,34 +459,68 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 	const acceleratedGpu = pickAcceleratedGpu(backend, gpus);
 	const mismatch = describeAccelerationMismatch(backend, gpus);
 
+	// Look up GPU TFLOPS for performance scoring
+	const gpuTflops = acceleratedGpu
+		? lookupGpuTflops(acceleratedGpu.model)
+		: null;
+
+	// Try nvidia-smi for real-time free VRAM (best-effort, fast)
+	let effectiveVramGB = acceleratedGpu?.vramGB ?? null;
+	let effectiveVramFreeGB = acceleratedGpu?.vramFreeGB ?? null;
+	if (acceleratedGpu?.dedicated && acceleratedGpu.vendor === "nvidia") {
+		const freeVramMB = await queryNvidiaSmiFreeVram();
+		if (freeVramMB !== null) {
+			effectiveVramFreeGB = freeVramMB / 1024;
+		}
+	}
+
 	const base = {
 		modelSizeRaw,
 		modelSizeB: modelSize,
 		cpu: cpu?.brand ?? "Unknown",
 		cores: cpu?.cores ?? 0,
 		ramGB: formatMemoryGB(ramTotalGB),
+		ramAvailGB: formatMemoryGB(ramAvailGB),
 		avx2: hasAVX2,
 		avx512: hasAVX512,
 		gpu: acceleratedGpu ? describeGpu(acceleratedGpu) : null,
 		gpuVendor: acceleratedGpu ? acceleratedGpu.vendor : null,
-		vramGB: acceleratedGpu?.vramGB ?? null,
+		vramGB: effectiveVramGB,
+		vramFreeGB: effectiveVramFreeGB,
+		gpuTflops,
 		acceleration: backend,
+		gpuDetectionError: gpuDetectionFailed,
+		performance: null as PerformanceTierInfo | null,
 	};
 
 	if (!isFinite(modelSize) || modelSize <= 0) {
 		return {
 			...base,
-			warning: `ℹ️ Could not estimate the requirements for ${modelSizeRaw}. Check the model's size before downloading.`,
+			warning: `Could not estimate the requirements for ${modelSizeRaw}. Check the model's size before downloading.`,
 		};
 	}
 
 	const estGB = estimateModelMemoryGB(modelSize);
+
+	// Use free VRAM if available, fall back to total VRAM.
+	// total VRAM is always safe as an upper bound; free VRAM gives
+	// a more accurate picture when other apps are using the GPU.
 	const dedicatedVramGB =
-		acceleratedGpu?.dedicated && acceleratedGpu.vramGB
-			? acceleratedGpu.vramGB
-			: 0;
+		acceleratedGpu?.dedicated && effectiveVramFreeGB
+			? effectiveVramFreeGB
+			: acceleratedGpu?.dedicated && effectiveVramGB
+				? effectiveVramGB
+				: 0;
 	const usableTotalGB = ramTotalGB * 0.95 + dedicatedVramGB;
 	const usableNowGB = ramAvailGB + dedicatedVramGB;
+
+	const perfTier = getPerformanceTier(
+		modelSize,
+		score,
+		gpuTflops,
+		dedicatedVramGB,
+		estGB,
+	);
 
 	// Nothing can hold it, even by offloading to the GPU.
 	if (modelSize > 90 || estGB > usableTotalGB) {
@@ -356,8 +530,9 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 				: `${formatMemoryGB(ramTotalGB)} GB RAM`;
 		return {
 			...base,
+			performance: perfTier,
 			warning: joinWarning(
-				`🚫 ${modelSizeRaw} needs roughly ${formatMemoryGB(estGB)} GB of memory, but this PC only has ${capacity}. It will not fit. Try a smaller model.`,
+				`${modelSizeRaw} needs roughly ${formatMemoryGB(estGB)} GB of memory, but this PC only has ${capacity}. It will not fit. Try a smaller model.`,
 				mismatch,
 			),
 		};
@@ -365,10 +540,14 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 
 	// It fits entirely in the GPU's dedicated VRAM - the best case.
 	if (dedicatedVramGB > 0 && estGB <= dedicatedVramGB * 0.95) {
+		const tflopsNote = gpuTflops
+			? ` (~${gpuTflops} TFLOPS)`
+			: "";
 		return {
 			...base,
+			performance: perfTier,
 			warning: joinWarning(
-				`✅ ${modelSizeRaw} should fit entirely in your GPU (needs ~${formatMemoryGB(estGB)} GB; ~${formatMemoryGB(dedicatedVramGB)} GB VRAM). It should run fast.`,
+				`${modelSizeRaw} should fit entirely in your GPU (needs ~${formatMemoryGB(estGB)} GB; ~${formatMemoryGB(dedicatedVramGB)} GB VRAM)${tflopsNote}. It should run fast.`,
 				mismatch,
 			),
 		};
@@ -378,8 +557,9 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 	if (estGB > usableNowGB) {
 		return {
 			...base,
+			performance: perfTier,
 			warning: joinWarning(
-				`⚠️ ${modelSizeRaw} needs roughly ${formatMemoryGB(estGB)} GB, but only ${formatMemoryGB(usableNowGB)} GB is free right now. It may load very slowly or fail. Close other apps or use a smaller model.`,
+				`${modelSizeRaw} needs roughly ${formatMemoryGB(estGB)} GB, but only ${formatMemoryGB(usableNowGB)} GB is free right now. It may load very slowly or fail. Close other apps or use a smaller model.`,
 				mismatch,
 			),
 		};
@@ -387,10 +567,14 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 
 	// Bigger than VRAM: Ollama splits layers between GPU and RAM.
 	if (dedicatedVramGB > 0) {
+		const tflopsNote = gpuTflops
+			? ` (~${gpuTflops} TFLOPS)`
+			: "";
 		return {
 			...base,
+			performance: perfTier,
 			warning: joinWarning(
-				`✅ ${modelSizeRaw} should fit by offloading layers between your GPU (~${formatMemoryGB(dedicatedVramGB)} GB VRAM) and system RAM (needs ~${formatMemoryGB(estGB)} GB). Expect good performance, a little slower than running fully on the GPU.`,
+				`${modelSizeRaw} should fit by offloading layers between your GPU (~${formatMemoryGB(dedicatedVramGB)} GB VRAM)${tflopsNote} and system RAM (needs ~${formatMemoryGB(estGB)} GB). Expect good performance, a little slower than running fully on the GPU.`,
 				mismatch,
 			),
 		};
@@ -400,8 +584,9 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 	if (acceleratedGpu) {
 		return {
 			...base,
+			performance: perfTier,
 			warning: joinWarning(
-				`✅ ${modelSizeRaw} should fit in system memory (needs ~${formatMemoryGB(estGB)} GB; ${formatMemoryGB(ramAvailGB)} GB free) and will use GPU acceleration (${describeGpu(acceleratedGpu)}) for faster inference.`,
+				`${modelSizeRaw} should fit in system memory (needs ~${formatMemoryGB(estGB)} GB; ${formatMemoryGB(ramAvailGB)} GB free) and will use GPU acceleration (${describeGpu(acceleratedGpu)}) for faster inference.`,
 				mismatch,
 			),
 		};
@@ -410,8 +595,9 @@ export async function getHardwareRating(modelSizeRaw: string, clientUrl?: string
 	// CPU only.
 	return {
 		...base,
+		performance: perfTier,
 		warning: joinWarning(
-			`✅ ${modelSizeRaw} should fit in system memory (needs ~${formatMemoryGB(estGB)} GB; ${formatMemoryGB(ramAvailGB)} GB free). It will run on CPU and should ${describeSpeed(modelSize, score)}`,
+			`${modelSizeRaw} should fit in system memory (needs ~${formatMemoryGB(estGB)} GB; ${formatMemoryGB(ramAvailGB)} GB free). It will run on CPU and should ${describeSpeed(modelSize, score)}`,
 			mismatch,
 		),
 	};

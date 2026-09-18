@@ -30,7 +30,7 @@
 			}
 
 			.arrow::before {
-				content: "▸";
+				content: "\25B8";
 				display: inline-block;
 			}
 
@@ -45,6 +45,26 @@
 			}
 
 			#modal-performance-warning:empty {
+				display: none;
+			}
+
+			.modal-perf-stars {
+				margin: 8px 0 0;
+				display: flex;
+				align-items: center;
+				min-height: 22px;
+			}
+
+			.modal-perf-stars:empty {
+				display: none;
+			}
+
+			.modal-gpu-info {
+				margin: 2px 0 0;
+				min-height: 16px;
+			}
+
+			.modal-gpu-info:empty {
 				display: none;
 			}
 		</style>
@@ -79,7 +99,9 @@
 				<h2 id="modal-model-name"></h2>
 				<label for="modal-revision-select">Select revision:</label>
 				<select id="modal-revision-select"></select>
-				<p id="modal-performance-warning" class="modal-warning"></p>
+				<div id="modal-perf-stars" class="modal-perf-stars"></div>
+				<div id="modal-gpu-info" class="modal-gpu-info"></div>
+				<div id="modal-performance-warning" class="modal-warning"></div>
 				<button id="modal-pull-btn">Download</button>
 			</div>
 		</div>
