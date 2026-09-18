@@ -415,8 +415,21 @@ declare global {
 				cpu: string;
 				cores: number;
 				ramGB: string;
+				ramAvailGB: string;
 				avx2: boolean;
 				avx512: boolean;
+				gpu?: string | null;
+				gpuVendor?: string | null;
+				vramGB?: number | null;
+				vramFreeGB?: number | null;
+				gpuTflops?: number | null;
+				acceleration?: "cuda" | "rocm" | "metal" | "cpu" | "unknown";
+				gpuDetectionError?: boolean;
+				performance?: {
+					tier: "excellent" | "good" | "fair" | "poor" | "critical";
+					stars: number;
+					label: string;
+				} | null;
 				warning: string;
 			}>;
 			isFirstLaunch: () => Promise<boolean>;

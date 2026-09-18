@@ -426,6 +426,37 @@ function showDelModal(username: string, repo: string, type: string) {
 	) as HTMLButtonElement;
 	const cancelNo = document.getElementById("cancel-no") as HTMLButtonElement;
 
+	let displayName: string;
+	switch (type) {
+		case "ollama":
+			displayName = username;
+			break;
+		case "space":
+			displayName = `${username}/${repo}`;
+			break;
+		case "website":
+			displayName = repo || username;
+			break;
+		default:
+			displayName = type;
+	}
+
+	const nameEl = document.getElementById("del-modal-name");
+	if (nameEl) nameEl.textContent = `Delete ${displayName}?`;
+
+	const msgEl = document.getElementById("del-modal-message");
+	if (msgEl) {
+		if (type === "ollama") {
+			msgEl.textContent = `This will permanently remove "${displayName}" from your local Ollama. Model files cannot be recovered.`;
+		} else if (type === "space") {
+			msgEl.textContent = `This will permanently remove "${displayName}" from your installed Spaces.`;
+		} else if (type === "website") {
+			msgEl.textContent = `This will remove "${displayName}" from your saved websites.`;
+		} else {
+			msgEl.textContent = `Are you sure you want to delete "${displayName}"? This action cannot be undone.`;
+		}
+	}
+
 	delete_yes.replaceWith(delete_yes.cloneNode(true));
 	const new_delete_yes = document.getElementById(
 		"delete-yes",
