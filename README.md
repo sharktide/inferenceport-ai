@@ -111,6 +111,6 @@ Contributions are welcome. Open an issue or submit a PR. Keep changes small and 
 
 ## License
 
-Copyright 2025 Rihaan Meher
+Copyright 2026 InferencePort LLC
 
 Licensed under the Apache License, Version 2.0. See LICENSE for details.
