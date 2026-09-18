@@ -122,9 +122,9 @@ async function pullModel(name: string): Promise<void> {
 	}
 }
 
-async function deleteModel(name: string): Promise<void> {
+async function deleteModel(name: string, capturedClientUrl?: string): Promise<void> {
 	try {
-		const clientUrl = getClientUrl();
+		const clientUrl = capturedClientUrl ?? getClientUrl();
 		await window.ollama.deleteModel(name, clientUrl);
 		showNotification({
 			message: `Model deleted: ${name}`,
@@ -204,7 +204,13 @@ function openPullModal(modelName: string, sizes: string[]): void {
 	const modal = document.getElementById("pull-modal") as HTMLDivElement;
 	const warningEl = document.getElementById(
 		"modal-performance-warning",
-	) as HTMLParagraphElement;
+	) as HTMLDivElement;
+	const starsEl = document.getElementById(
+		"modal-perf-stars",
+	) as HTMLDivElement;
+	const gpuInfoEl = document.getElementById(
+		"modal-gpu-info",
+	) as HTMLDivElement;
 
 	if (nameEl) nameEl.textContent = `Pull ${modelName}`;
 	if (select) {
@@ -219,8 +225,7 @@ function openPullModal(modelName: string, sizes: string[]): void {
 			window.utils
 				.getWarning(initialSize, getClientUrl())
 				.then((result) => {
-					warningEl.textContent = result.warning;
-					warningEl.className = "modal-warning";
+					renderHardwareRating(result, warningEl, starsEl, gpuInfoEl);
 				});
 		}
 
@@ -228,18 +233,112 @@ function openPullModal(modelName: string, sizes: string[]): void {
 			const selectedSize = select.value;
 			if (selectedSize === "latest") {
 				warningEl.textContent = "";
+				warningEl.className = "modal-warning";
+				if (starsEl) starsEl.innerHTML = "";
+				if (gpuInfoEl) gpuInfoEl.innerHTML = "";
 				return;
 			}
 			window.utils
 				.getWarning(selectedSize, getClientUrl())
 				.then((result) => {
-					warningEl.textContent = result.warning;
-					warningEl.className = "modal-warning";
+					renderHardwareRating(result, warningEl, starsEl, gpuInfoEl);
 				});
 		};
 	}
 
 	modal?.classList.remove("hidden");
+}
+
+function renderHardwareRating(
+	result: {
+		warning: string;
+		performance?: { tier: string; stars: number; label: string } | null;
+		gpu?: string | null;
+		gpuTflops?: number | null;
+		vramGB?: number | null;
+		vramFreeGB?: number | null;
+		gpuDetectionError?: boolean;
+	} | null | undefined,
+	warningEl: HTMLDivElement,
+	starsEl: HTMLDivElement,
+	gpuInfoEl: HTMLDivElement,
+): void {
+	if (!result) return;
+
+	const perf = result.performance;
+	const tier: "excellent" | "good" | "fair" | "poor" | "critical" =
+		(perf?.tier as "excellent" | "good" | "fair" | "poor" | "critical") ?? "fair";
+
+	// Set background color based on tier
+	const bgMap: Record<string, string> = {
+		excellent: "rgba(34, 139, 34, 0.15)",
+		good: "rgba(60, 163, 116, 0.15)",
+		fair: "rgba(204, 140, 0, 0.15)",
+		poor: "rgba(204, 85, 0, 0.15)",
+		critical: "rgba(204, 34, 34, 0.15)",
+	};
+	const borderMap: Record<string, string> = {
+		excellent: "1px solid rgba(34, 139, 34, 0.3)",
+		good: "1px solid rgba(60, 163, 116, 0.3)",
+		fair: "1px solid rgba(204, 140, 0, 0.3)",
+		poor: "1px solid rgba(204, 85, 0, 0.3)",
+		critical: "1px solid rgba(204, 34, 34, 0.3)",
+	};
+
+	// Stars
+	if (starsEl && perf) {
+		const starCount = perf.stars;
+		starsEl.innerHTML = "";
+		for (let i = 0; i < 5; i++) {
+			const span = document.createElement("span");
+			span.textContent = i < starCount ? "\u2605" : "\u2606";
+			span.className = i < starCount ? "star filled" : "star empty";
+			span.style.fontSize = "18px";
+			span.style.color = i < starCount ? "#f59e0b" : "#6b7280";
+			starsEl.appendChild(span);
+		}
+		const label = document.createElement("span");
+		label.textContent = ` ${perf.label}`;
+		label.style.marginLeft = "6px";
+		label.style.fontSize = "13px";
+		label.style.opacity = "0.85";
+		starsEl.appendChild(label);
+	}
+
+	// GPU info line
+	if (gpuInfoEl) {
+		gpuInfoEl.innerHTML = "";
+		if (result.gpuDetectionError) {
+			const errSpan = document.createElement("div");
+			errSpan.className = "gpu-detection-warning";
+			errSpan.textContent = "GPU information could not be detected. Performance estimates may be inaccurate.";
+			errSpan.style.fontSize = "12px";
+			errSpan.style.color = "#cc5500";
+			errSpan.style.marginTop = "4px";
+			gpuInfoEl.appendChild(errSpan);
+		} else if (result.gpu) {
+			const gpuSpan = document.createElement("div");
+			gpuSpan.style.fontSize = "12px";
+			gpuSpan.style.opacity = "0.8";
+			let gpuText = result.gpu;
+			if (result.gpuTflops) gpuText += ` (~${result.gpuTflops} TFLOPS)`;
+			if (result.vramFreeGB && result.vramGB && result.vramFreeGB < result.vramGB) {
+				gpuText += ` - ${result.vramFreeGB.toFixed(1)} GB free / ${result.vramGB.toFixed(1)} GB`;
+			}
+			gpuSpan.textContent = gpuText;
+			gpuInfoEl.appendChild(gpuSpan);
+		}
+	}
+
+	// Warning text with colored background
+	warningEl.textContent = result.warning;
+	warningEl.className = "modal-warning";
+	const bgColor = bgMap[tier as keyof typeof bgMap] ?? "rgba(204, 140, 0, 0.15)";
+	const borderColor = borderMap[tier as keyof typeof borderMap] ?? "1px solid rgba(204, 140, 0, 0.3)";
+	warningEl.style.background = bgColor;
+	warningEl.style.border = borderColor;
+	warningEl.style.borderRadius = "6px";
+	warningEl.style.padding = "10px 12px";
 }
 
 document
@@ -249,6 +348,48 @@ document
 function closePullModal(): void {
 	document.getElementById("pull-modal")?.classList.add("hidden");
 }
+
+let pendingDeleteModel = "";
+let pendingDeleteClientUrl: string | undefined = undefined;
+
+function hostLabel(): string {
+	return currentHost === "local"
+		? "your local Ollama"
+		: currentHost.replace("remote:", "");
+}
+
+function openDeleteModal(modelName: string): void {
+	pendingDeleteModel = modelName;
+	pendingDeleteClientUrl = getClientUrl();
+	const nameEl = document.getElementById("del-modal-name");
+	if (nameEl) nameEl.textContent = "Delete Model?";
+	const msgEl = document.getElementById("del-modal-message");
+	if (msgEl) {
+		msgEl.textContent = `Are you sure you want to delete "${modelName}" from ${hostLabel()}? This action cannot be undone.`;
+	}
+	document.getElementById("del-modal")?.classList.remove("hidden");
+}
+
+function closeDeleteModal(): void {
+	pendingDeleteModel = "";
+	pendingDeleteClientUrl = undefined;
+	document.getElementById("del-modal")?.classList.add("hidden");
+}
+
+document
+	.getElementById("del-modal-close")
+	?.addEventListener("click", closeDeleteModal);
+
+document.getElementById("cancel-no")?.addEventListener("click", () => {
+	closeDeleteModal();
+});
+
+document.getElementById("delete-yes")?.addEventListener("click", () => {
+	const modelToDelete = pendingDeleteModel;
+	const clientUrlToDelete = pendingDeleteClientUrl;
+	closeDeleteModal();
+	if (modelToDelete) deleteModel(modelToDelete, clientUrlToDelete);
+});
 
 document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 	const select = document.getElementById(
@@ -323,7 +464,9 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
  
                 const button = document.createElement("button");
                 button.textContent = "Delete";
-                button.addEventListener("click", () => deleteModel(model.name));
+                button.addEventListener("click", () =>
+                    openDeleteModal(model.name),
+                );
                 card.appendChild(button);
 
                 container.appendChild(card);

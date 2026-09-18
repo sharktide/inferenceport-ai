@@ -30,8 +30,42 @@
 			}
 
 			.arrow::before {
-				content: "▸";
+				content: "\25B8";
 				display: inline-block;
+			}
+
+			#pull-modal .modal-content {
+				width: min(90vw, 460px);
+			}
+
+			#modal-performance-warning {
+				line-height: 1.45;
+				text-align: left;
+				margin: 10px 0 0;
+			}
+
+			#modal-performance-warning:empty {
+				display: none;
+			}
+
+			.modal-perf-stars {
+				margin: 8px 0 0;
+				display: flex;
+				align-items: center;
+				min-height: 22px;
+			}
+
+			.modal-perf-stars:empty {
+				display: none;
+			}
+
+			.modal-gpu-info {
+				margin: 2px 0 0;
+				min-height: 16px;
+			}
+
+			.modal-gpu-info:empty {
+				display: none;
 			}
 		</style>
 	</head>
@@ -65,8 +99,27 @@
 				<h2 id="modal-model-name"></h2>
 				<label for="modal-revision-select">Select revision:</label>
 				<select id="modal-revision-select"></select>
-				<p id="modal-performance-warning" class="modal-warning"></p>
+				<div id="modal-perf-stars" class="modal-perf-stars"></div>
+				<div id="modal-gpu-info" class="modal-gpu-info"></div>
+				<div id="modal-performance-warning" class="modal-warning"></div>
 				<button id="modal-pull-btn">Download</button>
+			</div>
+		</div>
+
+		<div id="del-modal" class="modal hidden">
+			<div class="modal-content">
+				<span class="close-btn" id="del-modal-close">×</span>
+				<h2 id="del-modal-name">Delete Model?</h2>
+				<p id="del-modal-message"></p>
+				<div class="modal-actions">
+					<button id="cancel-no">Cancel</button>
+					<button
+						id="delete-yes"
+						style="background: #e5484d; color: #fff; border: none"
+					>
+						Delete
+					</button>
+				</div>
 			</div>
 		</div>
 
