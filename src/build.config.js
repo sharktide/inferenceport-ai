@@ -1,4 +1,4 @@
-﻿/** @type {import('electron-builder').Configuration} */
+/** @type {import('electron-builder').Configuration} */
 
 const acceleration =
 	process.env.OLLAMA_ACCELERATION?.toLowerCase() || "cpu";

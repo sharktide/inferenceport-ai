@@ -1,4 +1,4 @@
-﻿project = "InferencePort AI Docs"
+project = "InferencePort AI Docs"
 copyright = "2026, InferencePort LLC"
 author = "InferencePort LLC"
 release = "2.2.0"
