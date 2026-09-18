@@ -46,13 +46,15 @@ function formatHeader(ext) {
 	return `${open}\n${headerText}\n${close}\n`;
 }
 
+const licensePattern = /(?:\/\*|<!--)\s*Copyright\s+\d{4}\s+.*?\n\s*Licensed under the Apache License, Version 2\.0/s;
+
 function processFile(filePath) {
 	const ext = path.extname(filePath);
-	const header = formatHeader(ext);
 	const content = fs.readFileSync(filePath, "utf8");
 
-	if (content.includes(headerText)) return; // Skip if already added
+	if (licensePattern.test(content)) return; // Skip if any Apache 2.0 header exists
 
+	const header = formatHeader(ext);
 	const updatedContent =
 		ext === ".html" ? content + "\n" + header : header + "\n" + content;
 
