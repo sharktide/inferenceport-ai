@@ -31,7 +31,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 24
-  
+
       - name: Import Apple Certificates
         uses: apple-actions/import-codesign-certs@v3
         with:
@@ -43,16 +43,17 @@ jobs:
 
       - name: Configure macOS Keychain Permissions
         run: |
-          KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build_keychain-db"
+          # The action dumps the local file into the root of your runner directory
+          KEYCHAIN_PATH="${{ github.workspace }}/electron_build_keychain.keychain-db"
           
           # Prevent it from auto-locking mid-build
           security set-keychain-settings -u "$KEYCHAIN_PATH"
           
-          # Force macOS 15 to actively look inside this keychain
+          # Force macOS 15 to actively search inside this custom workspace database
           CURRENT_KEYCHAINS=$(security list-keychains -d user | sed 's/"//g')
           security list-keychains -d user -s "$KEYCHAIN_PATH" $CURRENT_KEYCHAINS
           
-          # Pre-authorize code signing using the action's keychain password ("temporary-actions-password")
+          # Pre-authorize code signing using the action's master password
           security set-key-partition-list -S apple-tool:,apple: -s -k "temporary-actions-password" "$KEYCHAIN_PATH"
 
       - name: Install dependencies
@@ -62,10 +63,10 @@ jobs:
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
         env:
-          CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build_keychain-db"
+          CSC_KEYCHAIN: "${{ github.workspace }}/electron_build_keychain.keychain-db"
           CSC_KEY_PASSWORD: "temporary-actions-password"
         run: npm run publish
-
+  
       - name: Verify macOS identity
         working-directory: src
         run: |
