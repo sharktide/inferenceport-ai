@@ -38,7 +38,22 @@ jobs:
           p12-file-base64: ${{ secrets.CSC_LINK }}
           p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
           create-keychain: true
+          keychain-name: "electron_build_keychain"
           keychain-password: "temporary-actions-password"
+
+      - name: Configure macOS Keychain Permissions
+        run: |
+          KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build_keychain-db"
+          
+          # Prevent it from auto-locking mid-build
+          security set-keychain-settings -u "$KEYCHAIN_PATH"
+          
+          # Force macOS 15 to actively look inside this keychain
+          CURRENT_KEYCHAINS=$(security list-keychains -d user | sed 's/"//g')
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $CURRENT_KEYCHAINS
+          
+          # Pre-authorize code signing using the action's keychain password ("temporary-actions-password")
+          security set-key-partition-list -S apple-tool:,apple: -s -k "temporary-actions-password" "$KEYCHAIN_PATH"
 
       - name: Install dependencies
         working-directory: src
@@ -46,6 +61,9 @@ jobs:
 
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
+        env:
+          CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build_keychain-db"
+          CSC_KEY_PASSWORD: "temporary-actions-password"
         run: npm run publish
 
       - name: Verify macOS identity
