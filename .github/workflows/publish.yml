@@ -43,7 +43,7 @@ jobs:
           p12-installer-password: ${{ secrets.CSC_INSTALLER_KEY_PASSWORD }}
           create-keychain: true
           keychain: "electron_build"
-          keychain-password: "temporary-actions-password"
+          keychain-password: ${{ secrets.CSC_KEY_PASSWORD }}
 
       # STEP 2: Configure native macOS permissions using the set password
       - name: Configure macOS Keychain Permissions
@@ -54,7 +54,7 @@ jobs:
           security set-keychain-settings -u "$KEYCHAIN_PATH"
           
           # Manually apply partition rules before electron-builder fires
-          security set-key-partition-list -S apple-tool:,apple: -s -k "temporary-actions-password" "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${{ secrets.CSC_KEY_PASSWORD }}" "$KEYCHAIN_PATH"
 
       - name: Install dependencies
         working-directory: src
@@ -66,9 +66,7 @@ jobs:
         env:
           # This forces electron-builder to bypass its broken temporary loops for BOTH certificate types
           CSC_KEYCHAIN: "$HOME/Library/Keychains/electron_build.keychain-db"
-          CSC_KEY_PASSWORD: "temporary-actions-password"
           CSC_INSTALLER_KEYCHAIN: "$HOME/Library/Keychains/electron_build.keychain-db"
-          CSC_INSTALLER_KEY_PASSWORD: "temporary-actions-password"
         run: npm run publish
 
       - name: Verify macOS identity
