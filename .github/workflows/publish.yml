@@ -31,6 +31,14 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 24
+  
+      - name: Import Apple Certificates
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.CSC_LINK }}
+          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+          create-keychain: true
+          keychain-password: "temporary-actions-password"
 
       - name: Install dependencies
         working-directory: src
