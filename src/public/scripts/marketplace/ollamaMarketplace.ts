@@ -250,6 +250,44 @@ function closePullModal(): void {
 	document.getElementById("pull-modal")?.classList.add("hidden");
 }
 
+let pendingDeleteModel = "";
+
+function hostLabel(): string {
+	return currentHost === "local"
+		? "your local Ollama"
+		: currentHost.replace("remote:", "");
+}
+
+function openDeleteModal(modelName: string): void {
+	pendingDeleteModel = modelName;
+	const nameEl = document.getElementById("del-modal-name");
+	if (nameEl) nameEl.textContent = "Delete Model?";
+	const msgEl = document.getElementById("del-modal-message");
+	if (msgEl) {
+		msgEl.textContent = `Are you sure you want to delete "${modelName}" from ${hostLabel()}? This action cannot be undone.`;
+	}
+	document.getElementById("del-modal")?.classList.remove("hidden");
+}
+
+function closeDeleteModal(): void {
+	pendingDeleteModel = "";
+	document.getElementById("del-modal")?.classList.add("hidden");
+}
+
+document
+	.getElementById("del-modal-close")
+	?.addEventListener("click", closeDeleteModal);
+
+document.getElementById("cancel-no")?.addEventListener("click", () => {
+	closeDeleteModal();
+});
+
+document.getElementById("delete-yes")?.addEventListener("click", () => {
+	const modelToDelete = pendingDeleteModel;
+	closeDeleteModal();
+	if (modelToDelete) deleteModel(modelToDelete);
+});
+
 document.getElementById("modal-pull-btn")?.addEventListener("click", () => {
 	const select = document.getElementById(
 		"modal-revision-select",
@@ -323,7 +361,9 @@ function renderInstalledModels(filter: string = "", fail?: boolean): void {
  
                 const button = document.createElement("button");
                 button.textContent = "Delete";
-                button.addEventListener("click", () => deleteModel(model.name));
+                button.addEventListener("click", () =>
+                    openDeleteModal(model.name),
+                );
                 card.appendChild(button);
 
                 container.appendChild(card);

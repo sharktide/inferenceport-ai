@@ -156,7 +156,7 @@ Utility methods:
      - Return user data directory path.
    * - ``getWarning(modelSize, clientUrl?)``
      - ``utils:get-hardware-performance-warning``
-     - Return CPU/RAM compatibility warning data.
+     - Return CPU/RAM/GPU compatibility warning data, including whether the bundled Ollama build matches the detected GPU.
    * - ``isFirstLaunch()``
      - ``utils:is-first-launch``
      - Check first-launch marker.

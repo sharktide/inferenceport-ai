@@ -417,6 +417,10 @@ declare global {
 				ramGB: string;
 				avx2: boolean;
 				avx512: boolean;
+				gpu?: string | null;
+				gpuVendor?: string | null;
+				vramGB?: number | null;
+				acceleration?: "cuda" | "rocm" | "metal" | "cpu" | "unknown";
 				warning: string;
 			}>;
 			isFirstLaunch: () => Promise<boolean>;
