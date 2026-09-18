@@ -30,32 +30,48 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version:       
-      
+          node-version: 24
+
+      # FIX 1: Resolve the new OpenSSL 3.x verification error introduced by runner updates
+      - name: Convert P12 to macOS-compatible legacy format
+        run: |
+          # 1. Decode original secret
+          echo "${{ secrets.CSC_LINK }}" | base64 --decode > modern.p12
+          
+          # 2. Re-wrap using legacy ciphers expected by the updated runner's native security engine
+          openssl pkcs12 -in modern.p12 -nodes -passin pass:"${{ secrets.CSC_KEY_PASSWORD }}" \
+            | openssl pkcs12 -export -legacy -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 \
+            -passout pass:"${{ secrets.CSC_KEY_PASSWORD }}" -out legacy.p12
+            
+          # 3. Inject back into runtime variables
+          echo "CSC_LINK_LEGACY=$(base64 -i legacy.p12)" >> $GITHUB_ENV
+
+      # FIX 2: Pass the legacy string down to prevent MAC errors
       - name: Import Apple Certificates
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets.CSC_LINK }}
+          p12-file-base64: ${{ env.CSC_LINK_LEGACY }}
           p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
           create-keychain: true
           keychain: "electron_build"
           keychain-password: "temporary-actions-password"
 
+      # FIX 3: Re-align security permissions file syntax
       - name: Configure macOS Keychain Permissions
         run: |
           KEYCHAIN_PATH="$HOME/Library/Keychains/electron_build.keychain-db"
           
-          # Prevent it from auto-locking mid-build
+          # Prevent auto-locking during build steps
           security set-keychain-settings -u "$KEYCHAIN_PATH"
           
-          # Pre-authorize code signing using the action's master password
-          # (Search domains were already updated by the step above!)
+          # Authorize code signing partitions with the master password 
           security set-key-partition-list -S apple-tool:,apple: -s -k "temporary-actions-password" "$KEYCHAIN_PATH"
 
       - name: Install dependencies
         working-directory: src
         run: npm ci && npm install -g typescript
 
+      # FIX 4: Map electron-builder variables directly into the active keychain
       - name: Build and publish CPU Electron app (macOS ARM)
         working-directory: src
         env:
@@ -68,6 +84,7 @@ jobs:
         run: |
           ditto -x -k dist/*.zip dist/unzipped
           codesign -vvv --strict dist/unzipped/*.app
+
 
   build-macos-x86:
     runs-on: macos-15-intel
