@@ -1,4 +1,4 @@
-/** @type {import('electron-builder').Configuration} */
+﻿/** @type {import('electron-builder').Configuration} */
 
 const acceleration =
 	process.env.OLLAMA_ACCELERATION?.toLowerCase() || "cpu";
@@ -98,7 +98,7 @@ export default {
 			: `${"${productName}"}-Linux-${"${version}"}-${"${arch}"}.${"${ext}"}`,
 
 		category: "Utility",
-		maintainer: "Rihaan Meher <sharktidedev@gmail.com>",
+		maintainer: "InferencePort LLC <info@inferenceport.ai>",
 	},
 
 	nsis: {

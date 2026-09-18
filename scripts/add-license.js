@@ -1,5 +1,5 @@
-/*
-Copyright 2025 Rihaan Meher
+﻿/*
+Copyright 2026 InferencePort LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 const fs = require("fs");
 const path = require("path");
 
-const headerText = `Copyright 2025 Rihaan Meher
+const headerText = `Copyright 2026 InferencePort LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

@@ -1,5 +1,5 @@
-/*
-Copyright 2025 Rihaan Meher
+﻿/*
+Copyright 2026 InferencePort LLC
 */
 /* The nav stays in the page flow (sticky) so expanding it pushes the content
    below it down. The only layout property we animate is `height` (0 -> auto
