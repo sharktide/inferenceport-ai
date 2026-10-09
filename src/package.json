@@ -26,7 +26,7 @@
     "fix-path": "^5.0.0",
     "html-to-text": "^10.0.1",
     "openai": "^7.27.0",
-    "systeminformation": "^5.33.12",
+    "systeminformation": "^5.33.15",
     "ws": "^8.22.0"
   },
   "devDependencies": {
