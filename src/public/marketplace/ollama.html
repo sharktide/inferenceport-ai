@@ -30,7 +30,7 @@
 			}
 
 			.arrow::before {
-				content: "▸";
+				content: "\25B8";
 				display: inline-block;
 			}
 
@@ -45,6 +45,26 @@
 			}
 
 			#modal-performance-warning:empty {
+				display: none;
+			}
+
+			.modal-perf-stars {
+				margin: 8px 0 0;
+				display: flex;
+				align-items: center;
+				min-height: 22px;
+			}
+
+			.modal-perf-stars:empty {
+				display: none;
+			}
+
+			.modal-gpu-info {
+				margin: 2px 0 0;
+				min-height: 16px;
+			}
+
+			.modal-gpu-info:empty {
 				display: none;
 			}
 		</style>
@@ -79,7 +99,9 @@
 				<h2 id="modal-model-name"></h2>
 				<label for="modal-revision-select">Select revision:</label>
 				<select id="modal-revision-select"></select>
-				<p id="modal-performance-warning" class="modal-warning"></p>
+				<div id="modal-perf-stars" class="modal-perf-stars"></div>
+				<div id="modal-gpu-info" class="modal-gpu-info"></div>
+				<div id="modal-performance-warning" class="modal-warning"></div>
 				<button id="modal-pull-btn">Download</button>
 			</div>
 		</div>
@@ -217,8 +239,9 @@
 			</details>
 
 			<div id="notification-container"></div>
-			<footer>Copyright (c) 2025 Rihaan Meher. Licensed under the Apache License 2.0</footer>
+			<footer>Copyright (c) 2026 InferencePort LLC. Licensed under the Apache License 2.0</footer>
 			<footer><p>By using this app, you agree to the <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of Service</a> and <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy Policy</a>. We reserve the right to change these terms and policies at anytime without any further notice.</p></footer>
+			<p style="text-align:center;margin:8px 0 0;font-size:0.78rem;color:var(--muted,#999)">InferencePort AI™ is a trademark of InferencePort LLC.</p>
 
 		</main>
 
@@ -227,7 +250,7 @@
 </html>
 
 <!--
-Copyright 2025 Rihaan Meher
+Copyright 2026 InferencePort LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

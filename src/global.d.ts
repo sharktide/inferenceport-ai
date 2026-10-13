@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Rihaan Meher
+Copyright 2026 InferencePort LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -415,12 +415,21 @@ declare global {
 				cpu: string;
 				cores: number;
 				ramGB: string;
+				ramAvailGB: string;
 				avx2: boolean;
 				avx512: boolean;
 				gpu?: string | null;
 				gpuVendor?: string | null;
 				vramGB?: number | null;
+				vramFreeGB?: number | null;
+				gpuTflops?: number | null;
 				acceleration?: "cuda" | "rocm" | "metal" | "cpu" | "unknown";
+				gpuDetectionError?: boolean;
+				performance?: {
+					tier: "excellent" | "good" | "fair" | "poor" | "critical";
+					stars: number;
+					label: string;
+				} | null;
 				warning: string;
 			}>;
 			isFirstLaunch: () => Promise<boolean>;
