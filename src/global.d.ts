@@ -445,6 +445,10 @@ declare global {
 			signInWithGoogle: () => Promise<void>;
 			signInWithMicrosoft: () => Promise<void>;
 			signInWithHuggingFace: () => Promise<void>;
+			signInWithSSO: (email: string) => Promise<{
+				success: boolean;
+				error?: string;
+			}>;
 			signUpWithEmail: (
 				email: string,
 				password: string

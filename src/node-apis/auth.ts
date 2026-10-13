@@ -198,9 +198,12 @@ export async function issueProxyToken(): Promise<string> {
 	return token;
 }
 
-supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
 	if (session) {
 		fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
+		if (event === "SIGNED_IN" && isSsoSession(session)) {
+			notifySsoJitProvisioning(session.access_token);
+		}
 	} else {
 		if (fs.existsSync(sessionFile)) fs.unlinkSync(sessionFile);
 	}
@@ -1174,6 +1177,119 @@ function buildMediaBreadcrumbs(
 	return breadcrumbs;
 }
 
+const SSO_AUTH_REDIRECT_URL = "https://inference.js.org/authcallback.html";
+const SSO_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type SsoDiscoverResponse = {
+	sso?: boolean;
+	provider_id?: string;
+	domain?: string;
+	org_name?: string;
+};
+
+function isSsoSession(session: Session): boolean {
+	if (session.user?.app_metadata?.provider === "sso") return true;
+	const identities =
+		(session.user as { identities?: Array<{ provider?: unknown }> } | undefined)
+			?.identities ?? [];
+	return identities.some((identity) => {
+		const provider = String(identity?.provider ?? "");
+		return provider === "saml" || provider.startsWith("sso");
+	});
+}
+
+// Fire-and-forget: lets the server add the user to the org on first SSO login.
+// Never blocks or fails sign-in.
+function notifySsoJitProvisioning(accessToken: string): void {
+	try {
+		fetch(`${subscriptionApiBase}/v1/orgs/sso/jit`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			signal: AbortSignal.timeout(15000),
+		}).catch((err) => {
+			console.warn("SSO JIT provisioning request failed:", err);
+		});
+	} catch (err) {
+		console.warn("SSO JIT provisioning request failed:", err);
+	}
+}
+
+async function signInWithSSO(
+	email: string,
+): Promise<{ success: boolean; error?: string }> {
+	const normalizedEmail = asTrimmedString(email)?.toLowerCase() ?? "";
+	if (!normalizedEmail || !SSO_EMAIL_PATTERN.test(normalizedEmail)) {
+		return { success: false, error: "Enter a valid work email address." };
+	}
+
+	let discovery: SsoDiscoverResponse;
+	try {
+		const res = await fetch(`${subscriptionApiBase}/v1/orgs/sso/discover`, {
+			method: "POST",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ email: normalizedEmail }),
+			signal: AbortSignal.timeout(15000),
+		});
+		if (!res.ok) {
+			return {
+				success: false,
+				error: `SSO lookup failed (${res.status}).`,
+			};
+		}
+		discovery = (await res.json()) as SsoDiscoverResponse;
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? `Could not reach the sign-in service: ${err.message}`
+					: "Could not reach the sign-in service.",
+		};
+	}
+
+	if (!discovery?.sso) {
+		return {
+			success: false,
+			error: "No single sign-on is configured for this email domain.",
+		};
+	}
+
+	const providerId = asTrimmedString(discovery.provider_id);
+	const domain = asTrimmedString(discovery.domain);
+	if (!providerId && !domain) {
+		return {
+			success: false,
+			error: "Single sign-on is configured but incomplete. Contact your administrator.",
+		};
+	}
+
+	const target: { providerId: string } | { domain: string } = providerId
+		? { providerId }
+		: { domain: domain as string };
+
+	const { data, error } = await supabase.auth.signInWithSSO({
+		...target,
+		options: {
+			redirectTo: SSO_AUTH_REDIRECT_URL,
+			skipBrowserRedirect: true,
+		},
+	});
+	if (error) return { success: false, error: error.message };
+	if (!data?.url) {
+		return { success: false, error: "Could not start single sign-on." };
+	}
+
+	await shell.openExternal(data.url);
+	return { success: true };
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -1208,6 +1324,16 @@ export default function register() {
 			`&redirect_to=https://inference.js.org/authcallback.html`;
 		await shell.openExternal(authUrl);
 		return { success: true };
+	});
+	ipcMain.handle("auth:signInWithSSO", async (_event, email: string) => {
+		try {
+			return await signInWithSSO(email);
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
 	});
 
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {

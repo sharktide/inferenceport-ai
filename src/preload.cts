@@ -309,6 +309,7 @@ contextBridge.exposeInMainWorld("auth", {
 	signInWithGoogle: () => ipcRenderer.invoke("auth:signInWithGoogle"),
 	signInWithMicrosoft: () => ipcRenderer.invoke("auth:signInWithMicrosoft"),
 	signInWithHuggingFace: () => ipcRenderer.invoke("auth:signInWithHuggingFace"),
+		signInWithSSO: (email: string) => ipcRenderer.invoke("auth:signInWithSSO", email),
 	signInWithEmail: (email: string, password: string) =>
 		ipcRenderer.invoke("auth:signInWithEmail", email, password),
 	signUpWithEmail: (email: string, password: string) =>

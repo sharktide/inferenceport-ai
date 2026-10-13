@@ -305,6 +305,25 @@ setupSocialLogin("google-login", "Google", () => window.auth.signInWithGoogle(),
 setupSocialLogin("microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), siStatus);
 setupSocialLogin("huggingface-login", "Hugging Face", () => window.auth.signInWithHuggingFace(), siStatus);
 
+const ssoLoginBtn = document.getElementById("sso-login") as HTMLButtonElement | null;
+ssoLoginBtn?.addEventListener("click", async () => {
+    const email = siEmail.value.trim();
+    if (!email) return updateStatus("Enter your work email above, then click Sign in with SSO.", siStatus);
+    if (!siEmail.checkValidity()) return updateStatus("Enter a valid work email address.", siStatus);
+
+    ssoLoginBtn.disabled = true;
+    try {
+        updateStatus("Checking your organization...", siStatus);
+        const result = await window.auth.signInWithSSO(email);
+        if (!result?.success) return updateStatus(`SSO sign-in failed: ${result?.error || "Unknown error"}`, siStatus);
+        updateStatus("Opening your organization's sign-in page...", siStatus);
+    } catch (err) {
+        updateStatus(`SSO sign-in failed: ${err instanceof Error ? err.message : String(err)}`, siStatus);
+    } finally {
+        ssoLoginBtn.disabled = false;
+    }
+});
+
 setupSocialLogin("su-github-login", "GitHub", () => window.auth.signInWithGitHub(), suStatus);
 setupSocialLogin("su-google-login", "Google", () => window.auth.signInWithGoogle(), suStatus);
 setupSocialLogin("su-microsoft-login", "Microsoft", () => window.auth.signInWithMicrosoft(), suStatus);

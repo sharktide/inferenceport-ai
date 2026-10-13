@@ -1361,6 +1361,11 @@ export function installWebSocketTransportFallback(): void {
 		signInWithHuggingFace: async () => {
 			window.location.assign(buildProviderAuthUrl("huggingface"));
 		},
+		signInWithSSO: async (email: string) =>
+			invokeOrDefault<{ success: boolean; error?: string }>(
+				"auth:signInWithSSO",
+				[email],
+			),
 		signUpWithEmail: async (email: string, password: string) =>
 			invokeOrDefault("auth:signUpWithEmail", [email, password]),
 		setUsername: async (userId: string, username: string) =>
