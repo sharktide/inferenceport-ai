@@ -28,7 +28,7 @@ import {
 	toToolDefinition,
 } from "./helper/customTools.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
-import { assertLightningAllowed, lightningOrgHeaders } from "./orgPolicy.js";
+import { orgPolicyReady, lightningSnapshot } from "./orgPolicy.js";
 
 import {
 	save_stream, is52458,
@@ -84,9 +84,9 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	}
 
 	if (baseURL == "lightning") {
-		assertLightningAllowed();
+		await orgPolicyReady();
 		let lightningApiKey = "public";
-		const defaultHeaders: Record<string, string> = { ...lightningOrgHeaders() };
+		const defaultHeaders: Record<string, string> = {};
 		try {
 			defaultHeaders["X-Client-ID"] = await getLightningClientId();
 		} catch (_err) {
@@ -100,6 +100,8 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 		} catch (_e) {
 			void 0;
 		}
+		// One synchronous snapshot (guard + org header) after every await, so an org switch mid-build cannot mix policies.
+		Object.assign(defaultHeaders, lightningSnapshot());
 		return new OpenAI({
 			baseURL: "https://sharktide-lightning.hf.space/gen",
 			apiKey: lightningApiKey,

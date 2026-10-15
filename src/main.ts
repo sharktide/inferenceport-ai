@@ -24,7 +24,7 @@ import ollamaHandlers, {
 import { fetchSupportedTools, fetchSupportedVisionModels } from "./node-apis/helper/tools.js";
 import utilsHandlers, { setSnipTarget } from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
-import orgPolicyHandlers, { assertHostingAllowed, primeOrgPolicyFromDisk } from "./node-apis/orgPolicy.js";
+import orgPolicyHandlers, { startPolicyCheckedProxy } from "./node-apis/orgPolicy.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
 import {
@@ -548,9 +548,8 @@ app.whenReady().then(async () => {
 		startupSettings.proxyUsers.length > 0
 	) {
 		try {
-			primeOrgPolicyFromDisk();
-			assertHostingAllowed();
-			startProxyServer(
+			// Waits for the current organization policy (fails closed) before the server comes up.
+			await startPolicyCheckedProxy(
 				startupSettings.proxyPort || 52458,
 				startupSettings.proxyUsers,
 				startupSettings.serverApiKeys,

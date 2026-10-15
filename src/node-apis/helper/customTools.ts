@@ -6,7 +6,7 @@ import { spawn } from "child_process";
 import { getSession } from "../auth.js";
 import type { ToolDefinition } from "../types/index.types.d.ts";
 import { getLightningClientId } from "./lightningClient.js";
-import { lightningOrgHeaders } from "../orgPolicy.js";
+import { orgPolicyReady, lightningOrgHeaders, assertCustomToolsAllowed } from "../orgPolicy.js";
 
 export type CustomToolLanguage =
 	| "javascript"
@@ -661,10 +661,10 @@ export function getCustomToolByFunctionName(
 }
 
 async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	await orgPolicyReady();
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
 		Accept: "application/json",
-		...lightningOrgHeaders(),
 	};
 	try {
 		headers["X-Client-ID"] = await getLightningClientId();
@@ -679,6 +679,7 @@ async function getLightningAuthHeaders(): Promise<Record<string, string>> {
 	} catch {
 		void 0;
 	}
+	Object.assign(headers, lightningOrgHeaders());
 	return headers;
 }
 
@@ -1536,6 +1537,8 @@ export async function executeCustomTool(
 	userInputs: Record<string, unknown> = {},
 	options: { allowEnvironment?: boolean } = {},
 ): Promise<string> {
+	// Installed tools stop running the moment the organization turns custom tools off.
+	await assertCustomToolsAllowed();
 	const toolDir = path.join(getCustomToolsRoot(), manifest.id);
 	const { code, codeHash } = readVerifiedToolSource(manifest);
 	const allowEnvironment = options.allowEnvironment === true;

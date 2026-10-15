@@ -1,5 +1,5 @@
 import { showNotification } from "./helper/notification.js";
-import { loadOrgPolicy, onOrgPolicyChange } from "./helper/orgPolicy.js";
+import { cleanIpcError, loadOrgPolicy, onOrgPolicyChange } from "./helper/orgPolicy.js";
 import {
 	BILLING_PORTAL_URL,
 	buildUpgradePlanCards,
@@ -1607,7 +1607,7 @@ hostStartBtn?.addEventListener("click", async () => {
 						setHostingUIRunning(true, port);
 					} catch (e: any) {
 						if (hostStatus)
-							hostStatus.textContent = `Error: ${e?.message || e}`;
+							hostStatus.textContent = `Error: ${cleanIpcError(e)}`;
 					}
 				},
 			},
@@ -1960,7 +1960,13 @@ function renderOrgControls(view: OrgPolicyView | null): void {
 	const hostStart = document.getElementById("host-start") as HTMLButtonElement | null;
 	if (!panel) return;
 
-	if (!view || !view.signedIn || view.orgs.length === 0) {
+	if (hostStart) {
+		// Reset first: a previous managed policy may have disabled it.
+		hostStart.disabled = false;
+		hostStart.title = "";
+	}
+
+	if (!view || !view.signedIn || (view.orgs.length === 0 && !view.error)) {
 		panel.hidden = true;
 		if (hostPanel) hostPanel.hidden = true;
 		return;
@@ -1976,7 +1982,9 @@ function renderOrgControls(view: OrgPolicyView | null): void {
 
 	if (title) title.textContent = view.activeName ?? "Organization";
 	if (summary) {
-		summary.textContent = view.managed
+		summary.textContent = view.orgs.length === 0
+			? (view.error ?? "")
+			: view.managed
 			? `Your organization manages parts of this app. These settings apply while ${view.activeName} is active.`
 			: `${view.activeName} does not restrict the desktop app.`;
 	}

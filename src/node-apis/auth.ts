@@ -15,6 +15,7 @@ import { shell } from "electron";
 import type { SessionType } from "./types/index.types.d.ts";
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
+import { refreshOrgPolicy, reportOrgError } from "./orgPolicy.js";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
@@ -1213,21 +1214,35 @@ function isSsoSession(session: Session): boolean {
 // Fire-and-forget: lets the server add the user to the org on first SSO login.
 // Never blocks or fails sign-in.
 function notifySsoJitProvisioning(accessToken: string): void {
-	try {
-		fetch(`${subscriptionApiBase}/v1/orgs/sso/jit`, {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-				Accept: "application/json",
-				"Content-Type": "application/json",
-			},
-			signal: AbortSignal.timeout(15000),
-		}).catch((err) => {
-			console.warn("SSO JIT provisioning request failed:", err);
-		});
-	} catch (err) {
-		console.warn("SSO JIT provisioning request failed:", err);
-	}
+	void (async () => {
+		let failure = "";
+		for (let attempt = 0; attempt < 3; attempt++) {
+			try {
+				const res = await fetch(`${subscriptionApiBase}/v1/orgs/sso/jit`, {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: "application/json",
+						"Content-Type": "application/json",
+					},
+					signal: AbortSignal.timeout(15000),
+				});
+				if (res.ok) {
+					void refreshOrgPolicy();
+					return;
+				}
+				failure = `HTTP ${res.status}`;
+				if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
+			} catch (err) {
+				failure = err instanceof Error ? err.message : String(err);
+			}
+			await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+		}
+		console.warn("SSO JIT provisioning failed:", failure);
+		reportOrgError(
+			`We could not add you to your organization after SSO sign-in (${failure}). Sign out and back in to retry.`,
+		);
+	})();
 }
 
 async function signInWithSSO(
