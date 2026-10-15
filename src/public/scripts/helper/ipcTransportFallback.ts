@@ -893,6 +893,54 @@ function buildProviderAuthUrl(provider: "github" | "google" | "microsoft" | "hug
 	return `${supabaseUrl}/auth/v1/authorize?${params.toString()}`;
 }
 
+async function browserSignInWithSSO(email: string): Promise<{ success: boolean; error?: string }> {
+	const supabaseUrl = "https://dpixehhdbtzsbckfektd.supabase.co";
+	const apiBase = "https://sharktide-lightning.hf.space";
+	const normalized = String(email ?? "").trim().toLowerCase();
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+		return { success: false, error: "Enter a valid work email address." };
+	}
+	try {
+		const found = await fetch(`${apiBase}/v1/orgs/sso/discover`, {
+			method: "POST",
+			headers: { Accept: "application/json", "Content-Type": "application/json" },
+			body: JSON.stringify({ email: normalized }),
+			signal: AbortSignal.timeout(15000),
+		});
+		if (!found.ok) return { success: false, error: `SSO lookup failed (${found.status}).` };
+		const discovery = (await found.json()) as { sso?: boolean; provider_id?: string; domain?: string };
+		if (!discovery?.sso) {
+			return { success: false, error: "No single sign-on is configured for this email domain." };
+		}
+		const target = discovery.provider_id
+			? { provider_id: discovery.provider_id }
+			: discovery.domain
+				? { domain: discovery.domain }
+				: null;
+		if (!target) {
+			return { success: false, error: "Single sign-on is configured but incomplete. Contact your administrator." };
+		}
+		const redirectTo = `https://inference.js.org/authcallback.html?rd=${window.location.origin}/auth.html`;
+		const res = await fetch(`${supabaseUrl}/auth/v1/sso`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ ...target, redirect_to: redirectTo, skip_http_redirect: true }),
+			signal: AbortSignal.timeout(15000),
+		});
+		const body = (await res.json().catch(() => ({}))) as { url?: string; msg?: string; error_description?: string };
+		if (!res.ok || !body.url) {
+			return { success: false, error: body.msg || body.error_description || "Could not start single sign-on." };
+		}
+		window.location.assign(body.url);
+		return { success: true };
+	} catch (err) {
+		return {
+			success: false,
+			error: err instanceof Error ? `Could not reach the sign-in service: ${err.message}` : "Could not reach the sign-in service.",
+		};
+	}
+}
+
 function createEventHub() {
 	const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 	return {
@@ -1364,11 +1412,9 @@ export function installWebSocketTransportFallback(): void {
 		signInWithHuggingFace: async () => {
 			window.location.assign(buildProviderAuthUrl("huggingface"));
 		},
-		signInWithSSO: async (email: string) =>
-			invokeOrDefault<{ success: boolean; error?: string }>(
-				"auth:signInWithSSO",
-				[email],
-			),
+		// Runs in the caller's browser (like the other providers) so the resulting session returns to this tab,
+		// not to the desktop host that serves the web UI.
+		signInWithSSO: async (email: string) => browserSignInWithSSO(email),
 		signUpWithEmail: async (email: string, password: string) =>
 			invokeOrDefault("auth:signUpWithEmail", [email, password]),
 		setUsername: async (userId: string, username: string) =>
