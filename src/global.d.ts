@@ -109,6 +109,7 @@ declare global {
 		generatedAt: string | null;
 		notice?: string;
 		error?: string;
+		unlimitedByOrg?: string;
 	};
 
 	type AuthLightningApiKey = {
@@ -238,7 +239,38 @@ declare global {
 		iInstance: iInstance;
 		iFunctions: iFunctions;
 	}
+	type OrgDesktopPolicy = {
+		lightning: "allow" | "local_only";
+		lightning_billing: "personal" | "org";
+		pull_mode: "any" | "allowlist" | "blocked";
+		pull_models: string[] | null;
+		allow_model_import: boolean;
+		allow_custom_tools: boolean;
+		server_hosting: "any" | "admins" | "disabled";
+		server_access: "manual" | "org" | "teams";
+		server_team_ids: string[];
+		unlimited_verifications: boolean;
+	};
+	type OrgPolicyView = {
+		signedIn: boolean;
+		managed: boolean;
+		orgs: { slug: string; name: string; role: string; managed: boolean }[];
+		activeSlug: string | null;
+		activeName: string | null;
+		policy: OrgDesktopPolicy;
+		canHostServer: boolean;
+		serverUsers: { email: string; role: string }[];
+		billLightningToOrg: boolean;
+		fetchedAt: number | null;
+		error?: string;
+	};
 	interface Window {
+		org: {
+			getPolicy: () => Promise<OrgPolicyView>;
+			refreshPolicy: () => Promise<OrgPolicyView>;
+			setActive: (slug: string | null) => Promise<OrgPolicyView>;
+			onPolicyChange: (callback: (view: OrgPolicyView) => void) => void;
+		};
 		ic: iConstructor;
 		ifc: iFunctions;
 		ollama: {
@@ -454,6 +486,10 @@ declare global {
 			signInWithGoogle: () => Promise<void>;
 			signInWithMicrosoft: () => Promise<void>;
 			signInWithHuggingFace: () => Promise<void>;
+			signInWithSSO: (email: string) => Promise<{
+				success: boolean;
+				error?: string;
+			}>;
 			signUpWithEmail: (
 				email: string,
 				password: string

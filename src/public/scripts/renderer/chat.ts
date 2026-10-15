@@ -17,6 +17,7 @@ limitations under the License.
 //@ts-nocheck
 
 import { showNotification } from "../helper/notification.js";
+import { loadOrgPolicy, onOrgPolicyChange } from "../helper/orgPolicy.js";
 import { openSignInRequiredModal } from "../helper/signInRequired.js";
 import {
 	BILLING_PORTAL_URL,
@@ -1635,7 +1636,44 @@ function applyLightningState(): void {
 	void setTitle();
 }
 
+/** True when the signed-in member's organization only allows local models in the app. */
+let orgLightningBlocked = false;
+
+function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
+	const blocked = Boolean(view?.managed && view.policy.lightning === "local_only");
+	orgLightningBlocked = blocked;
+	const reason = blocked
+		? `${view?.activeName ?? "Your organization"} only allows local models in the app.`
+		: "";
+	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
+		(toggle) => {
+			if (!toggle) return;
+			toggle.disabled = blocked;
+			if (blocked) toggle.title = reason;
+			else toggle.removeAttribute("title");
+			toggle.closest<HTMLElement>(".lightning-toggle-inline")?.classList.toggle("org-locked", blocked);
+		},
+	);
+	if (blocked && lightningEnabled) {
+		lightningEnabled = false;
+		try {
+			localStorage.setItem(LIGHTNING_ENABLED_KEY, "false");
+		} catch (e) {
+			void 0;
+		}
+		applyLightningState();
+		void setToolSupport();
+		setVisionSupport();
+		showNotification({ type: "info", message: reason });
+	}
+}
+
 function setLightningEnabled(enabled: boolean): void {
+	if (orgLightningBlocked && enabled) {
+		syncLightningToggles(false);
+		showNotification({ type: "info", message: "Your organization only allows local models in the app." });
+		return;
+	}
 	if (forceLightning) {
 		lightningEnabled = true;
 		applyLightningState();
@@ -1743,6 +1781,8 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 	initWelcomeCards();
 	initLightningToggleEvents();
+	void loadOrgPolicy().then(applyOrgLightningPolicy);
+	onOrgPolicyChange(applyOrgLightningPolicy);
 	loadUsageStateForUser(null);
 	renderUsagePanel();
 	usageUpgradeBtn?.addEventListener("click", () => {

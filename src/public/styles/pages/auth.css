@@ -1,10 +1,27 @@
 .auth-page {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  min-height: 100vh;
-  padding: 20px;
+  justify-content: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  flex: 1 0 auto;
+  padding: 32px 20px 24px;
   background: transparent;
+}
+
+/* Cards stack vertically and centre as a column; the legal line sits below them instead of beside them. */
+.auth-page > .auth-card {
+  margin: 0 auto;
+}
+
+.auth-legal {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
 }
 
 .auth-card {
@@ -12,9 +29,10 @@
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  padding: 40px 36px;
+  padding: 36px 36px 28px;
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
+  box-sizing: border-box;
 }
 
 .auth-card-header {
@@ -57,6 +75,14 @@
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.gsi-material-button.gsi-wide {
+  grid-column: 1 / -1;
+}
+
+.gsi-material-button span {
+  white-space: nowrap;
 }
 
 .gsi-material-button:hover {

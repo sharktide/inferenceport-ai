@@ -32,6 +32,8 @@ import {
 	getServerLogs,
 } from "./helper/server.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
+import { is52458 } from "./utils.js";
+import { assertPullAllowed, assertImportAllowed, assertCustomToolsAllowed, startPolicyCheckedProxy, stopPolicyCheckedProxy } from "./orgPolicy.js";
 import { cache, fetchSupportedTools, fetchSupportedVisionModels } from "./helper/tools.js";
 import {
 	createCustomTool,
@@ -131,12 +133,12 @@ export default function register(): void {
 			users: { email: string; role: string }[] = [],
 			serverApiKeys: string[] = [],
 		) => {
-			startProxyServer(port, users, serverApiKeys);
+			await startPolicyCheckedProxy(port, users, serverApiKeys);
 			return `Server starting on port ${port}...`;
 		},
 	);
 	ipcMain.handle("ollama:stop-proxy-server", async () => {
-		stopProxyServer();
+		stopPolicyCheckedProxy();
 		return "Stopping server...";
 	});
 	ipcMain.handle("ollama:fetch-tool-models", async () => {
@@ -148,6 +150,7 @@ export default function register(): void {
 	});
 
 	ipcMain.handle("ollama:create-custom-tool", async (_event, payload: unknown) => {
+		await assertCustomToolsAllowed();
 		return await createCustomTool((payload || {}) as Parameters<typeof createCustomTool>[0]);
 	});
 
@@ -156,14 +159,17 @@ export default function register(): void {
 	});
 
 	ipcMain.handle("ollama:update-custom-tool", async (_event, payload: unknown) => {
+		await assertCustomToolsAllowed();
 		return await updateCustomTool((payload || {}) as Parameters<typeof updateCustomTool>[0]);
 	});
 
 	ipcMain.handle("ollama:publish-custom-tool", async (_event, toolId: string) => {
+		await assertCustomToolsAllowed();
 		return await publishExistingCustomTool(toolId);
 	});
 
 	ipcMain.handle("ollama:import-custom-tool", async (_event, toolId: string) => {
+		await assertCustomToolsAllowed();
 		return await importCustomToolFromRegistry(toolId);
 	});
 
@@ -264,11 +270,14 @@ export default function register(): void {
 
 	ipcMain.handle(
 		"ollama:pull",
-		(
+		async (
 			_event: IpcMainInvokeEvent,
 			modelName: string,
 			clientUrl?: string,
 		): Promise<string> => {
+			// Only a hosted InferencePort server decides for itself; every other target (including loopback aliases,
+			// trailing slashes and other ports) pulls onto hardware the member controls, so the policy applies.
+			if (!clientUrl || !is52458(clientUrl)) await assertPullAllowed(modelName);
 			return pullModel(_event, modelName, clientUrl);
 		}
 			
@@ -283,6 +292,7 @@ export default function register(): void {
 			isModelFile: boolean,
 			clientUrl?: string,
 		): Promise<string> => {
+			await assertImportAllowed();
 			return await importGGUF(
 				fileName,
 				data,
@@ -301,6 +311,7 @@ export default function register(): void {
 			ggufData: Uint8Array | null,
 			clientUrl?: string,
 		): Promise<string> => {
+			await assertImportAllowed();
 			return await importGGUFMulti(
 				modelfileData,
 				ggufName,

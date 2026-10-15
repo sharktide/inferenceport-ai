@@ -77,6 +77,18 @@
 							<p id="startup-status" class="muted"></p>
 						</div>
 						<div class="tab-pane" id="account">
+							<section id="org-controls" class="org-controls" hidden aria-live="polite">
+								<div class="org-controls-head">
+									<h3 id="org-controls-title">Organization</h3>
+									<label id="org-switch-wrap" class="org-switch" hidden>
+										<span>Active organization</span>
+										<select id="org-switch"></select>
+									</label>
+								</div>
+								<p id="org-controls-summary" class="muted"></p>
+								<ul id="org-controls-rules" class="org-rules"></ul>
+								<p id="org-controls-foot" class="field-hint"></p>
+							</section>
 							<div id="account-settings">
 							<div class="settings-inline-row settings-account-actions">
 								<button id="open-rename" class="theme-toggle">Change Username</button>
@@ -161,6 +173,12 @@
 							</p>
 						</div>
 						<div class="tab-pane" id="host">
+						<div id="org-host-panel" class="org-host-panel" hidden>
+							<p id="org-host-text" class="muted"></p>
+							<div class="settings-inline-row">
+								<button id="org-host-fill" class="theme-toggle" type="button">Add organization members</button>
+							</div>
+						</div>
 						<p class="muted">Run a small proxy server on your machine to allow hosted clients to connect. Enter a port and the list of allowed emails, then click <strong>Start Hosting</strong>.</p>
 						<div class="settings-proxy-form">
 							<label>Port: 52458</label>

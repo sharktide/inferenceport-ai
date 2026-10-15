@@ -309,6 +309,7 @@ contextBridge.exposeInMainWorld("auth", {
 	signInWithGoogle: () => ipcRenderer.invoke("auth:signInWithGoogle"),
 	signInWithMicrosoft: () => ipcRenderer.invoke("auth:signInWithMicrosoft"),
 	signInWithHuggingFace: () => ipcRenderer.invoke("auth:signInWithHuggingFace"),
+		signInWithSSO: (email: string) => ipcRenderer.invoke("auth:signInWithSSO", email),
 	signInWithEmail: (email: string, password: string) =>
 		ipcRenderer.invoke("auth:signInWithEmail", email, password),
 	signUpWithEmail: (email: string, password: string) =>
@@ -345,6 +346,16 @@ contextBridge.exposeInMainWorld("auth", {
 		keyId: string,
 	): Promise<{ success?: boolean; apiKey?: AuthLightningApiKey; error?: string }> =>
 		ipcRenderer.invoke("auth:revokeLightningApiKey", keyId),
+});
+
+// ===== Organization controls =====
+contextBridge.exposeInMainWorld("org", {
+	getPolicy: () => ipcRenderer.invoke("org:get-policy"),
+	refreshPolicy: () => ipcRenderer.invoke("org:refresh-policy"),
+	setActive: (slug: string | null) => ipcRenderer.invoke("org:set-active", slug),
+	onPolicyChange: (callback: (view: unknown) => void) => {
+		ipcRenderer.on("org:policyChanged", (_e: unknown, view: unknown) => callback(view));
+	},
 });
 
 // ===== Sync =====

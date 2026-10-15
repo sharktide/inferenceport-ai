@@ -15,6 +15,7 @@ import { shell } from "electron";
 import type { SessionType } from "./types/index.types.d.ts";
 import { broadcastIpcEvent } from "./helper/ipcBridge.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
+import { refreshOrgPolicy, reportOrgError } from "./orgPolicy.js";
 
 const supabaseKey =
 	"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwaXhlaGhkYnR6c2Jja2Zla3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDI0MjcsImV4cCI6MjA3NjcxODQyN30.nR1KCSRQj1E_evQWnE2VaZzg7PgLp2kqt4eDKP2PkpE"; // gitleaks:allow
@@ -115,6 +116,8 @@ type RendererVerifyTokenUsageView = {
 	generatedAt: string | null;
 	notice?: string;
 	error?: string;
+	/** Name of the organization that lifts the daily limit for this account, when one does. */
+	unlimitedByOrg?: string;
 };
 
 type RendererSessionUser = {
@@ -198,9 +201,12 @@ export async function issueProxyToken(): Promise<string> {
 	return token;
 }
 
-supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
+supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
 	if (session) {
 		fs.writeFileSync(sessionFile, JSON.stringify(session, null, 2));
+		if (event === "SIGNED_IN" && isSsoSession(session)) {
+			notifySsoJitProvisioning(session.access_token);
+		}
 	} else {
 		if (fs.existsSync(sessionFile)) fs.unlinkSync(sessionFile);
 	}
@@ -581,11 +587,20 @@ function normalizeVerifyTokenUsageView(
 		tierMap.get(planKey)?.name ||
 		asTrimmedString(asRecord.plan_name) ||
 		"Free Tier";
-	const usage = normalizeUsageMetric(
-		asRecord.usage,
-		"verifyTokenWithEmailDaily",
-		100,
-	);
+	const usageRecord =
+		asRecord.usage && typeof asRecord.usage === "object"
+			? (asRecord.usage as Record<string, unknown>)
+			: null;
+	const unlimitedByOrg = asTrimmedString(usageRecord?.unlimited_by_org);
+	const usage = unlimitedByOrg
+		? {
+				limit: null,
+				used: normalizeLimitValue(usageRecord?.used) ?? 0,
+				remaining: null,
+				window: asTrimmedString(usageRecord?.window) ?? "",
+				period: asTrimmedString(usageRecord?.period) ?? "daily",
+			}
+		: normalizeUsageMetric(asRecord.usage, "verifyTokenWithEmailDaily", 100);
 
 	return {
 		planKey,
@@ -593,6 +608,7 @@ function normalizeVerifyTokenUsageView(
 		featureName:
 			asTrimmedString(asRecord.feature_name) || "Token Verification Requests",
 		usage,
+		...(unlimitedByOrg ? { unlimitedByOrg } : {}),
 		generatedAt: asTrimmedString(asRecord.generated_at),
 		notice:
 			asTrimmedString(asRecord.notice) ||
@@ -1174,6 +1190,133 @@ function buildMediaBreadcrumbs(
 	return breadcrumbs;
 }
 
+const SSO_AUTH_REDIRECT_URL = "https://inference.js.org/authcallback.html";
+const SSO_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type SsoDiscoverResponse = {
+	sso?: boolean;
+	provider_id?: string;
+	domain?: string;
+	org_name?: string;
+};
+
+function isSsoSession(session: Session): boolean {
+	if (session.user?.app_metadata?.provider === "sso") return true;
+	const identities =
+		(session.user as { identities?: Array<{ provider?: unknown }> } | undefined)
+			?.identities ?? [];
+	return identities.some((identity) => {
+		const provider = String(identity?.provider ?? "");
+		return provider === "saml" || provider.startsWith("sso");
+	});
+}
+
+// Fire-and-forget: lets the server add the user to the org on first SSO login.
+// Never blocks or fails sign-in.
+function notifySsoJitProvisioning(accessToken: string): void {
+	void (async () => {
+		let failure = "";
+		for (let attempt = 0; attempt < 3; attempt++) {
+			try {
+				const res = await fetch(`${subscriptionApiBase}/v1/orgs/sso/jit`, {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${accessToken}`,
+						Accept: "application/json",
+						"Content-Type": "application/json",
+					},
+					signal: AbortSignal.timeout(15000),
+				});
+				if (res.ok) {
+					void refreshOrgPolicy();
+					return;
+				}
+				failure = `HTTP ${res.status}`;
+				if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
+			} catch (err) {
+				failure = err instanceof Error ? err.message : String(err);
+			}
+			await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+		}
+		console.warn("SSO JIT provisioning failed:", failure);
+		reportOrgError(
+			`We could not add you to your organization after SSO sign-in (${failure}). Sign out and back in to retry.`,
+		);
+	})();
+}
+
+async function signInWithSSO(
+	email: string,
+): Promise<{ success: boolean; error?: string }> {
+	const normalizedEmail = asTrimmedString(email)?.toLowerCase() ?? "";
+	if (!normalizedEmail || !SSO_EMAIL_PATTERN.test(normalizedEmail)) {
+		return { success: false, error: "Enter a valid work email address." };
+	}
+
+	let discovery: SsoDiscoverResponse;
+	try {
+		const res = await fetch(`${subscriptionApiBase}/v1/orgs/sso/discover`, {
+			method: "POST",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ email: normalizedEmail }),
+			signal: AbortSignal.timeout(15000),
+		});
+		if (!res.ok) {
+			return {
+				success: false,
+				error: `SSO lookup failed (${res.status}).`,
+			};
+		}
+		discovery = (await res.json()) as SsoDiscoverResponse;
+	} catch (err) {
+		return {
+			success: false,
+			error:
+				err instanceof Error
+					? `Could not reach the sign-in service: ${err.message}`
+					: "Could not reach the sign-in service.",
+		};
+	}
+
+	if (!discovery?.sso) {
+		return {
+			success: false,
+			error: "No single sign-on is configured for this email domain.",
+		};
+	}
+
+	const providerId = asTrimmedString(discovery.provider_id);
+	const domain = asTrimmedString(discovery.domain);
+	if (!providerId && !domain) {
+		return {
+			success: false,
+			error: "Single sign-on is configured but incomplete. Contact your administrator.",
+		};
+	}
+
+	const target: { providerId: string } | { domain: string } = providerId
+		? { providerId }
+		: { domain: domain as string };
+
+	const { data, error } = await supabase.auth.signInWithSSO({
+		...target,
+		options: {
+			redirectTo: SSO_AUTH_REDIRECT_URL,
+			skipBrowserRedirect: true,
+		},
+	});
+	if (error) return { success: false, error: error.message };
+	if (!data?.url) {
+		return { success: false, error: "Could not start single sign-on." };
+	}
+
+	await shell.openExternal(data.url);
+	return { success: true };
+}
+
 export default function register() {
 	ipcMain.handle("auth:signInWithGitHub", async () => {
 		const authUrl =
@@ -1208,6 +1351,16 @@ export default function register() {
 			`&redirect_to=https://inference.js.org/authcallback.html`;
 		await shell.openExternal(authUrl);
 		return { success: true };
+	});
+	ipcMain.handle("auth:signInWithSSO", async (_event, email: string) => {
+		try {
+			return await signInWithSSO(email);
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
 	});
 
 	ipcMain.handle("auth:signInWithEmail", async (_event, email, password) => {

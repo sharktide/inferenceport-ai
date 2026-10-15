@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path"
 import { getSession } from "../auth.js";
 import { getLightningClientId } from "./lightningClient.js";
+import { orgPolicyReady, lightningSnapshot } from "../orgPolicy.js";
 export const cache ={
   	cachedSupportsTools: null as string[] | null,
 	cachedSupportsVision: null as string[] | null,
@@ -64,6 +65,7 @@ async function fetchWithRetry(
 }
 
 async function getLightningAuthHeaders(): Promise<Record<string, string>> {
+	await orgPolicyReady();
 	const headers: Record<string, string> = {};
 	try {
 		headers["X-Client-ID"] = await getLightningClientId();
@@ -79,6 +81,8 @@ async function getLightningAuthHeaders(): Promise<Record<string, string>> {
 	} catch (_err) {
 		void 0;
 	}
+	// Guard + org header from one synchronous snapshot, after every await.
+	Object.assign(headers, lightningSnapshot());
 	return headers;
 }
 

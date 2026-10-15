@@ -728,6 +728,8 @@ export function stopProxyServer() {
 		logLine("INFO", "Proxy server stopped");
 		server = null;
 	});
+	// close() alone leaves keep-alive connections open; a revoked host must stop serving immediately.
+	server?.closeAllConnections?.();
 }
 
 export async function getServerLogs(): Promise<string> {
