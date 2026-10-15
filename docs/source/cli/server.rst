@@ -19,8 +19,8 @@ Who can connect
 Every request needs ``Authorization: Bearer <token>``:
 
 * **Approved people** - their InferencePort access token, checked against the allowed-email list. ``--allow EMAIL`` adds
-  a member; ``--allow EMAIL:admin`` adds an admin. You must be signed in on the host (``ipx auth login``) so tokens can
-  be verified.
+  a member; ``--allow EMAIL:admin`` adds an admin. The host must be signed in with a user session (email or OAuth,
+  not an API key) so tokens can be verified.
 * **Server API keys** - ``--generate-key`` creates a random ``ipxs_...`` key (shown once) and ``--api-key KEY`` adds one
   you already have. Keys act as admin. Keys need no sign-in, which makes them handy for scripts and CI.
 

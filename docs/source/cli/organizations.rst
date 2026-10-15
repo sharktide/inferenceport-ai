@@ -89,7 +89,7 @@ Usage and audit
 
 .. code-block:: console
 
-   $ ipx org usage breakdown --days 30 --by model       # user | model | key | modality
+   $ ipx org usage breakdown --days 30 --by model       # user | key | model | day
    $ ipx org usage export --days 90 --format csv -o usage.csv
    $ ipx org usage report                               # email the report now
 

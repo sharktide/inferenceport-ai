@@ -43,7 +43,7 @@ Host server: "Address already in use"
    Another process (often the desktop app's Host mode) holds the port. Choose another with ``--port`` or stop the other one.
 
 Host server: clients get ``401 Token verification failed``
-   The user's email must be on the allowed list (``--allow``) and the host must be signed in to verify tokens. Use
+   The user's email must be on the allowed list (``--allow``) and the host must be signed in with a user session (not an API key) to verify tokens. Use
    ``--generate-key`` for token-free API-key access.
 
 Imports do not appear in the app
