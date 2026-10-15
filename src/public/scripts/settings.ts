@@ -1,4 +1,5 @@
 import { showNotification } from "./helper/notification.js";
+import { loadOrgPolicy, onOrgPolicyChange } from "./helper/orgPolicy.js";
 import {
 	BILLING_PORTAL_URL,
 	buildUpgradePlanCards,
@@ -1361,6 +1362,15 @@ function renderVerifyTokenUsage(usage: AuthVerifyTokenUsageInfo): void {
 		return;
 	}
 
+	if (usage.unlimitedByOrg) {
+		tokenVerifyUsageValueEl.textContent = "Unlimited";
+		tokenVerifyUsageMetaEl.textContent = `Provided by ${usage.unlimitedByOrg}. No daily limit applies to your hosted servers.`;
+		tokenVerifyUsageFillEl.classList.remove("is-warning", "is-danger");
+		tokenVerifyUsageFillEl.style.width = "100%";
+		if (tokenVerifyUsageNoticeEl) tokenVerifyUsageNoticeEl.textContent = "";
+		return;
+	}
+
 	const limit =
 		typeof usage.usage.limit === "number" ? usage.usage.limit : 100;
 	const used = Math.max(0, Number(usage.usage.used) || 0);
@@ -1908,3 +1918,147 @@ disengageBtn?.addEventListener("click", async () => {
         }
     }
 });
+
+
+/* ---------- Organization controls ---------- */
+
+function describeOrgRules(p: OrgDesktopPolicy): { text: string; limited: boolean }[] {
+	const rules: { text: string; limited: boolean }[] = [];
+	rules.push(
+		p.lightning === "local_only"
+			? { text: "Cloud (Lightning) models are off. Only local models are available.", limited: true }
+			: {
+					text: p.lightning_billing === "org"
+						? "Lightning models are allowed and billed to the organization."
+						: "Lightning models are allowed on your own plan.",
+					limited: false,
+				},
+	);
+	rules.push(
+		p.pull_mode === "any"
+			? { text: "You can download any model.", limited: false }
+			: p.pull_mode === "blocked"
+				? { text: "Downloading models is turned off.", limited: true }
+				: { text: `Downloads are limited to: ${(p.pull_models ?? []).join(", ") || "no approved models yet"}.`, limited: true },
+	);
+	if (!p.allow_model_import) rules.push({ text: "Importing your own models is turned off.", limited: true });
+	if (!p.allow_custom_tools) rules.push({ text: "Custom tools are turned off.", limited: true });
+	rules.push(
+		p.server_hosting === "any"
+			? { text: "You can host a server.", limited: false }
+			: p.server_hosting === "admins"
+				? { text: "Only organization admins can host a server.", limited: true }
+				: { text: "Hosting a server is turned off.", limited: true },
+	);
+	if (p.unlimited_verifications) rules.push({ text: "Token verifications are unlimited.", limited: false });
+	return rules;
+}
+
+function renderOrgControls(view: OrgPolicyView | null): void {
+	const panel = document.getElementById("org-controls");
+	const hostPanel = document.getElementById("org-host-panel");
+	const hostStart = document.getElementById("host-start") as HTMLButtonElement | null;
+	if (!panel) return;
+
+	if (!view || !view.signedIn || view.orgs.length === 0) {
+		panel.hidden = true;
+		if (hostPanel) hostPanel.hidden = true;
+		return;
+	}
+
+	panel.hidden = false;
+	const title = document.getElementById("org-controls-title");
+	const summary = document.getElementById("org-controls-summary");
+	const rulesEl = document.getElementById("org-controls-rules");
+	const foot = document.getElementById("org-controls-foot");
+	const switchWrap = document.getElementById("org-switch-wrap");
+	const select = document.getElementById("org-switch") as HTMLSelectElement | null;
+
+	if (title) title.textContent = view.activeName ?? "Organization";
+	if (summary) {
+		summary.textContent = view.managed
+			? `Your organization manages parts of this app. These settings apply while ${view.activeName} is active.`
+			: `${view.activeName} does not restrict the desktop app.`;
+	}
+	if (rulesEl) {
+		rulesEl.innerHTML = "";
+		if (view.managed) {
+			for (const rule of describeOrgRules(view.policy)) {
+				const li = document.createElement("li");
+				li.textContent = rule.text;
+				if (rule.limited) li.classList.add("is-limited");
+				rulesEl.appendChild(li);
+			}
+		}
+	}
+	if (foot) {
+		foot.textContent = view.error
+			? `Showing the last known settings (${view.error}).`
+			: view.fetchedAt
+				? `Updated ${new Date(view.fetchedAt).toLocaleTimeString()}. Admins change these in the web console.`
+				: "";
+	}
+	if (switchWrap && select) {
+		switchWrap.hidden = view.orgs.length < 2;
+		select.innerHTML = "";
+		for (const o of view.orgs) {
+			const opt = document.createElement("option");
+			opt.value = o.slug;
+			opt.textContent = o.name;
+			opt.selected = o.slug === view.activeSlug;
+			select.appendChild(opt);
+		}
+	}
+
+	// Hosting: block, or offer one-click access from the org directory.
+	if (hostStart) {
+		hostStart.disabled = view.managed && !view.canHostServer;
+		hostStart.title = hostStart.disabled ? `${view.activeName} does not allow you to host a server.` : "";
+	}
+	if (hostPanel) {
+		const text = document.getElementById("org-host-text");
+		const fill = document.getElementById("org-host-fill") as HTMLButtonElement | null;
+		if (view.managed && !view.canHostServer) {
+			hostPanel.hidden = false;
+			if (text) text.textContent = `${view.activeName} does not allow you to host a server.`;
+			if (fill) fill.hidden = true;
+		} else if (view.serverUsers.length > 0) {
+			hostPanel.hidden = false;
+			if (text) text.textContent = `${view.activeName} can fill the allowed users for you. Admins get host rights; everyone else is a regular user.`;
+			if (fill) {
+				fill.hidden = false;
+				fill.textContent = `Add ${view.serverUsers.length} organization ${view.serverUsers.length === 1 ? "member" : "members"}`;
+				fill.onclick = () => {
+					let existing: { email: string; role: string }[] = [];
+					try {
+						existing = JSON.parse(localStorage.getItem(HOST_USERS_KEY) || "[]");
+					} catch {
+						existing = [];
+					}
+					const byEmail = new Map(existing.map((u) => [u.email, u]));
+					for (const u of view.serverUsers) {
+						byEmail.set(u.email, { email: u.email, role: u.role });
+						addEmail(u.email);
+					}
+					localStorage.setItem(HOST_USERS_KEY, JSON.stringify([...byEmail.values()]));
+					showNotification({ type: "success", message: "Organization members added to the allowed users." });
+				};
+			}
+		} else {
+			hostPanel.hidden = true;
+		}
+	}
+}
+
+document.getElementById("org-switch")?.addEventListener("change", async (e) => {
+	const slug = (e.target as HTMLSelectElement).value;
+	try {
+		renderOrgControls(await window.org.setActive(slug));
+	} catch (err) {
+		console.warn("Could not switch organization", err);
+	}
+});
+
+void loadOrgPolicy().then(renderOrgControls);
+onOrgPolicyChange(renderOrgControls);
+void window.org?.refreshPolicy?.().then(renderOrgControls).catch(() => void 0);

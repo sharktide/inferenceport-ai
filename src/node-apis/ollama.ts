@@ -32,6 +32,7 @@ import {
 	getServerLogs,
 } from "./helper/server.js";
 import { pullModel, deleteModel, listModels } from "./helper/ollamaFSops.js";
+import { assertPullAllowed, assertImportAllowed, assertCustomToolsAllowed, assertHostingAllowed } from "./orgPolicy.js";
 import { cache, fetchSupportedTools, fetchSupportedVisionModels } from "./helper/tools.js";
 import {
 	createCustomTool,
@@ -131,6 +132,7 @@ export default function register(): void {
 			users: { email: string; role: string }[] = [],
 			serverApiKeys: string[] = [],
 		) => {
+			assertHostingAllowed();
 			startProxyServer(port, users, serverApiKeys);
 			return `Server starting on port ${port}...`;
 		},
@@ -148,6 +150,7 @@ export default function register(): void {
 	});
 
 	ipcMain.handle("ollama:create-custom-tool", async (_event, payload: unknown) => {
+		assertCustomToolsAllowed();
 		return await createCustomTool((payload || {}) as Parameters<typeof createCustomTool>[0]);
 	});
 
@@ -164,6 +167,7 @@ export default function register(): void {
 	});
 
 	ipcMain.handle("ollama:import-custom-tool", async (_event, toolId: string) => {
+		assertCustomToolsAllowed();
 		return await importCustomToolFromRegistry(toolId);
 	});
 
@@ -269,6 +273,8 @@ export default function register(): void {
 			modelName: string,
 			clientUrl?: string,
 		): Promise<string> => {
+			// Pulling onto a remote host is that host's call; the policy covers pulls onto this device.
+			if (!clientUrl || clientUrl === "http://localhost:11434") assertPullAllowed(modelName);
 			return pullModel(_event, modelName, clientUrl);
 		}
 			
@@ -283,6 +289,7 @@ export default function register(): void {
 			isModelFile: boolean,
 			clientUrl?: string,
 		): Promise<string> => {
+			assertImportAllowed();
 			return await importGGUF(
 				fileName,
 				data,
@@ -301,6 +308,7 @@ export default function register(): void {
 			ggufData: Uint8Array | null,
 			clientUrl?: string,
 		): Promise<string> => {
+			assertImportAllowed();
 			return await importGGUFMulti(
 				modelfileData,
 				ggufName,

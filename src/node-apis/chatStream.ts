@@ -28,6 +28,7 @@ import {
 	toToolDefinition,
 } from "./helper/customTools.js";
 import { getLightningClientId } from "./helper/lightningClient.js";
+import { assertLightningAllowed, lightningOrgHeaders } from "./orgPolicy.js";
 
 import {
 	save_stream, is52458,
@@ -83,8 +84,9 @@ export async function createOpenAIClient(baseURL?: string): Promise<OpenAI> {
 	}
 
 	if (baseURL == "lightning") {
+		assertLightningAllowed();
 		let lightningApiKey = "public";
-		const defaultHeaders: Record<string, string> = {};
+		const defaultHeaders: Record<string, string> = { ...lightningOrgHeaders() };
 		try {
 			defaultHeaders["X-Client-ID"] = await getLightningClientId();
 		} catch (_err) {

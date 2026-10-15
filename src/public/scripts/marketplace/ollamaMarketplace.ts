@@ -1,4 +1,5 @@
 import { showNotification } from "../helper/notification.js";
+import { cleanIpcError, loadOrgPolicy } from "../helper/orgPolicy.js";
 interface AvailableModel {
 	name: string;
 	description?: string;
@@ -116,7 +117,7 @@ async function pullModel(name: string): Promise<void> {
 		});
 	} catch (err: any) {
 		showNotification({
-			message: `Error pulling model: ${err.message}`,
+			message: `Error pulling model: ${cleanIpcError(err)}`,
 			type: "error",
 		});
 	}
@@ -849,6 +850,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 			type: "error",
 		});
 	}
+});
+
+// Tell members up front when their organization limits which models they can download.
+void loadOrgPolicy().then((view) => {
+	if (!view?.managed || view.policy.pull_mode === "any") return;
+	const org = view.activeName ?? "Your organization";
+	showNotification({
+		message:
+			view.policy.pull_mode === "blocked"
+				? `${org} does not allow downloading models in the app.`
+				: `${org} limits downloads to an approved model list: ${(view.policy.pull_models ?? []).join(", ") || "none approved yet"}.`,
+		type: "info",
+	});
 });
 
 (window as any).removeHostMarketplace = removeHostMarketplace;

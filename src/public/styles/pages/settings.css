@@ -631,3 +631,69 @@ Copyright 2026 InferencePort LLC
     flex-direction: column;
   }
 }
+
+/* Organization controls (settings > account / host) */
+.org-controls,
+.org-host-panel {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  background: var(--bg-primary);
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+.org-controls[hidden],
+.org-host-panel[hidden],
+.org-switch[hidden] {
+  display: none;
+}
+
+.org-controls-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.org-controls-head h3 {
+  margin: 0;
+}
+
+.org-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.org-rules {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.org-rules li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.org-rules li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  transform: translateY(-1px);
+}
+
+.org-rules li.is-limited::before {
+  background: var(--orange, #e0a030);
+}

@@ -958,6 +958,9 @@ export function installWebSocketTransportFallback(): void {
 	client.on("storage:changed", (change) =>
 		events.emit("storage:changed", change),
 	);
+	client.on("org:policyChanged", (view) =>
+		events.emit("org:policyChanged", view),
+	);
 
 	window.ollama = {
 		listModels: async (clientUrl?: string) =>
@@ -1445,6 +1448,17 @@ export function installWebSocketTransportFallback(): void {
 				events.emit("auth:stateChanged", safeSession);
 			}
 			return result;
+		},
+	};
+
+	window.org = {
+		getPolicy: async () => invokeOrDefault<OrgPolicyView>("org:get-policy", []),
+		refreshPolicy: async () =>
+			invokeOrDefault<OrgPolicyView>("org:refresh-policy", []),
+		setActive: async (slug: string | null) =>
+			invokeOrDefault<OrgPolicyView>("org:set-active", [slug]),
+		onPolicyChange: (callback: (view: OrgPolicyView) => void) => {
+			events.on("org:policyChanged", (view) => callback(view as OrgPolicyView));
 		},
 	};
 

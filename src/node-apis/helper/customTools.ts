@@ -6,6 +6,7 @@ import { spawn } from "child_process";
 import { getSession } from "../auth.js";
 import type { ToolDefinition } from "../types/index.types.d.ts";
 import { getLightningClientId } from "./lightningClient.js";
+import { lightningOrgHeaders } from "../orgPolicy.js";
 
 export type CustomToolLanguage =
 	| "javascript"
@@ -663,6 +664,7 @@ async function getLightningAuthHeaders(): Promise<Record<string, string>> {
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
 		Accept: "application/json",
+		...lightningOrgHeaders(),
 	};
 	try {
 		headers["X-Client-ID"] = await getLightningClientId();

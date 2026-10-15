@@ -24,6 +24,7 @@ import ollamaHandlers, {
 import { fetchSupportedTools, fetchSupportedVisionModels } from "./node-apis/helper/tools.js";
 import utilsHandlers, { setSnipTarget } from "./node-apis/utils.js";
 import authHandlers, { supabase as supabaseClient } from "./node-apis/auth.js";
+import orgPolicyHandlers, { assertHostingAllowed, primeOrgPolicyFromDisk } from "./node-apis/orgPolicy.js";
 import chatStreamHandlers from "./node-apis/chatStream.js";
 import spacesHandlers from "./node-apis/spaces.js";
 import {
@@ -507,6 +508,7 @@ app.whenReady().then(async () => {
 	ipcMain.handle("session:getPath", () => chatDir);
 
 	authHandlers();
+	orgPolicyHandlers();
 	chatStreamHandlers();
 	ollamaHandlers();
 	utilsHandlers();
@@ -546,6 +548,8 @@ app.whenReady().then(async () => {
 		startupSettings.proxyUsers.length > 0
 	) {
 		try {
+			primeOrgPolicyFromDisk();
+			assertHostingAllowed();
 			startProxyServer(
 				startupSettings.proxyPort || 52458,
 				startupSettings.proxyUsers,

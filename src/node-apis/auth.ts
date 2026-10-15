@@ -115,6 +115,8 @@ type RendererVerifyTokenUsageView = {
 	generatedAt: string | null;
 	notice?: string;
 	error?: string;
+	/** Name of the organization that lifts the daily limit for this account, when one does. */
+	unlimitedByOrg?: string;
 };
 
 type RendererSessionUser = {
@@ -584,11 +586,20 @@ function normalizeVerifyTokenUsageView(
 		tierMap.get(planKey)?.name ||
 		asTrimmedString(asRecord.plan_name) ||
 		"Free Tier";
-	const usage = normalizeUsageMetric(
-		asRecord.usage,
-		"verifyTokenWithEmailDaily",
-		100,
-	);
+	const usageRecord =
+		asRecord.usage && typeof asRecord.usage === "object"
+			? (asRecord.usage as Record<string, unknown>)
+			: null;
+	const unlimitedByOrg = asTrimmedString(usageRecord?.unlimited_by_org);
+	const usage = unlimitedByOrg
+		? {
+				limit: null,
+				used: normalizeLimitValue(usageRecord?.used) ?? 0,
+				remaining: null,
+				window: asTrimmedString(usageRecord?.window) ?? "",
+				period: asTrimmedString(usageRecord?.period) ?? "daily",
+			}
+		: normalizeUsageMetric(asRecord.usage, "verifyTokenWithEmailDaily", 100);
 
 	return {
 		planKey,
@@ -596,6 +607,7 @@ function normalizeVerifyTokenUsageView(
 		featureName:
 			asTrimmedString(asRecord.feature_name) || "Token Verification Requests",
 		usage,
+		...(unlimitedByOrg ? { unlimitedByOrg } : {}),
 		generatedAt: asTrimmedString(asRecord.generated_at),
 		notice:
 			asTrimmedString(asRecord.notice) ||
