@@ -15,9 +15,11 @@ The InferencePort AI Lightning backend exposes three hosted API services on
     wallet balance rather than plan quotas.
 
 :doc:`shield`
-    The **AI Shield** (``/ai-shield``) is an intelligent abuse prevention and
-    fraud detection system. Submit request signals for real-time analysis and
-    get back a risk score, decision, and detailed evidence.
+    The **AI Shield** (``/ai-shield``) is a detection API for abuse, fraud and
+    attacks: prompts and agent tool output, signups and payments, emails and
+    links, HTTP requests, file uploads, passwords, listings, domains, tokens
+    and more. Send signals (or use the single-purpose ``/check`` endpoint) and
+    get back a risk score, decision and detailed evidence.
 
 :doc:`rewards-system`
     The **Rewards System** (``/v1/rewards``) lets users earn badges and
@@ -33,9 +35,9 @@ Which API should I use?
 * Use the **P2G API** when you need predictable credit-based billing,
   enterprise isolation, a stable production API surface, or want to select
   specific override models.
-* Use the **AI Shield** when you need to screen signups, messages, or
-  requests for abuse, fraud, or policy violations before they reach your
-  application logic.
+* Use the **AI Shield** when you need to screen signups, messages, requests,
+  files, or indicators such as emails, domains and IPs for abuse, fraud, attacks
+  or policy violations before they reach your application logic.
 
 All three share a common authentication scheme and base URL.
 
