@@ -42,9 +42,13 @@ cannot set headers on a WebSocket, so they pass the key in a **subprotocol** ins
    A key placed in a browser WebSocket is visible to the page. Use a short-lived session token for the signed-in user, never
    a long-lived key you do not want exposed. For server-side use, send the header.
 
-Once connected, use the protocol of the model you picked. Frames are relayed unchanged in both directions; InferencePort only
-reads three things in order to bill the session: the audio format you declare in ``session.update``, the audio you send with
-``input_audio_buffer.append``, and the usage reported in ``response.done``.
+Once connected, use the protocol of the model you picked: the **GA OpenAI Realtime** protocol, where a session has
+``type: "realtime"`` (voice and multimodal models) or ``type: "transcription"`` (transcription models). Frames are relayed
+unchanged in both directions; InferencePort only reads three things in order to bill the session: the audio format you declare
+in ``session.update``, the audio you send with ``input_audio_buffer.append``, and the usage reported in ``response.done``.
+
+``GET /v1/realtime/models`` returns a ready-to-send ``default_session`` for every model (plus ``session_kind``,
+``input_sample_rates`` and, for transcription models, ``manual_commit``), so a client does not have to hard-code any of this.
 
 .. code-block:: python
 
@@ -55,8 +59,9 @@ reads three things in order to bill the session: the audio format you declare in
        url = "wss://api.inferenceport.ai/v1/realtime?model=gpt-realtime-2.1-mini"
        async with websockets.connect(url, additional_headers={"Authorization": "Bearer ipa_live_..."},
                                      subprotocols=["realtime"]) as ws:
-           await ws.send(json.dumps({"type": "session.update",
-                                     "session": {"modalities": ["text", "audio"], "voice": "marin"}}))
+           await ws.send(json.dumps({"type": "session.update", "session": {
+               "type": "realtime", "output_modalities": ["text"],
+               "instructions": "Be concise."}}))
            await ws.send(json.dumps({"type": "conversation.item.create", "item": {
                "type": "message", "role": "user",
                "content": [{"type": "input_text", "text": "Say hello in one sentence."}]}}))
@@ -70,11 +75,41 @@ reads three things in order to bill the session: the audio format you declare in
 
    asyncio.run(main())
 
-.. note::
+Per-model rules (enforced by the provider; a violation closes the session with ``1008`` and a reason):
 
-   The exact ``session.update`` schema (and the names of some events) follow the underlying provider and can differ between
-   models. The console's Realtime studio lets you edit the ``session.update`` JSON, and ``ipx p2g realtime ... --events``
-   prints every raw event, which is the quickest way to see what a model expects.
+.. list-table::
+   :widths: 27 73
+   :header-rows: 1
+
+   * - Model
+     - Session rules
+   * - ``gpt-realtime-2.1``, ``gpt-realtime-2.1-mini``
+     - ``type: "realtime"``; ``output_modalities`` is ``["audio"]`` or ``["text"]``. **Input transcription is not supported**
+       (``session.audio.input.transcription``, ``input_audio_transcription`` and ``transcription_session.*`` are rejected), so
+       your own speech is not transcribed; the model's replies are (``response.output_audio_transcript.*``). Voices go in
+       ``audio.output.voice``.
+   * - ``gpt-live-transcribe``
+     - ``type: "transcription"``; supports server VAD (``turn_detection: {"type": "server_vad"}``). ``transcription.model``
+       may only be this model.
+   * - ``mai-transcribe-2-streaming``
+     - Send ``session.update`` **before** any audio, with ``type: "transcription"`` and ``audio.input.format`` of
+       ``audio/pcm`` at **16000 or 24000** Hz. ``turn_detection`` and ``noise_reduction`` must be ``null``: audio is committed
+       manually with ``input_audio_buffer.commit``. Only ``session.update``, ``input_audio_buffer.append`` and
+       ``input_audio_buffer.commit`` are accepted, and the settings cannot change once audio has started.
+   * - ``scribe-v2-realtime``
+     - ``session.update`` is optional. Audio is ``audio/pcm`` at 24000 Hz (the default) or ``audio/pcmu`` (8 kHz G.711). Commit
+       manually (the default) or use ``server_vad``; ``transcription.languages`` and ``prompt`` are supported. Other client
+       events get an ``invalid_event`` error.
+
+Transcription models stream ``conversation.item.input_audio_transcription.delta`` and ``....completed`` events. The console's
+Realtime studio lets you edit the ``session.update`` JSON, and ``ipx p2g realtime ... --events`` prints every raw event.
+
+.. tip::
+
+   In a browser, play the model's audio through an ``<audio>`` element (a Web Audio ``MediaStreamDestination`` as its
+   ``srcObject``), not straight to the Web Audio output. The browser uses audio-element output as the echo-cancellation
+   reference; without it the microphone re-captures the model's voice and the model starts replying to itself. The console
+   does this.
 
 Models
 ------
@@ -122,6 +157,7 @@ rate when you stream something else. Amounts below 0.0001 credits accumulate unt
 
 For both kinds:
 
+* If the provider ends a session (for example a ``1008`` policy close), its close code and reason are passed on to you.
 * A session needs at least **0.25 credits** to start, and ends with close code ``4402`` when the balance reaches zero.
 * Reward discounts and per-user markups apply, and charges appear in the ledger as ``usage_kind: "realtime"``
   (``ipx p2g ledger``, console Activity).
@@ -187,6 +223,10 @@ followed by a WebSocket close with one of these codes:
    * - ``1011``
      - -
      - The realtime provider is unavailable. Try again shortly.
+   * - ``1008``
+     - -
+     - The provider rejected an event or setting (for example input transcription on a ``gpt-realtime-*`` model). The close
+       reason says what.
 
 Realtime models are not chat models: sending one to ``/v1/chat/completions`` returns ``400`` with a pointer to this endpoint.
 

@@ -59,21 +59,29 @@ Request
      - Embedding model id or alias. Defaults to ``text-embedding-3-small``. See `Models`_.
    * - ``input``
      - string or array
-     - **Required.** A string, an array of strings, an array of token ids, or an array of token-id arrays. At most
-       2,048 items and 2,000,000 characters (8 MB) per request; empty items are rejected. Text and token ids cannot be
-       mixed in one request.
+     - **Required.** A string, or an array of **at most 32** strings. At most 2,000,000 characters (8 MB) per request;
+       empty items are rejected. Token-id arrays and multimodal content parts are not supported.
    * - ``encoding_format``
      - string
      - ``float`` (default) or ``base64`` (little-endian float32, about half the response size).
    * - ``dimensions``
      - integer
-     - Optional, 1-8192. Shortens the vector for models that support it; a model that does not support it may reject the request.
+     - Optional, 128-4096. Shortens the vector; each model has its own ceiling (its ``dimensions`` below) and Cohere accepts
+       only 256, 512, 1024 or 1536. An unsupported value is rejected by the provider.
+   * - ``task_type``
+     - string
+     - Optional retrieval hint for **Gemini** text input (for example ``RETRIEVAL_QUERY``, ``RETRIEVAL_DOCUMENT``,
+       ``SEMANTIC_SIMILARITY``). It is converted to the model's recommended prompt instruction, and that instruction counts
+       toward the tokens you are billed for.
+   * - ``input_type``
+     - string
+     - Optional retrieval role for **Cohere**: ``query`` when searching, ``document`` when indexing.
    * - ``user``
      - string
      - Optional end-user identifier, forwarded to the provider.
 
-Any other field is ignored. Embeddings are **text-only** through this API: some underlying models can embed images,
-audio or video, but those inputs are not exposed here yet.
+Any other field is ignored. Embeddings are **text-only** through this API: Gemini and Cohere can also embed images (and
+Gemini audio and video), but those inputs are not exposed here yet.
 
 Response
 --------
@@ -154,6 +162,9 @@ credits (1 credit = 1 USD) per **million input tokens**.
      - 40,960
      - 0.01
 
+The list endpoint also returns ``supported_dimensions`` where a model accepts only specific sizes (Cohere), ``max_inputs``
+and the parameters each model understands (``supported_parameters``).
+
 Each model also answers to its provider id (for example ``openai/text-embedding-3-large``) and a few short aliases such as
 ``embedding-small``, ``embedding-large`` and ``qwen3-embedding``; the list endpoint shows them all. Rates are the live values
 from the model catalog, and the console always shows the current price.
@@ -174,7 +185,8 @@ Limits
 ------
 
 * Requests are rate-limited per identity (120 per minute by default).
-* See the input limits in `Request`_; larger jobs should be split into batches.
+* At most 32 inputs per request (``max_inputs`` in the model list); split larger jobs into batches. ``ipx p2g embed`` does this
+  for you.
 
 Errors
 ------
@@ -186,7 +198,7 @@ Errors
    * - Status
      - Meaning
    * - ``400``
-     - Invalid ``input``, ``encoding_format`` or ``dimensions``.
+     - Invalid ``input`` (including more than 32 items), ``encoding_format``, ``dimensions``, ``input_type`` or ``task_type``.
    * - ``401``
      - Missing, invalid or revoked credential.
    * - ``402``

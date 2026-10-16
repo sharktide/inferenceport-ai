@@ -55,8 +55,11 @@ Embeddings
    $ ipx p2g models --type embedding                               # models and prices
 
 Inputs can be arguments, files (``-f``, repeatable; a whole file is one input unless ``--lines``), or standard input. The
-default model is ``text-embedding-3-small``. You are billed per input token and the credits charged are printed after the
-result; ``--json`` prints the API response (which includes ``usage.payg_credits_charged``). See :doc:`/api/embeddings-api`.
+default model is ``text-embedding-3-small``. The API takes at most 32 inputs per request, so larger sets (up to 1,024) are sent
+in batches of 32 and merged; the token and credit totals are summed. ``--dimensions`` accepts 128-4096 (model limits apply),
+``--input-type query|document`` is for Cohere and ``--task-type`` for Gemini. You are billed per input token and the credits
+charged are printed after the result; ``--json`` prints one JSON document (the merged response, including
+``usage.payg_credits_charged``). See :doc:`/api/embeddings-api`.
 
 Realtime
 --------
@@ -72,14 +75,25 @@ Realtime
    $ arecord -f S16_LE -r 24000 -c 1 -t raw | ipx p2g realtime transcribe - --rate 24000
    $ ipx p2g models --type realtime
 
-``realtime chat`` talks to a conversational model (default ``gpt-realtime-2.1``); ``realtime transcribe`` streams a recording
-(a WAV file, or raw PCM16 on standard input with ``-`` and ``--rate``) to a transcription model (default
-``gpt-live-transcribe``) and prints the transcript. Audio is converted to 24 kHz mono PCM16 before it is sent, and ``ipx`` has
-no microphone capture of its own; pipe from ``arecord``, ``sox`` or ``ffmpeg`` for live input.
+``realtime chat`` talks to a conversational model (default ``gpt-realtime-2.1``). Replies are **text only** unless you pass
+``--audio-out FILE`` (then the model speaks, the transcript is still printed, and the audio is saved as a WAV, even if the session
+fails part-way), so a plain text chat is never billed for audio. ``realtime transcribe`` streams a recording (a WAV file, or raw
+PCM16 on standard input with ``-`` and ``--rate``) to a transcription model (default ``gpt-live-transcribe``) and prints the
+transcript; a conversational model is refused with a pointer to ``chat``, and the other way round. Audio is converted to 24 kHz
+mono PCM16 while it streams (nothing is held in memory, and a live ``arecord`` pipe is sent as it is recorded). ``ipx`` has no
+microphone capture of its own; pipe from ``arecord``, ``sox`` or ``ffmpeg``.
 
-Useful options: ``--pace`` sends audio at real-time speed, ``--idle SECONDS`` sets how long to wait for the last transcript,
-``--session '{...}'`` replaces the default ``session.update`` payload for models that expect a different shape, and
-``--events`` prints every raw event to standard error. Sessions are billed while they run (per token for ``gpt-realtime-*``,
+Sessions use the model's default from ``GET /v1/realtime/models`` (the GA Realtime shape). Models with manual commits
+(``mai-transcribe-2-streaming``, ``scribe-v2-realtime``) are committed when the audio ends; models with server-side turn
+detection (``gpt-live-transcribe``) get 1.5 seconds of silence at the end so the last sentence is closed. The command then waits
+for the transcript itself (``--wait``, default 60 s) and until the server has been quiet for ``--idle`` seconds. An error event
+from the server, or a connection that drops before the end, fails the command with a clear message and a non-zero exit status.
+
+Useful options: ``--pace`` sends audio at real-time speed, ``--session '{...}'`` replaces the default ``session.update``
+payload, and ``--events`` prints every raw event to standard error. With ``--json``, standard output is exactly one JSON
+document (``text``, ``usage`` and ``audio_file`` for ``chat``; ``text``, ``segments`` and ``audio_seconds`` for ``transcribe``).
+The WebSocket uses the same base URL as every other command (path prefixes are kept) and is always encrypted except for
+``localhost``. Sessions are billed while they run (per token for ``gpt-realtime-*``,
 per streamed second for the transcription models); ``ipx p2g ledger`` shows the exact charges, and a session ends with a clear
 message and hint when credits run out or an organization policy blocks the model. See :doc:`/api/realtime-api`.
 
