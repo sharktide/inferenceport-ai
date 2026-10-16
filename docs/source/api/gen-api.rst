@@ -383,6 +383,15 @@ Text-to-speech generation. Returns raw ``audio/mpeg`` bytes. Accepts
 See the `P2G API docs <p2g-api.html>`_ for the full 3D generation reference,
 including cURL examples, request/response schemas, and credit pricing.
 
+Embeddings and realtime
+-----------------------
+
+.. note::
+
+   Embeddings (``/v1/embeddings``) and realtime voice sessions (``/v1/realtime``) are **not available** on the Generation
+   (subscription) API. They are Pay-2-Go only; see :doc:`embeddings-api` and :doc:`realtime-api`. The models appear in the
+   model catalogs but, like every named non-router model, are not callable through ``/gen``.
+
 Prompt analysis
 ---------------
 

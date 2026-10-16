@@ -7,7 +7,7 @@ production-oriented API and the one that lets an organization pay (set a context
 
 ``chat``, ``text``, ``image``, ``video``, ``audio`` and ``models`` work exactly as described in :doc:`lightning`
 (replace ``gen`` with ``p2g``); after each generation the credits charged are shown. This page covers what is specific
-to Pay-2-Go.
+to Pay-2-Go: 3D, embeddings, realtime voice, wallet, keys and deployments.
 
 .. code-block:: console
 
@@ -42,6 +42,46 @@ Models: ``tripoSR`` (default), ``sf3d``, ``trellis2`` (with ``--resolution low|m
 ``asset-harvester`` (needs ``--prompt``; produces a Gaussian-splat ``.ply`` and an orbit ``.mp4``). The job runs
 asynchronously and credits are refunded automatically if it fails. This feature is in early access; see
 :doc:`/api/p2g-api`.
+
+Embeddings
+----------
+
+.. code-block:: console
+
+   $ ipx p2g embed "The quick brown fox"                           # one input, shows the vector summary
+   $ ipx p2g embed "first" "second" -m text-embedding-3-large --dimensions 256
+   $ ipx p2g embed -f notes.txt --lines -o vectors.json            # one input per non-empty line; full response saved
+   $ cat docs.txt | ipx p2g embed --lines --json | jq '.data[0].embedding | length'
+   $ ipx p2g models --type embedding                               # models and prices
+
+Inputs can be arguments, files (``-f``, repeatable; a whole file is one input unless ``--lines``), or standard input. The
+default model is ``text-embedding-3-small``. You are billed per input token and the credits charged are printed after the
+result; ``--json`` prints the API response (which includes ``usage.payg_credits_charged``). See :doc:`/api/embeddings-api`.
+
+Realtime
+--------
+
+.. code-block:: console
+
+   $ ipx p2g realtime chat "Tell me a one-line joke"                   # streams the reply as text
+   $ ipx p2g realtime chat "Say hello" --voice marin --audio-out hello.wav
+   $ ipx p2g realtime chat --audio-in question.wav                     # ask by speaking a WAV file
+   $ ipx p2g realtime chat                                             # interactive: one message per line, Ctrl+D to end
+   $ ipx p2g realtime transcribe meeting.wav
+   $ ipx p2g realtime transcribe talk.wav -m scribe-v2-realtime -o talk.txt
+   $ arecord -f S16_LE -r 24000 -c 1 -t raw | ipx p2g realtime transcribe - --rate 24000
+   $ ipx p2g models --type realtime
+
+``realtime chat`` talks to a conversational model (default ``gpt-realtime-2.1``); ``realtime transcribe`` streams a recording
+(a WAV file, or raw PCM16 on standard input with ``-`` and ``--rate``) to a transcription model (default
+``gpt-live-transcribe``) and prints the transcript. Audio is converted to 24 kHz mono PCM16 before it is sent, and ``ipx`` has
+no microphone capture of its own; pipe from ``arecord``, ``sox`` or ``ffmpeg`` for live input.
+
+Useful options: ``--pace`` sends audio at real-time speed, ``--idle SECONDS`` sets how long to wait for the last transcript,
+``--session '{...}'`` replaces the default ``session.update`` payload for models that expect a different shape, and
+``--events`` prints every raw event to standard error. Sessions are billed while they run (per token for ``gpt-realtime-*``,
+per streamed second for the transcription models); ``ipx p2g ledger`` shows the exact charges, and a session ends with a clear
+message and hint when credits run out or an organization policy blocks the model. See :doc:`/api/realtime-api`.
 
 API keys
 --------

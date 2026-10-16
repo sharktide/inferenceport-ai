@@ -4,7 +4,8 @@ ipx Command Line
 ``ipx`` is the InferencePort AI command line. It is one native program that talks to everything InferencePort offers:
 
 * **Lightning** (``ipx gen``) - chat and generate images, video and audio with your subscription.
-* **Pay-2-Go** (``ipx p2g``) - the credit-billed API: chat, images, video, audio, 3D, API keys and deployments.
+* **Pay-2-Go** (``ipx p2g``) - the credit-billed API: chat, images, video, audio, 3D, embeddings, realtime voice and
+  transcription, API keys and deployments.
 * **Featherless** (``ipx featherless``) - deploy catalog models for yourself or an organization.
 * **Agents** (``ipx agent``) - create, share and chat with managed agents.
 * **Council MCP** (``ipx mcp council``) - multi-model reasoning from the terminal.
