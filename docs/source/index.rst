@@ -28,6 +28,7 @@ If you need one answer quickly, start here:
 * I want to use Hugging Face Spaces or websites: :doc:`user-guide`
 * I want optional sign-in and sync: :doc:`user-guide`
 * I want remote host or hosting/proxy setup: :doc:`user-guide`
+* I want to chat, generate media, manage organizations or host a server from a terminal: :doc:`cli/index`
 * Something is broken: :doc:`troubleshooting`
 
 What You Can Do In The App
@@ -57,6 +58,12 @@ Complete Documentation
    user-guide
    troubleshooting
    integrations
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Command Line (ipx)
+
+   cli/index
 
 .. toctree::
    :maxdepth: 2
