@@ -1,7 +1,7 @@
 API Reference
 =============
 
-The InferencePort AI Lightning backend exposes three hosted API services on
+The InferencePort AI Lightning backend exposes these hosted API services on
 ``https://api.inferenceport.ai``.
 
 :doc:`gen-api`
@@ -13,6 +13,14 @@ The InferencePort AI Lightning backend exposes three hosted API services on
     The **Pay-2-Go (P2G) API** (``/v1``) is the credit-backed API for
     enterprise and production integrations. It meters each request against your
     wallet balance rather than plan quotas.
+
+:doc:`embeddings-api`
+    The **Embeddings API** (``/v1/embeddings``) is an OpenAI-compatible text embedding endpoint, billed per input token from
+    your Pay-2-Go wallet.
+
+:doc:`realtime-api`
+    The **Realtime API** (``/v1/realtime``) is a WebSocket for live voice conversations and streaming transcription over the
+    OpenAI Realtime protocol, billed while the session runs.
 
 :doc:`shield`
     The **AI Shield** (``/ai-shield``) is a detection API for abuse, fraud and
@@ -34,12 +42,12 @@ Which API should I use?
   limits and automatic router model selection.
 * Use the **P2G API** when you need predictable credit-based billing,
   enterprise isolation, a stable production API surface, or want to select
-  specific override models.
+  specific override models, embeddings, or realtime voice.
 * Use the **AI Shield** when you need to screen signups, messages, requests,
   files, or indicators such as emails, domains and IPs for abuse, fraud, attacks
   or policy violations before they reach your application logic.
 
-All three share a common authentication scheme and base URL.
+All of them share a common authentication scheme and base URL.
 
 Authentication
 --------------
@@ -96,7 +104,7 @@ Common status codes
    * - ``401``
      - Invalid, expired, or revoked bearer credential
    * - ``402``
-     - Insufficient credits (P2G API only)
+     - Insufficient credits (P2G API only; realtime sessions close with ``4402``)
    * - ``404``
      - Resource not found
    * - ``413``
@@ -115,5 +123,7 @@ Common status codes
    gen-api
    video-async-api
    p2g-api
+   embeddings-api
+   realtime-api
    shield
    rewards-system

@@ -114,3 +114,9 @@ Models and plan
 --
 
 3D generation is only part of the Pay-2-Go API. ``ipx gen 3d`` explains this and points you to ``ipx p2g 3d``.
+
+Embeddings and realtime
+-----------------------
+
+Embeddings and realtime voice sessions are also Pay-2-Go only. ``ipx gen embed`` and ``ipx gen realtime`` explain this and
+point you to ``ipx p2g embed`` and ``ipx p2g realtime`` (:doc:`p2g`).

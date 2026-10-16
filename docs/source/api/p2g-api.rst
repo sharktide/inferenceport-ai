@@ -402,6 +402,22 @@ Response is raw ``audio/mpeg`` bytes with credit charge headers:
    * - ``X-Payg-Unit-Label``
      - Always ``seconds``
 
+Embeddings
+----------
+
+``POST /v1/embeddings`` is an OpenAI-compatible text embedding endpoint billed per input token (models from 0.01 to 0.20
+credits per million tokens). It accepts ``model``, ``input``, ``encoding_format`` and ``dimensions`` and returns the credits
+charged in ``usage.payg_credits_charged`` and the ``X-Payg-*`` headers. See :doc:`embeddings-api` for the full reference and
+the model list.
+
+Realtime
+--------
+
+``WS /v1/realtime?model=...`` opens a live voice or transcription session using the OpenAI Realtime protocol. Token models
+(``gpt-realtime-2.1``, ``gpt-realtime-2.1-mini``) are billed after every response; transcription models
+(``gpt-live-transcribe``, ``scribe-v2-realtime``, ``mai-transcribe-2-streaming``) are billed per second of streamed audio.
+Sessions need at least 0.25 credits to start and close with ``4402`` when the balance runs out. See :doc:`realtime-api`.
+
 3D generation
 -------------
 
@@ -671,6 +687,10 @@ P2G pricing is credit-based. The rates vary by model, resolution, length, and ge
 
 The console at ``https://console.inferenceport.ai`` always shows the live dashboard values.
 
+Embeddings are billed per million input tokens, realtime conversations per million text/audio/image tokens, and realtime
+transcription per second of streamed audio; each model's rates are in ``GET /v1/embeddings/models`` and
+``GET /v1/realtime/models`` (and in the ``/v1/models`` catalog).
+
 A minimum balance of 0.30 credits is required before text generation is allowed.
 
 Rate limits
@@ -691,5 +711,7 @@ In addition to the common status codes, the P2G API returns:
   purchase more credits from the console.
 * ``402`` (text) — At least the minimum balance (typically 10 credits) is
   required for text generation.
-* ``404`` — Job not found (``GET /v1/3d/jobs/{job_id}``).
+* ``402`` (realtime) — A realtime session needs at least 0.25 credits to start; an open session closes with WebSocket code
+  ``4402`` when the balance is used up (:doc:`realtime-api`).
+* ``404`` — Job not found (``GET /v1/3d/jobs/{job_id}``), or unknown embedding / realtime model.
 * ``504`` — Sync 3D request timed out. Use async mode instead.

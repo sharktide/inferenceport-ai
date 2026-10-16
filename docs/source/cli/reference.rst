@@ -82,7 +82,9 @@ Cloud generation
    * - ``models [-t TYPE] [-s TEXT]``
      - Available models.
 
-Only ``ipx gen``: ``plan``. Only ``ipx p2g``: ``3d``, ``balance``, ``ledger``, ``pricing``, ``keys list|create|revoke``,
+``models --type`` also accepts ``embedding`` and ``realtime`` on ``ipx p2g``.
+
+Only ``ipx gen``: ``plan``. Only ``ipx p2g``: ``3d``, ``embed``, ``realtime chat|transcribe``, ``balance``, ``ledger``, ``pricing``, ``keys list|create|revoke``,
 ``deploy models|status|create|list|get|usage|cancel|uncancel|delete``.
 
 Featherless, agents and MCP
