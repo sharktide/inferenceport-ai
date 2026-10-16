@@ -85,6 +85,26 @@ Cloud generation
 Only ``ipx gen``: ``plan``. Only ``ipx p2g``: ``3d``, ``balance``, ``ledger``, ``pricing``, ``keys list|create|revoke``,
 ``deploy models|status|create|list|get|usage|cancel|uncancel|delete``.
 
+Featherless, agents and MCP
+---------------------------
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 62
+
+   * - Command
+     - Purpose
+   * - ``ipx featherless models|status|list|get|deploy|cancel|restore|terminate|usage``
+     - Featherless deployments; the organization's when a context is set (:doc:`featherless`).
+   * - ``ipx agent list|registry|get|create|update|delete|chat|ask``
+     - Managed agents (:doc:`agents`).
+   * - ``ipx agent profile show|set``, ``settings show|set``, ``roles``
+     - Agent username, preferences and sharing roles.
+   * - ``ipx agent invite create|list|preview|accept|deny|revoke``, ``members list|role|remove``
+     - Share agents.
+   * - ``ipx mcp council tiers|models|reason|tools|test|connect``
+     - Council of LLMs MCP server (:doc:`mcp-council`).
+
 Local
 -----
 

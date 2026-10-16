@@ -58,7 +58,8 @@ keys, with spend caps and restrictions, are managed with ``ipx org keys`` (:doc:
 Deployments
 -----------
 
-Dedicated model endpoints billed through your wallet:
+Personal Featherless deployments billed through your wallet. For organization deployments and the full command set
+(``list``, ``restore``, ``terminate``, cost and state checks) use :doc:`featherless`:
 
 .. code-block:: console
 

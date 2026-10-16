@@ -69,6 +69,18 @@ Organization keys bill the organization and can be restricted:
 
 The secret is displayed once at creation. Use it with ``ipx auth login --api-key`` or ``IPX_API_KEY``.
 
+Featherless deployments
+-----------------------
+
+Organizations can own Featherless model deployments: the $0.50 monthly fee is billed to the organization wallet and
+every member who may spend on the organization can call the model. Owners and admins manage them; see
+:doc:`featherless`.
+
+.. code-block:: console
+
+   $ ipx -O acme featherless deploy Qwen/Qwen2.5-7B-Instruct
+   $ ipx -O acme featherless list
+
 Billing
 -------
 

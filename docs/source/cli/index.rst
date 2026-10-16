@@ -5,6 +5,9 @@ ipx Command Line
 
 * **Lightning** (``ipx gen``) - chat and generate images, video and audio with your subscription.
 * **Pay-2-Go** (``ipx p2g``) - the credit-billed API: chat, images, video, audio, 3D, API keys and deployments.
+* **Featherless** (``ipx featherless``) - deploy catalog models for yourself or an organization.
+* **Agents** (``ipx agent``) - create, share and chat with managed agents.
+* **Council MCP** (``ipx mcp council``) - multi-model reasoning from the terminal.
 * **Organizations** (``ipx org``) - members, teams, keys, billing, usage, audit log, SSO and policy.
 * **Local models** (``ipx model``, ``ipx local``) - pull, manage and chat with models on your own machine, using the
   same Ollama engine as the desktop app.
@@ -47,6 +50,9 @@ Designed for people and for scripts
 
    lightning
    p2g
+   featherless
+   agents
+   mcp-council
    organizations
    local-models
    server
