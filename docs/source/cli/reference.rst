@@ -146,3 +146,31 @@ Tools
      - Rewards and discounts.
    * - ``ipx completion bash|zsh|fish``
      - Shell completion script.
+
+AI Shield
+---------
+
+Full guide: :doc:`shield`.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 62
+
+   * - Command
+     - Purpose
+   * - ``ipx shield check TYPE [VALUES…]``
+     - Bulk single-type checks (email, domain, url, ip, phone, username, user_agent, wallet, jwt, hash, secret).
+   * - ``ipx shield disposable [VALUES…]``
+     - Is this email or domain a disposable address?
+   * - ``ipx shield scan [TEXT]``
+     - Prompt attacks, abuse, scams, links, secrets and PII in text, files or stdin.
+   * - ``ipx shield analyze``
+     - Risk-score a signup, login or payment from signals.
+   * - ``ipx shield phishing``
+     - Phishing verdict for text or an ``.eml`` file.
+   * - ``ipx shield url`` / ``request`` / ``file``
+     - Link analysis, WAF-style request check, upload triage.
+   * - ``ipx shield password`` / ``listing`` / ``review`` / ``domain``
+     - Password strength and breaches, marketplace listings, reviews, domains and wallets.
+   * - ``ipx shield tasks``
+     - Task profiles, features and check types (no sign-in).

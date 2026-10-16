@@ -8,6 +8,7 @@ ipx Command Line
 * **Featherless** (``ipx featherless``) - deploy catalog models for yourself or an organization.
 * **Agents** (``ipx agent``) - create, share and chat with managed agents.
 * **Council MCP** (``ipx mcp council``) - multi-model reasoning from the terminal.
+* **AI Shield** (``ipx shield``) - detect prompt attacks, abuse, fraud, malicious uploads, disposable emails and leaked secrets; bulk indicator checks and CI gates.
 * **Organizations** (``ipx org``) - members, teams, keys, billing, usage, audit log, SSO and policy.
 * **Local models** (``ipx model``, ``ipx local``) - pull, manage and chat with models on your own machine, using the
   same Ollama engine as the desktop app.
@@ -53,6 +54,7 @@ Designed for people and for scripts
    featherless
    agents
    mcp-council
+   shield
    organizations
    local-models
    server
