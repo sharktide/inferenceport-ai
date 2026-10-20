@@ -133,3 +133,23 @@ Errors you may see
 
 ``429``
    Rate limit reached (120 requests per minute per identity by default).
+
+Decision models
+---------------
+
+Evaluate typed choice, noul and score questions through the System One endpoint:
+
+.. code-block:: console
+
+   $ ipx p2g models --type decision
+   $ ipx p2g prices --type decision
+   $ ipx p2g decision --file request.json --output result.json
+   $ ipx p2g decision 'Please refund my payment' --questions questions.json --json
+   $ cat request.json | ipx p2g decision --file - --json
+
+``request.json`` contains ``model`` (default ``microsoft/decision-1``), ``state``
+(text or JSON) and named ``questions``. ``questions.json`` contains just the
+named questions object. ``--model`` overrides a request file's model when
+explicitly supplied. Responses include provider answers, input tokens and credits
+charged. Normal authentication and organization billing context apply.
+See :doc:`/api/decision-api` for complete examples and provider configuration.
