@@ -18,6 +18,10 @@ The InferencePort AI Lightning backend exposes these hosted API services on
     The **Embeddings API** (``/v1/embeddings``) is an OpenAI-compatible text embedding endpoint, billed per input token from
     your Pay-2-Go wallet.
 
+:doc:`decision-api`
+    The **Decision API** (``/v1/systemone``) evaluates typed choice, noul and score
+    questions with probabilities using configurable providers and P2G pricing.
+
 :doc:`realtime-api`
     The **Realtime API** (``/v1/realtime``) is a WebSocket for live voice conversations and streaming transcription over the
     OpenAI Realtime protocol, billed while the session runs.
@@ -42,7 +46,7 @@ Which API should I use?
   limits and automatic router model selection.
 * Use the **P2G API** when you need predictable credit-based billing,
   enterprise isolation, a stable production API surface, or want to select
-  specific override models, embeddings, or realtime voice.
+  specific override models, embeddings, decisions, or realtime voice.
 * Use the **AI Shield** when you need to screen signups, messages, requests,
   files, or indicators such as emails, domains and IPs for abuse, fraud, attacks
   or policy violations before they reach your application logic.
@@ -124,6 +128,7 @@ Common status codes
    video-async-api
    p2g-api
    embeddings-api
+   decision-api
    realtime-api
    shield
    rewards-system

@@ -715,3 +715,11 @@ In addition to the common status codes, the P2G API returns:
   ``4402`` when the balance is used up (:doc:`realtime-api`).
 * ``404`` — Job not found (``GET /v1/3d/jobs/{job_id}``), or unknown embedding / realtime model.
 * ``504`` — Sync 3D request timed out. Use async mode instead.
+
+Decision models
+---------------
+
+``POST /v1/systemone`` evaluates typed questions with configurable decision
+providers, including Microsoft Decision 1 on Foundry East US. Discover models at
+``GET /v1/decision/models`` or in the unified model list. See :doc:`decision-api`
+for request examples, provider setup, pricing, console and CLI support.
