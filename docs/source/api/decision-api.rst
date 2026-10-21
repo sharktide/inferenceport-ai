@@ -133,8 +133,14 @@ input tokens, including image/video input usage.
 All six accept text, images and videos and return decisions. Use ``images``
 with PNG, JPEG or WebP base64 data URLs; use ``videos`` with MP4, WebM,
 QuickTime or Matroska base64 data URLs. Most D3 sizes accept up to four images
-(8 MB decoded each). Turbo supports up to sixteen images (16 MiB each).
-One video is supported up to 32 MB decoded. Provider limits may change; see
+(8 MB decoded each). Turbo supports up to sixteen images (16 MiB each);
+named turbo assets count toward the same image limit.
+One video is supported up to 32 MB decoded. The serialized state/questions
+portion may not exceed 1 MB, even with media attached. The entire serialized
+JSON request is limited to 48 MiB, **including base64 expansion**, text,
+images, video and named assets. Per-file limits do not override this total:
+for example, three 16 MiB images cannot fit in one JSON request.
+Provider limits may change; see
 `live provider limits <https://decision.vllm-sr.ai/api/info>`_.
 
 Image example (replace ``BASE64_IMAGE`` with encoded image bytes):
