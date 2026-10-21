@@ -34,7 +34,7 @@
     "@types/dompurify": "^3.2.0",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "^26.6.5",
-    "@types/sanitize-html": "^2.16.1",
+    "@types/sanitize-html": "^2.16.2",
     "@types/tar": "^7.0.87",
     "@types/ws": "^8.18.2",
     "@types/yauzl": "^3.4.0",
