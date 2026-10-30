@@ -470,7 +470,7 @@ Query parameters:
 
 Request body fields:
 
-* ``model`` — required string. ``"asset-harvester"``, ``"tripoSR"``, ``sv3d`` or ``trellis2``.
+* ``model`` — required string. ``"asset-harvester"``, ``"tripoSR"``, ``sf3d`` or ``trellis2``.
 * ``image_urls`` — required array. At least one URL or base64 data URI.
   The first element is used as the input image.
 * ``prompt`` — required string **when** ``model`` is ``"asset-harvester"``.
@@ -487,7 +487,7 @@ Async response (HTTP 202):
      "created_at": 1718300000.0,
      "poll_url": "/v1/3d/jobs/a3f1c2e4b5d6...",
      "usage": {
-       "payg_credits_charged": 0.02, // Varies by model and resolution
+       "payg_credits_charged": 0.07, // Varies by model and resolution
        "model_count": 1
      }
    }
@@ -500,7 +500,7 @@ Sync response (HTTP 200, ``?sync=true`` only):
      "created": 1718300000,
      "data": [ { "model_glb_b64_bytes": "<BASE64>" } ],
      "usage": {
-       "payg_credits_charged": 0.02, // Varies by model and resolution
+       "payg_credits_charged": 0.07, // Varies by model and resolution
        "model_count": 1
      }
    }
@@ -522,11 +522,11 @@ Pricing
      - ``asset-harvester``
    * - Stability AI
      - TripoSR
-     - $0.02
+     - $0.07
      - ``tripoSR``
    * - Stability AI
      - SF3D
-     - $0.02
+     - $0.07
      - ``sf3d``
    * - Microsoft
      - Trellis 2 Low Res
@@ -583,7 +583,7 @@ Response while pending or processing (HTTP 202):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": null,
-     "usage": { "payg_credits_charged": 0.02, "model_count": 1 } // Price varies by model and resolution
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 } // Price varies by model and resolution
    }
 
 Response on completion (HTTP 200):
@@ -596,7 +596,7 @@ Response on completion (HTTP 200):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": 1718300312.5,
-     "usage": { "payg_credits_charged": 0.02, "model_count": 1 }, // Price varies by model and resolution
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }, // Price varies by model and resolution
      "data": [
        { "model_glb_b64_bytes": "<BASE64_ENCODED_GLB>" }
      ]
@@ -612,7 +612,7 @@ Response on failure (HTTP 200):
      "model": "tripoSR",
      "created_at": 1718300000.0,
      "completed_at": 1718300045.1,
-     "usage": { "payg_credits_charged": 0.02, "model_count": 1 }, // Price varies by model and resolution
+     "usage": { "payg_credits_charged": 0.07, "model_count": 1 }, // Price varies by model and resolution
      "error": "TripoSR job abc123 failed: out of memory"
    }
 
