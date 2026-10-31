@@ -132,3 +132,4 @@ Common status codes
    realtime-api
    shield
    rewards-system
+   buckets
