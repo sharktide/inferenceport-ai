@@ -1,7 +1,7 @@
 Buckets commands
 ================
 
-``ipx bucket`` manages private beta storage using your existing account and
+``ipx bucket`` manages private object storage using your existing account and
 ``-O/--org`` or ``--personal`` context. It requires a server with Buckets enabled
 and the appropriate access. API keys have a fixed workspace; use an organization
 key or an interactive session for organization actions.
@@ -24,7 +24,7 @@ Large transfers use bounded multipart parts; failures abort unfinished uploads.
 Downloads stream into a new file and do not overwrite existing paths. ``ls``
 returns one page; pass its opaque token with ``--continuation-token`` to continue.
 ``--json`` produces machine-readable results. Empty buckets with active uploads
-cannot be deleted. Retained Azure versions can remain billable after deletion.
+cannot be deleted. Retained versions can remain billable after deletion.
 
 S3 credentials
 --------------
@@ -49,12 +49,13 @@ Local E2E sandbox
 -----------------
 
 The server repository's ``tools/run_buckets_sandbox.py`` starts an isolated local
-HTTPS gateway with two users/orgs, Postgres and Azurite. Set ``IPX_BASE_URL`` to
+HTTPS gateway with two users/orgs, Postgres and a local storage emulator. Set ``IPX_BASE_URL`` to
 ``https://localhost:58080``, ``IPX_CA_BUNDLE`` to its generated ``localhost.pem``,
 and load a generated test key into ``IPX_API_KEY`` without printing it. The CLI
 repository's opt-in lifecycle test runs with ``BUCKETS_RUN_E2E=1``. No production
 migration is applied by this setup.
 
-See :doc:`../api/buckets` for the exact endpoint, supported S3 subset, Azure retail
-catalog/credit holds and remaining real-Azure launch checks. A server without the
-feature returns unavailable status rather than fictional prices or free storage.
+See :doc:`../api/buckets` for the endpoint, supported S3 operations, pricing and
+credit holds. ``ipx bucket pricing`` shows the published service catalog. All
+usage is billable from the first unit; unavailable prices are never substituted
+with examples or a free allowance.
