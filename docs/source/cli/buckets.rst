@@ -10,6 +10,8 @@ key or an interactive session for organization actions.
 
    ipx bucket status
    ipx bucket pricing
+   ipx bucket connection
+   ipx --org acme bucket connection
    ipx bucket create models --quota-bytes 10737418240
    ipx bucket list
    ipx bucket info models
@@ -19,6 +21,12 @@ key or an interactive session for organization actions.
    ipx bucket usage models
    ipx bucket rm models checkpoints/weights.bin
    ipx bucket delete models
+
+``connection`` shows the authenticated workspace ID and its S3 endpoint. The
+personal endpoint contains your user UUID; an organization endpoint contains the
+organization UUID. Copy that complete endpoint into S3 clients. Credentials must
+belong to the same workspace. Different workspaces can use the same bucket name.
+Uploads and downloads resolve this workspace before transferring files.
 
 Large transfers use bounded multipart parts; failures abort unfinished uploads.
 Downloads stream into a new file and do not overwrite existing paths. ``ls``
