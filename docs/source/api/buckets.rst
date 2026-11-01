@@ -9,10 +9,18 @@ storage operations with ``503``.
 Endpoints and ownership
 -----------------------
 
-The canonical S3 endpoint is ``https://api.inferenceport.ai/s3/``. Use path-style
-URLs ``/s3/{logical-bucket}/{opaque-key}``. The public ``/s3/`` prefix is part of
-the SigV4 signature. Requests must preserve raw path, percent encoding, query and
-Host; signed requests cannot be redirected or normalized.
+The S3 endpoint is ``https://api.inferenceport.ai/{workspace-id}/s3/``. Copy the
+exact endpoint from the console's Connect tab, ``ipx bucket connection``, or the
+credential issuance response. The workspace ID is your personal user UUID or the
+organization UUID. Use path-style URLs
+``/{workspace-id}/s3/{logical-bucket}/{opaque-key}``. The entire path, including
+the workspace ID and ``/s3/``, is part of the SigV4 signature. Preserve raw path,
+percent encoding, query and Host; signed requests cannot be redirected or normalized.
+
+Bucket names are unique only within a workspace. Two users or organizations can
+both create ``models``. Credentials select the authorized workspace; the endpoint
+must match it. Changing the workspace ID in a URL grants no access. The original
+``https://api.inferenceport.ai/s3/`` endpoint remains supported for existing clients.
 
 Native HTTP and ``ipx`` use existing ``ipa_live_*`` Bearer keys. Console actions
 use existing signed-in sessions and authorized organization selection. API keys
@@ -41,6 +49,9 @@ carry request IDs. These routes use the existing account/session authentication:
    * - GET
      - ``/v1/buckets/status`` and ``/v1/buckets/pricing``
      - Public availability and verified rate catalog
+   * - GET
+     - ``/v1/buckets/workspace``
+     - Authenticated workspace ID, kind, S3 endpoint, signing region and addressing style
    * - GET / POST
      - ``/v1/buckets``
      - List / create logical buckets
@@ -101,14 +112,15 @@ SDK configuration
 
 Use InferencePort-issued credentials from a secure provider/profile. Force SigV4
 and path addressing. Some default boto3 presign configurations otherwise choose
-SigV2. These are endpoint configurations for the service:
+SigV2. Replace ``WORKSPACE_UUID`` below with the ID returned by the authenticated
+workspace endpoint; do not use the bucket name in its place:
 
 .. code-block:: console
 
    aws configure set s3.addressing_style path --profile inferenceport
    aws configure set s3.signature_version s3v4 --profile inferenceport
    aws --profile inferenceport --region us-east-1 \
-     --endpoint-url https://api.inferenceport.ai/s3/ s3 ls
+     --endpoint-url https://api.inferenceport.ai/WORKSPACE_UUID/s3/ s3 ls
 
 .. code-block:: python
 
@@ -116,7 +128,7 @@ SigV2. These are endpoint configurations for the service:
    from botocore.config import Config
 
    client = boto3.client(
-       "s3", endpoint_url="https://api.inferenceport.ai/s3/",
+       "s3", endpoint_url="https://api.inferenceport.ai/WORKSPACE_UUID/s3/",
        region_name="us-east-1",
        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
    )
@@ -125,7 +137,7 @@ SigV2. These are endpoint configurations for the service:
 
    import { S3Client } from "@aws-sdk/client-s3";
    const client = new S3Client({
-     endpoint: "https://api.inferenceport.ai/s3/",
+     endpoint: "https://api.inferenceport.ai/WORKSPACE_UUID/s3/",
      region: "us-east-1",
      forcePathStyle: true,
    });
@@ -169,4 +181,4 @@ bucket root. For clients that require whole-bucket browsing, issue a credential
 with the object-prefix field blank. Turn off read-only access when uploads are
 required. Rotation preserves the old credential's scope.
 
-See the `API setup and operations guide <https://github.com/sharktide/InferencePort-Lightning/blob/feat/168-inferenceport-buckets/docs/buckets/README.md>`_.
+See the `API setup and operations guide <https://github.com/sharktide/InferencePort-Lightning/blob/main/docs/buckets/README.md>`_.
