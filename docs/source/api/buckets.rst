@@ -52,6 +52,9 @@ carry request IDs. These routes use the existing account/session authentication:
    * - GET
      - ``/v1/buckets/workspace``
      - Authenticated workspace ID, kind, S3 endpoint, signing region and addressing style
+   * - POST
+     - ``/v1/buckets/metadata``
+     - Refresh up to 100 known bucket IDs; only visible buckets in the authenticated workspace are returned
    * - GET / POST
      - ``/v1/buckets``
      - List / create logical buckets
