@@ -1,7 +1,7 @@
 InferencePort Buckets
 =====================
 
-Buckets provides private object storage for model weights, datasets, checkpoints
+Buckets provides private and public object storage for model weights, datasets, checkpoints
 and generated artifacts using your existing account or organization workspace.
 A server without storage configuration reports ``not_available`` and rejects
 storage operations with ``503``.
@@ -57,7 +57,7 @@ carry request IDs. These routes use the existing account/session authentication:
      - List / create logical buckets
    * - GET / PATCH / DELETE
      - ``/v1/buckets/{id}``
-     - Metadata / rename, quota or read-only status / delete empty bucket
+     - Metadata / rename, quota, visibility or read-only status / delete empty bucket
    * - GET
      - ``/v1/buckets/{id}/objects``
      - JSON browser listing, prefix and continuation token
@@ -83,11 +83,46 @@ carry request IDs. These routes use the existing account/session authentication:
 Create a bucket with ``{"name":"models","quota_bytes":10737418240}``. Owner IDs
 are derived from authentication, never accepted as authority in request bodies.
 The console's Settings action and ``ipx bucket update`` expose name, maximum-size
-and upload-status changes. Quota must be a whole number between one byte and one
+visibility and upload-status changes. Quota must be a whole number between one byte and one
 TiB and cannot be smaller than stored plus reserved bytes. Names remain unique
 within the workspace; a conflict returns ``409``. Renaming preserves bucket ID,
 objects and bucket-scoped credentials, but S3 clients must use the new name.
 Finish or abort active uploads before renaming a bucket.
+
+Public and private access
+-------------------------
+
+Buckets are private by default, including all existing buckets. Set
+``"visibility":"public"`` when creating a bucket, or PATCH its ID with
+``{"visibility":"public"}``. Only workspace administrators can change visibility.
+The console exposes this in Create and Settings; use Copy public URL in the file
+browser to share a file.
+
+Public means anyone with a known object URL can GET or HEAD that file without an
+account or S3 credential. Public access does not allow listing, uploading,
+deleting, changing settings or viewing usage. Private downloads still require
+authorized account access, scoped S3 credentials or an unexpired signed URL.
+
+Object listings from a public bucket include a server-issued ``public_url``:
+``https://api.inferenceport.ai/public/buckets/{bucket-id}/object?key=...``.
+Use the API's returned URL, especially on separate storage hosts. The UUID keeps
+names independent across workspaces and URLs stable when a bucket is renamed;
+query encoding preserves opaque keys, including dot-only path segments.
+S3 listing and management continue to require authentication on public buckets.
+Object ACLs and anonymous S3 listing are not supported.
+
+Public download operations and transfer are billed to the bucket's personal or
+organization wallet. Organization-wide spending limits and available credits
+still apply. Anonymous requests are recorded without an invented member/key actor;
+they do not use a publishing administrator's individual budget. Downloads may
+fail when pricing or credits are unavailable. Public access has IP and bucket
+request limits.
+
+PATCH ``{"visibility":"private"}`` blocks new anonymous requests. Responses use
+``Cache-Control: no-store``; already downloaded files and transfers already
+accepted cannot be recalled. Pausing uploads does not disable public downloads.
+Deleted buckets and unavailable owners cannot serve public objects. Object
+responses retain attachment, nosniff and sandbox protections.
 
 Credential issuance and rotation accept an optional UUID ``Idempotency-Key``
 header. Identical retries from the same authenticated owner, actor and parent key
