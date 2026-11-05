@@ -1,7 +1,7 @@
 Buckets commands
 ================
 
-``ipx bucket`` manages private object storage using your existing account and
+``ipx bucket`` manages private and public object storage using your existing account and
 ``-O/--org`` or ``--personal`` context. It requires a server with Buckets enabled
 and the appropriate access. API keys have a fixed workspace; use an organization
 key or an interactive session for organization actions.
@@ -31,11 +31,26 @@ organization UUID. Copy that complete endpoint into S3 clients. Credentials must
 belong to the same workspace. Different workspaces can use the same bucket name.
 Uploads and downloads resolve this workspace before transferring files.
 
-``update`` changes a bucket's name, maximum logical size or upload status. The
+``update`` changes a bucket's name, maximum logical size, visibility or upload status. The
 maximum must cover stored bytes and active upload reservations. Increasing it does
 not charge for unused space. Renaming preserves objects and bucket-scoped
 credentials; update client configurations to use the new name. ``read_only`` pauses
 uploads, including completion of pending uploads; set ``active`` to resume.
+
+Buckets default to private. To publish known file URLs:
+
+.. code-block:: console
+
+   ipx bucket create shared --visibility public
+   ipx bucket update models --visibility public
+   ipx bucket public-url models checkpoints/weights.bin
+   ipx bucket update models --visibility private
+
+``public-url`` retrieves the server-issued URL and refuses private buckets.
+Anyone with a public URL can download without credentials. Listing and mutations
+remain protected; read operations and transfer are billed to the workspace.
+Switching back to private blocks new anonymous downloads, but cannot recall files
+already downloaded or stop transfers already accepted.
 
 Large transfers use bounded multipart parts; failures abort unfinished uploads.
 Downloads stream into a new file and do not overwrite existing paths. ``ls``
