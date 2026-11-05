@@ -61,6 +61,28 @@ let snipWindow: BrowserWindow | null = null;
 let snipChatWindow: BrowserWindow | null = null;
 let snipHotkeyRegistered = false;
 
+// --- Bionic UI (redesigned web renderer) -------------------------------
+// The redesigned renderer is a self-contained static web app that lives in
+// public/bionic (built from src/webui). It is optional: when the folder is
+// missing, the app automatically falls back to the classic renderer.
+const BIONIC_UI_ENTRY = path.join(__dirname, "public", "bionic", "index.html");
+const CLASSIC_UI_ENTRY = path.join(__dirname, "public", "index.html");
+
+function bionicUiAvailable(): boolean {
+	try {
+		return fs.existsSync(BIONIC_UI_ENTRY);
+	} catch {
+		return false;
+	}
+}
+
+function loadMainRenderer(): void {
+	if (!mainWindow) return;
+	mainWindow.loadFile(
+		bionicUiAvailable() ? BIONIC_UI_ENTRY : CLASSIC_UI_ENTRY,
+	);
+}
+
 function fireAndForget<T>(promise: Promise<T>, label: string) {
 	promise
 		.then((result) => {
@@ -202,6 +224,32 @@ function createWindow() {
 					},
 				},
 				{ role: "reload" },
+				{ type: "separator" },
+				{
+					label: "Renderer",
+					submenu: [
+						{
+							label: "New UI (Bionic)",
+							type: "radio",
+							checked: bionicUiAvailable(),
+							click: () => {
+								if (bionicUiAvailable() && mainWindow) {
+									mainWindow.loadFile(BIONIC_UI_ENTRY);
+								}
+							},
+						},
+						{
+							label: "Classic UI",
+							type: "radio",
+							checked: !bionicUiAvailable(),
+							click: () => {
+								if (mainWindow) {
+									mainWindow.loadFile(CLASSIC_UI_ENTRY);
+								}
+							},
+						},
+					],
+				},
 			],
 		},
 
@@ -239,7 +287,7 @@ function createWindow() {
 		},
 	];
 
-	mainWindow.loadFile("public/index.html");
+	loadMainRenderer();
 	const menu = Menu.buildFromTemplate(template);
 	Menu.setApplicationMenu(menu);
 }
@@ -384,7 +432,7 @@ function openFromDeepLink(url: string) {
 			return;
 		}
 		if (!fs.existsSync(resolved)) {
-			mainWindow.loadFile(path.join(publicDir, "index.html"));
+			loadMainRenderer();
 			return;
 		}
 
