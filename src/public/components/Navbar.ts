@@ -61,7 +61,7 @@ export class RootNavbar extends NavbarBase {
         this.innerHTML = `
             <nav aria-label="Primary navigation">
                 <div class="nav-inner">
-                <a class="logo" href="index.html"><span class="logo-mark" aria-hidden="true">⚡</span>InferencePort AI</a>
+                <a class="logo" href="index.html"><img class="logo-mark" src="assets/img/logo.png" alt="" width="28" height="30" />InferencePort AI</a>
                 <button class="hamburger" type="button" aria-label="Toggle navigation" aria-controls="app-primary-links" aria-expanded="false">Menu</button>
                 <ul id="app-primary-links" class="nav-links">
                     <li><a href="renderer/chat.html">Chat</a></li>
@@ -88,7 +88,7 @@ export class Type1Navbar extends NavbarBase {
         this.innerHTML = `
             <nav aria-label="Primary navigation">
                 <div class="nav-inner">
-                <a class="logo" href="../index.html"><span class="logo-mark" aria-hidden="true">⚡</span>InferencePort AI</a>
+                <a class="logo" href="../index.html"><img class="logo-mark" src="../assets/img/logo.png" alt="" width="28" height="30" />InferencePort AI</a>
                 <button class="hamburger" type="button" aria-label="Toggle navigation" aria-controls="app-primary-links" aria-expanded="false">Menu</button>
                 <ul id="app-primary-links" class="nav-links">
                     <li><a href="chat.html">Chat</a></li>
@@ -115,7 +115,7 @@ export class MarketplaceNavbar extends NavbarBase {
         this.innerHTML = `
             <nav aria-label="Primary navigation">
                 <div class="nav-inner">
-                <a class="logo" href="../index.html"><span class="logo-mark" aria-hidden="true">⚡</span>InferencePort AI</a>
+                <a class="logo" href="../index.html"><img class="logo-mark" src="../assets/img/logo.png" alt="" width="28" height="30" />InferencePort AI</a>
                 <button class="hamburger" type="button" aria-label="Toggle navigation" aria-controls="app-primary-links" aria-expanded="false">Menu</button>
                 <ul id="app-primary-links" class="nav-links">
                     <li><a href="../renderer/chat.html">Chat</a></li>
