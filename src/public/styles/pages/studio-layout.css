@@ -198,3 +198,20 @@ Studio: page-level orientation and balanced configuration/preview work areas.
   .studio-shell .studio-preview { min-height: 350px; }
   .studio-shell .studio-canvas { min-height: 245px; }
 }
+
+/* Non-decorative media type marker for generated asset history. */
+.studio-history-icon {
+  display: inline-flex;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
