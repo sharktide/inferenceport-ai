@@ -45,12 +45,8 @@
 			width: 100%;
 			height: 100%;
 			background:
-				radial-gradient(circle at 20% 50%,
-					var(--accent-primary) 0%,
-					transparent 50%) opacity(0.1),
-				radial-gradient(circle at 80% 80%,
-					var(--accent-secondary) 0%,
-					transparent 50%) opacity(0.1);
+				radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 50%),
+				radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-secondary) 10%, transparent) 0%, transparent 50%);
 			pointer-events: none;
 			z-index: -1;
 		}
@@ -79,10 +75,10 @@
 		}
 
 		.marketplace-card:hover {
-			background: var(--accent-primary) opacity(0.08);
-			border-color: var(--accent-primary) opacity(0.3);
+			background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+			border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
 			transform: translateY(-8px);
-			box-shadow: 0 15px 20px var(--accent-primary) opacity(0.2);
+			box-shadow: 0 15px 20px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 		}
 
 		.marketplace-card h2 {
@@ -112,10 +108,7 @@
 		main h1 {
 			font-size: clamp(34px, 4.5vw, 42px);
 			margin-bottom: 12px;
-			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
+			color: var(--text-primary);
 			font-weight: 700;
 			letter-spacing: -1px;
 		}
@@ -124,7 +117,7 @@
 			font-size: 16px;
 			color: var(--text-secondary);
 			margin-bottom: 24px;
-			font-weight: 300;
+			font-weight: 400;
 		}
 
 		main h3 {
@@ -165,9 +158,9 @@
 		}
 
 		main>button:hover {
-			background: var(--accent-primary) opacity(0.1);
+			background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 			border-color: var(--accent-primary);
-			box-shadow: 0 0 20px var(--accent-primary) opacity(0.3);
+			box-shadow: 0 0 20px color-mix(in srgb, var(--accent-primary) 30%, transparent);
 			transform: translateY(-2px);
 		}
 
@@ -207,9 +200,9 @@
 		}
 
 		.marketplace-btn:hover {
-			background: var(--accent-primary) opacity(0.1);
+			background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
 			border-color: var(--accent-primary);
-			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
+			box-shadow: 0 0 15px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 			transform: translateY(-2px);
 		}
 
@@ -221,8 +214,8 @@
 		}
 
 		.model-tag {
-			background: var(--accent-primary) opacity(0.15);
-			border: 1.5px solid var(--accent-primary) opacity(0.4);
+			background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+			border: 1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);
 			color: var(--accent-primary);
 			padding: 6px 11px;
 			border-radius: 20px;
@@ -322,9 +315,9 @@
 		}
 
 		main button:hover {
-			background: var(--accent-primary) opacity(0.1) !important;
+			background: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
 			border-color: var(--accent-primary) !important;
-			box-shadow: 0 0 15px var(--accent-primary) opacity(0.2);
+			box-shadow: 0 0 15px color-mix(in srgb, var(--accent-primary) 20%, transparent);
 			transform: translateY(-2px);
 		}
 
@@ -427,7 +420,7 @@
 		}
 
 		.lightning-section {
-			background: linear-gradient(135deg, var(--accent-primary) opacity(0.08), var(--accent-secondary) opacity(0.08));
+			background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 8%, transparent), color-mix(in srgb, var(--accent-secondary) 8%, transparent));
 			border: 1.5px solid var(--glass-border);
 			border-radius: 12px;
 			padding: 30px;
@@ -439,10 +432,7 @@
 		.lightning-section h2 {
 			font-size: 30px;
 			margin-bottom: 12px;
-			background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
-			background-clip: text;
+			color: var(--text-primary);
 			font-weight: 700;
 		}
 
@@ -467,7 +457,7 @@
 		}
 
 		.lightning-btn {
-			background: linear-gradient(135deg, var(--accent-primary) opacity(0.2), var(--accent-secondary) opacity(0.2));
+			background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 20%, transparent), color-mix(in srgb, var(--accent-secondary) 20%, transparent));
 			border: 2px solid var(--accent-primary);
 			color: var(--accent-primary);
 			padding: 12px 28px;
@@ -481,8 +471,8 @@
 		}
 
 		.lightning-btn:hover {
-			background: linear-gradient(135deg, var(--accent-primary) opacity(0.3), var(--accent-secondary) opacity(0.3));
-			box-shadow: 0 0 25px var(--accent-primary) opacity(0.4);
+			background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 30%, transparent), color-mix(in srgb, var(--accent-secondary) 30%, transparent));
+			box-shadow: 0 0 25px color-mix(in srgb, var(--accent-primary) 40%, transparent);
 			transform: translateY(-2px);
 		}
 
@@ -503,10 +493,10 @@
 		}
 
 		.lightning-model-card:hover {
-			background: var(--accent-primary) opacity(0.06);
-			border-color: var(--accent-primary) opacity(0.4);
+			background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+			border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
 			transform: translateY(-4px);
-			box-shadow: 0 10px 30px var(--accent-primary) opacity(0.15);
+			box-shadow: 0 10px 30px color-mix(in srgb, var(--accent-primary) 15%, transparent);
 		}
 
 		.lightning-model-card h3 {
@@ -579,12 +569,8 @@
 			width: 100%;
 			height: 100%;
 			background:
-				radial-gradient(circle at 20% 50%,
-					var(--accent-primary) 0%,
-					transparent 50%) opacity(0.1),
-				radial-gradient(circle at 80% 80%,
-					var(--accent-secondary) 0%,
-					transparent 50%) opacity(0.1);
+				radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-primary) 10%, transparent) 0%, transparent 50%),
+				radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-secondary) 10%, transparent) 0%, transparent 50%);
 			pointer-events: none;
 			z-index: -1;
 		}
@@ -643,7 +629,7 @@
 			font-size: 16px;
 			color: var(--text-secondary);
 			margin-bottom: 24px;
-			font-weight: 300;
+			font-weight: 400;
 		}
 	</style>
 </head>
