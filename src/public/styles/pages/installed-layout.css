@@ -107,6 +107,12 @@ Installed library: page hierarchy, host context and readable section cards.
   background: color-mix(in srgb, var(--blue) 7%, transparent);
 }
 
+/* Legacy .white-text belongs to the imported cards, not section headings. */
+.installed-main .installed-group > summary,
+.installed-main .installed-group > summary * {
+  color: var(--text-dark) !important;
+}
+
 .installed-main .installed-group .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
