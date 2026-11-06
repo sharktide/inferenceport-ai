@@ -111,8 +111,12 @@ Object listings from a public bucket include a server-issued ``public_url``:
 Use the API's returned URL, especially on separate storage hosts. The UUID keeps
 names independent across workspaces and URLs stable when a bucket is renamed;
 query encoding preserves opaque keys, including dot-only path segments.
-S3 listing and management continue to require authentication on public buckets.
-Object ACLs and anonymous S3 listing are not supported.
+Visibility alone does not grant S3 listing or management access.
+Owner-only ACL requests accept ``private``, ``bucket-owner-full-control``, or the
+canonical owner's sole full-control XML grant. Public/external ACL grants are
+rejected. These requests preserve existing bucket visibility and policy access;
+``private`` does not override an explicit public bucket policy. Anonymous S3
+listing requires a policy grant; visibility alone does not grant it.
 
 Public download operations and transfer are billed to the bucket's personal or
 organization wallet. Organization-wide spending limits and available credits
@@ -142,24 +146,65 @@ clients are updated; ``{"revoke_previous":true}`` revokes it atomically.
 Supported S3 operations
 -----------------------
 
-The service implements List/Create/Head/DeleteBucket, GetBucketLocation,
-Put/Get/Head/DeleteObject, ListObjectsV2, and multipart initiate/upload/list-parts/
-complete/abort. It supports streamed uploads, ranges, metadata, conditional writes,
-S3 ETags, CRC32/CRC32C/CRC64NVME/SHA/MD5 checksums, SigV4 header signing, short-lived
-presigned URLs and signed/checksummed ``aws-chunked`` bodies. Uploads, parts,
-reservations and object pointers are durable across server replicas. Listing
-supports prefix, slash delimiter and signed scoped continuation tokens.
+The gateway supports bucket/object operations, copy and multipart copy,
+legacy/v2 listing, paginated multipart discovery, bucket/object tags, and owner
+ACL inspection. HTTP content metadata, signed response overrides, ranges,
+part-number reads, durable part attributes, all ten modeled checksum algorithms,
+SigV4 headers and signed/checksummed ``aws-chunked`` uploads are supported.
+Browser uploads can use SDK-generated SigV4 POST policies with expiry, field,
+key-prefix and content-length conditions.
 
-Use ``us-east-1`` as the S3 signing region.
-Presigns are limited to 15 minutes. A request/part can contain up to 5 GiB;
-larger objects use multipart. Concurrent replacement can return
-``OperationAborted``; retry a new upload. A same-size overwrite can succeed at full
-logical quota. Active uploads prevent deleting an otherwise empty bucket.
+Versioning is opt-in using ``put_bucket_versioning``. Enabled buckets preserve
+older versions and create delete markers; explicit version IDs select historical
+GET/HEAD/COPY/DELETE/tag/attribute operations. Suspended versioning preserves
+numbered versions while replacing the null version. Retained versions count
+toward bucket quota and prevent deleting the bucket until removed.
 
-Not enabled: SigV2, temporary session tokens, CopyObject, tagging/version APIs,
-lifecycle, Bucket CORS/policies/events, non-slash delimiters or ``start-after``.
-The supported storage class is S3 ``STANDARD``. Archival classes and
-rehydration operations are not supported.
+Copy requires source read and destination write access in the same workspace,
+with both credential scopes enforced. Content metadata and tags are preserved
+unless replaced explicitly. Object tags allow ten entries and bucket tags fifty.
+Tag changes do not change an object's LastModified.
+
+Bucket policies enforce Allow/Deny rules beneath existing workspace, role and
+credential limits. Public-access blocks constrain public visibility and policy
+access. Per-bucket CORS rules apply on workspace-scoped endpoints. Explicit public
+policies can grant anonymous reads or listing; visibility alone grants only
+known-object downloads. Requester Pays requires the request acknowledgment while
+charges continue to use the owning workspace wallet. Cross-account AWS IAM
+semantics are not implemented.
+
+New uploads use authenticated AES-256 encryption. SSE-C requires the same customer
+key on applicable operations and does not store that key. Managed key modes use
+the existing external key service and workspace key identifiers; AWS KMS account
+keys/ARNs are not supported. Lifecycle rules support expiration, noncurrent-version
+expiration, marker cleanup and incomplete-upload abort.
+
+Use ``us-east-1`` as the signing region. Presigns can last up to seven days,
+subject to live credential expiry/revocation and server limits. Requests/parts
+can contain up to 5 GiB; larger objects use multipart. Concurrent replacement can
+return ``OperationAborted``; retry as a new upload. Active uploads prevent bucket
+deletion. Stored HTTP cache metadata is honored: choose cache directives with
+your private-data and revocation requirements in mind.
+
+This remains an S3 subset. Provider-enforced retention/legal hold, replication,
+notifications, inventory/analytics, website hosting, public/external ACL grants, SigV2,
+temporary session tokens, archival classes, tier transitions and restoration
+remain unsupported. ``STANDARD`` is the supported storage class. The API
+repository's operation matrix records remaining parameter and operation gaps.
+
+For example, AWS CLI server-side copy, move, sync and recursive removal use the
+same endpoint and profile as uploads. Check the selected workspace and credential
+scopes before running mutations:
+
+.. code-block:: console
+
+   aws --profile inferenceport --endpoint-url https://api.inferenceport.ai/WORKSPACE_UUID/s3 s3 cp s3://models/source.bin s3://models/copied.bin
+   aws --profile inferenceport --endpoint-url https://api.inferenceport.ai/WORKSPACE_UUID/s3 s3 sync s3://models/ ./downloaded-models/
+
+Bulk deletion accepts up to 1000 keys and reports failures per key; an HTTP 200
+response can still contain individual deletion errors. Copying objects larger
+than 5 GiB requires multipart copy. AWS CLI chooses multipart copy from its
+configured multipart threshold and preserves tags using tagging operations.
 
 SDK configuration
 -----------------
@@ -196,8 +241,47 @@ workspace endpoint; do not use the bucket name in its place:
      forcePathStyle: true,
    });
 
-Object responses download as attachments, with content sniffing disabled; this
-service does not execute uploaded HTML as an application page.
+rclone
+------
+
+Use ``rclone config`` to create an S3 remote with the following settings. Enter
+the InferencePort-issued Access Key ID and Secret Access Key when prompted:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Setting
+     - Value
+   * - Provider
+     - ``Other``
+   * - Endpoint
+     - The exact workspace endpoint from Connect, including ``/{workspace-id}/s3/``
+   * - Region
+     - ``us-east-1``
+   * - Force path style
+     - ``true``
+   * - ACL
+     - Default ``private`` or ``bucket-owner-full-control``
+
+For a remote named ``inferenceport`` and an existing permitted bucket ``models``:
+
+.. code-block:: console
+
+   rclone copy ./models inferenceport:models/
+   rclone check ./models inferenceport:models/
+   rclone copy inferenceport:models/ ./downloaded-models/
+
+Multipart upload, checksum-based sync/check, server-side copy/move, empty files,
+Unicode names and modification-time updates are tested with rclone v1.76.0.
+Read/write credentials can ensure an existing permitted destination without
+changing its quota, visibility or data. Creating new buckets, changing settings
+or deleting a bucket requires admin capability. Prefix and bucket scopes still
+constrain object access.
+
+Object responses default to attachments, with content sniffing disabled and
+sandbox restrictions. Content metadata can select other delivery headers; this
+is not an application-hosting service.
 
 Keys are opaque UTF-8, decoded once. SDK requests preserve Unicode, encoded
 slashes, repeated separators and dot segments. Browser WHATWG URL/fetch handling
