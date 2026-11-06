@@ -64,3 +64,9 @@ button:active {
 textarea {
   font-family: inherit;
 }
+
+button:disabled:hover {
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}

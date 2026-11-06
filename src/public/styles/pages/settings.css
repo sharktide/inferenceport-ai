@@ -33,7 +33,7 @@ Copyright 2026 InferencePort LLC
   margin: 0 0 8px;
   font-size: clamp(1.5rem, 2.6vw, 2rem);
   line-height: 1.2;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.025em;
 }
 
 .tab-container {
@@ -66,11 +66,11 @@ Copyright 2026 InferencePort LLC
 }
 
 .tab-button.active {
-  background: var(--secondary-color);
-  color: var(--bg-primary);
-  border-color: var(--secondary-color);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15);
-  transform: translateY(1px);
+  background: color-mix(in srgb, var(--blue) 14%, var(--bg-primary));
+  color: var(--text-dark);
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--glass-border));
+  box-shadow: inset 3px 0 0 var(--blue), 0 2px 8px rgba(0, 0, 0, 0.05);
+  transform: none;
 }
 
 .tab-content {
