@@ -184,15 +184,19 @@ main.home-main {
   line-height: 1.5;
 }
 
-#card-scroll-wrapper .marketplace-card > a:has(> .marketplace-btn) {
-  display: block;
-  margin-top: auto;
-}
-
-#card-scroll-wrapper .marketplace-btn {
+#card-scroll-wrapper .marketplace-card > a.marketplace-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   padding: 10px 14px;
+  margin-top: auto;
   border-radius: 9px;
+  text-decoration: none;
+}
+
+#card-scroll-wrapper .marketplace-card > a.marketplace-btn:hover {
+  text-decoration: none;
 }
 
 .home-updates .lightning-section {
