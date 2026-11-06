@@ -111,7 +111,7 @@ Object listings from a public bucket include a server-issued ``public_url``:
 Use the API's returned URL, especially on separate storage hosts. The UUID keeps
 names independent across workspaces and URLs stable when a bucket is renamed;
 query encoding preserves opaque keys, including dot-only path segments.
-S3 listing and management continue to require authentication on public buckets.
+Visibility alone does not grant S3 listing or management access.
 Object ACL writes are not supported. Anonymous S3 listing requires an explicit
 bucket-policy grant; visibility alone does not grant it. Owner ACL inspection
 reports the enforced bucket ownership.
