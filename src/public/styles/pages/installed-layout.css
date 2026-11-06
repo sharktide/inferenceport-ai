@@ -1,0 +1,167 @@
+/*
+Copyright 2026 InferencePort LLC
+Installed library: page hierarchy, host context and readable section cards.
+*/
+
+.installed-main {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: clamp(22px, 3vw, 42px) clamp(18px, 3vw, 38px) 50px;
+}
+
+.installed-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px 30px;
+  margin: 0 0 30px;
+}
+
+.installed-eyebrow {
+  margin: 0 0 7px;
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.installed-header h1 {
+  margin: 0 0 7px;
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.04em;
+  color: var(--text-dark);
+}
+
+.installed-header p:last-child {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.installed-host-control {
+  display: grid;
+  gap: 5px;
+  min-width: 210px;
+}
+
+.installed-host-control label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.installed-host-control select {
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-light);
+  color: var(--text-dark);
+  font-size: 13px;
+}
+
+.installed-main .installed-group {
+  margin: 0 0 18px;
+  padding: 0 20px 20px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+}
+
+.installed-main .installed-group > summary {
+  display: list-item;
+  margin: 0 -20px;
+  padding: 18px 20px;
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: var(--text-dark);
+}
+
+.installed-main .installed-group[open] > summary {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.installed-main .installed-group > summary img {
+  display: inline-block;
+  vertical-align: middle;
+  height: 20px;
+  width: 20px;
+  margin-left: 6px;
+}
+
+.installed-main .installed-group > summary:hover {
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+}
+
+/* Legacy .white-text belongs to the imported cards, not section headings. */
+.installed-main .installed-group > summary,
+.installed-main .installed-group > summary * {
+  color: var(--text-dark) !important;
+}
+
+.installed-main .installed-group .card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+  padding: 0;
+  margin: 14px 0 0;
+}
+
+.installed-main .installed-group .marketplace-card {
+  min-width: 0;
+  max-width: none;
+  border-radius: 11px;
+}
+
+.installed-main .auth-action-buttons {
+  width: 100%;
+  max-width: none !important;
+  margin-bottom: 12px;
+  justify-content: flex-start !important;
+}
+
+.installed-main .auth-action-buttons button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 104px;
+  border-radius: 9px;
+  font-size: 13px;
+  padding: 9px 14px;
+}
+
+.installed-main h4.z {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.installed-main footer {
+  margin-top: 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 680px) {
+  .installed-main { padding: 22px 16px 40px; }
+  .installed-header { flex-direction: column; align-items: stretch; }
+  .installed-host-control { width: 100%; }
+  .installed-main .installed-group { padding: 0 14px 16px; }
+  .installed-main .installed-group > summary { margin: 0 -14px; padding: 16px 14px; }
+  .installed-main .installed-group .card-grid { grid-template-columns: minmax(0, 1fr); }
+  .installed-main .auth-action-buttons button { flex: 1 1 auto; }
+}

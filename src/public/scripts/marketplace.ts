@@ -12,7 +12,7 @@ const fileModal = new window.ic.iModal(
 		html: `
             <div style="max-width: 500px;">
             <div id="drop-zone" class="drop-zone">
-                <div class="drop-icon">📂</div>
+                <div class="drop-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></div>
                 <p id="drop-text">
                 Drag & drop your <strong>.import</strong> file here<br>
                 or <span class="click-to-upload">click to upload</span>
@@ -364,7 +364,7 @@ function openGGUFModal() {
 			<div>
 
 				<div id="gguf-drop-zone" class="drop-zone">
-					<div class="drop-icon">📦</div>
+					<div class="drop-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg></div>
 					<p>
 						Drag & drop your <strong>.gguf</strong> or <strong>Modelfile</strong><br>
 						or <span class="click-to-upload">click to upload</span>
@@ -698,7 +698,7 @@ function openSpaceModal() {
 								.replace(/[-_]/g, " ")
 								.replace(/\b\w/g, (c) => c.toUpperCase()),
 							author: username,
-							emoji: apiData.cardData?.emoji ?? "🧠",
+							emoji: apiData.cardData?.emoji ?? "",
 							background: `linear-gradient(to right, ${
 								apiData.cardData?.colorFrom ?? "#3178c6"
 							}, ${apiData.cardData?.colorTo ?? "#90caf9"})`,
@@ -979,7 +979,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	const chips = Array.from(
 		document.querySelectorAll(".chip"),
-	) as Array<HTMLDivElement>;
+	) as Array<HTMLButtonElement>;
 	const search = document.getElementById("market-search") as HTMLInputElement;
 	const cards = Array.from(
 		document.querySelectorAll(".marketplace-card"),
@@ -991,6 +991,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			"all";
 		const q = search.value.trim().toLowerCase();
 
+        let visibleCount = 0;
 		cards.forEach((card) => {
 			const name = (card.dataset.name || "").toLowerCase();
 			const cat = card.dataset.category || "";
@@ -999,14 +1000,27 @@ document.addEventListener("DOMContentLoaded", () => {
 				name.includes(q) ||
 				card.innerText.toLowerCase().includes(q);
 			const matchCategory = active === "all" || active === cat;
-			card.style.display = matchQuery && matchCategory ? "" : "none";
+			const visible = matchQuery && matchCategory;
+            card.style.display = visible ? "" : "none";
+            if (visible) visibleCount++;
 		});
+        document.querySelectorAll<HTMLElement>(".category-section").forEach((section) => {
+            section.hidden = !Array.from(section.querySelectorAll<HTMLElement>(".marketplace-card"))
+                .some((card) => card.style.display !== "none");
+        });
+        const empty = document.getElementById("marketplace-empty");
+        if (empty) empty.hidden = visibleCount > 0;
 	}
 
 	chips.forEach((chip) =>
 		chip.addEventListener("click", (e) => {
-			chips.forEach((c) => c.classList.remove("active"));
-			(e.currentTarget as HTMLDivElement).classList.add("active");
+            chips.forEach((c) => {
+                c.classList.remove("active");
+                c.setAttribute("aria-pressed", "false");
+            });
+            const selected = e.currentTarget as HTMLButtonElement;
+            selected.classList.add("active");
+            selected.setAttribute("aria-pressed", "true");
 			applyFilter();
 		}),
 	);

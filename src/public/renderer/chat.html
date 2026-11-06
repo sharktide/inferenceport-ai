@@ -107,9 +107,10 @@
 			}
 
 			.chat-container {
-				height: calc(100vh - var(--navbar-height, 80px));
-				display: flex;
-			}
+                height: 100%;
+                min-height: 0;
+                display: flex;
+            }
 
 			.chat-panel {
 				display: flex;
@@ -123,6 +124,7 @@
 				overflow-y: auto;
 			}
 		</style>
+        <link rel="stylesheet" href="../styles/pages/chat-layout.css" />
 	</head>
 	<body>
 		<type1-navbar></type1-navbar>
@@ -144,7 +146,7 @@
 
 		<main id="app-root" class="hidden">
 			<div class="chat-container">
-				<aside class="sidebar">
+				<aside class="sidebar" id="chat-sidebar" aria-label="Conversation and media navigation">
 					<button id="new-session-btn" type="button">+ New chat</button>
 					<div class="lightning-sidebar-banner">
 						<div class="lightning-sidebar-copy">
@@ -301,7 +303,11 @@
 					</div>
 				</aside>
 
+                <button id="chat-sidebar-scrim" class="chat-sidebar-scrim" type="button" aria-label="Close conversations"></button>
 				<section class="chat-panel">
+                    <div class="chat-mobile-toolbar">
+                        <button id="chat-sidebar-toggle" type="button" aria-controls="chat-sidebar" aria-expanded="false">Conversations</button>
+                    </div>
 					<div id="chat-box"></div>
 					<div id="welcome-hero" class="welcome-hero" aria-hidden="true">
 						<h1 class="welcome-title">What's on your mind today?</h1>
@@ -309,20 +315,16 @@
 					<chat-box></chat-box>
 					<div id="welcome-cards" class="welcome-cards" aria-hidden="true">
 						<button type="button" class="welcome-card" data-prompt="Create images for a blog post concept.">
-							<span class="welcome-card-icon">🖼️</span>
-							<span>Create images</span>
+							<span>Create an image</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Teach me something useful in 5 minutes.">
-							<span class="welcome-card-icon">📖</span>
-							<span>Learn something</span>
+							<span>Explain a concept</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Help me write and edit this draft clearly.">
-							<span class="welcome-card-icon">✏️</span>
-							<span>Write or edit</span>
+							<span>Edit a draft</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Walk me through this task step by step.">
-							<span class="welcome-card-icon">💡</span>
-							<span>Step-by-step help</span>
+							<span>Plan a task</span>
 						</button>
 					</div>
 				</section>
@@ -354,6 +356,32 @@
 			<div id="notification-container"></div>
 		</main>
 		<script type="module" src="../scripts/renderer/chat.js"></script>
+        <script>
+            (() => {
+                const root = document.getElementById("app-root");
+                const sidebar = document.getElementById("chat-sidebar");
+                const toggle = document.getElementById("chat-sidebar-toggle");
+                const scrim = document.getElementById("chat-sidebar-scrim");
+                const mobile = window.matchMedia("(max-width: 920px)");
+                if (!root || !sidebar || !toggle || !scrim) return;
+                const setOpen = (open) => {
+                    const visible = mobile.matches && open;
+                    root.classList.toggle("sidebar-open", visible);
+                    toggle.setAttribute("aria-expanded", String(visible));
+                    sidebar.inert = mobile.matches && !visible;
+                };
+                toggle.addEventListener("click", () => setOpen(!root.classList.contains("sidebar-open")));
+                scrim.addEventListener("click", () => { setOpen(false); toggle.focus(); });
+                document.addEventListener("keydown", (e) => {
+                    if (e.key === "Escape" && root.classList.contains("sidebar-open")) {
+                        setOpen(false);
+                        toggle.focus();
+                    }
+                });
+                mobile.addEventListener("change", () => setOpen(false));
+                setOpen(false);
+            })();
+        </script>
 		<p style="text-align:center;margin:8px 0;font-size:0.78rem;color:var(--muted,#999)">InferencePort AI™ is a trademark of InferencePort LLC.</p>
 	</body>
 </html>

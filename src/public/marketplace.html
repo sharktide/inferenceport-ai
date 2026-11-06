@@ -185,33 +185,36 @@
 				font-size: 12px;
 			}
 		</style>
+		<link rel="stylesheet" href="styles/pages/marketplace-layout.css" />
 	</head>
 
 	<body>
 		<root-navbar></root-navbar>
 
-		<main class="hero">
-			<h1>Marketplace</h1>
-			<p>
-				Discover Chatbots, AI demos, and curated websites — all in one
-				place.
-			</p>
+		<main class="hero marketplace-main">
+            <header class="marketplace-header">
+                <div>
+                    <p class="marketplace-eyebrow">Discover &amp; import</p>
+                    <h1>Marketplace</h1>
+                    <p>Discover chat models, useful tools, and AI demos.</p>
+                </div>
+                <button id="import-file-btn" type="button" class="marketplace-import-btn">Import .import file</button>
+            </header>
 
-			<div class="search-bar">
+            <div class="marketplace-toolbar">
+            <div class="search-bar">
+                <label class="sr-only" for="market-search">Search marketplace</label>
 				<input
 					id="market-search"
 					placeholder="Search models, demos, or websites"
 				/>
 				<div class="chips">
-					<div class="chip active" data-filter="all">All</div>
-					<div class="chip" data-filter="chatbots">Chatbots</div>
-					<div class="chip" data-filter="demos">AI Demos</div>
+					<button class="chip active" type="button" data-filter="all" aria-pressed="true">All</button>
+                    <button class="chip" type="button" data-filter="chatbots" aria-pressed="false">Chatbots</button>
+                    <button class="chip" type="button" data-filter="demos" aria-pressed="false">AI Demos</button>
 				</div>
 			</div>
-
-			<button id="import-file-btn" style="margin-bottom: 20px">
-				Import .import File
-			</button>
+            </div>
 
 			<div class="sections-grid">
 				<section class="category-section" data-category="chatbots">
@@ -328,12 +331,13 @@
 								</p>
 							</div>
 							<div class="meta-row">
-								<span>Powered by the internet :)</span><span>Link</span>
+								<span>External website</span><span>Link</span>
 							</div>
 						</div>
 					</div>
 				</section>
 			</div>
+            <p id="marketplace-empty" class="marketplace-empty" role="status" hidden>No results match your search. Try a different term or category.</p>
 
 			<footer>
 				DISCLAIMER: We are not affiliated with Ollama, Hugging Face, or

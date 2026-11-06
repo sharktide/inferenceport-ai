@@ -34,6 +34,7 @@
 				white-space: nowrap;
 			}
 		</style>
+        <link rel="stylesheet" href="styles/pages/installed-layout.css" />
 	</head>
 	<body>
 		<root-navbar></root-navbar>
@@ -76,18 +77,24 @@
 			</div>
 		</div>
 
-		<main style="padding: 40px">
-			<h1>Installed Models</h1>
+		<main class="installed-main">
+            <header class="installed-header">
+                <div>
+                    <p class="installed-eyebrow">Your library</p>
+                    <h1>Installed models</h1>
+                    <p>Manage local models, Spaces, and saved websites in one place.</p>
+                </div>
+                <div class="installed-host-control">
+                    <label for="host-select">Active host</label>
+                    <select id="host-select">
+                        <option value="local">Local</option>
+                        <option value="add_remote">Add Remote Host...</option>
+                        <option value="manage_hosts">Manage Remote Hosts</option>
+                    </select>
+                </div>
+            </header>
 
-			<select id="host-select" style="margin-bottom:16px;">
-				<option value="local">Local</option>
-				<option value="add_remote">Add Remote Host...</option>
-				<option value="manage_hosts">Manage Remote Hosts</option>
-			</select>
-
-			<br />
-
-			<detailsopen><summary style="font-size: large; color: var(--text-dark) !important;">Type: Chatbots</summary>
+			<details class="installed-group" open><summary>Chat models</summary>
 				<div id="ollama-container">
 					<h4 class="z">Tools</h4>
 					
@@ -107,16 +114,12 @@
 				</div>
 			</details>
 
-			<br />
-	
-			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Type: Huggingface Spaces <img src="assets/img/huggingface.svg" alt="Huggingface Logo" /></summary>
+			<details class="installed-group white-text" open><summary>Hugging Face Spaces <img src="assets/img/huggingface.svg" alt="" /></summary>
 				<div class="spinner" id="spinner-hf"></div>
 				<div class="card-grid" id="hf-spaces"></div>
 			</details>
 
-			<br />
-
-			<details class="white-text" open><summary style="font-size: large; color: var(--text-dark) !important;">Type: Website</summary>
+			<details class="installed-group white-text" open><summary>Websites</summary>
 				<div class="spinner" id="spinner-website"></div>
 				<div class="card-grid" id="websites"></div>
 			</details>
