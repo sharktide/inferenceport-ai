@@ -632,101 +632,39 @@
 			font-weight: 400;
 		}
 	</style>
+	<link rel="stylesheet" href="styles/pages/home-layout.css" />
 </head>
 
 <body>
 	<root-navbar></root-navbar>
-	<main>
-		<div>
-			<h1>Welcome to InferencePortAI</h1>
-			<p>Your gateway to seamless AI model management and interaction.</p>
-		</div>
-		<div style="display: flex; justify-content: space-between;">
-			<button class="lightning-btn" onclick="window.location.href='renderer/studio.html'"
-				style="width: 49.5%; height: 90px; font-size: 18px;">Studio</button>
-			<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'"
-				style="width: 49.5%; height: 90px; font-size: 18px;">Chat Now</button>
-		</div>
-		<div class="lightning-section" id="adCarousel">
-			<div class="ad-carousel-viewport">
-				<div class="ad-carousel-track" id="adCarouselTrack">
+	<main class="home-main">
+        <header class="home-header">
+            <div class="home-heading">
+                <p class="home-eyebrow">Workspace</p>
+                <h1>Your workspace</h1>
+                <p>Start something new, or pick up where you left off.</p>
+            </div>
+            <a class="home-header-link" href="installed.html">Installed models <span aria-hidden="true">↗</span></a>
+        </header>
+        <section class="home-quick-actions" aria-label="Start working">
+            <a class="home-quick-link" href="renderer/chat.html">
+                <span class="home-action-label">01 / Conversation</span>
+                <span class="home-action-bottom"><strong>Start a chat</strong><span aria-hidden="true">↗</span></span>
+                <span class="home-action-desc">Ask, create, and work with a model.</span>
+            </a>
+            <a class="home-quick-link" href="renderer/studio.html">
+                <span class="home-action-label">02 / Creative tools</span>
+                <span class="home-action-bottom"><strong>Open Studio</strong><span aria-hidden="true">↗</span></span>
+                <span class="home-action-desc">Generate and edit images, video, and audio.</span>
+            </a>
+        </section>
 
-					<div class="ad-carousel-slide">
-						<h2>⚡ Lightning Models Are Here</h2>
-						<div class="tagline">Up to 1000 Words / Second</div>
-						<p>Lightning Text v2 and Lightning Image Turbo deliver incredible speed and quality, free for
-							everyone right now.</p>
-						<button class="lightning-btn" id="trylight">Try it Now</button>
-						<div class="lightning-models-grid">
-							<div class="lightning-model-card">
-								<h3>⚡ Lightning Text v2</h3>
-								<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses
-									instantly for chat, coding, or long-form writing.</p>
-								<ul>
-									<li>Up to 1000 words per second</li>
-									<li>Low-latency streaming output</li>
-									<li>Optimized decoding and caching</li>
-									<li>Perfect for chatbots, code assistants, and document generation</li>
-								</ul>
-							</div>
-							<div class="lightning-model-card">
-								<h3>⚡ Lightning Image Turbo (New Default)</h3>
-								<p>Lightning Image Turbo produces ultra-realistic images with exceptional detail and
-									stunning sci-fi or cinematic visuals.</p>
-								<ul>
-									<li>Ultra-realistic rendering</li>
-									<li>Exceptional sci-fi environments</li>
-									<li>Sharper detail &amp; lighting effects</li>
-									<li>Faster generation than ever before</li>
-								</ul>
-							</div>
-						</div>
-					</div>
 
-					<div class="ad-carousel-slide">
-						<h2>🎬 Music &amp; Video Generation</h2>
-						<div class="tagline">Create. Generate. Produce.</div>
-						<p>Experimental: Generate original music powered by ElevenLabs and produce stunning video clips
-							— all from
-							within InferencePortAI. Free for a limited time.</p>
-						<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'">Try it
-							Now</button>
-						<div class="lightning-models-grid">
-							<div class="lightning-model-card">
-								<h3>🎵 Music/SFX Generation</h3>
-								<p>Create original, high-quality music and sound effects from a simple text prompt. From
-									cinematic scores to lo-fi beats, bring your audio ideas to life.</p>
-								<ul>
-									<li>Powered by AceStep Turbo</li>
-									<li>Full tracks &amp; sound effects</li>
-									<li>Multiple genres and styles</li>
-									<li>Studio quality audio outputs</li>
-								</ul>
-							</div>
-							<div class="lightning-model-card">
-								<h3>🎞️ Video Generation</h3>
-								<p>Turn text prompts or images into fluid, high-quality video clips. Perfect for
-									short-form content, product showcases, and cinematic visualizations.</p>
-								<ul>
-									<li>Text-to-video</li>
-									<li>Cinematic &amp; custom visual styles</li>
-									<li>Smooth, high-fidelity output</li>
-									<li>Fast generation pipeline</li>
-								</ul>
-							</div>
-						</div>
-					</div>
-
-				</div><!-- end track -->
-			</div><!-- end viewport -->
-			<div class="ad-carousel-dots">
-				<button class="ad-carousel-dot active" data-index="0"></button>
-				<button class="ad-carousel-dot" data-index="1"></button>
-			</div>
-		</div><!-- end carousel -->
-
-		<div>
-			<h3>Explore Trending Ollama Models</h3>
+        <section class="home-models">
+            <div class="home-section-heading">
+                <div><p class="home-eyebrow">Explore</p><h2>Popular local models</h2></div>
+                <a href="marketplace/ollama.html">Browse the library <span aria-hidden="true">↗</span></a>
+            </div>
 			<div id="card-scroll-wrapper">
 				<div class="card-grid">
 					<div class="marketplace-card">
@@ -805,84 +743,90 @@
 						</a>
 					</div>
 
-
-					<div class="marketplace-card">
-						<h2>🚀 gpt-oss</h2>
-						<p class="model-description">OpenAI’s open-weight models designed for powerful reasoning,
-							agentic tasks, and versatile developer use cases.</p>
-						<div class="model-tags"><span class="model-tag">20b</span> <span class="model-tag">120b</span>
-						</div>
-						<div class="model-meta">
-							<a href="https://ollama.com/library/gpt-oss" target="_blank" class="model-link">More details
-								→</a>
-						</div>
-						<a href="./marketplace/ollama.html#gpt-oss">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-
-					<div class="marketplace-card">
-						<h2>🧠 deepseek-r1</h2>
-						<p class="model-description">DeepSeek-R1 is a family of open reasoning models with performance
-							approaching that of leading models, such as O3 and Gemini 2.5 Pro.</p>
-						<div class="model-tags"><span class="model-tag">1.5b</span> <span class="model-tag">7b</span>
-							<span class="model-tag">8b</span> <span class="model-tag">14b</span> <span
-								class="model-tag">32b</span> <span class="model-tag">70b</span> <span
-								class="model-tag">671b</span>
-						</div>
-						<div class="model-meta">
-							<a href="https://ollama.com/library/deepseek-r1" target="_blank" class="model-link">More
-								details →</a>
-						</div>
-						<a href="./marketplace/ollama.html#deepseek-r1">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>🦙 llama3.1</h2>
-						<p class="model-description">Llama 3.1 is a new state-of-the-art model from Meta available in
-							8B, 70B and 405B parameter sizes.</p>
-						<div class="model-tags"><span class="model-tag">8b</span> <span class="model-tag">70b</span>
-							<span class="model-tag">405b</span>
-						</div>
-						<div class="model-meta">
-							<a href="https://ollama.com/library/llama3.1" target="_blank" class="model-link">More
-								details →</a>
-						</div>
-						<a href="./marketplace/ollama.html">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>⚡ smollm2</h2>
-						<p class="model-description">SmolLM2 is a family of compact language models available in three
-							size: 135M, 360M, and 1.7B parameters.</p>
-						<div class="model-tags"><span class="model-tag">135m</span> <span class="model-tag">360m</span>
-							<span class="model-tag">1.7b</span>
-						</div>
-						<div class="model-meta">
-							<a href="https://ollama.com/library/smollm2" target="_blank" class="model-link">More details
-								→</a>
-						</div>
-						<a href="./marketplace/ollama.html#smollm2">
-							<button class="marketplace-btn">View in Marketplace</button>
-						</a>
-					</div>
-					<div class="marketplace-card">
-						<h2>🎯 phi3</h2>
-						<p class="model-description">Phi-3 is a family of lightweight 3B (Mini) and 14B (Medium)
-							state-of-the-art open models by Microsoft.</p>
-						<div class="model-tags"><span class="model-tag">3.8b</span> <span class="model-tag">14b</span>
-						</div>
-						<div class="model-meta"><a href="https://ollama.com/library/phi3" target="_blank"
-								class="model-link">More details →</a></div>
-						<a href="./marketplace/ollama.html#phi3"><button class="marketplace-btn">View in
-								Marketplace</button></a>
-					</div>
 				</div>
 			</div>
 
-		</div>
+        </section>
+        <section class="home-updates" aria-label="Product updates">
+            <div class="home-section-heading"><div><p class="home-eyebrow">From InferencePort</p><h2>What's new</h2></div></div>
+		<div class="lightning-section" id="adCarousel">
+			<div class="ad-carousel-viewport">
+				<div class="ad-carousel-track" id="adCarouselTrack">
+
+					<div class="ad-carousel-slide">
+						<h2>⚡ Lightning Models Are Here</h2>
+						<div class="tagline">Up to 1000 Words / Second</div>
+						<p>Lightning Text v2 and Lightning Image Turbo deliver incredible speed and quality, free for
+							everyone right now.</p>
+						<button class="lightning-btn" id="trylight">Try it Now</button>
+						<div class="lightning-models-grid">
+							<div class="lightning-model-card">
+								<h3>⚡ Lightning Text v2</h3>
+								<p>Lightning Text v2 is built for speed and smooth streaming. Generate text responses
+									instantly for chat, coding, or long-form writing.</p>
+								<ul>
+									<li>Up to 1000 words per second</li>
+									<li>Low-latency streaming output</li>
+									<li>Optimized decoding and caching</li>
+									<li>Perfect for chatbots, code assistants, and document generation</li>
+								</ul>
+							</div>
+							<div class="lightning-model-card">
+								<h3>⚡ Lightning Image Turbo (New Default)</h3>
+								<p>Lightning Image Turbo produces ultra-realistic images with exceptional detail and
+									stunning sci-fi or cinematic visuals.</p>
+								<ul>
+									<li>Ultra-realistic rendering</li>
+									<li>Exceptional sci-fi environments</li>
+									<li>Sharper detail &amp; lighting effects</li>
+									<li>Faster generation than ever before</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+
+					<div class="ad-carousel-slide">
+						<h2>🎬 Music &amp; Video Generation</h2>
+						<div class="tagline">Create. Generate. Produce.</div>
+						<p>Experimental: Generate original music powered by ElevenLabs and produce stunning video clips
+							— all from
+							within InferencePortAI. Free for a limited time.</p>
+						<button class="lightning-btn" onclick="window.location.href='renderer/chat.html'">Try it
+							Now</button>
+						<div class="lightning-models-grid">
+							<div class="lightning-model-card">
+								<h3>🎵 Music/SFX Generation</h3>
+								<p>Create original, high-quality music and sound effects from a simple text prompt. From
+									cinematic scores to lo-fi beats, bring your audio ideas to life.</p>
+								<ul>
+									<li>Powered by AceStep Turbo</li>
+									<li>Full tracks &amp; sound effects</li>
+									<li>Multiple genres and styles</li>
+									<li>Studio quality audio outputs</li>
+								</ul>
+							</div>
+							<div class="lightning-model-card">
+								<h3>🎞️ Video Generation</h3>
+								<p>Turn text prompts or images into fluid, high-quality video clips. Perfect for
+									short-form content, product showcases, and cinematic visualizations.</p>
+								<ul>
+									<li>Text-to-video</li>
+									<li>Cinematic &amp; custom visual styles</li>
+									<li>Smooth, high-fidelity output</li>
+									<li>Fast generation pipeline</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+
+				</div><!-- end track -->
+			</div><!-- end viewport -->
+			<div class="ad-carousel-dots">
+				<button class="ad-carousel-dot active" data-index="0" type="button" aria-label="Show Lightning models"></button>
+				<button class="ad-carousel-dot" data-index="1" type="button" aria-label="Show music and video"></button>
+			</div>
+		</div><!-- end carousel -->
+        </section>
 	</main>
 
 	<footer>
@@ -932,38 +876,6 @@
 	</div>
 	</div>
 	<script>
-		// Marketplace infinite scroll
-		(function () {
-			const wrapper = document.getElementById('card-scroll-wrapper');
-			const grid = wrapper.querySelector('.card-grid');
-			const cards = Array.from(grid.children);
-			const half = cards.length / 2;
-			let x = 0;
-			let paused = false;
-			const speed = 0.8;
-
-			function getHalfWidth() {
-				let w = 0;
-				for (let i = 0; i < half; i++) w += cards[i].offsetWidth + 16;
-				return w;
-			}
-
-			function tick() {
-				if (!paused) {
-					x += speed;
-					if (x >= getHalfWidth()) x -= getHalfWidth();
-					grid.style.transform = `translateX(-${x}px)`;
-				}
-				requestAnimationFrame(tick);
-			}
-
-			grid.addEventListener('mouseover', (e) => {
-				paused = !!e.target.closest('.marketplace-card');
-			});
-			grid.addEventListener('mouseleave', () => paused = false);
-			requestAnimationFrame(tick);
-		})();
-
 		// Ad carousel
 		(function () {
 			const carousel = document.getElementById('adCarousel');
@@ -981,7 +893,7 @@
 
 			function startInterval() {
 				clearInterval(interval);
-				interval = setInterval(() => goTo(current + 1), 3000);
+				interval = setInterval(() => goTo(current + 1), 7000);
 			}
 
 			dots.forEach(dot => {
@@ -995,6 +907,10 @@
 
 			carousel.addEventListener('mouseenter', () => clearInterval(interval));
 			carousel.addEventListener('mouseleave', () => startInterval());
+            carousel.addEventListener('focusin', () => clearInterval(interval));
+            carousel.addEventListener('focusout', (e) => {
+                if (!carousel.contains(e.relatedTarget)) startInterval();
+            });
 			carousel.addEventListener('click', () => startInterval());
 
 			startInterval();
