@@ -1,0 +1,263 @@
+/*
+Copyright 2026 InferencePort LLC
+Chat workspace: useful sidebar, readable conversation column, responsive session drawer.
+*/
+
+#app-root {
+  min-height: 0;
+  padding: 14px 18px 18px;
+  gap: 0;
+}
+
+#app-root .chat-container {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  gap: 14px;
+}
+
+#app-root .sidebar {
+  flex: 0 0 278px;
+  width: 278px;
+  min-width: 278px;
+  padding: 15px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-light) 90%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] #app-root .sidebar {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+}
+
+#app-root #new-session-btn {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--blue) 32%, var(--glass-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--blue) 12%, var(--bg-light));
+  color: var(--text-dark);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#app-root #new-session-btn:hover {
+  background: color-mix(in srgb, var(--blue) 19%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 55%, var(--glass-border));
+}
+
+#app-root .sidebar-mode-tabs {
+  gap: 4px;
+}
+
+#app-root .sidebar-mode-tab {
+  font-size: 12px;
+}
+
+#app-root #session-list li {
+  border-radius: 9px;
+  min-width: 0;
+}
+
+#app-root .sidebar .lightning-sidebar-banner {
+  border-radius: 11px;
+  box-shadow: 0 5px 16px rgba(8, 66, 153, 0.13);
+}
+
+/* Keep the color treatment, but not a constantly rotating decorative overlay. */
+#app-root .sidebar .lightning-sidebar-banner::before {
+  animation: none;
+  opacity: 0.22;
+}
+
+#app-root .chat-panel {
+  flex: 1;
+  min-width: 0;
+  padding: 2px clamp(8px, 2vw, 28px) 0;
+  border: 0;
+}
+
+#app-root #chat-box {
+  flex: 1;
+  width: min(960px, 100%);
+  max-width: 100%;
+  min-width: 0;
+  padding: 22px 10px 18px;
+  margin: 0 auto 10px;
+  background: transparent;
+  box-shadow: none;
+}
+
+#app-root .chat-panel chat-box {
+  display: block;
+  width: min(940px, 100%);
+  max-width: 100%;
+  flex: 0 0 auto;
+  margin: 0 auto 12px;
+}
+
+#app-root .chat-panel #chat-form {
+  width: 100%;
+}
+
+#app-root .chat-panel .composer-shell {
+  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 7px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] #app-root .chat-panel .composer-shell {
+  background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+}
+
+#app-root .chat-panel.welcome-mode .welcome-hero,
+#app-root .chat-panel.welcome-mode .welcome-cards,
+#app-root .chat-panel.welcome-mode chat-box {
+  width: min(860px, 100%);
+}
+
+#app-root .chat-panel.welcome-mode .welcome-title {
+  font-size: clamp(27px, 3vw, 36px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+#app-root .chat-panel.welcome-mode .welcome-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+#app-root .chat-panel .welcome-card {
+  min-height: 76px;
+  height: auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-light) 84%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-dark);
+  font-size: 13px;
+  font-weight: 550;
+  transition: transform 170ms ease, background-color 170ms ease, box-shadow 170ms ease, border-color 170ms ease;
+}
+
+[data-theme="dark"] #app-root .chat-panel .welcome-card {
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+}
+
+#app-root .chat-panel .welcome-card:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--blue) 10%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 35%, var(--glass-border));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+#app-root .welcome-card-icon {
+  display: inline-flex;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
+  font-size: 17px;
+}
+
+.chat-mobile-toolbar,
+.chat-sidebar-scrim { display: none; }
+
+@media (max-width: 920px) {
+  #app-root { padding: 10px; }
+  #app-root .chat-container { position: relative; gap: 0; }
+  #app-root .chat-container .sidebar {
+    position: absolute;
+    z-index: 32;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, calc(100vw - 40px));
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(calc(-100% - 16px));
+    transition: transform 200ms ease, opacity 200ms ease;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
+  }
+  #app-root.sidebar-open .chat-container .sidebar {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #app-root .chat-panel {
+    position: relative;
+    width: 100%;
+    padding: 48px 10px 0;
+  }
+  .chat-mobile-toolbar {
+    display: block;
+    position: absolute;
+    left: 10px;
+    top: 5px;
+    z-index: 5;
+  }
+  #chat-sidebar-toggle {
+    width: auto;
+    min-width: 116px;
+    padding: 8px 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: 9px;
+    background: var(--glass-bg);
+    color: var(--text-dark);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .chat-sidebar-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 31;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(0, 0, 0, 0.35);
+  }
+  #app-root.sidebar-open .chat-sidebar-scrim { display: block; }
+  #app-root .chat-panel.welcome-mode {
+    justify-content: center;
+    padding-top: 48px;
+  }
+  #app-root .chat-panel.welcome-mode .welcome-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  #app-root .chat-panel { padding: 48px 4px 0; }
+  #app-root #chat-box { padding: 12px 4px; }
+  #app-root .chat-panel.welcome-mode .welcome-cards { grid-template-columns: 1fr; gap: 8px; }
+  #app-root .chat-panel .welcome-card { min-height: 58px; padding: 10px 12px; }
+  #app-root .chat-panel.welcome-mode .welcome-title { font-size: clamp(24px, 7vw, 30px); }
+}
+
+.snip-mode .chat-mobile-toolbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #app-root .chat-container .sidebar,
+  #app-root .chat-panel .welcome-card { transition: none; }
+}
