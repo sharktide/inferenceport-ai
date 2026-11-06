@@ -166,18 +166,6 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 
-#app-root .welcome-card-icon {
-  display: inline-flex;
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--blue) 10%, transparent);
-  font-size: 17px;
-}
-
 .chat-mobile-toolbar,
 .chat-sidebar-scrim { display: none; }
 
