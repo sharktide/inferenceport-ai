@@ -112,9 +112,11 @@ Use the API's returned URL, especially on separate storage hosts. The UUID keeps
 names independent across workspaces and URLs stable when a bucket is renamed;
 query encoding preserves opaque keys, including dot-only path segments.
 Visibility alone does not grant S3 listing or management access.
-Object ACL writes are not supported. Anonymous S3 listing requires an explicit
-bucket-policy grant; visibility alone does not grant it. Owner ACL inspection
-reports the enforced bucket ownership.
+Owner-only ACL requests accept ``private``, ``bucket-owner-full-control``, or the
+canonical owner's sole full-control XML grant. Public/external ACL grants are
+rejected. These requests preserve existing bucket visibility and policy access;
+``private`` does not override an explicit public bucket policy. Anonymous S3
+listing requires a policy grant; visibility alone does not grant it.
 
 Public download operations and transfer are billed to the bucket's personal or
 organization wallet. Organization-wide spending limits and available credits
@@ -185,7 +187,7 @@ deletion. Stored HTTP cache metadata is honored: choose cache directives with
 your private-data and revocation requirements in mind.
 
 This remains an S3 subset. Provider-enforced retention/legal hold, replication,
-notifications, inventory/analytics, website hosting, writable ACLs, SigV2,
+notifications, inventory/analytics, website hosting, public/external ACL grants, SigV2,
 temporary session tokens, archival classes, tier transitions and restoration
 remain unsupported. ``STANDARD`` is the supported storage class. The API
 repository's operation matrix records remaining parameter and operation gaps.
@@ -238,6 +240,44 @@ workspace endpoint; do not use the bucket name in its place:
      region: "us-east-1",
      forcePathStyle: true,
    });
+
+rclone
+------
+
+Use ``rclone config`` to create an S3 remote with the following settings. Enter
+the InferencePort-issued Access Key ID and Secret Access Key when prompted:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Setting
+     - Value
+   * - Provider
+     - ``Other``
+   * - Endpoint
+     - The exact workspace endpoint from Connect, including ``/{workspace-id}/s3/``
+   * - Region
+     - ``us-east-1``
+   * - Force path style
+     - ``true``
+   * - ACL
+     - Default ``private`` or ``bucket-owner-full-control``
+
+For a remote named ``inferenceport`` and an existing permitted bucket ``models``:
+
+.. code-block:: console
+
+   rclone copy ./models inferenceport:models/
+   rclone check ./models inferenceport:models/
+   rclone copy inferenceport:models/ ./downloaded-models/
+
+Multipart upload, checksum-based sync/check, server-side copy/move, empty files,
+Unicode names and modification-time updates are tested with rclone v1.76.0.
+Read/write credentials can ensure an existing permitted destination without
+changing its quota, visibility or data. Creating new buckets, changing settings
+or deleting a bucket requires admin capability. Prefix and bucket scopes still
+constrain object access.
 
 Object responses default to attachments, with content sniffing disabled and
 sandbox restrictions. Content metadata can select other delivery headers; this
