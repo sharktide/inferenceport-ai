@@ -43,6 +43,16 @@ Copyright 2026 InferencePort LLC
 	--success: #3ca374;
 	--error: #e53935;
 	--warning: #fbc02d;
+
+	/* Semantic surfaces shared by marketplace and renderer controls. */
+	--surface: color-mix(in srgb, var(--bg-light) 94%, var(--bg-primary) 6%);
+	--surface-2: var(--bg-secondary);
+	--surface-hover: color-mix(in srgb, var(--bg-light) 90%, var(--blue) 10%);
+	--border: var(--glass-border);
+	--text: var(--text-primary);
+	--muted: var(--text-secondary);
+	--accent: var(--accent-primary);
+	--accent-soft: color-mix(in srgb, var(--accent-primary) 16%, transparent);
 }
 
 /* =========================
