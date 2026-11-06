@@ -112,7 +112,8 @@ Use the API's returned URL, especially on separate storage hosts. The UUID keeps
 names independent across workspaces and URLs stable when a bucket is renamed;
 query encoding preserves opaque keys, including dot-only path segments.
 S3 listing and management continue to require authentication on public buckets.
-Object ACLs and anonymous S3 listing are not supported.
+Object ACL writes and anonymous S3 listing are not supported. Owner ACL
+inspection reports the enforced bucket ownership.
 
 Public download operations and transfer are billed to the bucket's personal or
 organization wallet. Organization-wide spending limits and available credits
@@ -143,12 +144,23 @@ Supported S3 operations
 -----------------------
 
 The service implements List/Create/Head/DeleteBucket, GetBucketLocation,
-Put/Get/Head/DeleteObject, ListObjectsV2, and multipart initiate/upload/list-parts/
-complete/abort. It supports streamed uploads, ranges, metadata, conditional writes,
-S3 ETags, CRC32/CRC32C/CRC64NVME/SHA/MD5 checksums, SigV4 header signing, short-lived
-presigned URLs and signed/checksummed ``aws-chunked`` bodies. Uploads, parts,
-reservations and object pointers are durable across server replicas. Listing
-supports prefix, slash delimiter and signed scoped continuation tokens.
+Put/Get/Head/DeleteObject, DeleteObjects, ListObjects/ListObjectsV2, CopyObject,
+UploadPartCopy, current-object attributes, bucket/object tagging, owner ACL
+inspection and BucketOwnerEnforced ownership controls, plus multipart
+initiate/upload/list-parts/complete/abort. Streamed uploads, ranges, content type
+and user metadata, ETag/date conditions, S3 ETags, CRC32/CRC32C/CRC64NVME/SHA/MD5
+checksums, SigV4 headers, short-lived presigned URLs and signed/checksummed
+``aws-chunked`` bodies are supported. Uploads, parts, reservations, tags and
+object pointers persist across replicas. Listings support prefixes, delimiters,
+legacy markers, ``StartAfter`` and scoped continuation tokens.
+
+Copy operations require read access to the source and write access to the
+destination in the same workspace. Both credential scopes apply. Copy preserves
+content type, user metadata and tags by default; ``REPLACE`` directives replace
+the corresponding metadata or tag set. Object tags allow up to ten entries and
+bucket tags up to fifty. Tag changes do not change an object's LastModified.
+``GetObjectAttributes`` supports ETag, checksum, size and storage class; published
+part manifests remain unsupported.
 
 Use ``us-east-1`` as the S3 signing region.
 Presigns are limited to 15 minutes. A request/part can contain up to 5 GiB;
@@ -156,10 +168,28 @@ larger objects use multipart. Concurrent replacement can return
 ``OperationAborted``; retry a new upload. A same-size overwrite can succeed at full
 logical quota. Active uploads prevent deleting an otherwise empty bucket.
 
-Not enabled: SigV2, temporary session tokens, CopyObject, tagging/version APIs,
-lifecycle, Bucket CORS/policies/events, non-slash delimiters or ``start-after``.
+These operations implement an S3 subset; this is not full API parity.
+Not enabled: historical versions/delete markers, SigV2, temporary session tokens,
+lifecycle, per-bucket CORS/policies/events, writable ACLs, encryption options or
+retention/replication configuration. Custom cache-control, content-disposition,
+content-language, expiry and content-encoding metadata are rejected when they
+cannot be preserved. Downloads use attachment delivery and no-store caching.
 The supported storage class is S3 ``STANDARD``. Archival classes and
 rehydration operations are not supported.
+
+For example, AWS CLI server-side copy, move, sync and recursive removal use the
+same endpoint and profile as uploads. Check the selected workspace and credential
+scopes before running mutations:
+
+.. code-block:: console
+
+   aws --profile inferenceport --endpoint-url https://api.inferenceport.ai/WORKSPACE_UUID/s3 s3 cp s3://models/source.bin s3://models/copied.bin
+   aws --profile inferenceport --endpoint-url https://api.inferenceport.ai/WORKSPACE_UUID/s3 s3 sync s3://models/ ./downloaded-models/
+
+Bulk deletion accepts up to 1000 keys and reports failures per key; an HTTP 200
+response can still contain individual deletion errors. Copying objects larger
+than 5 GiB requires multipart copy. AWS CLI chooses multipart copy from its
+configured multipart threshold and preserves tags using tagging operations.
 
 SDK configuration
 -----------------
