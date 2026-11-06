@@ -38,14 +38,11 @@ nav {
 }
 .logo:hover { color: var(--text-dark); text-decoration: none; }
 .logo-mark {
-  display: inline-grid;
-  width: 30px;
+  display: block;
+  flex: 0 0 auto;
+  width: 28px;
   height: 30px;
-  place-items: center;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--blue) 14%, var(--bg-light));
-  color: var(--blue);
-  font-size: 17px;
+  object-fit: contain;
 }
 
 .nav-links {
