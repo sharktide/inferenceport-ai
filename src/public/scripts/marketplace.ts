@@ -979,7 +979,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	const chips = Array.from(
 		document.querySelectorAll(".chip"),
-	) as Array<HTMLDivElement>;
+	) as Array<HTMLButtonElement>;
 	const search = document.getElementById("market-search") as HTMLInputElement;
 	const cards = Array.from(
 		document.querySelectorAll(".marketplace-card"),
@@ -991,6 +991,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			"all";
 		const q = search.value.trim().toLowerCase();
 
+        let visibleCount = 0;
 		cards.forEach((card) => {
 			const name = (card.dataset.name || "").toLowerCase();
 			const cat = card.dataset.category || "";
@@ -999,14 +1000,27 @@ document.addEventListener("DOMContentLoaded", () => {
 				name.includes(q) ||
 				card.innerText.toLowerCase().includes(q);
 			const matchCategory = active === "all" || active === cat;
-			card.style.display = matchQuery && matchCategory ? "" : "none";
+			const visible = matchQuery && matchCategory;
+            card.style.display = visible ? "" : "none";
+            if (visible) visibleCount++;
 		});
+        document.querySelectorAll<HTMLElement>(".category-section").forEach((section) => {
+            section.hidden = !Array.from(section.querySelectorAll<HTMLElement>(".marketplace-card"))
+                .some((card) => card.style.display !== "none");
+        });
+        const empty = document.getElementById("marketplace-empty");
+        if (empty) empty.hidden = visibleCount > 0;
 	}
 
 	chips.forEach((chip) =>
 		chip.addEventListener("click", (e) => {
-			chips.forEach((c) => c.classList.remove("active"));
-			(e.currentTarget as HTMLDivElement).classList.add("active");
+            chips.forEach((c) => {
+                c.classList.remove("active");
+                c.setAttribute("aria-pressed", "false");
+            });
+            const selected = e.currentTarget as HTMLButtonElement;
+            selected.classList.add("active");
+            selected.setAttribute("aria-pressed", "true");
 			applyFilter();
 		}),
 	);
