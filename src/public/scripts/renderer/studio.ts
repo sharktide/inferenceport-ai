@@ -247,9 +247,10 @@ function renderHistoryList(): void {
             const span = document.createElement("span");
             span.className = "studio-history-icon";
             span.textContent =
-                item.role === "image" ? "🖼️" :
-                item.role === "video" ? "▶️" :
-                "🔊";
+                item.role === "image" ? "IMG" :
+                item.role === "video" ? "VID" :
+                "AUD";
+            span.setAttribute("aria-hidden", "true");
             iconEl = span;
         }
 
