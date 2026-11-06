@@ -29,8 +29,8 @@ a key into another workspace. Current membership, suspension, role, parent-key
 revocation/expiry, IP limits and credential scopes apply on every operation.
 
 S3 SDKs use a separate InferencePort-issued Access Key ID and Secret Access Key,
-not an AWS account key or existing scrypt-hashed API key. Secrets are revealed
-once and stored as AES-GCM envelopes wrapped by an external encryption key. Keep
+not an AWS account key or existing scrypt-hashed API key. Secrets are returned only during issuance/rotation and bounded retries,
+and stored as AES-GCM envelopes wrapped by an external encryption key. Keep
 Authorization, secret values and presigned query strings out of logs/telemetry.
 
 Management API
@@ -61,6 +61,9 @@ carry request IDs. These routes use the existing account/session authentication:
    * - GET
      - ``/v1/buckets/{id}/objects``
      - JSON browser listing, prefix and continuation token
+   * - GET / HEAD / DELETE
+     - ``/v1/buckets/{id}/object?key=...``
+     - Native object actions preserving dot-only keys in browsers
    * - GET
      - ``/v1/buckets/{id}/usage``
      - Measured operations, bytes and versioned settlements
@@ -79,6 +82,19 @@ carry request IDs. These routes use the existing account/session authentication:
 
 Create a bucket with ``{"name":"models","quota_bytes":10737418240}``. Owner IDs
 are derived from authentication, never accepted as authority in request bodies.
+The console's Settings action and ``ipx bucket update`` expose name, maximum-size
+and upload-status changes. Quota must be a whole number between one byte and one
+TiB and cannot be smaller than stored plus reserved bytes. Names remain unique
+within the workspace; a conflict returns ``409``. Renaming preserves bucket ID,
+objects and bucket-scoped credentials, but S3 clients must use the new name.
+Finish or abort active uploads before renaming a bucket.
+
+Credential issuance and rotation accept an optional UUID ``Idempotency-Key``
+header. Identical retries from the same authenticated owner, actor and parent key
+return the same result for ten minutes. Changed options, revoked/expired results
+and retries after that window fail explicitly. A new intent requires a new UUID.
+Rotation preserves the original expiry. Secrets are not otherwise recoverable.
+
 Credentials accept ``permissions``, optional ``bucket_ids``/``key_prefixes``,
 ``expires_in`` (60 seconds to 90 days), IP allowlist and rate limit. Administration
 requires the appropriate current account/org rights. Prefix credentials cannot
@@ -141,6 +157,9 @@ workspace endpoint; do not use the bucket name in its place:
      region: "us-east-1",
      forcePathStyle: true,
    });
+
+Object responses download as attachments, with content sniffing disabled; this
+service does not execute uploaded HTML as an application page.
 
 Keys are opaque UTF-8, decoded once. SDK requests preserve Unicode, encoded
 slashes, repeated separators and dot segments. Browser WHATWG URL/fetch handling
