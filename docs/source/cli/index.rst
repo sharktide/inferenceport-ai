@@ -54,6 +54,7 @@ Designed for people and for scripts
    p2g
    featherless
    agents
+   buckets
    mcp-council
    shield
    organizations
