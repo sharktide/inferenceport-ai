@@ -93,6 +93,13 @@ Settings are navigated as a workspace: persistent section rail, focused content 
 
 .settings-container .tab-content { width: 100%; min-width: 0; }
 
+.settings-container #tools > h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
 .settings-container .tab-pane {
   min-width: 0;
   min-height: 330px;
