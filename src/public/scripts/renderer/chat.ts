@@ -692,7 +692,7 @@ const lightningToggleTop = document.getElementById(
 ) as ToggleSwitchElement | null;
 const lightningToggleSidebar = document.getElementById(
 	"lightning-toggle-sidebar",
-) as ToggleSwitchElement | null;
+) as HTMLInputElement | null;
 const lightningToggleStatus = document.getElementById(
 	"lightning-toggle-status",
 ) as ToggleSwitchElement | null;
