@@ -1,256 +1,284 @@
 /*
-Copyright 2026 InferencePort LLC
-Chat workspace: useful sidebar, readable conversation column, responsive session drawer.
-*/
+ * InferencePort desktop chat
+ * One conversation width, one composer width, a stable sidebar.
+ * Keep interaction hooks and existing glass effects without nested card chrome.
+ */
 
 #app-root {
   min-height: 0;
-  padding: 14px 18px 18px;
+  padding: 14px clamp(14px, 2vw, 32px) 10px;
   gap: 0;
 }
 
 #app-root .chat-container {
   flex: 1;
-  min-height: 0;
   min-width: 0;
-  gap: 14px;
+  min-height: 0;
+  gap: clamp(14px, 1.8vw, 28px);
 }
 
+/* The session list is a tool rail, not a full-size promotional panel. */
 #app-root .sidebar {
-  flex: 0 0 256px;
-  width: 256px;
-  min-width: 256px;
-  padding: 15px 12px;
+  display: flex;
+  flex: 0 0 268px;
+  flex-direction: column;
+  width: 268px;
+  min-width: 268px;
+  min-height: 0;
+  gap: 8px;
+  padding: 12px 10px;
+  overflow: hidden;
   border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-light) 90%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 5px 22px rgba(0,0,0,.05);
 }
-
 [data-theme="dark"] #app-root .sidebar {
-  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-light) 96%, var(--bg-secondary) 4%);
 }
 
 #app-root #new-session-btn {
   width: 100%;
-  min-height: 42px;
-  padding: 10px 14px;
+  min-height: 41px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--glass-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
+  color: var(--text-primary);
   text-align: left;
-  border: 1px solid color-mix(in srgb, var(--blue) 32%, var(--glass-border));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--blue) 12%, var(--bg-light));
-  color: var(--text-dark);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 550;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
-
 #app-root #new-session-btn:hover {
-  background: color-mix(in srgb, var(--blue) 19%, var(--bg-light));
-  border-color: color-mix(in srgb, var(--blue) 55%, var(--glass-border));
+  background: color-mix(in srgb, var(--blue) 16%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 45%, var(--glass-border));
 }
-
-#app-root .sidebar-mode-tabs {
-  gap: 4px;
-}
-
-#app-root .sidebar-mode-tab {
-  font-size: 12px;
-}
-
-#app-root #session-list li {
-  border-radius: 9px;
-  min-width: 0;
-}
-
 #app-root .sidebar .lightning-sidebar-banner {
-  border-radius: 11px;
-  box-shadow: 0 5px 16px rgba(8, 66, 153, 0.13);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
+  box-shadow: none;
+  color: var(--text-primary);
 }
-
-/* Keep the color treatment, but not a constantly rotating decorative overlay. */
-#app-root .sidebar .lightning-sidebar-banner::before {
-  animation: none;
-  opacity: 0.22;
+#app-root .sidebar .lightning-sidebar-banner::before { display: none; }
+#app-root .sidebar .lightning-sidebar-copy {
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.3;
+  color: var(--text-primary);
 }
-
-#app-root .chat-panel {
-  flex: 1;
-  min-width: 0;
-  padding: 2px clamp(8px, 2vw, 28px) 0;
+#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
+  min-height: 27px;
+  margin: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
+}
+#app-root .sidebar .lightning-sidebar-banner toggle-switch {
+  transform: scale(.82);
+  transform-origin: left center;
+}
+#app-root .sidebar #usage-panel-details {
+  margin: 0 !important;
   border: 0;
+  box-shadow: none !important;
+}
+#app-root .sidebar #usage-panel-summary {
+  min-height: 32px;
+  padding: 5px 8px !important;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px !important;
+}
+#app-root .sidebar #usage-panel-tier {
+  padding: 0 5px !important;
+  color: var(--text-primary) !important;
+  font-size: 12px !important;
+}
+#app-root .sidebar-mode-tabs-wrap { gap: 7px; margin-top: 2px; }
+#app-root .sidebar-mode-tabs { gap: 4px; }
+#app-root .sidebar-mode-tab,
+#app-root .sidebar-trash-btn {
+  min-height: 30px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+#app-root .sidebar-pane,
+#app-root .sidebar-sessions {
+  min-height: 0;
+}
+#app-root #session-list {
+  min-height: 0;
+  padding: 2px 0;
+  gap: 2px;
+}
+#app-root #session-list li {
+  min-width: 0;
+  min-height: 41px;
+  padding: 7px 9px;
+  border-radius: 7px;
+}
+#app-root #session-list .session-name {
+  font-size: 13px;
+  line-height: 1.35;
+}
+#app-root .favorite-icon { font-size: 17px; opacity: .72; }
+#app-root .sidebar-controls {
+  margin-top: auto;
+  padding: 10px 4px 4px;
+  gap: 7px;
+}
+#app-root .sidebar-controls label,
+#app-root .sidebar-pane-kicker,
+#app-root .usage-kicker,
+#app-root .tools-modal-section h4 {
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
+}
+#app-root .sidebar-pane-title,
+#app-root .usage-plan-name { font-weight: 550; }
+#app-root .usage-btn { font-weight: 500; }
+
+/* Make the actual content well-proportioned to the window, not a narrow
+   680px column floating in a wide desktop pane. */
+#app-root .chat-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px clamp(8px, 2vw, 28px) 14px;
+  border: none;
 }
 
 #app-root #chat-box {
-  flex: 1;
-  width: min(960px, 100%);
+  flex: 1 1 auto;
+  width: min(1400px, 100%);
   max-width: 100%;
   min-width: 0;
-  padding: 22px 10px 18px;
-  margin: 0 auto 10px;
+  min-height: 0;
+  margin: 0 auto 14px;
+  padding: 18px clamp(12px, 2.2vw, 38px) 24px;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
+  overflow-y: auto;
 }
 
+#app-root #chat-box .chat-bubble {
+  max-width: min(1080px, 100%);
+  font-size: 16px;
+  line-height: 1.6;
+}
+#app-root #chat-box .chat-bubble.bot-bubble {
+  max-width: min(1080px, 100%);
+  padding: 10px 0;
+  line-height: 1.65;
+}
+#app-root #chat-box .chat-bubble.user-bubble {
+  max-width: min(860px, 84%);
+  padding: 16px 20px;
+  margin-left: auto;
+  border-radius: 15px !important;
+  line-height: 1.55;
+}
+#app-root #chat-box .chat-bubble p { line-height: 1.65; }
+#app-root #chat-box .chat-bubble h1,
+#app-root #chat-box .chat-bubble h2,
+#app-root #chat-box .chat-bubble h3 {
+  line-height: 1.3;
+  font-weight: 580;
+}
+#app-root #chat-box .chat-bubble h1 { font-size: 1.5em; }
+#app-root #chat-box .chat-bubble h2 { font-size: 1.26em; }
+#app-root #chat-box .chat-bubble h3 { font-size: 1.13em; }
+
+/* The composer shares the scroll column's geometry, with a small bottom gutter. */
 #app-root .chat-panel chat-box {
   display: block;
-  width: min(940px, 100%);
-  max-width: 100%;
   flex: 0 0 auto;
-  margin: 0 auto 12px;
+  width: min(1400px, 100%);
+  max-width: 100%;
+  margin: 0 auto;
 }
-
-#app-root .chat-panel #chat-form {
-  width: 100%;
-}
-
+#app-root .chat-panel #chat-form { width: 100%; }
 #app-root .chat-panel .composer-shell {
+  margin: 0;
+  border: 1px solid var(--glass-border);
   background: color-mix(in srgb, var(--bg-light) 88%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 7px 24px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 7px 24px rgba(0, 0, 0, .075);
 }
-
 [data-theme="dark"] #app-root .chat-panel .composer-shell {
-  background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
 }
 
+/* Keep welcome suggestions present without turning them into oversized tiles. */
 #app-root .chat-panel.welcome-mode .welcome-hero,
 #app-root .chat-panel.welcome-mode .welcome-cards,
 #app-root .chat-panel.welcome-mode chat-box {
-  width: min(860px, 100%);
+  width: min(1040px, 100%);
 }
-
 #app-root .chat-panel.welcome-mode .welcome-title {
+  margin: 0 0 18px;
   font-size: clamp(27px, 3vw, 36px);
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1.15;
-  margin-bottom: 12px;
+  font-weight: 540;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
-
 #app-root .chat-panel.welcome-mode .welcome-cards {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
-
 #app-root .chat-panel .welcome-card {
-  min-height: 76px;
-  height: auto;
-  flex-direction: row;
+  display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  min-height: 72px;
+  height: auto;
+  gap: 10px;
+  padding: 15px 17px;
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-light) 84%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--text-dark);
-  font-size: 13px;
-  font-weight: 550;
-  transition: transform 170ms ease, background-color 170ms ease, box-shadow 170ms ease, border-color 170ms ease;
+  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
-
-[data-theme="dark"] #app-root .chat-panel .welcome-card {
-  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
-}
-
 #app-root .chat-panel .welcome-card:hover {
+  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 30%, var(--glass-border));
   transform: translateY(-2px);
-  background: color-mix(in srgb, var(--blue) 10%, var(--bg-light));
-  border-color: color-mix(in srgb, var(--blue) 35%, var(--glass-border));
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] #app-root .chat-panel .welcome-card {
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
 }
 
-.chat-mobile-toolbar,
-.chat-sidebar-scrim { display: none; }
+.chat-mobile-toolbar, .chat-sidebar-scrim { display: none; }
 
-@media (max-width: 1100px) {
-  #app-root { padding: 12px 16px 10px; }
-  #app-root .chat-container { position: relative; gap: 0; }
-  #app-root .chat-container .sidebar {
-    position: absolute;
-    z-index: 32;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: min(300px, calc(100vw - 40px));
-    min-width: 0;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(calc(-100% - 16px));
-    transition: transform 200ms ease, opacity 200ms ease;
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.18);
-  }
-  #app-root.sidebar-open .chat-container .sidebar {
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
-  }
-  #app-root .chat-panel {
-    position: relative;
-    width: 100%;
-    padding: 50px clamp(14px, 3vw, 30px) 12px;
-  }
-  .chat-mobile-toolbar {
-    display: block;
-    position: absolute;
-    left: 10px;
-    top: 5px;
-    z-index: 5;
-  }
-  #chat-sidebar-toggle {
-    width: auto;
-    min-width: 116px;
-    padding: 8px 12px;
-    border: 1px solid var(--glass-border);
-    border-radius: 9px;
-    background: var(--glass-bg);
-    color: var(--text-dark);
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .chat-sidebar-scrim {
-    position: absolute;
-    inset: 0;
-    z-index: 31;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: rgba(0, 0, 0, 0.35);
-  }
-  #app-root.sidebar-open .chat-sidebar-scrim { display: block; }
-  #app-root .chat-panel.welcome-mode {
-    justify-content: center;
-    padding-top: 48px;
-  }
-  #app-root .chat-panel.welcome-mode .welcome-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 560px) {
-  #app-root .chat-panel { padding: 48px 12px 10px; }
-  #app-root #chat-box { padding: 14px 6px 12px; }
-  #app-root .chat-panel.welcome-mode .welcome-cards { grid-template-columns: 1fr; gap: 8px; }
-  #app-root .chat-panel .welcome-card { min-height: 58px; padding: 10px 12px; }
-  #app-root .chat-panel.welcome-mode .welcome-title { font-size: clamp(24px, 7vw, 30px); }
-}
-
-.snip-mode .chat-mobile-toolbar { display: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  #app-root .chat-container .sidebar,
-  #app-root .chat-panel .welcome-card { transition: none; }
-}
-
-/* Small outline glyphs distinguish files and folders without emoji. */
 #app-root .media-item-icon {
   display: inline-flex;
   flex: 0 0 20px;
@@ -262,185 +290,145 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
 }
 #app-root .media-item-icon svg { display: block; width: 18px; height: 18px; }
 
-
-/* Small contextual labels should read like desktop controls, not ad headings. */
-#app-root .sidebar-pane-kicker,
-#app-root .usage-kicker,
-#app-root .sidebar-controls label,
-#app-root .tools-modal-section h4 {
-  font-size: 12px;
-  font-weight: 450;
-  letter-spacing: 0;
-  text-transform: none;
-  opacity: 0.8;
-}
-
-#app-root .sidebar-pane-title,
-#app-root .usage-plan-name { font-weight: 550; }
-#app-root .usage-btn { font-weight: 500; }
-
-
-/* Let the conversation breathe before the narrow-window drawer takes over. */
-#app-root {
-  padding: 16px clamp(16px, 2.3vw, 30px) 12px;
-}
-#app-root .chat-container { gap: clamp(14px, 2vw, 26px); }
-#app-root .chat-panel {
-  padding: 8px clamp(14px, 2.4vw, 34px) 12px;
-}
-#app-root #chat-box {
-  width: min(900px, 100%);
-  padding: 16px 12px 20px;
-  margin-bottom: 12px;
-}
-#app-root .chat-panel chat-box {
-  width: min(900px, 100%);
-  margin-bottom: 0;
-}
-#app-root .chat-panel chat-box .typing-bar.composer-shell {
-  margin-bottom: 0;
-}
-
-/* Keep the Lightning toggle readily available without a large promotional card. */
-#app-root .sidebar {
-  gap: 8px;
-  padding: 12px 10px;
-}
-#app-root .sidebar .lightning-sidebar-banner {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  padding: 9px 10px;
-  border: 1px solid var(--glass-border);
-  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
-  color: var(--text-primary);
-  box-shadow: none;
-}
-#app-root .sidebar .lightning-sidebar-banner::before { display: none; }
-#app-root .sidebar .lightning-sidebar-copy {
-  font-size: 12px;
-  line-height: 1.3;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
-  margin: 0;
-  padding: 3px 6px;
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline toggle-switch {
-  transform: scale(.8);
-}
-#app-root #session-list li {
-  padding: 8px 9px;
-  min-height: 34px;
-}
-#app-root .sidebar-controls { padding-top: 10px; }
-#app-root .sidebar-mode-tabs-wrap { gap: 6px; }
-
 .chat-footer-credit {
   flex: 0 0 auto;
   margin: 0;
-  padding: 2px 16px 5px;
+  padding: 2px 18px 6px;
   color: var(--text-secondary);
   font-size: 10px;
   line-height: 1.2;
   text-align: right;
 }
 
+/* A drawer preserves the reading column when the window narrows. */
 @media (max-width: 1100px) {
-  #app-root { padding: 12px 16px 10px; }
-  #app-root .chat-container { gap: 0; }
+  #app-root { padding: 12px 16px 8px; }
+  #app-root .chat-container { position: relative; gap: 0; }
+  #app-root .chat-container .sidebar {
+    position: absolute;
+    z-index: 32;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    flex: 0 0 auto;
+    width: min(300px, calc(100vw - 44px));
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(calc(-100% - 16px));
+    transition: transform 180ms ease, opacity 180ms ease;
+    box-shadow: 0 16px 42px rgba(0,0,0,.2);
+  }
+  #app-root.sidebar-open .chat-container .sidebar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
   #app-root .chat-panel {
-    padding: 50px clamp(16px, 3vw, 30px) 12px;
+    position: relative;
+    width: 100%;
+    padding: 54px clamp(12px, 3.5vw, 34px) 12px;
   }
-  #app-root .chat-panel #chat-box {
-    width: min(880px, 100%);
-    padding: 18px 8px;
+  .chat-mobile-toolbar {
+    display: block;
+    position: absolute;
+    top: 7px;
+    left: clamp(12px, 3.5vw, 34px);
+    z-index: 5;
   }
-  #app-root .chat-panel chat-box {
-    width: min(880px, 100%);
-  }
-  .chat-mobile-toolbar { top: 8px; left: clamp(16px, 3vw, 30px); }
   #chat-sidebar-toggle {
-    min-height: 34px;
-    font-size: 12px;
+    min-height: 36px;
+    min-width: 120px;
+    padding: 8px 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    background: var(--glass-bg);
+    color: var(--text-primary);
+    font-size: 13px;
     font-weight: 500;
   }
+  .chat-sidebar-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 31;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(0,0,0,.34);
+  }
+  #app-root.sidebar-open .chat-sidebar-scrim { display: block; }
+  #app-root #chat-box,
+  #app-root .chat-panel chat-box { width: min(1240px, 100%); }
+  #app-root .chat-panel.welcome-mode { padding-top: 54px; }
 }
 
-/* On small windows the message and controls use separate lines.
-   Overlaying the buttons consumed most of the available text width. */
 @media (max-width: 640px) {
-  #app-root { padding: 8px 12px 8px; }
-  #app-root .chat-panel { padding: 45px 6px 10px; }
-  #app-root .chat-panel #chat-box { padding: 12px 6px; }
-  #app-root .chat-panel chat-box { margin-bottom: 0; }
-  #chat-form .composer-shell {
+  #app-root { padding: 10px 12px 8px; }
+  #app-root .chat-panel { padding: 49px 4px 10px; }
+  #app-root #chat-box { padding: 12px 7px 18px; margin-bottom: 8px; }
+  #app-root #chat-box .chat-bubble { font-size: 15px; }
+  #app-root #chat-box .chat-bubble.user-bubble {
+    max-width: 92%;
+    padding: 12px 14px;
+  }
+  .chat-mobile-toolbar { top: 4px; left: 4px; }
+  #app-root .chat-panel.welcome-mode .welcome-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  #app-root .chat-panel .welcome-card { min-height: 55px; padding: 12px; }
+  #app-root .chat-panel.welcome-mode .welcome-title { font-size: clamp(23px, 6vw, 29px); }
+
+  /* Put controls below the editable text, never on top of it. */
+  #app-root #chat-form .composer-shell {
     --composer-btn-size: 34px;
     --composer-btn-size-mobile: 34px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 8px 10px;
+    gap: 3px;
+    padding: 8px 10px 7px;
     border-radius: 16px;
   }
-  #chat-form .composer-shell #chat-input {
-    box-sizing: border-box;
+  #app-root #chat-form .composer-shell #chat-input {
     width: 100%;
-    min-height: 50px;
-    padding: 8px 8px 4px !important;
+    min-height: 48px;
+    padding: 8px !important;
+    border-radius: 7px;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
   }
-  #chat-form .composer-shell .composer-actions-inside,
-  #chat-form .composer-shell.is-expanded .composer-actions-inside,
-  #chat-form .composer-shell.is-scrollable .composer-actions-inside {
+  #app-root #chat-form .composer-shell .composer-actions-inside,
+  #app-root #chat-form .composer-shell.is-expanded .composer-actions-inside,
+  #app-root #chat-form .composer-shell.is-scrollable .composer-actions-inside {
     position: static !important;
     inset: auto !important;
-    top: auto !important;
-    right: auto !important;
-    bottom: auto !important;
-    left: auto !important;
     transform: none !important;
     display: flex;
     width: 100%;
     align-items: center;
     justify-content: space-between;
-    padding: 3px 0 0;
+    padding: 0;
     margin: 0;
   }
-  #chat-form .composer-tools-right { gap: 4px; }
-  #chat-form .composer-attach-btn,
-  #chat-form .composer-send-btn,
-  #chat-form .tool-btn-mini {
-    width: 34px;
-    height: 34px;
-    min-width: 34px;
-  }
-  .chat-mobile-toolbar { left: 6px; top: 5px; }
-  #app-root .chat-panel.welcome-mode .welcome-hero,
-  #app-root .chat-panel.welcome-mode .welcome-cards {
-    width: 100%;
-  }
-  #app-root .chat-panel.welcome-mode .welcome-cards { margin-bottom: 12px; }
-  .chat-footer-credit { padding: 2px 12px 4px; font-size: 9px; }
+  #app-root #chat-form .composer-tools-right { gap: 4px; }
+  #app-root .chat-panel.welcome-mode { justify-content: flex-start; }
+  .chat-footer-credit { padding: 2px 12px 5px; font-size: 9px; }
 }
 
-@media (max-width: 380px) {
-  .navbar-user-indicator { max-width: 100%; }
-  #app-root .chat-panel { padding-inline: 3px; }
-  #chat-form .composer-shell #chat-input { min-height: 44px; }
+@media (max-height: 620px) and (max-width: 1100px) {
+  #app-root .chat-panel.welcome-mode { justify-content: flex-start; overflow-y: auto; }
 }
 
-@media (max-height: 650px) and (max-width: 1100px) {
-  #app-root .chat-panel.welcome-mode {
-    justify-content: flex-start;
-    overflow-y: auto;
-  }
+.snip-mode #app-root { padding: 12px; }
+.snip-mode #app-root .chat-panel { padding: 0; }
+.snip-mode #app-root #chat-box { max-width: 100%; padding: 14px; }
+.snip-mode .chat-mobile-toolbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #app-root .chat-container .sidebar,
+  #app-root .chat-panel .welcome-card { transition: none; }
 }
