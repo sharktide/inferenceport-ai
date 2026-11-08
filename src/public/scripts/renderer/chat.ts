@@ -699,9 +699,10 @@ const lightningToggleStatus = document.getElementById(
 const sidebarControls = document.getElementById(
 	"sidebar-controls",
 ) as HTMLDivElement | null;
-const lightningStatus = document.getElementById(
-	"lightning-status",
-) as HTMLDivElement | null;
+const lightningModeDescription = document.getElementById(
+    "lightning-mode-description",
+) as HTMLSpanElement | null;
+const lightningModeBanner = document.querySelector<HTMLElement>(".lightning-sidebar-banner");
 const sidebarChatPane = document.getElementById("sidebar-chat-pane") as HTMLDivElement | null;
 const sidebarMediaPane = document.getElementById("sidebar-media-pane") as HTMLDivElement | null;
 const sidebarTrashPane = document.getElementById("sidebar-trash-pane") as HTMLDivElement | null;
@@ -1631,8 +1632,15 @@ function syncLightningToggles(enabled: boolean): void {
 
 function applyLightningState(): void {
 	syncLightningToggles(lightningEnabled);
-	sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
-	lightningStatus?.setAttribute("aria-hidden", String(!lightningEnabled));
+    sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
+    lightningModeBanner?.classList.toggle("is-active", lightningEnabled);
+    if (lightningModeDescription) {
+        lightningModeDescription.textContent = orgLightningBlocked
+            ? "Unavailable by organization policy"
+            : lightningEnabled
+                ? "Cloud · Text v2"
+                : "Local models";
+    }
 	if (hostSelect) hostSelect.disabled = lightningEnabled;
 	modelSelect.disabled = lightningEnabled;
 	void setTitle();
@@ -1650,7 +1658,7 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
 		(toggle) => {
 			if (!toggle) return;
-			toggle.disabled = blocked;
+			toggle.disabled = blocked || forceLightning;
 			if (blocked) toggle.title = reason;
 			else toggle.removeAttribute("title");
 			toggle.closest<HTMLElement>(".lightning-toggle-inline")?.classList.toggle("org-locked", blocked);
@@ -1668,7 +1676,8 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 		setVisionSupport();
 		showNotification({ type: "info", message: reason });
 	}
-}
+}    applyLightningState();
+
 
 function setLightningEnabled(enabled: boolean): void {
 	if (orgLightningBlocked && enabled) {
@@ -1699,6 +1708,7 @@ function initLightningToggleEvents(): void {
 			(toggle) => {
 				if (!toggle) return;
 				toggle.checked = true;
+                toggle.disabled = true;
 				toggle.setAttribute("aria-disabled", "true");
 				toggle.setAttribute("tabindex", "-1");
 			},
