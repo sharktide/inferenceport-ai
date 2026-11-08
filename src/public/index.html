@@ -18,7 +18,6 @@
     <header class="home-header">
       <div>
         <h1>Home</h1>
-        <p>Your recent work and models, all in one place.</p>
       </div>
       <div class="home-actions">
         <button id="home-refresh" class="home-button home-button-quiet" type="button">Refresh</button>
@@ -27,20 +26,12 @@
       </div>
     </header>
 
-    <div class="home-overview" aria-label="Library summary">
-      <div><span>Conversations</span><strong id="home-session-count">—</strong></div>
-      <div><span>Installed models</span><strong id="home-model-count">—</strong></div>
-      <div><span>Studio creations</span><strong id="home-media-count">—</strong></div>
-      <div class="home-host-summary"><span>Active host</span><strong id="home-host-name">Local</strong></div>
-    </div>
-
     <div class="home-grid">
       <div class="home-primary-column">
         <section class="home-panel" aria-labelledby="home-sessions-title">
         <div class="home-panel-heading">
           <div>
-            <h2 id="home-sessions-title">Recent conversations</h2>
-            <p>Continue an earlier chat without starting over.</p>
+            <h2 id="home-sessions-title">Recent conversations <span id="home-session-count" class="home-section-count">—</span></h2>
           </div>
           <a href="renderer/chat.html">Open chat</a>
         </div>
@@ -51,8 +42,7 @@
         <section class="home-panel home-studio-panel" aria-labelledby="home-studio-title">
       <div class="home-panel-heading">
         <div>
-          <h2 id="home-studio-title">Recent Studio work</h2>
-          <p>Images, videos, and audio saved from Studio.</p>
+          <h2 id="home-studio-title">Studio history <span id="home-media-count" class="home-section-count">—</span></h2>
         </div>
         <a href="renderer/studio.html?open=history">View history</a>
       </div>
@@ -65,19 +55,19 @@
         <section class="home-panel" aria-labelledby="home-models-title">
         <div class="home-panel-heading">
           <div>
-            <h2 id="home-models-title">Your models</h2>
+            <h2 id="home-models-title">Installed models <span id="home-model-count" class="home-section-count">—</span></h2>
             <p id="home-models-description">Models available on your selected host.</p>
           </div>
           <a href="installed.html">Manage</a>
         </div>
-        <label class="home-model-filter-label" for="home-model-filter">Find a model</label>
+        <label class="home-visually-hidden" for="home-model-filter">Find an installed model</label>
         <input id="home-model-filter" class="home-model-filter" type="search" placeholder="Filter installed models" autocomplete="off" />
         <div id="home-models" class="home-list" aria-live="polite">
           <p class="home-empty">Loading models…</p>
         </div>
       </section>
         <div class="home-connection-panel">
-          <span id="home-connection" role="status">Checking local runtime…</span>
+          <span class="home-host-context"><span id="home-host-name">Local</span> · <span id="home-connection" role="status">Checking runtime…</span></span>
           <a href="settings.html">Connection settings</a>
         </div>
       </div>
@@ -85,15 +75,16 @@
   </main>
 
 	<footer class="home-legal-footer">
-		<p>Copyright (c) 2026 InferencePort LLC. Licensed under the Apache License 2.0</p>
-		<p>By using this app, you agree to the <a
-				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
-				Service</a> and <a
-				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy
-				Policy</a>. We reserve the right to change these terms and policies at anytime without any further
-			notice.</p>
-		<p style="text-align:center;margin:8px 0 0;font-size:0.78rem;color:var(--muted,#999)">InferencePort AI™ is a trademark of InferencePort LLC.</p>
-	</footer>
+      <span>© 2026 InferencePort LLC · Apache License 2.0</span>
+      <div class="home-legal-links">
+        <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms</a>
+        <a href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html#privacy')">Privacy</a>
+        <details class="home-legal-disclosure">
+          <summary>Legal notice</summary>
+          <p>By using this app, you agree to the Terms of Service and Privacy Policy. We reserve the right to change these terms and policies at any time without further notice. InferencePort AI™ is a trademark of InferencePort LLC.</p>
+        </details>
+      </div>
+    </footer>
 
 	<div id="onboarding-modal" class="modal hidden">
 		<div class="modal-content">
