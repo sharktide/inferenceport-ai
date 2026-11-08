@@ -15,8 +15,8 @@ nav {
 
 .nav-inner {
   width: 100%;
-  max-width: 1500px;
-  min-height: 62px;
+  max-width: 1680px;
+  min-height: 68px;
   margin: 0 auto;
   padding: 10px clamp(18px, 3vw, 38px);
   display: flex;
@@ -29,8 +29,8 @@ nav {
   align-items: center;
   gap: 9px;
   flex-shrink: 0;
-  font-size: 15px;
-  font-weight: 620;
+  font-size: 16px;
+  font-weight: 610;
   letter-spacing: -0.01em;
   white-space: nowrap;
   color: var(--text-dark);
@@ -59,8 +59,8 @@ nav {
   padding: 7px 10px;
   border-radius: 9px;
   color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 450;
+  font-size: 14px;
+  font-weight: 460;
   text-decoration: none;
   transition: color 160ms ease, background-color 160ms ease;
 }
@@ -134,9 +134,9 @@ nav {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.25;
-  font-weight: 550;
+  font-weight: 540;
 }
 
 .navbar-plan,
