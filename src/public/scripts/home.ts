@@ -75,7 +75,7 @@ function renderModels(): void {
         target.append(placeholder("No installed models match that name."));
         return;
     }
-    for (const model of filtered.slice(0, 6)) {
+    for (const model of filtered.slice(0, 5)) {
         const detail = model.size != null && model.size !== ""
             ? String(model.size)
             : "Available on the selected host";
@@ -83,10 +83,10 @@ function renderModels(): void {
         url.searchParams.set("model", model.name);
         target.append(row(model.name, detail, url.href));
     }
-    if (filtered.length > 6) {
+    if (filtered.length > 5) {
         const rest = document.createElement("p");
         rest.className = "home-list-more";
-        rest.textContent = `${filtered.length - 6} more installed models. Narrow your search or open Installed.`;
+        rest.textContent = `${filtered.length - 5} more installed models. Narrow your search or open Installed.`;
         target.append(rest);
     }
 }
@@ -116,7 +116,7 @@ async function loadSessions(): Promise<void> {
             target.append(placeholder("No conversations yet. Start a chat to see it here."));
             return;
         }
-        for (const [id, session] of sessionEntries.slice(0, 6)) {
+        for (const [id, session] of sessionEntries.slice(0, 5)) {
             const url = new URL("renderer/chat.html", window.location.href);
             url.searchParams.set("session", id);
             const name = typeof session.name === "string" && session.name.trim()
@@ -190,7 +190,7 @@ async function loadMedia(): Promise<void> {
             target.append(placeholder("Nothing in Studio history yet. Your next creation will appear here."));
             return;
         }
-        for (const item of items.slice(0, 5)) {
+        for (const item of items.slice(0, 3)) {
             const kind = item.role === "image" ? "Image" : item.role === "video" ? "Video" : "Audio";
             const date = formatDate(item.timestamp);
             target.append(row(item.title, [kind, date].filter(Boolean).join(" · "), "renderer/studio.html?open=history"));
