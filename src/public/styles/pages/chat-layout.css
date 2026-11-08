@@ -261,3 +261,20 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
   color: var(--text-secondary);
 }
 #app-root .media-item-icon svg { display: block; width: 18px; height: 18px; }
+
+
+/* Small contextual labels should read like desktop controls, not ad headings. */
+#app-root .sidebar-pane-kicker,
+#app-root .usage-kicker,
+#app-root .sidebar-controls label,
+#app-root .tools-modal-section h4 {
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.8;
+}
+
+#app-root .sidebar-pane-title,
+#app-root .usage-plan-name { font-weight: 550; }
+#app-root .usage-btn { font-weight: 500; }
