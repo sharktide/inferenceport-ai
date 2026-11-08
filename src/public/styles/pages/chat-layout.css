@@ -17,9 +17,9 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
 }
 
 #app-root .sidebar {
-  flex: 0 0 278px;
-  width: 278px;
-  min-width: 278px;
+  flex: 0 0 256px;
+  width: 256px;
+  min-width: 256px;
   padding: 15px 12px;
   border: 1px solid var(--glass-border);
   border-radius: 14px;
@@ -169,8 +169,8 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
 .chat-mobile-toolbar,
 .chat-sidebar-scrim { display: none; }
 
-@media (max-width: 920px) {
-  #app-root { padding: 10px; }
+@media (max-width: 1100px) {
+  #app-root { padding: 12px 16px 10px; }
   #app-root .chat-container { position: relative; gap: 0; }
   #app-root .chat-container .sidebar {
     position: absolute;
@@ -194,7 +194,7 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
   #app-root .chat-panel {
     position: relative;
     width: 100%;
-    padding: 48px 10px 0;
+    padding: 50px clamp(14px, 3vw, 30px) 12px;
   }
   .chat-mobile-toolbar {
     display: block;
@@ -236,8 +236,8 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
 }
 
 @media (max-width: 560px) {
-  #app-root .chat-panel { padding: 48px 4px 0; }
-  #app-root #chat-box { padding: 12px 4px; }
+  #app-root .chat-panel { padding: 48px 12px 10px; }
+  #app-root #chat-box { padding: 14px 6px 12px; }
   #app-root .chat-panel.welcome-mode .welcome-cards { grid-template-columns: 1fr; gap: 8px; }
   #app-root .chat-panel .welcome-card { min-height: 58px; padding: 10px 12px; }
   #app-root .chat-panel.welcome-mode .welcome-title { font-size: clamp(24px, 7vw, 30px); }
@@ -278,3 +278,164 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
 #app-root .sidebar-pane-title,
 #app-root .usage-plan-name { font-weight: 550; }
 #app-root .usage-btn { font-weight: 500; }
+
+
+/* Let the conversation breathe before the narrow-window drawer takes over. */
+#app-root {
+  padding: 16px clamp(16px, 2.3vw, 30px) 12px;
+}
+#app-root .chat-container { gap: clamp(14px, 2vw, 26px); }
+#app-root .chat-panel {
+  padding: 8px clamp(14px, 2.4vw, 34px) 12px;
+}
+#app-root #chat-box {
+  width: min(900px, 100%);
+  padding: 16px 12px 20px;
+  margin-bottom: 12px;
+}
+#app-root .chat-panel chat-box {
+  width: min(900px, 100%);
+  margin-bottom: 0;
+}
+
+/* Keep the Lightning toggle readily available without a large promotional card. */
+#app-root .sidebar {
+  gap: 8px;
+  padding: 12px 10px;
+}
+#app-root .sidebar .lightning-sidebar-banner {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
+  color: var(--text-primary);
+  box-shadow: none;
+}
+#app-root .sidebar .lightning-sidebar-banner::before { display: none; }
+#app-root .sidebar .lightning-sidebar-copy {
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
+  margin: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline toggle-switch {
+  transform: scale(.8);
+}
+#app-root #session-list li {
+  padding: 8px 9px;
+  min-height: 34px;
+}
+#app-root .sidebar-controls { padding-top: 10px; }
+#app-root .sidebar-mode-tabs-wrap { gap: 6px; }
+
+.chat-footer-credit {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 2px 16px 5px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+@media (max-width: 1100px) {
+  #app-root { padding: 12px 16px 10px; }
+  #app-root .chat-container { gap: 0; }
+  #app-root .chat-panel {
+    padding: 50px clamp(16px, 3vw, 30px) 12px;
+  }
+  #app-root .chat-panel #chat-box {
+    width: min(880px, 100%);
+    padding: 18px 8px;
+  }
+  #app-root .chat-panel chat-box {
+    width: min(880px, 100%);
+  }
+  .chat-mobile-toolbar { top: 8px; left: clamp(16px, 3vw, 30px); }
+  #chat-sidebar-toggle {
+    min-height: 34px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+/* On small windows the message and controls use separate lines.
+   Overlaying the buttons consumed most of the available text width. */
+@media (max-width: 640px) {
+  #app-root { padding: 8px 12px 8px; }
+  #app-root .chat-panel { padding: 45px 6px 10px; }
+  #app-root .chat-panel #chat-box { padding: 12px 6px; }
+  #app-root .chat-panel chat-box { margin-bottom: 0; }
+  #chat-form .composer-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 8px 10px;
+    border-radius: 16px;
+  }
+  #chat-form .composer-shell #chat-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 50px;
+    padding: 8px 8px 4px !important;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  #chat-form .composer-shell .composer-actions-inside,
+  #chat-form .composer-shell.is-expanded .composer-actions-inside,
+  #chat-form .composer-shell.is-scrollable .composer-actions-inside {
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0 0;
+    margin: 0;
+  }
+  #chat-form .composer-tools-right { gap: 4px; }
+  #chat-form .composer-attach-btn,
+  #chat-form .composer-send-btn,
+  #chat-form .tool-btn-mini {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+  .chat-mobile-toolbar { left: 6px; top: 5px; }
+  #app-root .chat-panel.welcome-mode .welcome-hero,
+  #app-root .chat-panel.welcome-mode .welcome-cards {
+    width: 100%;
+  }
+  #app-root .chat-panel.welcome-mode .welcome-cards { margin-bottom: 12px; }
+  .chat-footer-credit { padding: 2px 12px 4px; font-size: 9px; }
+}
+
+@media (max-width: 380px) {
+  .navbar-user-indicator { max-width: 100%; }
+  #app-root .chat-panel { padding-inline: 3px; }
+  #chat-form .composer-shell #chat-input { min-height: 44px; }
+}
+
+@media (max-height: 650px) and (max-width: 1100px) {
+  #app-root .chat-panel.welcome-mode {
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+}
