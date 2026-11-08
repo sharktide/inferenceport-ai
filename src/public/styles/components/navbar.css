@@ -103,57 +103,79 @@ nav {
   margin-left: auto;
 }
 
+/* The account is part of the toolbar, not a nested pill full of pills. */
 .navbar-account-meta {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
   min-width: 0;
   max-width: 100%;
-  min-height: 44px;
-  padding: 5px 6px 5px 13px;
-  border: 1px solid var(--glass-border);
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .navbar-account-identity {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: min-content min-content;
+  column-gap: 10px;
+  align-content: center;
   min-width: 0;
-  max-width: 166px;
-  gap: 1px;
+  max-width: 220px;
+}
+
+.navbar-account-avatar {
+  display: inline-flex;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
+  color: var(--text-secondary);
+}
+
+.navbar-account-avatar svg {
+  width: 17px;
+  height: 17px;
 }
 
 .navbar-username {
   display: block;
-  max-width: 100%;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-primary);
   font-size: 13px;
-  line-height: 1.25;
-  font-weight: 540;
+  font-weight: 550;
+  line-height: 1.3;
 }
 
 .navbar-plan,
 .navbar-plan[data-plan-key] {
   display: block;
-  min-height: 0;
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  box-shadow: none;
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0;
   line-height: 1.3;
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -161,55 +183,49 @@ nav {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 4px;
-  padding-left: 11px;
-  border-left: 1px solid var(--glass-border);
+  gap: 8px;
+  min-height: 32px;
 }
 
-.navbar-action-btn {
+nav .navbar-action-btn {
   display: inline-flex;
   flex: 0 0 auto;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   width: auto;
   min-width: 0;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: 7px;
+  min-height: 34px;
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 480;
   line-height: 1.2;
   white-space: nowrap;
-  cursor: pointer;
-  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
-}
-
-.navbar-action-btn:hover { transform: translateY(-1px); }
-
-.navbar-action-btn--primary {
-  border: 1px solid color-mix(in srgb, var(--blue) 32%, var(--glass-border));
-  background: color-mix(in srgb, var(--blue) 12%, var(--bg-light));
-  color: var(--text-primary);
   box-shadow: none;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 
-.navbar-action-btn--primary:hover {
-  background: color-mix(in srgb, var(--blue) 19%, var(--bg-light));
-  border-color: color-mix(in srgb, var(--blue) 52%, var(--glass-border));
-}
-
-.navbar-action-btn--secondary {
+nav .navbar-action-btn--primary {
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
-  box-shadow: none;
+  color: var(--blue);
+}
+nav .navbar-action-btn--primary:hover {
+  border-color: var(--glass-border);
+  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
 }
 
-.navbar-action-btn--secondary:hover {
-  border-color: var(--glass-border);
-  background: var(--glass-bg);
+nav .navbar-action-btn--secondary {
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--bg-light) 84%, transparent);
+  color: var(--text-secondary);
+}
+nav .navbar-action-btn--secondary:hover {
+  border-color: color-mix(in srgb, var(--blue) 35%, var(--glass-border));
+  background: color-mix(in srgb, var(--blue) 7%, var(--bg-light));
   color: var(--text-primary);
-  box-shadow: none;
 }
 
 .hamburger {
@@ -261,10 +277,17 @@ nav {
 }
 
 @media (max-width: 690px) {
-  .navbar-account-identity { max-width: 94px; }
-  .navbar-account-meta { gap: 8px; padding: 5px 6px 5px 8px; }
-  .navbar-action-group { gap: 2px; padding-left: 7px; }
-  .navbar-action-btn { padding: 6px 8px; }
+  .navbar-account-avatar { display: none; }
+  .navbar-account-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    max-width: 112px;
+  }
+  .navbar-account-meta { gap: 8px; }
+  .navbar-action-group { gap: 2px; }
+  nav .navbar-action-btn { min-height: 32px; padding: 6px 8px; }
 }
 
 @media (max-width: 560px) {
