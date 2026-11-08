@@ -12,7 +12,14 @@ type StoredSession = {
     favorite?: boolean;
 };
 type InstalledModel = { name: string; size?: string | number };
-type StudioHistoryItem = { id: string; title: string; role: string; timestamp: number };
+type StudioHistoryItem = {
+    id: string;
+    title: string;
+    role: string;
+    timestamp: number;
+    content?: string;
+    mode?: "data" | "blob" | "asset";
+};
 
 const byId = (id: string): HTMLElement | null => document.getElementById(id);
 const setText = (id: string, value: string): void => {
@@ -175,6 +182,46 @@ async function loadModels(): Promise<void> {
     }
 }
 
+function mediaTile(item: StudioHistoryItem): HTMLAnchorElement {
+    const link = document.createElement("a");
+    link.className = "home-media-tile";
+    link.href = "renderer/studio.html?open=history";
+
+    const preview = document.createElement("span");
+    preview.className = "home-media-preview";
+    const hasLocalImage = item.role === "image"
+        && item.mode !== "asset"
+        && typeof item.content === "string"
+        && (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(item.content)
+            || item.content.startsWith("blob:"));
+    if (hasLocalImage) {
+        const img = document.createElement("img");
+        img.src = item.content!;
+        img.alt = "";
+        img.loading = "lazy";
+        img.decoding = "async";
+        preview.append(img);
+    } else {
+        const kind = document.createElement("span");
+        kind.className = "home-media-type";
+        kind.textContent = item.role === "video" ? "Video" : item.role === "audio" ? "Audio" : "Image";
+        preview.append(kind);
+    }
+
+    const copy = document.createElement("span");
+    copy.className = "home-media-copy";
+    const title = document.createElement("span");
+    title.className = "home-media-title";
+    title.textContent = item.title;
+    title.title = item.title;
+    const detail = document.createElement("span");
+    detail.className = "home-media-date";
+    detail.textContent = formatDate(item.timestamp);
+    copy.append(title, detail);
+    link.append(preview, copy);
+    return link;
+}
+
 async function loadMedia(): Promise<void> {
     const target = byId("home-media");
     if (!target) return;
@@ -191,9 +238,7 @@ async function loadMedia(): Promise<void> {
             return;
         }
         for (const item of items.slice(0, 3)) {
-            const kind = item.role === "image" ? "Image" : item.role === "video" ? "Video" : "Audio";
-            const date = formatDate(item.timestamp);
-            target.append(row(item.title, [kind, date].filter(Boolean).join(" · "), "renderer/studio.html?open=history"));
+            target.append(mediaTile(item));
         }
     } catch (error) {
         console.warn("[home] Could not load Studio history", error);
