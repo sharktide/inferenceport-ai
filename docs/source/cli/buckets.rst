@@ -1,0 +1,87 @@
+Buckets commands
+================
+
+``ipx bucket`` manages private and public object storage using your existing account and
+``-O/--org`` or ``--personal`` context. It requires a server with Buckets enabled
+and the appropriate access. API keys have a fixed workspace; use an organization
+key or an interactive session for organization actions.
+
+.. code-block:: console
+
+   ipx bucket status
+   ipx bucket pricing
+   ipx bucket connection
+   ipx --org acme bucket connection
+   ipx bucket create models --quota-bytes 10737418240
+   ipx bucket list
+   ipx bucket info models
+   ipx bucket update models --quota-bytes 21474836480
+   ipx bucket update models --name weights
+   ipx bucket update weights --status read_only
+   ipx bucket upload models ./weights.bin --key checkpoints/weights.bin
+   ipx bucket ls models --prefix checkpoints/
+   ipx bucket download models checkpoints/weights.bin ./download.bin
+   ipx bucket usage models
+   ipx bucket rm models checkpoints/weights.bin
+   ipx bucket delete models
+
+``connection`` shows the authenticated workspace ID and its S3 endpoint. The
+personal endpoint contains your user UUID; an organization endpoint contains the
+organization UUID. Copy that complete endpoint into S3 clients. Credentials must
+belong to the same workspace. Different workspaces can use the same bucket name.
+Uploads and downloads resolve this workspace before transferring files.
+
+``update`` changes a bucket's name, maximum logical size, visibility or upload status. The
+maximum must cover stored bytes and active upload reservations. Increasing it does
+not charge for unused space. Renaming preserves objects and bucket-scoped
+credentials; update client configurations to use the new name. ``read_only`` pauses
+uploads, including completion of pending uploads; set ``active`` to resume.
+
+Buckets default to private. To publish known file URLs:
+
+.. code-block:: console
+
+   ipx bucket create shared --visibility public
+   ipx bucket update models --visibility public
+   ipx bucket public-url models checkpoints/weights.bin
+   ipx bucket update models --visibility private
+
+``public-url`` retrieves the server-issued URL and refuses private buckets.
+A URL is not proof of permission: a public bucket's explicit S3 policy may still
+deny a particular anonymous download. Listing and mutations remain protected
+unless a public bucket policy explicitly grants anonymous listing; reads and
+transfer are billed to the workspace.
+With server #183 deployed, switching to private blocks new anonymous GET,
+HEAD and policy-granted listing even when a policy still allows them. Private
+does not recall files already downloaded or stop transfers already accepted.
+
+Large transfers use bounded multipart parts; failures abort unfinished uploads.
+Downloads stream into a new file and do not overwrite existing paths. ``ls``
+returns one page; pass its opaque token with ``--continuation-token`` to continue.
+``--json`` produces machine-readable results. Empty buckets with active uploads
+cannot be deleted. Retained versions can remain billable after deletion.
+
+S3 credentials
+--------------
+
+Standard S3 clients need separate signing credentials. Secrets are revealed once
+and saved in a new mode-0600 file; they are not printed by these commands:
+
+.. code-block:: console
+
+   ipx bucket credentials create --read-only --output ./s3-read.json
+   ipx bucket credentials create --bucket-id BUCKET_UUID --prefix checkpoints/ \
+     --expires-in 86400 --output ./s3-checkpoints.json
+   ipx bucket credentials list
+   ipx bucket credentials rotate CREDENTIAL_UUID --output ./replacement.json
+   ipx bucket credentials revoke CREDENTIAL_UUID
+
+Credential requests use a retry UUID and automatically retry one ambiguous
+network/server failure. If recovery still fails, the error supplies a request UUID;
+repeat the same command and options with ``--request-id UUID`` within ten minutes.
+Reusing that UUID with different options fails. Review and revoke orphaned
+credentials before starting a new intent after the retry window.
+
+Rotation preserves scopes and expiration, leaving the old credential active until revoked.
+Use ``--revoke-previous`` for immediate replacement after checking client impact.
+Never commit credential files or place secrets in logs, telemetry or shell history.
