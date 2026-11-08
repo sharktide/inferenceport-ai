@@ -1,5 +1,10 @@
 import { showNotification } from "../helper/notification.js";
 
+const MEDIA_ITEM_ICONS = {
+    folder: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>',
+    file: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6"/><path d="M8 14h8M8 18h6"/></svg>'
+} as const;
+
 type MediaItem = {
 	id: string;
 	type: "file" | "folder";
@@ -603,7 +608,7 @@ function renderTrashOverlay(): void {
           <input type="checkbox" data-trash-select="${escHtml(item.id)}" ${checked}/>
         </label>
 				<button class="media-item-main" data-trash-open="${escHtml(item.id)}">
-					<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
+					<span class="media-item-icon" aria-hidden="true">${item.type === "folder" ? MEDIA_ITEM_ICONS.folder : MEDIA_ITEM_ICONS.file}</span>
 					<span class="media-item-copy">
 						<span class="media-item-name">${escHtml(item.name)}</span>
 						<span class="media-item-meta">${meta}</span>
@@ -672,7 +677,7 @@ function renderMediaList(): void {
 					: `class="media-item-main" type="button" data-open="${escHtml(item.id)}"`;
 			return `<div class="media-list-item">
 				<${mainTag} ${mainAttrs}>
-					<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
+					<span class="media-item-icon" aria-hidden="true">${item.type === "folder" ? MEDIA_ITEM_ICONS.folder : MEDIA_ITEM_ICONS.file}</span>
 					<span class="media-item-copy">
 						<span class="media-item-name">${escHtml(item.name)}</span>
 						<span class="media-item-meta">${meta}</span>
@@ -1318,7 +1323,7 @@ function openPickerModal(opts: PickerModalOpts): Promise<void> {
 
 							return `<div class="media-list-item">
 								<${mainTag} ${mainAttrs}>
-									<span class="media-item-icon">${item.type === "folder" ? "📁" : "📄"}</span>
+									<span class="media-item-icon" aria-hidden="true">${item.type === "folder" ? MEDIA_ITEM_ICONS.folder : MEDIA_ITEM_ICONS.file}</span>
 									<span class="media-item-copy">
 										<span class="media-item-name">${escHtml(item.name)}</span>
 										<span class="media-item-meta">${meta}</span>
