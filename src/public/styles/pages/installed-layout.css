@@ -18,21 +18,14 @@ Installed library: page hierarchy, host context and readable section cards.
   margin: 0 0 30px;
 }
 
-.installed-eyebrow {
-  margin: 0 0 7px;
-  font-size: 11px;
-  letter-spacing: 0.11em;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
+
 
 .installed-header h1 {
   margin: 0 0 7px;
   font-size: clamp(28px, 3vw, 36px);
-  font-weight: 700;
+  font-weight: 550;
   line-height: 1.16;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.015em;
   color: var(--text-dark);
 }
 
@@ -50,9 +43,9 @@ Installed library: page hierarchy, host context and readable section cards.
 
 .installed-host-control label {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--text-secondary);
 }
 
@@ -85,8 +78,8 @@ Installed library: page hierarchy, host context and readable section cards.
   padding: 18px 20px;
   cursor: pointer;
   font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.025em;
+  font-weight: 540;
+  letter-spacing: 0;
   color: var(--text-dark);
 }
 
