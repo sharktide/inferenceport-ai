@@ -909,3 +909,30 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 @media (max-width: 420px) {
   #app-root .sidebar .lightning-cloud-hint { font-size: 10px; }
 }
+
+
+/* Tools is a single stateful control. The old yellow circle plus green/gray
+   status dot looked like two conflicting controls; aria-pressed and the button
+   tooltip already communicate the enabled-tool count. */
+#app-root #chat-form .tool-btn-mini::after { display: none; }
+#app-root #chat-form .tool-btn-mini {
+  color: var(--text-secondary);
+  box-shadow: none;
+  opacity: 1;
+}
+#app-root #chat-form .tool-btn-mini.active {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--blue) 14%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 48%, var(--glass-border));
+  box-shadow: none;
+  opacity: 1;
+}
+#app-root #chat-form .tool-btn-mini:not(.active) {
+  background: color-mix(in srgb, var(--bg-light) 90%, transparent);
+  border-color: var(--glass-border);
+  opacity: 1;
+}
+#app-root #chat-form .tool-btn-mini:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
