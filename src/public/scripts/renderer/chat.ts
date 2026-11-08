@@ -1676,8 +1676,8 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 		setVisionSupport();
 		showNotification({ type: "info", message: reason });
 	}
-}    applyLightningState();
-
+    applyLightningState();
+}
 
 function setLightningEnabled(enabled: boolean): void {
 	if (orgLightningBlocked && enabled) {
