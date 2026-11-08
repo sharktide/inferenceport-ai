@@ -47,10 +47,13 @@ Buckets default to private. To publish known file URLs:
    ipx bucket update models --visibility private
 
 ``public-url`` retrieves the server-issued URL and refuses private buckets.
-Anyone with a public URL can download without credentials. Listing and mutations
-remain protected; read operations and transfer are billed to the workspace.
-Switching back to private blocks new anonymous downloads, but cannot recall files
-already downloaded or stop transfers already accepted.
+A URL is not proof of permission: a public bucket's explicit S3 policy may still
+deny a particular anonymous download. Listing and mutations remain protected
+unless a public bucket policy explicitly grants anonymous listing; reads and
+transfer are billed to the workspace.
+With server #183 deployed, switching to private blocks new anonymous GET,
+HEAD and policy-granted listing even when a policy still allows them. Private
+does not recall files already downloaded or stop transfers already accepted.
 
 Large transfers use bounded multipart parts; failures abort unfinished uploads.
 Downloads stream into a new file and do not overwrite existing paths. ``ls``
