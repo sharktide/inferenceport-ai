@@ -801,7 +801,8 @@ function setupSidebarModeTabs(): void {
 
 const urlParams = new URLSearchParams(window.location.search);
 const isSnipMode = urlParams.get("snip") === "1";
-const forceLightning = isSnipMode || urlParams.get("lightning") === "1";
+const requestedLocalModel = urlParams.get("model");
+const forceLightning = isSnipMode || (urlParams.get("lightning") === "1" && !requestedLocalModel);
 
 if (isSnipMode) {
 	document.documentElement.classList.add("snip-mode");
@@ -836,7 +837,8 @@ const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
-let lightningEnabled = forceLightning ? true : readLightningSetting();
+// An explicitly selected installed model takes precedence over the saved cloud setting.
+let lightningEnabled = requestedLocalModel ? false : (forceLightning ? true : readLightningSetting());
 const assetObjectUrlCache = new Map<string, string>();
 
 // Centralized cache key parser. Expected format: "<type>:<assetId>"
@@ -2332,7 +2334,14 @@ async function loadOptions() {
 			}
 		}
 
-		currentSessionId = Object.keys(sessions)[0] || createNewSession();
+        const requestedSession = urlParams.get("session");
+        currentSessionId = requestedSession && Object.prototype.hasOwnProperty.call(sessions, requestedSession)
+            ? requestedSession
+            : Object.keys(sessions)[0] || createNewSession();
+        if (requestedSession && requestedSession === currentSessionId) {
+            lastAccessMap[currentSessionId] = Date.now();
+            saveLastAccessMap();
+        }
 		renderSessionList();
 		await renderChat();
 		// initMediaLibrary is not on the critical path — defer it
