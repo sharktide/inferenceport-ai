@@ -162,19 +162,7 @@
 					<div class="sidebar-sessions" id="sidebar-sessions">
 						<div id="sidebar-chat-pane" class="sidebar-pane active">
 							<ul id="session-list"></ul>
-							<div class="sidebar-controls" id="sidebar-controls">
-								<div id="standard-model-controls">
-									<label for="host-select">Host</label>
-									<select id="host-select"></select>
-									<label for="model-select">Model</label>
-									<select id="model-select"></select>
-								</div>
-								<div id="lightning-status" class="lightning-status" aria-hidden="true">
-									<p class="lightning-status-title">Lightning is Enabled.</p>
-									<p class="lightning-status-model">Text model selected: @InferencePort/Lightning-Text-v2.</p>
-									<p class="lightning-status-image">Default image model: @InferencePort/Lightning-Image-Turbo (free).</p>
-								</div>
-							</div>
+							
 						</div>
 						<div id="sidebar-media-pane" class="sidebar-pane hidden" style="display: none">
 							<div class="sidebar-subtabs">
@@ -210,37 +198,30 @@
 						</div>
 					</div>
 				<div class="sidebar-service-controls">
-<div class="lightning-sidebar-banner">
-						<div class="lightning-sidebar-copy">
-							Lightning Text v2
-						</div>
-						<div class="lightning-toggle-inline lightning-toggle-compact">
-							<span>Enable Lightning</span>
-							<toggle-switch
-								id="lightning-toggle-sidebar"
-								name="lightning-toggle-sidebar"
-								aria-label="Enable Lightning"
-							></toggle-switch>
-						</div>
-					</div>
-					<details id="usage-panel-details" style="margin-bottom:10px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-				<script>
-				const usagePanelDetails = document.getElementById('usage-panel-details');
-				const lightningSidebarBanner = document.querySelector('.lightning-sidebar-banner');
-				if (usagePanelDetails && lightningSidebarBanner) {
-					usagePanelDetails.addEventListener('toggle', function() {
-						if (usagePanelDetails.open) {
-							lightningSidebarBanner.style.display = 'none';
-						} else {
-							lightningSidebarBanner.style.display = '';
-						}
-					});
-				}
-				</script>
-						<summary id="usage-panel-summary" style="font-size:15px;cursor:pointer;padding:10px 16px;border-radius:10px 0 0;display:flex;align-items:center;gap:10px;outline:none;user-select:none;">
-						<span style="font-weight:600;">Plan:</span>
-						<span id="usage-panel-tier" style="color:#2a4d7a;padding:2px 10px;border-radius:6px;font-size:13px;">Free Tier</span>
-					</summary>
+  <div class="lightning-sidebar-banner">
+    <div class="lightning-sidebar-copy">
+      <span class="lightning-sidebar-title">Lightning</span>
+      <span class="lightning-mode-description" id="lightning-mode-description" aria-live="polite">Local models</span>
+    </div>
+    <div class="lightning-toggle-inline lightning-toggle-compact">
+      <toggle-switch id="lightning-toggle-sidebar" name="lightning-toggle-sidebar"
+        aria-label="Use Lightning cloud model"></toggle-switch>
+    </div>
+  </div>
+  <div class="sidebar-controls" id="sidebar-controls">
+    <div id="standard-model-controls">
+      <label for="host-select">Host</label>
+      <select id="host-select"></select>
+      <label for="model-select">Model</label>
+      <select id="model-select"></select>
+    </div>
+  </div>
+  <details id="usage-panel-details" class="usage-details">
+				
+						<summary id="usage-panel-summary">
+  <span>Usage &amp; limits</span>
+  <span id="usage-panel-tier" class="usage-plan-tier-label">Free Tier</span>
+</summary>
   					<section id="usage-panel" class="usage-panel" aria-live="polite">
 						<div class="usage-panel-header">
 							<div>
@@ -316,26 +297,24 @@
                     </header>
 					<div id="chat-box"></div>
 					<div id="welcome-hero" class="welcome-hero" aria-hidden="true">
-						<h1 class="welcome-title">New conversation</h1>
-						<p class="welcome-subtitle">Ask a question or choose a starting point.</p>
-					</div>
-					
-					<div id="welcome-cards" class="welcome-cards" aria-hidden="true">
+  <h1 class="welcome-title">What would you like to do?</h1>
+</div>
+<chat-box></chat-box>
+<div id="welcome-cards" class="welcome-cards" aria-hidden="true">
 						<button type="button" class="welcome-card" data-prompt="Create images for a blog post concept.">
-							<span>Create an image</span>
+							<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8" cy="9" r="1.2"/><path d="m5 17 5-5 4 3 3-3 2 2"/></svg><span>Create an image</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Teach me something useful in 5 minutes.">
-							<span>Explain a concept</span>
+							<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Z"/><path d="M12 6v14"/></svg><span>Explain a concept</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Help me write and edit this draft clearly.">
-							<span>Edit a draft</span>
+							<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m15 4 5 5-11 11-5 1 1-5L16 5a2 2 0 0 0-1-1Z"/></svg><span>Edit a draft</span>
 						</button>
 						<button type="button" class="welcome-card" data-prompt="Walk me through this task step by step.">
-							<span>Plan a task</span>
+							<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m4 7 2 2 3-3M12 8h8M4 16l2 2 3-3M12 17h8"/></svg><span>Plan a task</span>
 						</button>
 					</div>
-					<chat-box></chat-box>
-				</section>
+</section>
 			</div>
 
 			<aside id="media-editor-panel" class="media-editor-panel hidden" aria-hidden="true">
