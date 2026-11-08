@@ -200,8 +200,8 @@
 				<div class="sidebar-service-controls">
   <div class="lightning-sidebar-banner">
     <div class="lightning-sidebar-copy">
-      <span class="lightning-sidebar-title">Lightning</span>
-      <span class="lightning-mode-description" id="lightning-mode-description" aria-live="polite">Local models</span>
+      <span class="lightning-sidebar-title">Lightning <span class="lightning-cloud-hint">Cloud AI</span></span>
+      <span class="lightning-mode-description" id="lightning-mode-description" aria-live="polite">Off · Local models</span>
     </div>
     <div class="lightning-toggle-inline lightning-toggle-compact">
       <input id="lightning-toggle-sidebar" class="lightning-mode-switch"
@@ -209,6 +209,10 @@
         aria-label="Enable Lightning cloud models" aria-describedby="lightning-mode-description" />
     </div>
   </div>
+  <details class="lightning-about">
+    <summary>What is Lightning?</summary>
+    <p>Lightning lets you use InferencePort-hosted AI models without downloading them. Turn it off to use models installed locally or on a remote host. Cloud requests count toward your plan's limits.</p>
+  </details>
   <div class="sidebar-controls" id="sidebar-controls">
     <div id="standard-model-controls">
       <label for="host-select">Host</label>
