@@ -35,7 +35,8 @@
     </div>
 
     <div class="home-grid">
-      <section class="home-panel" aria-labelledby="home-sessions-title">
+      <div class="home-primary-column">
+        <section class="home-panel" aria-labelledby="home-sessions-title">
         <div class="home-panel-heading">
           <div>
             <h2 id="home-sessions-title">Recent conversations</h2>
@@ -47,8 +48,21 @@
           <p class="home-empty">Loading conversations…</p>
         </div>
       </section>
-
-      <section class="home-panel" aria-labelledby="home-models-title">
+        <section class="home-panel home-studio-panel" aria-labelledby="home-studio-title">
+      <div class="home-panel-heading">
+        <div>
+          <h2 id="home-studio-title">Recent Studio work</h2>
+          <p>Images, videos, and audio saved from Studio.</p>
+        </div>
+        <a href="renderer/studio.html?open=history">View history</a>
+      </div>
+      <div id="home-media" class="home-list home-media-list" aria-live="polite">
+        <p class="home-empty">Loading history…</p>
+      </div>
+    </section>
+      </div>
+      <div class="home-secondary-column">
+        <section class="home-panel" aria-labelledby="home-models-title">
         <div class="home-panel-heading">
           <div>
             <h2 id="home-models-title">Your models</h2>
@@ -62,28 +76,15 @@
           <p class="home-empty">Loading models…</p>
         </div>
       </section>
-    </div>
-
-    <section class="home-panel home-studio-panel" aria-labelledby="home-studio-title">
-      <div class="home-panel-heading">
-        <div>
-          <h2 id="home-studio-title">Recent Studio work</h2>
-          <p>Images, videos, and audio saved from Studio.</p>
+        <div class="home-connection-panel">
+          <span id="home-connection" role="status">Checking local runtime…</span>
+          <a href="settings.html">Connection settings</a>
         </div>
-        <a href="renderer/studio.html?open=history">View history</a>
       </div>
-      <div id="home-media" class="home-list home-media-list" aria-live="polite">
-        <p class="home-empty">Loading history…</p>
-      </div>
-    </section>
-
-    <footer class="home-footer">
-      <div id="home-connection" role="status">Checking local runtime…</div>
-      <a href="settings.html">Connection settings</a>
-    </footer>
+    </div>
   </main>
 
-	<footer>
+	<footer class="home-legal-footer">
 		<p>Copyright (c) 2026 InferencePort LLC. Licensed under the Apache License 2.0</p>
 		<p>By using this app, you agree to the <a
 				href="javascript:window.utils.web_open('https://inferenceportai.vercel.app/security.html')">Terms of
