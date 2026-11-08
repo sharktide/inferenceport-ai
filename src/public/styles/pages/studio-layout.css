@@ -34,21 +34,14 @@ Studio: page-level orientation and balanced configuration/preview work areas.
   margin-bottom: 6px;
 }
 
-.studio-page-eyebrow {
-  margin: 0 0 7px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
+
 
 .studio-page-header h1 {
   margin: 0 0 7px;
   font-size: clamp(28px, 3vw, 36px);
   line-height: 1.15;
-  letter-spacing: -0.04em;
-  font-weight: 700;
+  letter-spacing: -0.015em;
+  font-weight: 550;
 }
 
 .studio-page-header p:last-child {
@@ -96,17 +89,14 @@ Studio: page-level orientation and balanced configuration/preview work areas.
   opacity: 0.3;
 }
 
-.studio-shell .studio-kicker {
-  letter-spacing: 0.11em;
-  font-size: 11px;
-}
+
 
 .studio-shell .studio-title {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: inherit;
   font-size: 19px;
   line-height: 1.25;
-  font-weight: 650;
-  letter-spacing: -0.03em;
+  font-weight: 540;
+  letter-spacing: 0;
 }
 
 .studio-shell .studio-subtitle {
@@ -161,9 +151,9 @@ Studio: page-level orientation and balanced configuration/preview work areas.
 
 .studio-shell .studio-preview::before { opacity: 0.25; }
 .studio-shell .studio-preview-title {
-  font-family: "Inter", system-ui, sans-serif;
-  font-weight: 650;
-  letter-spacing: -0.03em;
+  font-family: inherit;
+  font-weight: 540;
+  letter-spacing: 0;
 }
 
 .studio-history-modal {
