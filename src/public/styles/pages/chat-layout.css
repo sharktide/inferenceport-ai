@@ -734,3 +734,134 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
   #app-root #new-session-btn:hover,
   #app-root .chat-panel .welcome-card:hover { transform: none; }
 }
+
+
+/* Message controls live in a footer after each message, never inside the
+   text bubble. This prevents overlap with long Markdown and clipping in
+   short, content-sized user messages. */
+#app-root #chat-box .chat-message-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+  margin: 0 0 19px;
+}
+#app-root #chat-box .chat-message-group--user {
+  align-items: flex-end;
+}
+#app-root #chat-box .chat-message-group .chat-bubble.has-message-actions {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding-bottom: 0;
+}
+#app-root #chat-box .chat-message-group--user .chat-bubble.user-bubble {
+  display: block;
+  width: fit-content;
+  max-width: min(76%, 720px);
+  padding: 13px 17px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+#app-root #chat-box .chat-message-group--assistant .chat-bubble.bot-bubble {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px 0 3px;
+  margin: 0;
+}
+#app-root #chat-box .chat-message-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 29px;
+  margin: 3px 0 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+}
+#app-root #chat-box .chat-message-group--assistant .chat-message-controls {
+  align-self: flex-start;
+}
+#app-root #chat-box .chat-message-group--user .chat-message-controls {
+  align-self: flex-end;
+}
+#app-root #chat-box .chat-message-group:hover .chat-message-controls,
+#app-root #chat-box .chat-message-group:focus-within .chat-message-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+#app-root #chat-box .chat-message-controls .chat-message-actions,
+#app-root #chat-box .chat-message-controls .chat-message-version-nav {
+  position: static;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  min-height: 28px;
+  margin: 0;
+  padding: 2px;
+  gap: 3px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+#app-root #chat-box .chat-message-controls .chat-message-action-btn,
+#app-root #chat-box .chat-message-controls .chat-message-version-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 27px;
+  margin: 0;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 470;
+  line-height: 1.25;
+  cursor: pointer;
+}
+#app-root #chat-box .chat-message-controls .chat-message-action-btn:hover,
+#app-root #chat-box .chat-message-controls .chat-message-action-btn:focus-visible,
+#app-root #chat-box .chat-message-controls .chat-message-version-btn:hover,
+#app-root #chat-box .chat-message-controls .chat-message-version-btn:focus-visible {
+  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
+  color: var(--text-primary);
+}
+#app-root #chat-box .chat-message-controls .chat-message-version-btn:disabled {
+  opacity: .4;
+  cursor: default;
+}
+#app-root #chat-box .chat-message-controls .chat-message-version-label {
+  min-width: 38px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 450;
+}
+@media (hover: none) {
+  #app-root #chat-box .chat-message-controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+@media (max-width: 700px) {
+  #app-root #chat-box .chat-message-group--user .chat-bubble.user-bubble {
+    max-width: min(88%, 650px);
+    padding: 11px 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #app-root #chat-box .chat-message-controls { transition: none; }
+}
