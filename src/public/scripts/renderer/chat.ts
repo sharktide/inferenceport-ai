@@ -1671,7 +1671,6 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 		} catch (e) {
 			void 0;
 		}
-		applyLightningState();
 		void setToolSupport();
 		setVisionSupport();
 		showNotification({ type: "info", message: reason });
