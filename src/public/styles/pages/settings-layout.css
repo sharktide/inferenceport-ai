@@ -10,19 +10,12 @@ Settings are navigated as a workspace: persistent section rail, focused content 
 }
 
 .settings-page-header { margin-bottom: 26px; }
-.settings-eyebrow {
-  margin: 0 0 7px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
+
 .settings-page-header h1 {
   font-size: clamp(28px, 3vw, 36px);
-  font-weight: 700;
+  font-weight: 550;
   line-height: 1.16;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.015em;
   margin: 0 0 7px;
 }
 .settings-page-header > p:last-child {
@@ -73,7 +66,7 @@ Settings are navigated as a workspace: persistent section rail, focused content 
   box-shadow: none;
   text-align: left;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 450;
   color: var(--text-secondary);
 }
 
@@ -88,7 +81,7 @@ Settings are navigated as a workspace: persistent section rail, focused content 
   border-color: color-mix(in srgb, var(--blue) 20%, transparent);
   box-shadow: inset 3px 0 0 var(--blue);
   transform: none;
-  font-weight: 650;
+  font-weight: 550;
 }
 
 .settings-container .tab-content { width: 100%; min-width: 0; }
@@ -121,7 +114,7 @@ Settings are navigated as a workspace: persistent section rail, focused content 
   margin: 0 0 7px;
   font-size: 22px;
   letter-spacing: -0.03em;
-  font-weight: 650;
+  font-weight: 540;
 }
 
 .settings-pane-heading p {
@@ -141,7 +134,7 @@ Settings are navigated as a workspace: persistent section rail, focused content 
 .settings-setting-row h3 {
   margin: 0 0 4px;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 530;
 }
 
 .settings-setting-row p { font-size: 13px; }
