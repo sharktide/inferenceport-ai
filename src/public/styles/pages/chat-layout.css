@@ -1,147 +1,169 @@
 /*
- * InferencePort desktop chat
- * One conversation width, one composer width, a stable sidebar.
- * Keep interaction hooks and existing glass effects without nested card chrome.
- */
+Copyright 2026 InferencePort LLC
+
+Chat workspace: one readable conversation area, one compact navigation rail,
+and a genuinely centered new-chat state. Preserve glass and hover feedback.
+*/
 
 #app-root {
+  flex: 1;
   min-height: 0;
-  padding: 14px clamp(14px, 2vw, 32px) 10px;
+  padding: 0;
   gap: 0;
 }
 
 #app-root .chat-container {
   flex: 1;
+  display: flex;
+  gap: 0;
   min-width: 0;
   min-height: 0;
-  gap: clamp(14px, 1.8vw, 28px);
 }
 
-/* The session list is a tool rail, not a full-size promotional panel. */
+/* Treat navigation as app chrome, not a floating promotional card. */
 #app-root .sidebar {
   display: flex;
-  flex: 0 0 268px;
   flex-direction: column;
-  width: 268px;
-  min-width: 268px;
+  flex: 0 0 270px;
+  width: 270px;
+  min-width: 270px;
   min-height: 0;
-  gap: 8px;
-  padding: 12px 10px;
+  gap: 12px;
+  padding: 20px 14px 14px;
   overflow: hidden;
-  border: 1px solid var(--glass-border);
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--bg-light) 94%, transparent);
+  border: 0;
+  border-right: 1px solid var(--glass-border);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--bg-light) 95%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 5px 22px rgba(0,0,0,.05);
-}
-[data-theme="dark"] #app-root .sidebar {
-  background: color-mix(in srgb, var(--bg-light) 96%, var(--bg-secondary) 4%);
+  box-shadow: none;
 }
 
 #app-root #new-session-btn {
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 41px;
+  min-height: 42px;
   padding: 10px 13px;
-  border: 1px solid color-mix(in srgb, var(--blue) 24%, var(--glass-border));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--blue) 9%, var(--bg-light));
+  border: 1px solid color-mix(in srgb, var(--blue) 32%, var(--glass-border));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--blue) 12%, var(--bg-light));
   color: var(--text-primary);
-  text-align: left;
   font-size: 13px;
-  font-weight: 550;
-  transition: background-color 160ms ease, border-color 160ms ease;
+  font-weight: 560;
+  text-align: left;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 #app-root #new-session-btn:hover {
-  background: color-mix(in srgb, var(--blue) 16%, var(--bg-light));
-  border-color: color-mix(in srgb, var(--blue) 45%, var(--glass-border));
+  background: color-mix(in srgb, var(--blue) 19%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 48%, var(--glass-border));
+  transform: translateY(-1px);
 }
-#app-root .sidebar .lightning-sidebar-banner {
+
+#app-root .sidebar-mode-tabs-wrap {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 7px;
-  padding: 9px 10px;
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
-  box-shadow: none;
-  color: var(--text-primary);
+  flex: 0 0 auto;
+  gap: 10px;
+  margin: 2px 0 0;
+  padding: 0 1px 10px;
+  border-bottom: 1px solid var(--glass-border);
 }
-#app-root .sidebar .lightning-sidebar-banner::before { display: none; }
-#app-root .sidebar .lightning-sidebar-copy {
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1.3;
-  color: var(--text-primary);
-}
-#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
-  min-height: 27px;
-  margin: 0;
-  padding: 3px 5px;
-  border: 1px solid var(--glass-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
-  color: var(--text-primary);
-  font-size: 11px;
-}
-#app-root .sidebar .lightning-sidebar-banner toggle-switch {
-  transform: scale(.82);
-  transform-origin: left center;
-}
-#app-root .sidebar #usage-panel-details {
-  margin: 0 !important;
-  border: 0;
-  box-shadow: none !important;
-}
-#app-root .sidebar #usage-panel-summary {
-  min-height: 32px;
-  padding: 5px 8px !important;
-  border: 0;
-  border-radius: 7px;
+#app-root .sidebar-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px !important;
+  border-radius: 0;
 }
-#app-root .sidebar #usage-panel-tier {
-  padding: 0 5px !important;
-  color: var(--text-primary) !important;
-  font-size: 12px !important;
-}
-#app-root .sidebar-mode-tabs-wrap { gap: 7px; margin-top: 2px; }
-#app-root .sidebar-mode-tabs { gap: 4px; }
 #app-root .sidebar-mode-tab,
 #app-root .sidebar-trash-btn {
-  min-height: 30px;
-  border-radius: 7px;
+  width: auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 480;
+  line-height: 1.2;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+#app-root .sidebar-mode-tab.active {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--blue) 11%, var(--bg-light));
+  border-color: var(--glass-border);
+  font-weight: 560;
+}
+#app-root .sidebar-mode-tab:hover,
+#app-root .sidebar-trash-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--blue) 7%, var(--bg-light));
+}
+
+#app-root .sidebar-sessions {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 #app-root .sidebar-pane,
-#app-root .sidebar-sessions {
+#app-root #sidebar-chat-pane {
   min-height: 0;
 }
 #app-root #session-list {
+  flex: 1 1 auto;
   min-height: 0;
-  padding: 2px 0;
-  gap: 2px;
+  overflow-y: auto;
+  gap: 3px;
+  padding: 1px 3px 8px 0;
 }
 #app-root #session-list li {
   min-width: 0;
-  min-height: 41px;
-  padding: 7px 9px;
-  border-radius: 7px;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  transition: background-color 140ms ease;
+}
+#app-root #session-list li:hover {
+  background: color-mix(in srgb, var(--blue) 7%, transparent);
+}
+#app-root #session-list li.active-session {
+  border: 0;
+  background: color-mix(in srgb, var(--blue) 12%, var(--bg-light)) !important;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 68%, transparent);
 }
 #app-root #session-list .session-name {
+  min-width: 0;
+  padding-right: 6px;
   font-size: 13px;
+  font-weight: 440;
   line-height: 1.35;
 }
-#app-root .favorite-icon { font-size: 17px; opacity: .72; }
+#app-root #session-list .favorite-icon {
+  margin-left: 6px;
+  font-size: 17px;
+  color: var(--text-secondary);
+  opacity: .58;
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+#app-root #session-list li:hover .favorite-icon,
+#app-root #session-list li.active-session .favorite-icon {
+  opacity: .95;
+}
 #app-root .sidebar-controls {
+  flex: 0 0 auto;
   margin-top: auto;
-  padding: 10px 4px 4px;
-  gap: 7px;
+  padding: 12px 2px 0;
+  gap: 8px;
+  border-top: 1px solid var(--glass-border);
 }
 #app-root .sidebar-controls label,
 #app-root .sidebar-pane-kicker,
@@ -149,73 +171,178 @@
 #app-root .tools-modal-section h4 {
   font-size: 12px;
   font-weight: 450;
-  letter-spacing: 0;
   text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
 }
-#app-root .sidebar-pane-title,
-#app-root .usage-plan-name { font-weight: 550; }
-#app-root .usage-btn { font-weight: 500; }
+#app-root .sidebar-controls select {
+  min-height: 37px;
+  border-radius: 8px;
+  font-size: 12px;
+}
 
-/* Make the actual content well-proportioned to the window, not a narrow
-   680px column floating in a wide desktop pane. */
+#app-root .sidebar-service-controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--glass-border);
+}
+#app-root .sidebar .lightning-sidebar-banner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+#app-root .sidebar .lightning-sidebar-banner::before { display: none; }
+#app-root .sidebar .lightning-sidebar-copy {
+  font-size: 12px;
+  font-weight: 510;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
+  display: inline-flex;
+  min-height: 27px;
+  margin: 0;
+  padding: 3px 5px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+#app-root .sidebar .lightning-sidebar-banner toggle-switch {
+  transform: scale(.79);
+  transform-origin: left center;
+}
+#app-root .sidebar #usage-panel-details {
+  margin: 0 !important;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+}
+#app-root .sidebar #usage-panel-summary {
+  display: flex;
+  align-items: center;
+  min-height: 29px;
+  margin: 0;
+  padding: 5px 4px !important;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px !important;
+}
+#app-root .sidebar #usage-panel-tier {
+  padding: 0 4px !important;
+  color: var(--text-secondary) !important;
+  font-size: 12px !important;
+}
+#app-root .sidebar #usage-panel-details[open] {
+  max-height: min(45vh, 360px);
+  overflow-y: auto;
+}
+
+/* The thread is one reading surface and a small, stable thread heading. */
 #app-root .chat-panel {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-width: 0;
   min-height: 0;
-  padding: 8px clamp(8px, 2vw, 28px) 14px;
-  border: none;
+  height: 100%;
+  padding: 0 clamp(20px, 4vw, 70px) 22px;
+  border: 0;
+}
+
+#app-root .chat-thread-heading {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: min(100%, 1020px);
+  min-height: 51px;
+  margin: 0 auto;
+  padding: 12px 3px 10px;
+  border-bottom: 1px solid var(--glass-border);
+}
+#app-root .chat-thread-heading h2 {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 510;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #app-root #chat-box {
   flex: 1 1 auto;
-  width: min(1400px, 100%);
-  max-width: 100%;
+  width: min(100%, 1020px);
+  max-width: none;
   min-width: 0;
   min-height: 0;
-  margin: 0 auto 14px;
-  padding: 18px clamp(12px, 2.2vw, 38px) 24px;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  margin: 0 auto 6px;
+  padding: 22px 3px 28px;
   overflow-y: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
-
 #app-root #chat-box .chat-bubble {
-  max-width: min(1080px, 100%);
-  font-size: 16px;
-  line-height: 1.6;
+  box-sizing: border-box;
+  max-width: 100%;
+  font-size: 15px;
+  line-height: 1.65;
 }
 #app-root #chat-box .chat-bubble.bot-bubble {
-  max-width: min(1080px, 100%);
-  padding: 10px 0;
+  width: 100%;
+  max-width: 100%;
+  padding: 10px 0 14px;
   line-height: 1.65;
 }
 #app-root #chat-box .chat-bubble.user-bubble {
-  max-width: min(860px, 84%);
-  padding: 16px 20px;
-  margin-left: auto;
-  border-radius: 15px !important;
+  display: block;
+  width: fit-content;
+  max-width: min(76%, 720px);
+  margin: 8px 0 16px auto;
+  padding: 13px 17px;
+  border: 1px solid color-mix(in srgb, var(--text-dark) 7%, transparent);
+  border-radius: 14px !important;
+  box-shadow: none;
   line-height: 1.55;
 }
 #app-root #chat-box .chat-bubble p { line-height: 1.65; }
 #app-root #chat-box .chat-bubble h1,
 #app-root #chat-box .chat-bubble h2,
 #app-root #chat-box .chat-bubble h3 {
+  margin-top: 21px;
+  margin-bottom: 10px;
+  padding-bottom: 0;
+  border-bottom: none;
+  font-size: 18px;
   line-height: 1.3;
-  font-weight: 580;
+  font-weight: 560;
 }
-#app-root #chat-box .chat-bubble h1 { font-size: 1.5em; }
-#app-root #chat-box .chat-bubble h2 { font-size: 1.26em; }
-#app-root #chat-box .chat-bubble h3 { font-size: 1.13em; }
+#app-root #chat-box .chat-bubble h1 { font-size: 22px; }
+#app-root #chat-box .chat-bubble h3 { font-size: 16px; }
+#app-root #chat-box .chat-bubble li { line-height: 1.65; }
 
-/* The composer shares the scroll column's geometry, with a small bottom gutter. */
 #app-root .chat-panel chat-box {
   display: block;
   flex: 0 0 auto;
-  width: min(1400px, 100%);
+  width: min(100%, 1020px);
   max-width: 100%;
   margin: 0 auto;
 }
@@ -223,87 +350,115 @@
 #app-root .chat-panel .composer-shell {
   margin: 0;
   border: 1px solid var(--glass-border);
+  border-radius: 17px;
   background: color-mix(in srgb, var(--bg-light) 88%, transparent);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 7px 24px rgba(0, 0, 0, .075);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 7px 22px rgba(0,0,0,.06);
 }
 [data-theme="dark"] #app-root .chat-panel .composer-shell {
-  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 84%, var(--bg-light) 16%);
 }
+#app-root #chat-form .composer-shell #chat-input {
+  font-size: 14px;
+  line-height: 1.45;
+}
+#app-root .chat-panel .typing-bar.composer-shell { margin-bottom: 0; }
 
-/* Keep welcome suggestions present without turning them into oversized tiles. */
-#app-root .chat-panel.welcome-mode .welcome-hero,
-#app-root .chat-panel.welcome-mode .welcome-cards,
-#app-root .chat-panel.welcome-mode chat-box {
-  width: min(1040px, 100%);
+/* Empty thread: explicitly override the legacy flex:1 message area. */
+#app-root .chat-panel.welcome-mode {
+  justify-content: center;
+  align-items: stretch;
+  gap: 0;
+  padding-bottom: 42px;
+}
+#app-root .chat-panel.welcome-mode .chat-thread-heading { display: none; }
+#app-root .chat-panel.welcome-mode #chat-box {
+  display: none;
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+#app-root .chat-panel.welcome-mode .welcome-hero {
+  display: block;
+  width: min(100%, 860px);
+  margin: 0 auto 20px;
 }
 #app-root .chat-panel.welcome-mode .welcome-title {
-  margin: 0 0 18px;
-  font-size: clamp(27px, 3vw, 36px);
-  font-weight: 540;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(25px, 2.6vw, 32px);
+  font-weight: 530;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  text-align: left;
+}
+#app-root .chat-panel.welcome-mode .welcome-subtitle {
+  margin: 9px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
 }
 #app-root .chat-panel.welcome-mode .welcome-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: min(100%, 860px);
+  margin: 0 auto 17px;
+  gap: 9px;
 }
-#app-root .chat-panel .welcome-card {
+#app-root .chat-panel.welcome-mode .welcome-card {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  min-height: 72px;
+  min-width: 0;
+  min-height: 43px;
   height: auto;
-  gap: 10px;
-  padding: 15px 17px;
+  padding: 10px 13px;
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-light) 88%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-light) 90%, transparent);
   color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  font-size: 12px;
+  font-weight: 480;
+  line-height: 1.3;
+  text-align: left;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
-#app-root .chat-panel .welcome-card:hover {
-  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
+#app-root .chat-panel.welcome-mode .welcome-card:hover {
+  background: color-mix(in srgb, var(--blue) 10%, var(--bg-light));
   border-color: color-mix(in srgb, var(--blue) 30%, var(--glass-border));
   transform: translateY(-2px);
 }
-[data-theme="dark"] #app-root .chat-panel .welcome-card {
-  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+#app-root .chat-panel.welcome-mode chat-box {
+  display: block;
+  width: min(100%, 860px);
+  flex: 0 0 auto;
+  margin: 0 auto;
 }
 
-.chat-mobile-toolbar, .chat-sidebar-scrim { display: none; }
-
+/* Shared file and folder markers, intentionally not emoji. */
 #app-root .media-item-icon {
   display: inline-flex;
   flex: 0 0 20px;
-  width: 20px;
-  height: 20px;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
   color: var(--text-secondary);
 }
 #app-root .media-item-icon svg { display: block; width: 18px; height: 18px; }
 
-.chat-footer-credit {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 2px 18px 6px;
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.2;
-  text-align: right;
-}
+.chat-mobile-toolbar,
+.chat-sidebar-scrim { display: none; }
 
-/* A drawer preserves the reading column when the window narrows. */
+/* On narrow windows the conversation becomes the primary surface. */
 @media (max-width: 1100px) {
-  #app-root { padding: 12px 16px 8px; }
-  #app-root .chat-container { position: relative; gap: 0; }
+  #app-root .chat-container { position: relative; }
   #app-root .chat-container .sidebar {
     position: absolute;
     z-index: 32;
@@ -311,13 +466,17 @@
     bottom: 0;
     left: 0;
     flex: 0 0 auto;
-    width: min(300px, calc(100vw - 44px));
+    width: min(300px, calc(100vw - 40px));
     min-width: 0;
+    padding: 16px 12px;
     opacity: 0;
     pointer-events: none;
+    border-right: 1px solid var(--glass-border);
+    border-radius: 0 12px 12px 0;
+    background: var(--bg-light);
     transform: translateX(calc(-100% - 16px));
     transition: transform 180ms ease, opacity 180ms ease;
-    box-shadow: 0 16px 42px rgba(0,0,0,.2);
+    box-shadow: 0 16px 42px rgba(0,0,0,.22);
   }
   #app-root.sidebar-open .chat-container .sidebar {
     opacity: 1;
@@ -327,25 +486,27 @@
   #app-root .chat-panel {
     position: relative;
     width: 100%;
-    padding: 54px clamp(12px, 3.5vw, 34px) 12px;
+    padding: 0 clamp(20px, 4vw, 48px) 18px;
   }
+  #app-root .chat-thread-heading { margin-top: 51px; }
   .chat-mobile-toolbar {
     display: block;
     position: absolute;
-    top: 7px;
-    left: clamp(12px, 3.5vw, 34px);
+    top: 9px;
+    left: clamp(20px, 4vw, 48px);
     z-index: 5;
   }
   #chat-sidebar-toggle {
-    min-height: 36px;
-    min-width: 120px;
+    width: auto;
+    min-width: 117px;
+    min-height: 35px;
     padding: 8px 12px;
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     background: var(--glass-bg);
     color: var(--text-primary);
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 510;
   }
   .chat-sidebar-scrim {
     position: absolute;
@@ -359,30 +520,26 @@
     background: rgba(0,0,0,.34);
   }
   #app-root.sidebar-open .chat-sidebar-scrim { display: block; }
-  #app-root #chat-box,
-  #app-root .chat-panel chat-box { width: min(1240px, 100%); }
-  #app-root .chat-panel.welcome-mode { padding-top: 54px; }
+  #app-root .chat-panel.welcome-mode { padding-top: 45px; }
 }
 
-@media (max-width: 640px) {
-  #app-root { padding: 10px 12px 8px; }
-  #app-root .chat-panel { padding: 49px 4px 10px; }
-  #app-root #chat-box { padding: 12px 7px 18px; margin-bottom: 8px; }
-  #app-root #chat-box .chat-bubble { font-size: 15px; }
+@media (max-width: 700px) {
+  #app-root .chat-panel { padding: 0 14px 12px; }
+  #app-root .chat-thread-heading { margin-top: 48px; }
+  #app-root #chat-box { padding: 16px 4px 22px; }
+  #app-root #chat-box .chat-bubble { font-size: 14px; }
   #app-root #chat-box .chat-bubble.user-bubble {
-    max-width: 92%;
-    padding: 12px 14px;
+    max-width: min(88%, 650px);
+    padding: 11px 13px;
   }
-  .chat-mobile-toolbar { top: 4px; left: 4px; }
+  #app-root .chat-panel.welcome-mode .welcome-hero { margin-bottom: 18px; }
   #app-root .chat-panel.welcome-mode .welcome-cards {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-    margin-bottom: 12px;
   }
-  #app-root .chat-panel .welcome-card { min-height: 55px; padding: 12px; }
-  #app-root .chat-panel.welcome-mode .welcome-title { font-size: clamp(23px, 6vw, 29px); }
+  .chat-mobile-toolbar { top: 7px; left: 14px; }
 
-  /* Put controls below the editable text, never on top of it. */
+  /* Separate input and buttons, never overlay input text. */
   #app-root #chat-form .composer-shell {
     --composer-btn-size: 34px;
     --composer-btn-size-mobile: 34px;
@@ -391,9 +548,10 @@
     align-items: stretch;
     gap: 3px;
     padding: 8px 10px 7px;
-    border-radius: 16px;
+    border-radius: 14px;
   }
   #app-root #chat-form .composer-shell #chat-input {
+    box-sizing: border-box;
     width: 100%;
     min-height: 48px;
     padding: 8px !important;
@@ -408,27 +566,40 @@
     inset: auto !important;
     transform: none !important;
     display: flex;
-    width: 100%;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     padding: 0;
     margin: 0;
   }
   #app-root #chat-form .composer-tools-right { gap: 4px; }
-  #app-root .chat-panel.welcome-mode { justify-content: flex-start; }
-  .chat-footer-credit { padding: 2px 12px 5px; font-size: 9px; }
 }
 
-@media (max-height: 620px) and (max-width: 1100px) {
-  #app-root .chat-panel.welcome-mode { justify-content: flex-start; overflow-y: auto; }
+@media (max-width: 420px) {
+  #app-root .chat-panel.welcome-mode .welcome-cards { grid-template-columns: 1fr; }
+  #app-root .chat-panel.welcome-mode .welcome-title { font-size: 25px; }
+  #app-root .chat-panel.welcome-mode { justify-content: flex-start; }
+  #app-root .chat-panel.welcome-mode .welcome-hero { margin-top: clamp(38px, 12vh, 90px); }
+}
+
+@media (max-height: 570px) {
+  #app-root .chat-panel.welcome-mode {
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  #app-root .chat-panel.welcome-mode .welcome-hero { margin-top: 30px; }
 }
 
 .snip-mode #app-root { padding: 12px; }
 .snip-mode #app-root .chat-panel { padding: 0; }
-.snip-mode #app-root #chat-box { max-width: 100%; padding: 14px; }
+.snip-mode #app-root #chat-box { width: 100%; padding: 14px; }
 .snip-mode .chat-mobile-toolbar { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  #app-root .chat-container .sidebar,
-  #app-root .chat-panel .welcome-card { transition: none; }
+  #app-root #new-session-btn,
+  #app-root #session-list li,
+  #app-root .chat-panel .welcome-card,
+  #app-root .chat-container .sidebar { transition: none; }
+  #app-root #new-session-btn:hover,
+  #app-root .chat-panel .welcome-card:hover { transform: none; }
 }
