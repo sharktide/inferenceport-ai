@@ -1636,10 +1636,10 @@ function applyLightningState(): void {
     lightningModeBanner?.classList.toggle("is-active", lightningEnabled);
     if (lightningModeDescription) {
         lightningModeDescription.textContent = orgLightningBlocked
-            ? "Unavailable by organization policy"
+            ? "Unavailable · managed by your organization"
             : lightningEnabled
-                ? "Cloud · Text v2"
-                : "Local models";
+                ? "On · Cloud Text v2"
+                : "Off · Local models";
     }
 	if (hostSelect) hostSelect.disabled = lightningEnabled;
 	modelSelect.disabled = lightningEnabled;
