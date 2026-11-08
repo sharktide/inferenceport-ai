@@ -157,7 +157,9 @@ async function loadModels(): Promise<void> {
     try {
         const result = await window.ollama.listModels(clientUrl);
         models = Array.isArray(result)
-            ? result.filter((model): model is InstalledModel => Boolean(model && typeof model.name === "string"))
+            ? result
+                .filter(model => Boolean(model && typeof model.name === "string"))
+                .map(model => ({ name: model.name, size: model.size }))
             : [];
         setText("home-model-count", String(models.length));
         renderModels();
