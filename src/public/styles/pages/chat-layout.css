@@ -191,17 +191,19 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
   border-top: 1px solid var(--glass-border);
 }
 #app-root .sidebar .lightning-sidebar-banner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  justify-content: stretch;
+  column-gap: 12px;
+  min-height: 60px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-light) 87%, transparent);
   color: var(--text-primary);
   box-shadow: none;
+  overflow: visible;
 }
 #app-root .sidebar .lightning-sidebar-banner::before { display: none; }
 #app-root .sidebar .lightning-sidebar-copy {
@@ -233,58 +235,130 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
   color: color-mix(in srgb, var(--blue) 82%, var(--text-primary));
 }
 #app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline {
-  display: inline-flex;
+  display: flex;
   flex: 0 0 auto;
+  width: 46px;
+  height: 27px;
+  align-self: center;
   align-items: center;
+  justify-content: flex-end;
   margin: 0;
   padding: 0;
-  border: none;
-  border-radius: 0;
+  border: 0;
   background: transparent;
-  color: var(--text-primary);
 }
-#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline toggle-switch {
-  display: inline-flex;
-  align-items: center;
-  transform: none;
+#app-root .sidebar .lightning-mode-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: block;
+  width: 44px;
+  min-width: 44px;
+  height: 25px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 38%, var(--glass-border));
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--text-secondary) 35%, var(--bg-light));
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
-#app-root .sidebar .lightning-sidebar-banner .lightning-toggle-inline toggle-switch .switch {
-  margin-right: 0 !important;
+#app-root .sidebar .lightning-mode-switch::before {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.24);
+  transition: transform 160ms ease;
 }
-#app-root .sidebar .lightning-sidebar-banner toggle-switch .slider {
-  border: 1px solid color-mix(in srgb, var(--text-primary) 18%, transparent);
-  background-color: color-mix(in srgb, var(--text-secondary) 40%, var(--bg-light));
+#app-root .sidebar .lightning-mode-switch:checked {
+  border-color: var(--blue);
+  background: var(--blue);
 }
-#app-root .sidebar .lightning-sidebar-banner toggle-switch input:checked + .slider {
-  border-color: color-mix(in srgb, var(--blue) 52%, var(--glass-border));
-  background-color: var(--blue);
+#app-root .sidebar .lightning-mode-switch:checked::before {
+  transform: translateX(19px);
 }
-#app-root .sidebar .lightning-sidebar-banner toggle-switch input:focus-visible + .slider {
+#app-root .sidebar .lightning-mode-switch:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
+#app-root .sidebar .lightning-mode-switch:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  #app-root .sidebar .lightning-mode-switch,
+  #app-root .sidebar .lightning-mode-switch::before { transition: none; }
+}
 #app-root .sidebar #usage-panel-details {
-  margin: 3px 0 0 !important;
+  margin: 4px 0 0 !important;
   padding: 0;
   border: 0;
   border-radius: 0;
   box-shadow: none !important;
 }
 #app-root .sidebar #usage-panel-summary {
-  display: list-item;
-  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  gap: 6px;
   margin: 0;
-  padding: 6px 4px !important;
-  border: none;
-  border-radius: 0;
+  padding: 9px 10px !important;
+  list-style: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px !important;
-  font-weight: 450;
+  color: var(--text-primary);
+  font-size: 12.5px !important;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
-#app-root .sidebar #usage-panel-summary:hover { color: var(--text-primary); }
-#app-root .sidebar #usage-panel-tier { display: none; }
+#app-root .sidebar #usage-panel-summary::-webkit-details-marker { display: none; }
+#app-root .sidebar #usage-panel-summary:hover,
+#app-root .sidebar #usage-panel-details[open] #usage-panel-summary {
+  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
+  border-color: var(--glass-border);
+}
+#app-root .sidebar #usage-panel-summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+#app-root .sidebar .usage-summary-name,
+#app-root .sidebar .usage-summary-trailing {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+#app-root .sidebar .usage-summary-name { white-space: nowrap; }
+#app-root .sidebar .usage-summary-icon {
+  display: block;
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  color: var(--text-secondary);
+}
+#app-root .sidebar #usage-panel-tier {
+  display: inline;
+  padding: 0 !important;
+  color: var(--text-secondary) !important;
+  font-size: 11px !important;
+  white-space: nowrap;
+}
+#app-root .sidebar .usage-summary-chevron {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-secondary);
+  transition: transform 160ms ease;
+}
+#app-root .sidebar #usage-panel-details[open] .usage-summary-chevron { transform: rotate(180deg); }
 #app-root .sidebar #usage-panel-details[open] {
   max-height: min(45vh, 360px);
   overflow-y: auto;
