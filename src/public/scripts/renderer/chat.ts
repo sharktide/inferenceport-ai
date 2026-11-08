@@ -5493,11 +5493,14 @@ function buildMessageVersionNav(
 
 	const nav = document.createElement("div");
 	nav.className = "chat-message-version-nav";
+    nav.setAttribute("role", "group");
+    nav.setAttribute("aria-label", "Message versions");
 
 	const prev = document.createElement("button");
 	prev.type = "button";
 	prev.className = "chat-message-version-btn";
 	prev.innerHTML = "&#8249;";
+    prev.setAttribute("aria-label", "Previous message version");
 	prev.disabled = current <= 0;
 	prev.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -5512,6 +5515,7 @@ function buildMessageVersionNav(
 	next.type = "button";
 	next.className = "chat-message-version-btn";
 	next.innerHTML = "&#8250;";
+    next.setAttribute("aria-label", "Next message version");
 	next.disabled = current >= total - 1;
 	next.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -5784,6 +5788,37 @@ function buildMessageActions(
 	return actions;
 }
 
+/**
+ * Keep message actions outside the content bubble. Short user messages need
+ * room for controls without forcing the bubble to become 200px wide, and long
+ * replies must never have action buttons floating over their last paragraph.
+ */
+function appendMessageWithControls(
+    chatContainer: HTMLElement,
+    bubble: HTMLDivElement,
+    message: any,
+    messageIndex: number,
+): void {
+    const group = document.createElement("div");
+    group.className =
+        message.role === "user"
+            ? "chat-message-group chat-message-group--user"
+            : "chat-message-group chat-message-group--assistant";
+    group.appendChild(bubble);
+
+    const actions = buildMessageActions(message, messageIndex);
+    const versionNav = buildMessageVersionNav(message, messageIndex);
+    if (actions || versionNav) {
+        const controls = document.createElement("div");
+        controls.className = "chat-message-controls";
+        if (actions) controls.appendChild(actions);
+        if (versionNav) controls.appendChild(versionNav);
+        group.appendChild(controls);
+    }
+
+    chatContainer.appendChild(group);
+}
+
 function isSafeHttpImageUrl(url: string): boolean {
 	return /^https?:\/\//i.test(url);
 }
@@ -6039,15 +6074,7 @@ async function renderChat() {
 				bubble.appendChild(row);
 			}
 
-			const actions = buildMessageActions(msg, messageIndex);
-			const versionNav = buildMessageVersionNav(msg, messageIndex);
-			if (versionNav) {
-				bubble.appendChild(versionNav);
-			}
-			if (actions) {
-				bubble.appendChild(actions);
-			}
-			chatBoxEl.appendChild(bubble);
+			appendMessageWithControls(chatBoxEl, bubble, msg, messageIndex);
 			continue;
 		}
 
@@ -6193,16 +6220,7 @@ async function renderChat() {
 				}
 			});
 
-			const actions = buildMessageActions(msg, messageIndex);
-			const versionNav = buildMessageVersionNav(msg, messageIndex);
-			if (versionNav) {
-				botContainer.appendChild(versionNav);
-			}
-			if (actions) {
-				botContainer.appendChild(actions);
-			}
-
-			chatBoxEl.appendChild(botContainer);
+			appendMessageWithControls(chatBoxEl, botContainer, msg, messageIndex);
 			continue;
 		}
 
