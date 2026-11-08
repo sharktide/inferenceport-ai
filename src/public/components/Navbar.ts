@@ -34,6 +34,12 @@ const userIndicatorMarkup = `
     <div id="user-indicator" class="navbar-user-indicator">
         <div class="navbar-account-meta">
             <div class="navbar-account-identity">
+                <span class="navbar-account-avatar" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="3.3" />
+                        <path d="M5 20c.5-3.9 2.9-6 7-6s6.5 2.1 7 6" />
+                    </svg>
+                </span>
                 <span id="navbar-username" class="navbar-username"></span>
                 <span id="navbar-plan" class="navbar-plan" data-plan-key="free">Free Tier</span>
             </div>
