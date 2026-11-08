@@ -19,7 +19,7 @@ function setupNavbar(nav: HTMLElement): () => void {
             toggle?.focus();
         }
     };
-    const onResize = () => { if (window.innerWidth > 980) close(); };
+    const onResize = () => { if (window.innerWidth > 1100) close(); };
     toggle?.addEventListener("click", onClick);
     nav.addEventListener("keydown", onKey);
     window.addEventListener("resize", onResize);
