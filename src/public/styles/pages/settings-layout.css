@@ -174,3 +174,15 @@ Settings are navigated as a workspace: persistent section rail, focused content 
   .settings-setting-row { align-items: stretch; flex-direction: column; }
   .settings-setting-row button { width: 100%; }
 }
+
+
+/* Avoid marketing-style all-caps micro-labels in account and hosting settings. */
+.settings-container .settings-subscription-kicker,
+.settings-container .token-verify-usage-kicker {
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.settings-container .token-verify-usage-title,
+.settings-container .settings-api-key-name { font-weight: 550; }
