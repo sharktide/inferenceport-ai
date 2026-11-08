@@ -7,7 +7,8 @@ export class ChatBox extends HTMLElement {
                     <div id="file-preview-bar" class="file-preview-bar"></div>
                     <textarea
                         id="chat-input"
-                        placeholder="Ask anything..."
+                        placeholder="Write a message..."
+                        aria-label="Message"
                         rows="1"></textarea>
 
                      <div class="feature-btns tool-row">
