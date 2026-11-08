@@ -24,9 +24,9 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 #app-root .sidebar {
   display: flex;
   flex-direction: column;
-  flex: 0 0 300px;
-  width: 300px;
-  min-width: 300px;
+  flex: 0 0 330px;
+  width: 330px;
+  min-width: 330px;
   min-height: 0;
   gap: 12px;
   padding: 20px 14px 14px;
@@ -314,7 +314,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  width: min(100%, 880px);
+  width: min(100%, 860px);
   min-height: 51px;
   margin: 0 auto;
   padding: 12px 3px 10px;
@@ -333,7 +333,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 
 #app-root #chat-box {
   flex: 1 1 auto;
-  width: min(100%, 880px);
+  width: min(100%, 860px);
   max-width: none;
   min-width: 0;
   min-height: 0;
@@ -387,7 +387,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 #app-root .chat-panel chat-box {
   display: block;
   flex: 0 0 auto;
-  width: min(100%, 880px);
+  width: min(100%, 860px);
   max-width: 100%;
   margin: 0 auto;
 }
@@ -429,7 +429,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 }
 #app-root .chat-panel.welcome-mode .welcome-hero {
   display: block;
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   margin: 0 auto 18px;
 }
 #app-root .chat-panel.welcome-mode .welcome-title {
@@ -451,7 +451,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   margin: 22px auto 0;
   gap: 3px;
 }
@@ -493,7 +493,7 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 }
 #app-root .chat-panel.welcome-mode chat-box {
   display: block;
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   flex: 0 0 auto;
   margin: 0 auto;
 }
