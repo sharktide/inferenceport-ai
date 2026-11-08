@@ -266,7 +266,68 @@ main.home-main .home-model-filter:focus-visible {
   outline-offset: 1px;
 }
 
-.home-media-list { display: flex; flex-direction: column; }
+.home-media-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.home-media-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-light) 89%, transparent);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.home-media-tile:hover {
+  border-color: color-mix(in srgb, var(--blue) 32%, var(--glass-border));
+  background: color-mix(in srgb, var(--blue) 7%, var(--bg-light));
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+.home-media-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-bottom: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--bg-secondary) 32%, var(--bg-light));
+}
+.home-media-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.home-media-type {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 450;
+}
+.home-media-copy { display: grid; gap: 4px; padding: 11px 12px 13px; min-width: 0; }
+.home-media-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 520;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.home-media-date {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.home-media-list .home-empty { grid-column: 1 / -1; }
 .home-connection-panel {
   display: flex;
   align-items: flex-start;
@@ -330,8 +391,13 @@ footer.home-legal-footer a:hover,
 @media (max-width: 1050px) {
   main.home-main,
   footer.home-legal-footer { width: calc(100% - 56px); }
-  .home-grid { gap: 30px; }
-  .home-secondary-column > .home-panel { padding: 20px; }
+  .home-grid { display: flex; flex-direction: column; gap: 28px; }
+  .home-primary-column, .home-secondary-column { display: contents; }
+  .home-primary-column > .home-panel:first-child { order: 1; }
+  .home-secondary-column > .home-panel { order: 2; }
+  .home-primary-column > .home-studio-panel { order: 3; }
+  .home-secondary-column > .home-connection-panel { order: 4; }
+  .home-secondary-column > .home-panel { width: 100%; padding: 20px; }
 }
 
 @media (max-width: 760px) {
@@ -340,19 +406,18 @@ footer.home-legal-footer a:hover,
   main.home-main { padding: 24px 0 30px; }
   .home-header { align-items: flex-start; flex-direction: column; gap: 18px; }
   .home-actions { width: 100%; }
-  .home-grid { display: flex; flex-direction: column; gap: 26px; }
-  .home-primary-column, .home-secondary-column { display: contents; }
-  .home-primary-column { padding: 0; border: 0; }
-  .home-primary-column > .home-panel:first-child { order: 1; }
-  .home-secondary-column > .home-panel { order: 2; }
-  .home-primary-column > .home-studio-panel { order: 3; }
-  .home-secondary-column > .home-connection-panel { order: 4; }
+  .home-grid { gap: 26px; }
   .home-studio-panel { padding-top: 26px; }
+  .home-media-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-secondary-column > .home-panel { width: 100%; padding: 18px; }
   footer.home-legal-footer { align-items: flex-start; flex-direction: column; }
 }
 
 @media (max-width: 430px) {
+  .home-media-list { grid-template-columns: minmax(0, 1fr); }
+  .home-media-tile { flex-direction: row; }
+  .home-media-preview { width: 112px; flex: 0 0 112px; aspect-ratio: 1 / 1; border-bottom: none; border-right: 1px solid var(--glass-border); }
+  .home-media-copy { align-self: center; }
   .home-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home-actions .home-button-primary { grid-column: 1 / -1; }
   .home-panel-heading h2 { font-size: 18px; }
@@ -362,7 +427,7 @@ footer.home-legal-footer a:hover,
 
 @media (prefers-reduced-motion: reduce) {
   main.home-main .home-button,
-  .home-list-row { transition: none; }
+  .home-list-row, .home-media-tile { transition: none; }
   main.home-main .home-button:hover,
   .home-list-row:hover { transform: none; }
 }
