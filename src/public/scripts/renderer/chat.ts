@@ -5910,6 +5910,13 @@ async function renderChat() {
 	}
 
 	const session = sessions[currentSessionId];
+    const threadTitle = document.getElementById("chat-current-title");
+    if (threadTitle) {
+        threadTitle.textContent =
+            typeof session?.name === "string" && session.name.trim()
+                ? session.name
+                : "Conversation";
+    }
 	const flatHistory = session
 		? getSessionFlatHistory(session, currentSessionId || undefined)
 		: [];
