@@ -297,6 +297,9 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
   width: min(900px, 100%);
   margin-bottom: 0;
 }
+#app-root .chat-panel chat-box .typing-bar.composer-shell {
+  margin-bottom: 0;
+}
 
 /* Keep the Lightning toggle readily available without a large promotional card. */
 #app-root .sidebar {
@@ -379,6 +382,8 @@ Chat workspace: useful sidebar, readable conversation column, responsive session
   #app-root .chat-panel #chat-box { padding: 12px 6px; }
   #app-root .chat-panel chat-box { margin-bottom: 0; }
   #chat-form .composer-shell {
+    --composer-btn-size: 34px;
+    --composer-btn-size-mobile: 34px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
