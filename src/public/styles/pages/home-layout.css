@@ -86,8 +86,19 @@ main.home-main .home-button:disabled { cursor: default; opacity: 0.55; transform
   gap: 36px;
 }
 .home-primary-column {
-  padding-right: clamp(28px, 3vw, 48px);
-  border-right: 1px solid var(--glass-border);
+  padding-right: 0;
+}
+
+/* The installed-model browser is a single, purposeful glass work surface.
+   Conversation and Studio lists remain unboxed. */
+.home-secondary-column > .home-panel {
+  padding: 22px 24px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-light) 91%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 7px 24px rgba(0,0,0,.04);
 }
 
 .home-panel {
@@ -320,7 +331,7 @@ footer.home-legal-footer a:hover,
   main.home-main,
   footer.home-legal-footer { width: calc(100% - 56px); }
   .home-grid { gap: 30px; }
-  .home-primary-column { padding-right: 28px; }
+  .home-secondary-column > .home-panel { padding: 20px; }
 }
 
 @media (max-width: 760px) {
@@ -337,6 +348,7 @@ footer.home-legal-footer a:hover,
   .home-primary-column > .home-studio-panel { order: 3; }
   .home-secondary-column > .home-connection-panel { order: 4; }
   .home-studio-panel { padding-top: 26px; }
+  .home-secondary-column > .home-panel { width: 100%; padding: 18px; }
   footer.home-legal-footer { align-items: flex-start; flex-direction: column; }
 }
 
