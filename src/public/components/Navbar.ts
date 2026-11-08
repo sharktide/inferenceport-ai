@@ -33,12 +33,14 @@ function setupNavbar(nav: HTMLElement): () => void {
 const userIndicatorMarkup = `
     <div id="user-indicator" class="navbar-user-indicator">
         <div class="navbar-account-meta">
-            <span id="navbar-username" class="navbar-username"></span>
-            <span id="navbar-plan" class="navbar-plan" data-plan-key="free">Free Tier</span>
-        <div class="navbar-action-group">
-            <button id="navbar-upgrade-btn" class="navbar-action-btn navbar-action-btn--primary" type="button">Upgrade</button>
-            <button id="navbar-signin-btn" class="navbar-action-btn navbar-action-btn--secondary" type="button">Sign In</button>
-        </div>
+            <div class="navbar-account-identity">
+                <span id="navbar-username" class="navbar-username"></span>
+                <span id="navbar-plan" class="navbar-plan" data-plan-key="free">Free Tier</span>
+            </div>
+            <div class="navbar-action-group">
+                <button id="navbar-upgrade-btn" class="navbar-action-btn navbar-action-btn--primary" type="button">Upgrade</button>
+                <button id="navbar-signin-btn" class="navbar-action-btn navbar-action-btn--secondary" type="button">Sign In</button>
+            </div>
         </div>
     </div>
 `;
