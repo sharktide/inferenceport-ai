@@ -865,3 +865,47 @@ and a genuinely centered new-chat state. Preserve glass and hover feedback.
 @media (prefers-reduced-motion: reduce) {
   #app-root #chat-box .chat-message-controls { transition: none; }
 }
+
+
+/* Brief onboarding help lives next to the mode switch, not in a promo card. */
+#app-root .sidebar .lightning-cloud-hint {
+  margin-left: 5px;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 420;
+  white-space: nowrap;
+}
+#app-root .sidebar .lightning-about {
+  padding: 0 8px 2px;
+  color: var(--text-secondary);
+}
+#app-root .sidebar .lightning-about summary {
+  display: list-item;
+  width: fit-content;
+  padding: 5px 2px;
+  color: color-mix(in srgb, var(--blue) 66%, var(--text-primary));
+  font-size: 11.5px;
+  font-weight: 480;
+  line-height: 1.5;
+  cursor: pointer;
+}
+#app-root .sidebar .lightning-about summary:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+#app-root .sidebar .lightning-about summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+#app-root .sidebar .lightning-about p {
+  margin: 2px 0 10px;
+  max-width: 100%;
+  padding: 0 3px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.55;
+  font-weight: 400;
+}
+@media (max-width: 420px) {
+  #app-root .sidebar .lightning-cloud-hint { font-size: 10px; }
+}
