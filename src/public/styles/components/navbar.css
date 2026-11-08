@@ -30,8 +30,8 @@ nav {
   gap: 9px;
   flex-shrink: 0;
   font-size: 15px;
-  font-weight: 750;
-  letter-spacing: -0.035em;
+  font-weight: 620;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   color: var(--text-dark);
   text-decoration: none;
@@ -60,7 +60,7 @@ nav {
   border-radius: 9px;
   color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 450;
   text-decoration: none;
   transition: color 160ms ease, background-color 160ms ease;
 }
@@ -71,7 +71,7 @@ nav {
 }
 .nav-links a[aria-current="page"] {
   color: var(--text-dark);
-  font-weight: 650;
+  font-weight: 560;
   background: color-mix(in srgb, var(--blue) 13%, transparent);
 }
 
@@ -125,7 +125,7 @@ nav {
 }
 
 .navbar-username {
-  font-weight: 700;
+  font-weight: 550;
   color: var(--dark-text);
   max-width: 150px;
   white-space: nowrap;
@@ -142,7 +142,7 @@ nav {
   padding: 0 12px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 550;
   letter-spacing: 0.02em;
   white-space: nowrap;
   color: #fff;
