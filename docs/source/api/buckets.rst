@@ -9,7 +9,7 @@ storage operations with ``503``.
 Endpoints and ownership
 -----------------------
 
-The S3 endpoint is ``https://api.inferenceport.ai/{workspace-id}/s3/``. Copy the
+For S3 client connection settings use ``https://api.inferenceport.ai/{workspace-id}/s3`` (without a trailing slash). Copy the
 exact endpoint from the console's Connect tab, ``ipx bucket connection``, or the
 credential issuance response. The workspace ID is your personal user UUID or the
 organization UUID. Use path-style URLs
@@ -115,8 +115,11 @@ Visibility alone does not grant S3 listing or management access.
 Owner-only ACL requests accept ``private``, ``bucket-owner-full-control``, or the
 canonical owner's sole full-control XML grant. Public/external ACL grants are
 rejected. These requests preserve existing bucket visibility and policy access;
-``private`` does not override an explicit public bucket policy. Anonymous S3
-listing requires a policy grant; visibility alone does not grant it.
+The bucket's ``visibility=private`` setting overrides anonymous Allow grants
+from S3 bucket policies, including policy-granted listing. A public bucket can
+allow anonymous known-object downloads, but anonymous listing additionally
+requires an explicit policy Allow; policy Deny rules can restrict both.
+This private-access guarantee requires server security fix #183 to be deployed.
 
 Public download operations and transfer are billed to the bucket's personal or
 organization wallet. Organization-wide spending limits and available credits
@@ -125,7 +128,8 @@ they do not use a publishing administrator's individual budget. Downloads may
 fail when pricing or credits are unavailable. Public access has IP and bucket
 request limits.
 
-PATCH ``{"visibility":"private"}`` blocks new anonymous requests. Responses use
+PATCH ``{"visibility":"private"}`` blocks new anonymous requests, including
+those otherwise allowed by a bucket policy, once server #183 is deployed. Responses use
 ``Cache-Control: no-store``; already downloaded files and transfers already
 accepted cannot be recalled. Pausing uploads does not disable public downloads.
 Deleted buckets and unavailable owners cannot serve public objects. Object
@@ -167,9 +171,10 @@ Tag changes do not change an object's LastModified.
 
 Bucket policies enforce Allow/Deny rules beneath existing workspace, role and
 credential limits. Public-access blocks constrain public visibility and policy
-access. Per-bucket CORS rules apply on workspace-scoped endpoints. Explicit public
-policies can grant anonymous reads or listing; visibility alone grants only
-known-object downloads. Requester Pays requires the request acknowledgment while
+access. Per-bucket CORS rules apply on workspace-scoped endpoints. Explicit public policies may grant anonymous reads or listing *only while*
+``visibility=public``; visibility alone grants only known-object downloads.
+Policies can further restrict access with explicit Deny rules. Public-access blocks
+also reject wildcard and broad ``NotPrincipal`` grants. Requester Pays requires the request acknowledgment while
 charges continue to use the owning workspace wallet. Cross-account AWS IAM
 semantics are not implemented.
 
