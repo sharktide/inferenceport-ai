@@ -34,6 +34,16 @@ You may download them at https://inference.js.org/install.html
 | NVIDIA Jetson Linux    | ARM64       | JetPack 5 | tar.xz |
 | NVIDIA Jetson Linux    | ARM64       | JetPack 6 | tar.xz |
 
+## Planned Devin bot engineering workflow
+
+We're exploring [Cognition's Devin](https://devin.ai/) as an autonomous engineering agent for the InferencePort AI desktop app. Our **first proposed Devin task** is [issue #515: Hybrid inference privacy and routing regression harness](https://github.com/sharktide/inferenceport-ai/issues/515).
+
+The goal is a review-ready PR that adds deterministic, privacy-preserving tests for our local Ollama, authenticated remote-server, and Lightning cloud inference paths. The tests will verify that local-only organization policies cannot silently trigger cloud requests, that switching accounts or organizations does not mix authorization or billing context, and that streaming failures and cancellations are handled correctly. We'd wire these tests into GitHub Actions so future changes are checked automatically.
+
+**How we intend to work with Devin:** provide the scoped GitHub issue and repository context; let Devin investigate the Electron/TypeScript code, implement a test harness, run compilation and tests, and open a PR; then perform human code review and CI verification before merging. Test traffic must be synthetic or sanitized, with no production credentials or customer prompts exposed to the agent.
+
+This is a **proposed integration and active engineering task**, not a claim that Devin is already operating in production. We plan to evaluate it by test coverage, regressions caught before release, and the time to a validated PR.
+
 ## Now introducing: InferencePort 2
 InferencePort 2 is packed with new features, each going to be released incrementally. Here's what we have in store:
 
