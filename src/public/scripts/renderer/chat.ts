@@ -692,16 +692,17 @@ const lightningToggleTop = document.getElementById(
 ) as ToggleSwitchElement | null;
 const lightningToggleSidebar = document.getElementById(
 	"lightning-toggle-sidebar",
-) as ToggleSwitchElement | null;
+) as HTMLInputElement | null;
 const lightningToggleStatus = document.getElementById(
 	"lightning-toggle-status",
 ) as ToggleSwitchElement | null;
 const sidebarControls = document.getElementById(
 	"sidebar-controls",
 ) as HTMLDivElement | null;
-const lightningStatus = document.getElementById(
-	"lightning-status",
-) as HTMLDivElement | null;
+const lightningModeDescription = document.getElementById(
+    "lightning-mode-description",
+) as HTMLSpanElement | null;
+const lightningModeBanner = document.querySelector<HTMLElement>(".lightning-sidebar-banner");
 const sidebarChatPane = document.getElementById("sidebar-chat-pane") as HTMLDivElement | null;
 const sidebarMediaPane = document.getElementById("sidebar-media-pane") as HTMLDivElement | null;
 const sidebarTrashPane = document.getElementById("sidebar-trash-pane") as HTMLDivElement | null;
@@ -801,7 +802,8 @@ function setupSidebarModeTabs(): void {
 
 const urlParams = new URLSearchParams(window.location.search);
 const isSnipMode = urlParams.get("snip") === "1";
-const forceLightning = isSnipMode || urlParams.get("lightning") === "1";
+const requestedLocalModel = urlParams.get("model");
+const forceLightning = isSnipMode || (urlParams.get("lightning") === "1" && !requestedLocalModel);
 
 if (isSnipMode) {
 	document.documentElement.classList.add("snip-mode");
@@ -836,7 +838,8 @@ const LIGHTNING_MODEL_DISPLAY = "@InferencePort/Lightning-Text-v2";
 const LIGHTNING_MODEL_VALUE = "lightning";
 const LIGHTNING_CLIENT_URL = "lightning";
 const LIGHTNING_ENABLED_KEY = "lightning_enabled";
-let lightningEnabled = forceLightning ? true : readLightningSetting();
+// An explicitly selected installed model takes precedence over the saved cloud setting.
+let lightningEnabled = requestedLocalModel ? false : (forceLightning ? true : readLightningSetting());
 const assetObjectUrlCache = new Map<string, string>();
 
 // Centralized cache key parser. Expected format: "<type>:<assetId>"
@@ -1629,8 +1632,15 @@ function syncLightningToggles(enabled: boolean): void {
 
 function applyLightningState(): void {
 	syncLightningToggles(lightningEnabled);
-	sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
-	lightningStatus?.setAttribute("aria-hidden", String(!lightningEnabled));
+    sidebarControls?.classList.toggle("lightning-enabled", lightningEnabled);
+    lightningModeBanner?.classList.toggle("is-active", lightningEnabled);
+    if (lightningModeDescription) {
+        lightningModeDescription.textContent = orgLightningBlocked
+            ? "Unavailable · managed by your organization"
+            : lightningEnabled
+                ? "On · Cloud Text v2"
+                : "Off · Local models";
+    }
 	if (hostSelect) hostSelect.disabled = lightningEnabled;
 	modelSelect.disabled = lightningEnabled;
 	void setTitle();
@@ -1648,7 +1658,7 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 	[lightningToggleTop, lightningToggleSidebar, lightningToggleStatus].forEach(
 		(toggle) => {
 			if (!toggle) return;
-			toggle.disabled = blocked;
+			toggle.disabled = blocked || forceLightning;
 			if (blocked) toggle.title = reason;
 			else toggle.removeAttribute("title");
 			toggle.closest<HTMLElement>(".lightning-toggle-inline")?.classList.toggle("org-locked", blocked);
@@ -1661,11 +1671,11 @@ function applyOrgLightningPolicy(view: OrgPolicyView | null): void {
 		} catch (e) {
 			void 0;
 		}
-		applyLightningState();
 		void setToolSupport();
 		setVisionSupport();
 		showNotification({ type: "info", message: reason });
 	}
+    applyLightningState();
 }
 
 function setLightningEnabled(enabled: boolean): void {
@@ -1697,6 +1707,7 @@ function initLightningToggleEvents(): void {
 			(toggle) => {
 				if (!toggle) return;
 				toggle.checked = true;
+                toggle.disabled = true;
 				toggle.setAttribute("aria-disabled", "true");
 				toggle.setAttribute("tabindex", "-1");
 			},
@@ -2332,7 +2343,14 @@ async function loadOptions() {
 			}
 		}
 
-		currentSessionId = Object.keys(sessions)[0] || createNewSession();
+        const requestedSession = urlParams.get("session");
+        currentSessionId = requestedSession && Object.prototype.hasOwnProperty.call(sessions, requestedSession)
+            ? requestedSession
+            : Object.keys(sessions)[0] || createNewSession();
+        if (requestedSession && requestedSession === currentSessionId) {
+            lastAccessMap[currentSessionId] = Date.now();
+            saveLastAccessMap();
+        }
 		renderSessionList();
 		await renderChat();
 		// initMediaLibrary is not on the critical path — defer it
@@ -5475,11 +5493,14 @@ function buildMessageVersionNav(
 
 	const nav = document.createElement("div");
 	nav.className = "chat-message-version-nav";
+    nav.setAttribute("role", "group");
+    nav.setAttribute("aria-label", "Message versions");
 
 	const prev = document.createElement("button");
 	prev.type = "button";
 	prev.className = "chat-message-version-btn";
 	prev.innerHTML = "&#8249;";
+    prev.setAttribute("aria-label", "Previous message version");
 	prev.disabled = current <= 0;
 	prev.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -5494,6 +5515,7 @@ function buildMessageVersionNav(
 	next.type = "button";
 	next.className = "chat-message-version-btn";
 	next.innerHTML = "&#8250;";
+    next.setAttribute("aria-label", "Next message version");
 	next.disabled = current >= total - 1;
 	next.addEventListener("click", (event) => {
 		event.stopPropagation();
@@ -5766,6 +5788,37 @@ function buildMessageActions(
 	return actions;
 }
 
+/**
+ * Keep message actions outside the content bubble. Short user messages need
+ * room for controls without forcing the bubble to become 200px wide, and long
+ * replies must never have action buttons floating over their last paragraph.
+ */
+function appendMessageWithControls(
+    chatContainer: HTMLElement,
+    bubble: HTMLDivElement,
+    message: any,
+    messageIndex: number,
+): void {
+    const group = document.createElement("div");
+    group.className =
+        message.role === "user"
+            ? "chat-message-group chat-message-group--user"
+            : "chat-message-group chat-message-group--assistant";
+    group.appendChild(bubble);
+
+    const actions = buildMessageActions(message, messageIndex);
+    const versionNav = buildMessageVersionNav(message, messageIndex);
+    if (actions || versionNav) {
+        const controls = document.createElement("div");
+        controls.className = "chat-message-controls";
+        if (actions) controls.appendChild(actions);
+        if (versionNav) controls.appendChild(versionNav);
+        group.appendChild(controls);
+    }
+
+    chatContainer.appendChild(group);
+}
+
 function isSafeHttpImageUrl(url: string): boolean {
 	return /^https?:\/\//i.test(url);
 }
@@ -5901,6 +5954,13 @@ async function renderChat() {
 	}
 
 	const session = sessions[currentSessionId];
+    const threadTitle = document.getElementById("chat-current-title");
+    if (threadTitle) {
+        threadTitle.textContent =
+            typeof session?.name === "string" && session.name.trim()
+                ? session.name
+                : "Conversation";
+    }
 	const flatHistory = session
 		? getSessionFlatHistory(session, currentSessionId || undefined)
 		: [];
@@ -6014,15 +6074,7 @@ async function renderChat() {
 				bubble.appendChild(row);
 			}
 
-			const actions = buildMessageActions(msg, messageIndex);
-			const versionNav = buildMessageVersionNav(msg, messageIndex);
-			if (versionNav) {
-				bubble.appendChild(versionNav);
-			}
-			if (actions) {
-				bubble.appendChild(actions);
-			}
-			chatBoxEl.appendChild(bubble);
+			appendMessageWithControls(chatBoxEl, bubble, msg, messageIndex);
 			continue;
 		}
 
@@ -6168,16 +6220,7 @@ async function renderChat() {
 				}
 			});
 
-			const actions = buildMessageActions(msg, messageIndex);
-			const versionNav = buildMessageVersionNav(msg, messageIndex);
-			if (versionNav) {
-				botContainer.appendChild(versionNav);
-			}
-			if (actions) {
-				botContainer.appendChild(actions);
-			}
-
-			chatBoxEl.appendChild(botContainer);
+			appendMessageWithControls(chatBoxEl, botContainer, msg, messageIndex);
 			continue;
 		}
 

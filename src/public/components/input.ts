@@ -23,6 +23,8 @@ class ToggleSwitch extends HTMLElement {
             label.style.marginRight = "10px";
             const input = document.createElement("input");
             input.type = "checkbox";
+            const accessibleName = this.getAttribute("aria-label");
+            if (accessibleName) input.setAttribute("aria-label", accessibleName);
 
             const slider = document.createElement("span");
             slider.className = "slider";

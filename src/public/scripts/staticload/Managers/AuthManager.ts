@@ -286,13 +286,13 @@ class AuthManager {
                 planSpan.textContent = plan;
                 planSpan.setAttribute("title", plan);
                 planSpan.dataset.planKey = planKey;
-                upgradeBtn.style.display = "inline-block";
+                upgradeBtn.style.display = "inline-flex";
                 upgradeBtn.textContent = planKey === "free" ? "Upgrade" : "Manage Plan";
                 upgradeBtn.onclick = () => {
                     this.openUpgradeModal(plan, planKey, tiers, settingsUpgradeTarget);
                 };
                 signinBtn.textContent = "Sign Out";
-                signinBtn.style.display = "inline-block";
+                signinBtn.style.display = "inline-flex";
                 signinBtn.onclick = () => {
                     window.auth.signOut();
                     this.resolveAuth(true);
@@ -302,13 +302,13 @@ class AuthManager {
                 planSpan.textContent = AuthManager.PLAN_DISPLAY_NAMES.free;
                 planSpan.setAttribute("title", AuthManager.PLAN_DISPLAY_NAMES.free);
                 planSpan.dataset.planKey = "free";
-                upgradeBtn.style.display = "inline-block";
+                upgradeBtn.style.display = "inline-flex";
                 upgradeBtn.textContent = "Upgrade";
                 upgradeBtn.onclick = () => {
                     this.openAccountRequiredModal(settingsUpgradeTarget);
                 };
                 signinBtn.textContent = "Sign In";
-                signinBtn.style.display = "inline-block";
+                signinBtn.style.display = "inline-flex";
                 signinBtn.onclick = () => {
                     this.resolveAuth(true);
                 };

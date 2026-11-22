@@ -18,12 +18,16 @@
 				color: var(--text-dark);
 			}
 		</style>
+        <link rel="stylesheet" href="styles/pages/settings-layout.css" />
 	</head>
 	<body>
 		<root-navbar></root-navbar>
 		<main class="settings-main">
+            <header class="settings-page-header">
+                <h1>Settings</h1>
+                <p>Manage your workspace, connections, and account.</p>
+            </header>
 			<div class="settings-container">
-				<h1>Settings</h1>
 
 				<div class="tab-container">
 					<div class="tab-buttons">
@@ -31,13 +35,23 @@
 						<button class="tab-button" data-tab="startup">Startup</button>
 						<button class="tab-button" data-tab="account">Account</button>
 						<button class="tab-button" data-tab="syncing">Syncing</button>
-						<button class="tab-button" data-tab="host">Host (Proxy)</button>
-						<button class="tab-button" data-tab="tools">Tools (Functions)</button>
+						<button class="tab-button" data-tab="host">Hosting</button>
+						<button class="tab-button" data-tab="tools">Tools</button>
 					</div>
 					<div class="tab-content">
 						<div class="tab-pane active" id="general">
-							<button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
-						</div>
+                            <div class="settings-pane-heading">
+                                <h2>Appearance</h2>
+                                <p>Choose how InferencePort looks on this device.</p>
+                            </div>
+                            <div class="settings-setting-row">
+                                <div>
+                                    <h3>Color theme</h3>
+                                    <p class="muted">Switch between the light and dark workspace.</p>
+                                </div>
+                                <button id="theme-toggle" class="theme-toggle">Toggle theme</button>
+                            </div>
+                        </div>
 						<div class="tab-pane" id="startup">
 							<label class="settings-checkbox">
 								<input type="checkbox" id="startup-run-at-login">

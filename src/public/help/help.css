@@ -56,3 +56,37 @@ pre { white-space: pre-wrap; }
 
 .logo { font-weight: 700; }
 .nav-links a { color: var(--text-dark); }
+/* Shared help branding uses the packaged application logo, not a text symbol. */
+nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px clamp(18px, 3vw, 36px);
+}
+.help-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-dark);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+.help-logo:hover { color: var(--text-dark); text-decoration: none; }
+.help-logo img { width: 24px; height: 26px; object-fit: contain; }
+.help-label {
+    margin-left: 4px;
+    padding-left: 14px;
+    border-left: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+}
+nav .nav-links { margin: 0; }
+main { color: var(--text-dark); }
+@media (max-width: 560px) {
+    nav { flex-wrap: wrap; }
+    main { padding: 24px 18px !important; }
+}
