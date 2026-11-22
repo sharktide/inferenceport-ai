@@ -41,7 +41,7 @@
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "electron": "^45.0.0",
     "electron-builder": "^27.0.0-alpha.10",
-    "glob": "^13.0.6",
+    "glob": "^14.0.4",
     "typescript": "^7.0.2",
     "yauzl": "^3.4.0"
   },
