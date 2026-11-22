@@ -36,18 +36,13 @@ function getClientUrl(): string | undefined {
 		: undefined;
 }
 
-const TOOL_FEATURES = [
-	{ key: "web", label: "Web search", icon: "🌐" },
-	{ key: "image", label: "Image generation", icon: "🖼️" },
-];
-
 function stripAnsi(str: string): string {
 	return str.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, "");
 }
 
 const MODEL_CAPABILITIES = [
-	{ key: "tools", label: "Tools", icon: "🛠️" },
-	{ key: "vision", label: "Vision", icon: "👁️" },
+	{ key: "tools", label: "Tools" },
+	{ key: "vision", label: "Vision" },
 ] as const;
 
 function normalizeModelId(modelName: string): string {
@@ -80,7 +75,7 @@ function appendCapabilityBadges(target: HTMLElement, modelName: string): void {
 		if (!isOn) continue;
 		const span = document.createElement("span");
 		span.className = "feature-badge on";
-		span.textContent = `${cap.icon} ${cap.label}`;
+		span.textContent = cap.label;
 		featuresDiv.appendChild(span);
 	}
 

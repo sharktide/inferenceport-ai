@@ -1,0 +1,188 @@
+/*
+Copyright 2026 InferencePort LLC
+Settings are navigated as a workspace: persistent section rail, focused content pane.
+*/
+
+.settings-main {
+  width: 100%;
+  max-width: 1240px;
+  padding: clamp(22px, 3vw, 42px) clamp(18px, 3vw, 38px) 50px;
+}
+
+.settings-page-header { margin-bottom: 26px; }
+
+.settings-page-header h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 550;
+  line-height: 1.16;
+  letter-spacing: -0.015em;
+  margin: 0 0 7px;
+}
+.settings-page-header > p:last-child {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.settings-container {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-container .tab-container {
+  display: grid;
+  grid-template-columns: 214px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.settings-container .tab-buttons {
+  position: sticky;
+  top: 88px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 7px;
+  gap: 3px;
+  border: 1px solid var(--glass-border);
+  border-radius: 13px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.settings-container .tab-button {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 13px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  box-shadow: none;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--text-secondary);
+}
+
+.settings-container .tab-button:hover {
+  color: var(--text-dark);
+  background: color-mix(in srgb, var(--blue) 8%, var(--bg-light));
+}
+
+.settings-container .tab-button.active {
+  color: var(--text-dark);
+  background: color-mix(in srgb, var(--blue) 13%, var(--bg-light));
+  border-color: color-mix(in srgb, var(--blue) 20%, transparent);
+  box-shadow: inset 3px 0 0 var(--blue);
+  transform: none;
+  font-weight: 550;
+}
+
+.settings-container .tab-content { width: 100%; min-width: 0; }
+
+.settings-container #tools > h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.settings-container .tab-pane {
+  min-width: 0;
+  min-height: 330px;
+  padding: clamp(20px, 2.5vw, 30px);
+  border: 1px solid var(--glass-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--bg-light) 89%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+  gap: 16px;
+}
+
+[data-theme="dark"] .settings-container .tab-pane {
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
+}
+
+.settings-pane-heading h2 {
+  margin: 0 0 7px;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  font-weight: 540;
+}
+
+.settings-pane-heading p {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.settings-setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid var(--glass-border);
+}
+
+.settings-setting-row h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 530;
+}
+
+.settings-setting-row p { font-size: 13px; }
+.settings-setting-row button { flex: 0 0 auto; }
+
+.settings-container .settings-subscription-card,
+.settings-container .settings-api-card { border-radius: 13px; }
+.settings-container .settings-api-card-header,
+.settings-container .settings-subscription-header { align-items: flex-start; }
+
+@media (max-width: 780px) {
+  .settings-main { padding: 24px 16px 40px; }
+  .settings-container .tab-container { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .settings-container .tab-buttons {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 6px;
+    scrollbar-width: thin;
+  }
+  .settings-container .tab-button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 94px;
+    white-space: nowrap;
+    text-align: center;
+    padding: 10px 12px;
+  }
+  .settings-container .tab-button.active { box-shadow: inset 0 -3px 0 var(--blue); }
+  .settings-container .tab-pane { min-height: 0; padding: 18px; }
+}
+
+@media (max-width: 520px) {
+  .settings-setting-row { align-items: stretch; flex-direction: column; }
+  .settings-setting-row button { width: 100%; }
+}
+
+
+/* Avoid marketing-style all-caps micro-labels in account and hosting settings. */
+.settings-container .settings-subscription-kicker,
+.settings-container .token-verify-usage-kicker {
+  font-size: 12px;
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.settings-container .token-verify-usage-title,
+.settings-container .settings-api-key-name { font-weight: 550; }
